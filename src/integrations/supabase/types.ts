@@ -1169,6 +1169,107 @@ export type Database = {
           },
         ]
       }
+      investors: {
+        Row: {
+          check_size_max: number | null
+          check_size_min: number | null
+          created_at: string
+          custom_fields: Json | null
+          email: string | null
+          firm_name: string | null
+          first_contact_date: string | null
+          id: string
+          investment_focus: string[] | null
+          last_contact_date: string | null
+          linkedin_url: string | null
+          meetings_count: number | null
+          name: string
+          next_follow_up: string | null
+          notes: string | null
+          phone: string | null
+          portfolio_companies: string[] | null
+          priority: string | null
+          stage_focus: string[] | null
+          startup_id: string
+          status: string | null
+          tags: string[] | null
+          title: string | null
+          twitter_url: string | null
+          type: string | null
+          updated_at: string
+          warm_intro_from: string | null
+          website_url: string | null
+        }
+        Insert: {
+          check_size_max?: number | null
+          check_size_min?: number | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          firm_name?: string | null
+          first_contact_date?: string | null
+          id?: string
+          investment_focus?: string[] | null
+          last_contact_date?: string | null
+          linkedin_url?: string | null
+          meetings_count?: number | null
+          name: string
+          next_follow_up?: string | null
+          notes?: string | null
+          phone?: string | null
+          portfolio_companies?: string[] | null
+          priority?: string | null
+          stage_focus?: string[] | null
+          startup_id: string
+          status?: string | null
+          tags?: string[] | null
+          title?: string | null
+          twitter_url?: string | null
+          type?: string | null
+          updated_at?: string
+          warm_intro_from?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          check_size_max?: number | null
+          check_size_min?: number | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          firm_name?: string | null
+          first_contact_date?: string | null
+          id?: string
+          investment_focus?: string[] | null
+          last_contact_date?: string | null
+          linkedin_url?: string | null
+          meetings_count?: number | null
+          name?: string
+          next_follow_up?: string | null
+          notes?: string | null
+          phone?: string | null
+          portfolio_companies?: string[] | null
+          priority?: string | null
+          stage_focus?: string[] | null
+          startup_id?: string
+          status?: string | null
+          tags?: string[] | null
+          title?: string | null
+          twitter_url?: string | null
+          type?: string | null
+          updated_at?: string
+          warm_intro_from?: string | null
+          website_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investors_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           content: string | null
