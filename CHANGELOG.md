@@ -5,6 +5,61 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-15
+
+### Added
+- **Investors Module** (Complete)
+  - `investors` database table with RLS policies
+  - 8 sample seed investors (Sequoia, a16z, YC, Lightspeed, etc.)
+  - InvestorPipeline kanban board with 8 status columns
+  - Drag-and-drop status updates
+  - InvestorCard with firm, check size, priority, investment focus
+  - InvestorDialog with 3-tab form (Basic, Investment, Tracking)
+  - InvestorDetailSheet with full profile, timeline, actions
+  - FundraisingProgress component with target vs committed
+  - useInvestors hook with full CRUD operations
+  - Status and type filtering
+  - Search functionality
+  - Pipeline and list view toggle
+
+- **Tasks Module** (Complete)
+  - KanbanBoard with 3 columns (To Do, In Progress, Done)
+  - Drag-and-drop task movement
+  - TaskCard with priority, project, due date
+  - TaskDialog for create/edit
+  - useTasks hook with CRUD + status updates
+  - Project filtering via dropdown
+  - Search by title/description
+  - List view alternative
+  - Task statistics display
+
+- **CRM Module** (Complete)
+  - Contacts list with search and type filtering
+  - ContactCard, ContactDialog, ContactDetailSheet
+  - DealPipeline visualization by stage
+  - DealDialog for deal management
+  - useCRM hook with full CRUD for contacts and deals
+  - Tabs for Contacts and Pipeline views
+
+- **Dev Bypass RLS Policies**
+  - Added SELECT policies for startups, projects, tasks, contacts, deals, documents, investors
+  - Allows data access when user_org_id() is null (dev mode)
+
+- **Progress Tracker**
+  - Created `/docs/progress-tracker.md` with comprehensive status
+
+### Fixed
+- React StrictMode wrapper in main.tsx (fixes useEffect null error)
+- TypeScript type compatibility for investor mutations
+- Task due_at vs due_date field alignment
+
+### Technical
+- useInvestors, useTasks, useCRM hooks with React Query
+- Proper error handling with toast notifications
+- Skeleton loading states for all modules
+
+---
+
 ## [0.2.0] - 2026-01-15
 
 ### Added
