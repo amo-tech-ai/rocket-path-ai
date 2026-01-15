@@ -2,6 +2,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
+// Set to true to bypass auth during development
+const DEV_BYPASS_AUTH = true;
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
@@ -16,6 +19,11 @@ export function ProtectedRoute({
   const { user, loading, isAdmin, isModerator } = useAuth();
   const location = useLocation();
 
+  // Development bypass - remove or set to false for production
+  if (DEV_BYPASS_AUTH) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -28,7 +36,6 @@ export function ProtectedRoute({
   }
 
   if (!user) {
-    // Redirect to login page, preserving the intended destination
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
