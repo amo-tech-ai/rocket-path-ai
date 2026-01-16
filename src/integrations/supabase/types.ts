@@ -2173,8 +2173,6 @@ export type Database = {
       }
       is_org_member: { Args: { check_org_id: string }; Returns: boolean }
       org_role: { Args: never; Returns: string }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       startup_in_org: { Args: { check_startup_id: string }; Returns: boolean }
       user_org_id: { Args: never; Returns: string }
     }
