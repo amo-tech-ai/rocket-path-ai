@@ -316,6 +316,62 @@ export type Database = {
           },
         ]
       }
+      automation_rules: {
+        Row: {
+          action_config: Json
+          action_type: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          enabled: boolean | null
+          id: string
+          name: string
+          requires_approval: boolean | null
+          startup_id: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_config: Json
+          action_type: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name: string
+          requires_approval?: boolean | null
+          startup_id: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_config?: Json
+          action_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          id?: string
+          name?: string
+          requires_approval?: boolean | null
+          startup_id?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benchmark_snapshots: {
         Row: {
           ai_analysis: string | null
