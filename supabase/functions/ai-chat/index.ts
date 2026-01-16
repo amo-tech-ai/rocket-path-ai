@@ -18,32 +18,30 @@ interface ChatRequest {
   };
 }
 
+// Model configuration based on action type
+const MODEL_CONFIG = {
+  chat: { provider: 'gemini', model: 'gemini-3-flash-preview' },
+  prioritize_tasks: { provider: 'anthropic', model: 'claude-sonnet-4-5' },
+  generate_tasks: { provider: 'anthropic', model: 'claude-haiku-4-5' },
+  extract_profile: { provider: 'gemini', model: 'gemini-3-flash-preview' },
+} as const;
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    
-    // Get authorization header for user context
     const authHeader = req.headers.get('Authorization');
     
-    // Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: authHeader ? { Authorization: authHeader } : {},
       },
     });
 
-    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -54,11 +52,9 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
     const body: ChatRequest = await req.json();
     const { messages, message, session_id, action = 'chat', context } = body;
 
-    // Support both single message and messages array
     const userMessage = message || messages?.[messages.length - 1]?.content;
     
     if (!userMessage) {
@@ -77,19 +73,18 @@ serve(async (req) => {
       .eq('id', user.id)
       .single();
 
-    // Get startup context if available
+    // Get startup context
     let startup = null;
-    if (context?.startup_id || profile?.org_id) {
+    if (profile?.org_id) {
       const { data } = await supabase
         .from('startups')
         .select('*')
-        .eq('org_id', profile?.org_id)
+        .eq('org_id', profile.org_id)
         .single();
       startup = data;
     }
 
-    // Build system prompt based on action type
-    let systemPrompt = buildSystemPrompt(action, {
+    const systemPrompt = buildSystemPrompt(action, {
       user_name: profile?.full_name || 'User',
       startup_name: startup?.name,
       startup_stage: startup?.stage,
@@ -98,69 +93,25 @@ serve(async (req) => {
       screen: context?.screen || 'dashboard',
     });
 
-    // Build conversation history for Gemini
-    const geminiContents = [];
+    // Get model config for this action
+    const modelConfig = MODEL_CONFIG[action] || MODEL_CONFIG.chat;
     
-    // Add previous messages if provided
-    if (messages && messages.length > 1) {
-      for (let i = 0; i < messages.length - 1; i++) {
-        const msg = messages[i];
-        geminiContents.push({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }]
-        });
-      }
-    }
-    
-    // Add current message with context
-    let currentMessageText = userMessage;
-    if (context?.data) {
-      currentMessageText += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
-    }
-    geminiContents.push({
-      role: 'user',
-      parts: [{ text: currentMessageText }]
-    });
+    let responseText = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
 
-    // Call Gemini API
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: geminiContents,
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
-        }),
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', geminiResponse.status, errorText);
-      
-      if (geminiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    if (modelConfig.provider === 'anthropic') {
+      const result = await callAnthropic(modelConfig.model, systemPrompt, messages || [], userMessage, context);
+      responseText = result.text;
+      inputTokens = result.inputTokens;
+      outputTokens = result.outputTokens;
+    } else {
+      const result = await callGemini(modelConfig.model, systemPrompt, messages || [], userMessage, context);
+      responseText = result.text;
+      inputTokens = result.inputTokens;
+      outputTokens = result.outputTokens;
     }
 
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    
-    // Parse suggested actions from response if present
     const suggestedActions = extractSuggestedActions(responseText, action);
 
     // Log the AI run
@@ -171,10 +122,11 @@ serve(async (req) => {
         startup_id: startup?.id,
         agent_name: getAgentName(action),
         action: action,
-        model: 'gemini-2.0-flash',
+        model: modelConfig.model,
+        provider: modelConfig.provider,
         status: 'completed',
-        input_tokens: geminiData.usageMetadata?.promptTokenCount || 0,
-        output_tokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
       });
     }
 
@@ -202,12 +154,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         response: responseText,
-        message: responseText, // Alias for compatibility
+        message: responseText,
         suggested_actions: suggestedActions,
-        usage: {
-          promptTokens: geminiData.usageMetadata?.promptTokenCount || 0,
-          completionTokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
-        }
+        model: modelConfig.model,
+        provider: modelConfig.provider,
+        usage: { promptTokens: inputTokens, completionTokens: outputTokens }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -222,10 +173,134 @@ serve(async (req) => {
   }
 });
 
-function buildSystemPrompt(
-  action: string,
-  context: Record<string, unknown>
-): string {
+async function callAnthropic(
+  model: string,
+  systemPrompt: string,
+  history: Array<{ role: string; content: string }>,
+  userMessage: string,
+  context?: { data?: Record<string, unknown> }
+): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is not configured');
+  }
+
+  const messages = [];
+  
+  // Add history
+  for (const msg of history.slice(0, -1)) {
+    messages.push({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content
+    });
+  }
+  
+  // Add current message with context
+  let currentMessage = userMessage;
+  if (context?.data) {
+    currentMessage += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
+  }
+  messages.push({ role: 'user', content: currentMessage });
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Anthropic API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Anthropic API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    text: data.content?.[0]?.text || '',
+    inputTokens: data.usage?.input_tokens || 0,
+    outputTokens: data.usage?.output_tokens || 0
+  };
+}
+
+async function callGemini(
+  model: string,
+  systemPrompt: string,
+  history: Array<{ role: string; content: string }>,
+  userMessage: string,
+  context?: { data?: Record<string, unknown> }
+): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+
+  const contents = [];
+  
+  // Add history
+  for (const msg of history.slice(0, -1)) {
+    contents.push({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    });
+  }
+  
+  // Add current message with context
+  let currentMessage = userMessage;
+  if (context?.data) {
+    currentMessage += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
+  }
+  contents.push({ role: 'user', parts: [{ text: currentMessage }] });
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        }
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Gemini API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return {
+    text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+    inputTokens: data.usageMetadata?.promptTokenCount || 0,
+    outputTokens: data.usageMetadata?.candidatesTokenCount || 0
+  };
+}
+
+function buildSystemPrompt(action: string, context: Record<string, unknown>): string {
   const baseContext = `
 You are assisting ${context.user_name} with ${context.startup_name || 'their startup'}.
 Stage: ${context.startup_stage || 'Unknown'}
@@ -236,9 +311,8 @@ Current screen: ${context.screen}
 
   switch (action) {
     case 'prioritize_tasks':
-      return `You are TaskPrioritizer, an AI agent specialized in helping founders focus their limited time on the highest-impact activities.
-Analyze tasks and return them ranked by urgency, importance, and strategic alignment.
-Use the Eisenhower Matrix adapted for startups:
+      return `You are TaskPrioritizer, an AI agent specialized in helping founders focus on high-impact activities.
+Analyze tasks using the Eisenhower Matrix adapted for startups:
 - Q1: Urgent + Important (Do first)
 - Q2: Important (Schedule)
 - Q3: Urgent (Delegate or quick win)
@@ -246,40 +320,30 @@ Use the Eisenhower Matrix adapted for startups:
 
 ${baseContext}
 
-Return a JSON object with:
-- prioritized_tasks: Array of tasks with rank, urgency_score, impact_score, reasoning
-- focus_recommendation: What to work on right now
-- quick_wins: Tasks under 30 minutes`;
+Return JSON: { prioritized_tasks: [...], focus_recommendation: "...", quick_wins: [...] }`;
 
     case 'generate_tasks':
-      return `You are TaskGenerator, an AI agent that creates relevant, actionable onboarding tasks for startups.
+      return `You are TaskGenerator, creating actionable onboarding tasks for startups.
 Generate 5-8 tasks tailored to the startup's stage and industry.
-Each task should be specific, achievable, and move the startup forward.
 
 ${baseContext}
 
 Return tasks with: title, description, priority (high/medium/low), category, estimated_time`;
 
     case 'extract_profile':
-      return `You are ProfileExtractor, an AI agent that extracts startup information from provided text or context.
+      return `You are ProfileExtractor, extracting startup information from text.
 Extract: company_name, description, industry, key_features, stage, target_customers, business_model.
 Include confidence scores (0-1) for each field.
 
 ${baseContext}`;
 
     default:
-      return `You are an AI startup advisor for StartupAI, helping founders build and scale their companies.
-Be concise, actionable, and founder-friendly. Focus on practical advice.
+      return `You are an AI startup advisor for StartupAI, helping founders build and scale.
+Be concise, actionable, and founder-friendly.
 
 ${baseContext}
 
-You can help with:
-- Task prioritization and focus
-- Fundraising strategy and investor relations
-- Product development and go-to-market
-- Strategic planning and growth
-
-When appropriate, suggest specific actions the user can take.`;
+You help with: task prioritization, fundraising, product development, strategic planning.`;
   }
 }
 
@@ -296,26 +360,21 @@ function extractSuggestedActions(
   response: string,
   action: string
 ): Array<{ type: string; label: string; payload?: Record<string, unknown> }> {
-  // Simple heuristic-based action extraction
   const actions: Array<{ type: string; label: string; payload?: Record<string, unknown> }> = [];
+  const lower = response.toLowerCase();
   
-  const lowerResponse = response.toLowerCase();
-  
-  if (lowerResponse.includes('task') || lowerResponse.includes('priorit')) {
+  if (lower.includes('task') || lower.includes('priorit')) {
     actions.push({ type: 'navigate', label: 'View Tasks', payload: { route: '/tasks' } });
   }
-  
-  if (lowerResponse.includes('investor') || lowerResponse.includes('fundrais')) {
+  if (lower.includes('investor') || lower.includes('fundrais')) {
     actions.push({ type: 'navigate', label: 'View Investors', payload: { route: '/investors' } });
   }
-  
-  if (lowerResponse.includes('project') || lowerResponse.includes('roadmap')) {
+  if (lower.includes('project') || lower.includes('roadmap')) {
     actions.push({ type: 'navigate', label: 'View Projects', payload: { route: '/projects' } });
   }
-  
-  if (lowerResponse.includes('document') || lowerResponse.includes('pitch deck')) {
+  if (lower.includes('document') || lower.includes('pitch deck')) {
     actions.push({ type: 'navigate', label: 'View Documents', payload: { route: '/documents' } });
   }
   
-  return actions.slice(0, 3); // Max 3 actions
+  return actions.slice(0, 3);
 }
