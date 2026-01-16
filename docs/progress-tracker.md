@@ -1,8 +1,8 @@
 # StartupAI Progress Tracker
 
 > **Last Updated:** 2026-01-16  
-> **Version:** 0.3.1  
-> **Overall Progress:** 40%  
+> **Version:** 0.4.0  
+> **Overall Progress:** 55%  
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)
 
 ---
@@ -25,8 +25,8 @@
 | Discovery Module | 🔴 Not Started | 0% | 11.4 |
 | Strategy Module | 🔴 Not Started | 0% | 11.5 |
 | Settings Module | 🔴 Not Started | 0% | — |
-| AI Agents & Chat | 🔴 Not Started | 0% | 05, 16, 18, 23 |
-| Edge Functions | 🔴 Not Started | 0% | 05, 06 |
+| AI Agents & Chat | 🟡 In Progress | 40% | 05, 16, 18, 23 |
+| Edge Functions | 🟢 Completed | 100% | 05, 06, 11-EF |
 | Wizards & Onboarding | 🔴 Not Started | 0% | 04, 07, 16 |
 
 ---
@@ -226,12 +226,29 @@
 
 | Task Name | Description | Status | % | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|---|--------------|---------------------|----------------|
-| Edge Function Directory | supabase/functions/ | 🔴 Not Started | 0% | — | Directory doesn't exist | Create functions |
-| AI Chat Function | Process AI conversations | 🔴 Not Started | 0% | — | — | Build chat endpoint |
-| Email Notifications | Send transactional emails | 🔴 Not Started | 0% | — | — | Integrate Resend/SendGrid |
-| Webhook Handlers | External integrations | 🔴 Not Started | 0% | — | — | Create webhooks |
-| Scheduled Jobs | Cron-based tasks | 🔴 Not Started | 0% | — | — | Add scheduled functions |
-| Data Enrichment | Contact/company enrichment | 🔴 Not Started | 0% | — | — | Integrate enrichment API |
+| Edge Function Directory | supabase/functions/ | 🟢 Completed | 100% | 13 functions deployed | — | None |
+| ai-chat | Conversational AI assistant | 🟢 Completed | 100% | Claude Haiku 4.5 | — | Connect to AIPanel |
+| ai-helper | Multi-agent wizard hub | 🟢 Completed | 100% | Gemini 3 Pro | — | Connect to wizard |
+| strategic-plan | High-stakes decisions | 🟢 Completed | 100% | Claude Opus 4.5 | — | Connect to strategy |
+| orchestrate | Multi-step workflows | 🟢 Completed | 100% | Claude Sonnet 4.5 | — | Connect to workflows |
+| audit-system | Security audits | 🟢 Completed | 100% | Claude Opus 4.5 | — | Connect to settings |
+| automation-run | Fast event triggers | 🟢 Completed | 100% | Claude Haiku 4.5 | — | Connect to automations |
+| extract-contact-info | Contact enrichment | 🟢 Completed | 100% | Gemini 3 Pro | — | Connect to CRM |
+| extract-insights | Data analytics | 🟢 Completed | 100% | Gemini 3 Pro | — | Connect to dashboard |
+| chat-copilot | Fast in-context chat | 🟢 Completed | 100% | Gemini 3 Flash | — | Connect to panels |
+| generate-image | AI image generation | 🟢 Completed | 100% | Gemini 3 Pro Image | — | Connect to documents |
+| health | System health check | 🟢 Completed | 100% | No AI | — | Monitoring |
+| auth-check | JWT verification | 🟢 Completed | 100% | No AI | — | Auth validation |
+| stripe-webhook | Payment webhooks | 🟢 Completed | 100% | No AI | — | Billing integration |
+
+**Edge Function Summary:**
+| Provider | Functions | Models |
+|----------|-----------|--------|
+| Claude | 5 | Opus 4.5, Sonnet 4.5, Haiku 4.5 |
+| Gemini | 5 | 3 Pro, 3 Flash, 3 Pro Image |
+| Infrastructure | 3 | health, auth-check, stripe-webhook |
+
+See [docs/prompts/11-edge-functions-summary.md](./prompts/11-edge-functions-summary.md) for full documentation.
 
 ---
 
@@ -291,8 +308,7 @@
 | DEV_BYPASS_AUTH | ⚠️ Medium | Auth bypass enabled for development | Set to false before production |
 | Dev RLS Policies | ⚠️ Medium | Allow-all SELECT policies for dev | Remove before production |
 | No Storage Bucket | 🔴 High | File uploads not configured | Create storage bucket |
-| No Edge Functions | 🔴 High | Backend logic missing | Create edge functions |
-| No AI Integration | 🔴 High | AI features not functional | Enable AI gateway |
+| AI Not Wired | 🟡 Medium | Edge functions deployed but not connected to UI | Connect frontend components |
 
 ---
 
@@ -319,12 +335,12 @@
 
 1. **🔴 Critical**: Remove DEV_BYPASS_AUTH before production
 2. **🔴 Critical**: Create storage bucket for file uploads
-3. **🔴 Critical**: Build first edge function for AI chat
+3. **🟡 High**: Connect AIPanel to ai-chat edge function
 4. **🟡 High**: Complete Projects module with full CRUD
-5. **🟡 High**: Build Documents module
-6. **🟡 High**: Build Settings module
-7. **🟡 Medium**: Implement onboarding wizard
-8. **🟡 Medium**: Connect AI gateway to AIPanel
+5. **🟡 High**: Build Lean Canvas screen (11.2)
+6. **🟡 High**: Connect Tasks AI generation to ai-helper
+7. **🟡 Medium**: Build Onboarding wizard with ai-helper extraction
+8. **🟡 Medium**: Connect CRM enrichment to extract-contact-info
 9. **🟢 Low**: Add more unit tests
 10. **🟢 Low**: Implement communications log in CRM
 
