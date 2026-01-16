@@ -1,28 +1,33 @@
 # StartupAI Progress Tracker
 
-> **Last Updated:** 2026-01-15  
-> **Version:** 0.3.0  
-> **Overall Progress:** 45%
+> **Last Updated:** 2026-01-16  
+> **Version:** 0.3.1  
+> **Overall Progress:** 40%  
+> **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)
 
 ---
 
 ## Executive Summary
 
-| Category | Status | Progress |
-|----------|--------|----------|
-| Core Infrastructure | 🟢 Completed | 100% |
-| Authentication | 🟢 Completed | 100% |
-| Marketing Pages | 🟢 Completed | 100% |
-| Dashboard | 🟢 Completed | 95% |
-| Tasks Module | 🟢 Completed | 95% |
-| CRM Module | 🟢 Completed | 95% |
-| Investors Module | 🟢 Completed | 95% |
-| Projects Module | 🟡 In Progress | 40% |
-| Documents Module | 🔴 Not Started | 0% |
-| Settings Module | 🔴 Not Started | 0% |
-| AI Agents & Chat | 🔴 Not Started | 0% |
-| Edge Functions | 🔴 Not Started | 0% |
-| Wizards & Onboarding | 🔴 Not Started | 0% |
+| Category | Status | Progress | Prompts |
+|----------|--------|----------|---------|
+| Core Infrastructure | 🟢 Completed | 100% | 02, 08 |
+| Authentication | 🟢 Completed | 100% | 09 |
+| Marketing Pages | 🟢 Completed | 100% | — |
+| Dashboard | 🟢 Completed | 95% | 03 |
+| Tasks Module | 🟢 Completed | 95% | 10, 18, 23 |
+| CRM Module | 🟢 Completed | 95% | — |
+| Investors Module | 🟢 Completed | 95% | — |
+| Projects Module | 🟡 In Progress | 40% | 11 |
+| Documents Module | 🔴 Not Started | 0% | 11.1 |
+| Lean Canvas | 🔴 Not Started | 0% | 11.2 |
+| GTM Strategy | 🔴 Not Started | 0% | 11.3 |
+| Discovery Module | 🔴 Not Started | 0% | 11.4 |
+| Strategy Module | 🔴 Not Started | 0% | 11.5 |
+| Settings Module | 🔴 Not Started | 0% | — |
+| AI Agents & Chat | 🔴 Not Started | 0% | 05, 16, 18, 23 |
+| Edge Functions | 🔴 Not Started | 0% | 05, 06 |
+| Wizards & Onboarding | 🔴 Not Started | 0% | 04, 07, 16 |
 
 ---
 

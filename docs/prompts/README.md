@@ -1,14 +1,18 @@
 # StartupAI Core Prompts — Verification Status
 
 > **Cross-referenced with:** [progress-tracker.md](../progress-tracker.md)  
-> **Last Verified:** 2026-01-16
+> **Last Verified:** 2026-01-16  
+> **Total Prompts:** 19 (Core + Advanced)
 
 ---
 
 ## Prompt Index & Implementation Status
 
+### Core Prompts (01-10)
+
 | # | Prompt | Status | Progress | Key Gaps |
 |---|--------|--------|----------|----------|
+| 00 | [Prompts Index](./00-prompts-index.md) | 📋 Reference | — | Master index of all 42 prompts |
 | 02 | [Three-Panel Layout](./02-three-panel-layout-architecture.md) | 🟢 Implemented | 95% | Mobile slide-over for AI panel not yet done |
 | 03 | [Dashboard Screen](./03-dashboard-screen-design.md) | 🟢 Implemented | 90% | AI Coach not connected to real AI |
 | 04 | [Wizard Screen](./04-wizard-screen-design.md) | 🔴 Not Started | 0% | No wizard UI, no ProfileExtractor agent |
@@ -18,6 +22,25 @@
 | 08 | [System Architecture](./08-system-architecture-best-practices.md) | 🟢 Implemented | 85% | Missing error boundaries, rate limiting |
 | 09 | [Login/Signup Screen](./09-login-signup-screen-design.md) | 🟢 Implemented | 90% | Google OAuth works, password auth works |
 | 10 | [Tasks Screen](./10-tasks-screen-design.md) | 🟢 Implemented | 95% | Kanban, filters, CRUD all work |
+
+### Screen Design Prompts (11.x)
+
+| # | Prompt | Status | Progress | Key Gaps |
+|---|--------|--------|----------|----------|
+| 11 | [Projects Screen](./11-projects-screen-design.md) | 🟡 Partial | 40% | Basic cards exist, missing full CRUD |
+| 11.1 | [Documents Screen](./11.1-documents-screen-design.md) | 🔴 Not Started | 0% | Placeholder page only |
+| 11.2 | [Lean Canvas Screen](./11.2-lean-canvas-screen-design.md) | 🔴 Not Started | 0% | No page exists |
+| 11.3 | [GTM Strategy Screen](./11.3-gtm-strategy-screen-design.md) | 🔴 Not Started | 0% | No page exists |
+| 11.4 | [Discovery Screen](./11.4-discovery-screen-design.md) | 🔴 Not Started | 0% | No page exists |
+| 11.5 | [Strategy Screen](./11.5-strategy-screen-design.md) | 🔴 Not Started | 0% | No page exists |
+
+### AI Integration Prompts (16-23)
+
+| # | Prompt | Status | Progress | Key Gaps |
+|---|--------|--------|----------|----------|
+| 16 | [Wizard AI Integration](./16-wizard-ai-integration.md) | 🔴 Not Started | 0% | No wizard, no ProfileExtractor |
+| 18 | [Task Generation Workflow](./18-task-generation-workflow.md) | 🔴 Not Started | 0% | No TaskGenerator agent |
+| 23 | [Task Prioritization](./23-task-prioritization.md) | 🔴 Not Started | 0% | No TaskPrioritizer agent |
 
 ---
 
@@ -120,26 +143,113 @@
 | AI task suggestions | ⚠️ UI Only | AIPanel placeholder |
 | Drag & drop | ✅ Done | Status updates on drop |
 
+### 11 — Projects Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| Project cards grid | ✅ Done | ProjectCard components |
+| Health status badges | ✅ Done | on_track, at_risk, behind |
+| Progress bars | ✅ Done | Visual progress indicator |
+| Create project dialog | ✅ Done | CreateProjectDialog |
+| Full CRUD operations | ⚠️ Partial | Missing update/delete |
+| Project detail page | ❌ Missing | No /projects/:id route |
+| AI project insights | ❌ Missing | No AI integration |
+
+### 11.1 — Documents Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| Document list | ❌ Missing | Placeholder page only |
+| Document editor | ❌ Missing | No rich text editor |
+| AI content generation | ❌ Missing | No ContentGenerator agent |
+| Template library | ❌ Missing | — |
+| Export to PDF/Docs | ❌ Missing | — |
+
+### 11.2 — Lean Canvas Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| 9-box canvas grid | ❌ Missing | No page exists |
+| AI pre-fill from profile | ❌ Missing | — |
+| Hypothesis validation | ❌ Missing | — |
+| Version tracking | ❌ Missing | — |
+
+### 11.3 — GTM Strategy Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| ICP card display | ❌ Missing | No page exists |
+| Channel strategy grid | ❌ Missing | — |
+| AI ICP generation | ❌ Missing | — |
+| Timeline visualization | ❌ Missing | — |
+
+### 11.4 — Discovery Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| Natural language search | ❌ Missing | No page exists |
+| Prospect scoring | ❌ Missing | — |
+| DiscoveryMatcher agent | ❌ Missing | — |
+| Add to CRM action | ❌ Missing | — |
+
+### 11.5 — Strategy Screen Design
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| Strategic question input | ❌ Missing | No page exists |
+| Options evaluation | ❌ Missing | — |
+| StrategicPlanner agent | ❌ Missing | — |
+| Decision criteria | ❌ Missing | — |
+
+### 16 — Wizard AI Integration
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| ProfileExtractor agent | ❌ Missing | No edge function |
+| URL context extraction | ❌ Missing | — |
+| Approval workflow | ❌ Missing | — |
+| Auto-fill form fields | ❌ Missing | — |
+
+### 18 — Task Generation Workflow
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| TaskGenerator agent | ❌ Missing | No edge function |
+| Wizard completion trigger | ❌ Missing | No wizard |
+| 5 prioritized tasks output | ❌ Missing | — |
+| Task preview before save | ❌ Missing | — |
+
+### 23 — Task Prioritization
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| TaskPrioritizer agent | ❌ Missing | No edge function |
+| Urgency/impact scoring | ❌ Missing | — |
+| Eisenhower matrix | ❌ Missing | — |
+| Focus recommendation | ❌ Missing | — |
+
 ---
 
 ## Priority Gap Summary
 
 ### 🔴 Critical Gaps (Block Core Features)
 
-1. **No Wizard** — Prompt 04 completely unimplemented
-2. **No AI Agents** — Prompt 05 requires edge functions
+1. **No Wizard** — Prompts 04, 16 completely unimplemented
+2. **No AI Agents** — Prompts 05, 18, 23 require edge functions
 3. **No Edge Functions** — Required for all AI features
+4. **No Advanced Screens** — Prompts 11.1-11.5 not started
 
 ### 🟡 Important Gaps (Reduce Value)
 
-4. **AI Panel static** — Dashboard/Tasks AI sections are placeholders
-5. **No error boundaries** — App can crash on errors
-6. **Mobile AI panel** — Right panel needs slide-over behavior
+5. **AI Panel static** — Dashboard/Tasks AI sections are placeholders
+6. **No error boundaries** — App can crash on errors
+7. **Mobile AI panel** — Right panel needs slide-over behavior
+8. **Projects incomplete** — Missing full CRUD and detail page
 
 ### 🟢 Minor Gaps (Polish)
 
-7. **Real-time subscriptions** — Not widely used
-8. **Rate limiting** — Backend protection missing
+9. **Real-time subscriptions** — Not widely used
+10. **Rate limiting** — Backend protection missing
 
 ---
 
