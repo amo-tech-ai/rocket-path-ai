@@ -5,6 +5,41 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-01-16
+
+### Added
+- **Edge Functions (13 Total)**
+  - All 13 edge functions deployed and active
+  - Claude-powered functions: `strategic-plan` (Opus 4.5), `audit-system` (Opus 4.5), `orchestrate` (Sonnet 4.5), `automation-run` (Haiku 4.5), `ai-chat` (Haiku 4.5)
+  - Gemini-powered functions: `ai-helper` (3 Pro), `extract-contact-info` (3 Pro), `extract-insights` (3 Pro), `chat-copilot` (3 Flash), `generate-image` (3 Pro Image)
+  - Infrastructure functions: `health`, `auth-check`, `stripe-webhook`
+  - See `docs/prompts/11-edge-functions-summary.md` for full documentation
+
+- **AI Integration Hooks**
+  - `useAIChat` - Full chat interface with message history
+  - `useAIInsights` - Quick AI queries without history
+  - `useAITaskPrioritization` - Eisenhower matrix task prioritization
+  - `useAITaskGeneration` - Onboarding task generation
+
+- **Interactive AIPanel**
+  - Connected to `ai-chat` edge function
+  - Real-time chat interface with message history
+  - Quick prompts for common questions
+  - Suggested actions with navigation support
+  - Animated transitions between insights and chat modes
+
+### Changed
+- Updated progress tracker to reflect edge functions completion
+- AIPanel now uses live AI instead of static content
+
+### Technical
+- Model-aware edge function routing (Claude vs Gemini)
+- Token usage tracking and AI run logging
+- CORS-enabled edge functions for frontend integration
+
+---
+
+
 ## [0.3.0] - 2026-01-15
 
 ### Added
