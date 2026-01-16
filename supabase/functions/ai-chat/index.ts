@@ -7,23 +7,15 @@ const corsHeaders = {
 };
 
 interface ChatRequest {
-  message: string;
+  messages?: Array<{ role: string; content: string }>;
+  message?: string;
   session_id?: string;
+  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile';
   context?: {
     screen?: string;
     startup_id?: string;
     data?: Record<string, unknown>;
   };
-}
-
-interface ChatResponse {
-  response: string;
-  suggested_actions?: Array<{
-    type: string;
-    label: string;
-    payload?: Record<string, unknown>;
-  }>;
-  sources?: string[];
 }
 
 serve(async (req) => {
@@ -33,6 +25,11 @@ serve(async (req) => {
   }
 
   try {
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
@@ -59,16 +56,19 @@ serve(async (req) => {
 
     // Parse request body
     const body: ChatRequest = await req.json();
-    const { message, session_id, context } = body;
+    const { messages, message, session_id, action = 'chat', context } = body;
 
-    if (!message) {
+    // Support both single message and messages array
+    const userMessage = message || messages?.[messages.length - 1]?.content;
+    
+    if (!userMessage) {
       return new Response(
         JSON.stringify({ error: 'Message is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Processing message from user ${user.id}:`, message.substring(0, 100));
+    console.log(`Processing ${action} from user ${user.id}:`, userMessage.substring(0, 100));
 
     // Get user's profile and org
     const { data: profile } = await supabase
@@ -88,19 +88,80 @@ serve(async (req) => {
       startup = data;
     }
 
-    // Build context for AI
-    const aiContext = {
+    // Build system prompt based on action type
+    let systemPrompt = buildSystemPrompt(action, {
       user_name: profile?.full_name || 'User',
       startup_name: startup?.name,
       startup_stage: startup?.stage,
       industry: startup?.industry,
       is_raising: startup?.is_raising,
       screen: context?.screen || 'dashboard',
-    };
+    });
 
-    // For now, return a structured mock response
-    // TODO: Integrate with actual AI provider (Gemini/OpenAI)
-    const response = generateMockResponse(message, aiContext);
+    // Build conversation history for Gemini
+    const geminiContents = [];
+    
+    // Add previous messages if provided
+    if (messages && messages.length > 1) {
+      for (let i = 0; i < messages.length - 1; i++) {
+        const msg = messages[i];
+        geminiContents.push({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: msg.content }]
+        });
+      }
+    }
+    
+    // Add current message with context
+    let currentMessageText = userMessage;
+    if (context?.data) {
+      currentMessageText += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
+    }
+    geminiContents.push({
+      role: 'user',
+      parts: [{ text: currentMessageText }]
+    });
+
+    // Call Gemini API
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: geminiContents,
+          systemInstruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          }
+        }),
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errorText);
+      
+      if (geminiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    // Parse suggested actions from response if present
+    const suggestedActions = extractSuggestedActions(responseText, action);
 
     // Log the AI run
     if (profile?.org_id) {
@@ -108,12 +169,12 @@ serve(async (req) => {
         user_id: user.id,
         org_id: profile.org_id,
         startup_id: startup?.id,
-        agent_name: 'chat-assistant',
-        action: 'chat',
-        model: 'mock-v1',
+        agent_name: getAgentName(action),
+        action: action,
+        model: 'gemini-2.0-flash',
         status: 'completed',
-        input_tokens: message.length,
-        output_tokens: response.response.length,
+        input_tokens: geminiData.usageMetadata?.promptTokenCount || 0,
+        output_tokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
       });
     }
 
@@ -124,22 +185,30 @@ serve(async (req) => {
           session_id,
           user_id: user.id,
           role: 'user',
-          content: message,
+          content: userMessage,
           tab: context?.screen || 'general',
         },
         {
           session_id,
           user_id: user.id,
           role: 'assistant',
-          content: response.response,
+          content: responseText,
           tab: context?.screen || 'general',
-          suggested_actions: response.suggested_actions,
+          suggested_actions: suggestedActions,
         },
       ]);
     }
 
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify({
+        response: responseText,
+        message: responseText, // Alias for compatibility
+        suggested_actions: suggestedActions,
+        usage: {
+          promptTokens: geminiData.usageMetadata?.promptTokenCount || 0,
+          completionTokens: geminiData.usageMetadata?.candidatesTokenCount || 0,
+        }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -153,85 +222,100 @@ serve(async (req) => {
   }
 });
 
-function generateMockResponse(
-  message: string, 
+function buildSystemPrompt(
+  action: string,
   context: Record<string, unknown>
-): ChatResponse {
-  const lowerMessage = message.toLowerCase();
-  const userName = context.user_name || 'there';
-  const startupName = context.startup_name || 'your startup';
+): string {
+  const baseContext = `
+You are assisting ${context.user_name} with ${context.startup_name || 'their startup'}.
+Stage: ${context.startup_stage || 'Unknown'}
+Industry: ${context.industry || 'Unknown'}
+Currently raising: ${context.is_raising ? 'Yes' : 'No'}
+Current screen: ${context.screen}
+`;
 
-  // Task-related queries
-  if (lowerMessage.includes('task') || lowerMessage.includes('todo') || lowerMessage.includes('priority')) {
-    return {
-      response: `I can help you prioritize tasks for ${startupName}. Based on your current stage, I'd recommend focusing on:
+  switch (action) {
+    case 'prioritize_tasks':
+      return `You are TaskPrioritizer, an AI agent specialized in helping founders focus their limited time on the highest-impact activities.
+Analyze tasks and return them ranked by urgency, importance, and strategic alignment.
+Use the Eisenhower Matrix adapted for startups:
+- Q1: Urgent + Important (Do first)
+- Q2: Important (Schedule)
+- Q3: Urgent (Delegate or quick win)
+- Q4: Neither (Consider dropping)
 
-1. **Customer validation** - Talk to at least 5 potential customers this week
-2. **Product iteration** - Ship small, iterate fast
-3. **Fundraising prep** - Keep your data room updated
+${baseContext}
 
-Would you like me to create specific tasks for any of these?`,
-      suggested_actions: [
-        { type: 'create_task', label: 'Create customer interview task' },
-        { type: 'navigate', label: 'View all tasks', payload: { route: '/tasks' } },
-      ],
-    };
+Return a JSON object with:
+- prioritized_tasks: Array of tasks with rank, urgency_score, impact_score, reasoning
+- focus_recommendation: What to work on right now
+- quick_wins: Tasks under 30 minutes`;
+
+    case 'generate_tasks':
+      return `You are TaskGenerator, an AI agent that creates relevant, actionable onboarding tasks for startups.
+Generate 5-8 tasks tailored to the startup's stage and industry.
+Each task should be specific, achievable, and move the startup forward.
+
+${baseContext}
+
+Return tasks with: title, description, priority (high/medium/low), category, estimated_time`;
+
+    case 'extract_profile':
+      return `You are ProfileExtractor, an AI agent that extracts startup information from provided text or context.
+Extract: company_name, description, industry, key_features, stage, target_customers, business_model.
+Include confidence scores (0-1) for each field.
+
+${baseContext}`;
+
+    default:
+      return `You are an AI startup advisor for StartupAI, helping founders build and scale their companies.
+Be concise, actionable, and founder-friendly. Focus on practical advice.
+
+${baseContext}
+
+You can help with:
+- Task prioritization and focus
+- Fundraising strategy and investor relations
+- Product development and go-to-market
+- Strategic planning and growth
+
+When appropriate, suggest specific actions the user can take.`;
   }
+}
 
-  // Fundraising queries
-  if (lowerMessage.includes('fundrais') || lowerMessage.includes('investor') || lowerMessage.includes('pitch')) {
-    return {
-      response: `For ${startupName}'s fundraising journey, here's what I recommend:
-
-**Immediate priorities:**
-- Polish your pitch deck (especially problem-solution fit)
-- Build a target investor list of 30-50 names
-- Prepare your financial model with realistic projections
-
-**Key metrics to highlight:**
-- Monthly growth rate
-- Customer acquisition cost
-- Lifetime value
-
-Need help with any specific aspect of your fundraise?`,
-      suggested_actions: [
-        { type: 'navigate', label: 'Go to Investors', payload: { route: '/investors' } },
-        { type: 'create_document', label: 'Create pitch deck' },
-      ],
-    };
+function getAgentName(action: string): string {
+  switch (action) {
+    case 'prioritize_tasks': return 'TaskPrioritizer';
+    case 'generate_tasks': return 'TaskGenerator';
+    case 'extract_profile': return 'ProfileExtractor';
+    default: return 'ChatAssistant';
   }
+}
 
-  // Growth/strategy queries
-  if (lowerMessage.includes('grow') || lowerMessage.includes('strateg') || lowerMessage.includes('scale')) {
-    return {
-      response: `Great question about growth strategy for ${startupName}!
-
-Based on ${context.industry || 'your industry'}, I'd focus on:
-
-1. **Distribution channels** - Where do your customers hang out?
-2. **Retention loops** - What brings users back?
-3. **Viral mechanics** - Can users invite others naturally?
-
-The best growth strategies are specific to your business. Tell me more about your current traction and I can give more targeted advice.`,
-      suggested_actions: [
-        { type: 'navigate', label: 'View CRM', payload: { route: '/crm' } },
-      ],
-    };
+function extractSuggestedActions(
+  response: string,
+  action: string
+): Array<{ type: string; label: string; payload?: Record<string, unknown> }> {
+  // Simple heuristic-based action extraction
+  const actions: Array<{ type: string; label: string; payload?: Record<string, unknown> }> = [];
+  
+  const lowerResponse = response.toLowerCase();
+  
+  if (lowerResponse.includes('task') || lowerResponse.includes('priorit')) {
+    actions.push({ type: 'navigate', label: 'View Tasks', payload: { route: '/tasks' } });
   }
-
-  // Default response
-  return {
-    response: `Hi ${userName}! I'm your AI startup advisor for ${startupName}. I can help you with:
-
-- **Task prioritization** - What should you focus on today?
-- **Fundraising advice** - Investor targeting, pitch prep, and more
-- **Strategic planning** - Growth strategies and market positioning
-- **Document creation** - Pitch decks, memos, and business plans
-
-What would you like to work on?`,
-    suggested_actions: [
-      { type: 'navigate', label: 'Dashboard', payload: { route: '/dashboard' } },
-      { type: 'navigate', label: 'Tasks', payload: { route: '/tasks' } },
-    ],
-  };
+  
+  if (lowerResponse.includes('investor') || lowerResponse.includes('fundrais')) {
+    actions.push({ type: 'navigate', label: 'View Investors', payload: { route: '/investors' } });
+  }
+  
+  if (lowerResponse.includes('project') || lowerResponse.includes('roadmap')) {
+    actions.push({ type: 'navigate', label: 'View Projects', payload: { route: '/projects' } });
+  }
+  
+  if (lowerResponse.includes('document') || lowerResponse.includes('pitch deck')) {
+    actions.push({ type: 'navigate', label: 'View Documents', payload: { route: '/documents' } });
+  }
+  
+  return actions.slice(0, 3); // Max 3 actions
 }
