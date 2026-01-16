@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   MoreHorizontal, 
@@ -28,6 +29,7 @@ interface ProjectCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onViewTasks?: () => void;
+  onClick?: () => void;
   index?: number;
 }
 
@@ -49,8 +51,10 @@ export function ProjectCard({
   onEdit, 
   onDelete,
   onViewTasks,
+  onClick,
   index = 0 
 }: ProjectCardProps) {
+  const navigate = useNavigate();
   const health = (project.health || 'on_track') as keyof typeof healthIcons;
   const HealthIcon = healthIcons[health];
   const healthColor = healthColors[health];
@@ -60,12 +64,21 @@ export function ProjectCard({
   
   const teamMembers = project.team_members || [];
 
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/projects/${project.id}`);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="card-elevated p-5 hover-lift group"
+      className="card-elevated p-5 hover-lift group cursor-pointer"
+      onClick={handleCardClick}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -87,15 +100,23 @@ export function ProjectCard({
               variant="ghost" 
               size="icon" 
               className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>Edit project</DropdownMenuItem>
-            <DropdownMenuItem onClick={onViewTasks}>View tasks</DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(); }}>
+              Edit project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onViewTasks?.(); }}>
+              View tasks
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-destructive">
+            <DropdownMenuItem 
+              onClick={(e) => { e.stopPropagation(); onDelete?.(); }} 
+              className="text-destructive"
+            >
               Delete project
             </DropdownMenuItem>
           </DropdownMenuContent>
