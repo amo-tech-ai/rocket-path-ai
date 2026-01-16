@@ -11,6 +11,8 @@ interface KanbanBoardProps {
   onDeleteTask: (task: TaskWithProject) => void;
   onStatusChange: (taskId: string, status: string) => void;
   onAddTask: (status: string) => void;
+  onTaskClick?: (task: TaskWithProject) => void;
+  selectedTaskId?: string;
 }
 
 export function KanbanBoard({ 
@@ -18,7 +20,9 @@ export function KanbanBoard({
   onEditTask, 
   onDeleteTask, 
   onStatusChange,
-  onAddTask 
+  onAddTask,
+  onTaskClick,
+  selectedTaskId
 }: KanbanBoardProps) {
   // Group tasks by status
   const tasksByStatus = TASK_STATUSES.reduce((acc, status) => {
@@ -86,14 +90,22 @@ export function KanbanBoard({
                 </div>
               ) : (
                 columnTasks.map((task, taskIndex) => (
-                  <TaskCard
+                  <div
                     key={task.id}
-                    task={task}
-                    onEdit={() => onEditTask(task)}
-                    onDelete={() => onDeleteTask(task)}
-                    onStatusChange={(status) => onStatusChange(task.id, status)}
-                    index={taskIndex}
-                  />
+                    onClick={() => onTaskClick?.(task)}
+                    className={cn(
+                      "cursor-pointer rounded-lg transition-all",
+                      selectedTaskId === task.id && "ring-2 ring-primary"
+                    )}
+                  >
+                    <TaskCard
+                      task={task}
+                      onEdit={() => onEditTask(task)}
+                      onDelete={() => onDeleteTask(task)}
+                      onStatusChange={(status) => onStatusChange(task.id, status)}
+                      index={taskIndex}
+                    />
+                  </div>
                 ))
               )}
             </div>

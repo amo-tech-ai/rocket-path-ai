@@ -5,6 +5,34 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-01-16
+
+### Added
+- **Task Detail Right Panel**
+  - Click any task to open detail panel using 3-panel layout
+  - Shows task metadata, description, project, priority, due date
+  - Quick status change buttons
+  - Edit and delete actions
+  - AI-generated task indicator
+
+- **Project Detail Page** (`/projects/:projectId`)
+  - Full project view with stats, progress, health indicators
+  - Linked tasks section with filter tabs (All, Active, Done, Overdue)
+  - Task detail panel opens on click (3-panel layout)
+  - Edit/delete project, add tasks inline
+  - Per prompt 11.1-projects-detail.md
+
+- **Enhanced KanbanBoard**
+  - Task click support for detail panel
+  - Selected task visual indicator
+
+### Changed
+- ProjectCard now navigates to project detail page on click
+- Tasks page uses 3-panel layout with scrollable main area
+- Updated progress tracker to 60%
+
+---
+
 ## [0.4.0] - 2026-01-16
 
 ### Added
