@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
+import { AITaskSuggestions } from '@/components/tasks/AITaskSuggestions';
 import { 
   useAllTasks, 
   useCreateTask,
@@ -19,7 +20,8 @@ import {
   Search,
   Filter,
   LayoutGrid,
-  List
+  List,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,7 @@ const Tasks = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>(projectFilter || 'all');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
 
   const isLoading = startupLoading || tasksLoading;
 
@@ -215,11 +218,47 @@ const Tasks = () => {
               {stats.total} tasks · {stats.pending} to do · {stats.inProgress} in progress · {stats.completed} done
             </p>
           </div>
-          <Button onClick={() => openAddTask('pending')}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Task
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant={showAISuggestions ? "sage" : "outline"}
+              onClick={() => setShowAISuggestions(!showAISuggestions)}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              AI Generate
+            </Button>
+            <Button onClick={() => openAddTask('pending')}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Task
+            </Button>
+          </div>
         </motion.div>
+
+        {/* AI Suggestions Panel */}
+        {showAISuggestions && startup && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6"
+          >
+            <AITaskSuggestions
+              startupId={startup.id}
+              startupContext={{
+                name: startup.name,
+                stage: startup.stage || undefined,
+                industry: startup.industry || undefined,
+              }}
+              onAcceptTask={async (task) => {
+                await handleCreateTask({
+                  title: task.title,
+                  description: task.description,
+                  priority: task.priority,
+                  status: 'pending',
+                });
+              }}
+            />
+          </motion.div>
+        )}
 
         {/* Filters */}
         <motion.div

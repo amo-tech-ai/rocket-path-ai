@@ -19,12 +19,12 @@
 | CRM Module | 🟢 Completed | 95% | — |
 | Investors Module | 🟢 Completed | 95% | — |
 | Projects Module | 🟡 In Progress | 40% | 11 |
-| Documents Module | 🔴 Not Started | 0% | 11.1 |
-| Lean Canvas | 🔴 Not Started | 0% | 11.2 |
+| Documents Module | 🟡 In Progress | 30% | 11.1 |
+| Lean Canvas | 🟢 Completed | 90% | 11.2 |
 | GTM Strategy | 🔴 Not Started | 0% | 11.3 |
 | Discovery Module | 🔴 Not Started | 0% | 11.4 |
 | Strategy Module | 🔴 Not Started | 0% | 11.5 |
-| Settings Module | 🔴 Not Started | 0% | — |
+| Settings Module | 🟡 In Progress | 30% | — |
 | AI Agents & Chat | 🟡 In Progress | 40% | 05, 16, 18, 23 |
 | Edge Functions | 🟢 Completed | 100% | 05, 06, 11-EF |
 | Wizards & Onboarding | 🔴 Not Started | 0% | 04, 07, 16 |
@@ -110,6 +110,7 @@
 | List View | Alternative view | 🟢 Completed | 100% | Toggle between views | — | None |
 | Drag & Drop | Move between columns | 🟢 Completed | 100% | Updates status on drop | — | None |
 | Task Stats | Progress counts | 🟢 Completed | 100% | To do, in progress, done counts | — | None |
+| AI Task Generation | AI-powered task suggestions | 🟢 Completed | 100% | Connected to ai-chat function | — | None |
 | Subtasks | Nested tasks | 🔴 Not Started | 0% | — | parent_task_id not used | Implement subtasks |
 | Task Categories | Category grouping | 🔴 Not Started | 0% | — | category field unused | Add category filter |
 
