@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Suggested actions with navigation support
   - Animated transitions between insights and chat modes
 
+- **Lean Canvas Screen** (New)
+  - 9-box grid layout per Lean Canvas framework
+  - Editable boxes with add/remove items
+  - AI pre-fill from startup profile
+  - AI hypothesis validation
+  - Auto-save to documents table
+  - Completion tracking and export options
+
+- **AI Task Generation**
+  - AITaskSuggestions component on Tasks page
+  - Connected to ai-chat edge function with `generate_tasks` action
+  - Accept/dismiss individual suggestions
+  - Task parsing from AI response
+
 ### Changed
 - Updated progress tracker to reflect edge functions completion
 - AIPanel now uses live AI instead of static content

@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Settings,
   Menu,
-  X
+  X,
+  LayoutGrid
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Tasks", path: "/tasks", icon: CheckSquare },
   { label: "CRM", path: "/crm", icon: Users },
   { label: "Documents", path: "/documents", icon: FileText },
+  { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
   { label: "Investors", path: "/investors", icon: TrendingUp },
 ];
 
