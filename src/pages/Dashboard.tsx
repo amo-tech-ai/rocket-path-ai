@@ -1,155 +1,116 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import AIPanel from "@/components/dashboard/AIPanel";
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { TaskList } from "@/components/dashboard/TaskList";
-import { ProjectList } from "@/components/dashboard/ProjectList";
-import { DealsPipeline } from "@/components/dashboard/DealsPipeline";
-import { 
-  useStartup, 
-  useProjects, 
-  useTasks, 
-  useDeals,
-  useKeyMetrics,
-  formatCurrency,
-  formatNumber
-} from "@/hooks/useDashboardData";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { SummaryMetrics } from "@/components/dashboard/SummaryMetrics";
+import { StartupHealth } from "@/components/dashboard/StartupHealth";
+import { DeckActivity } from "@/components/dashboard/DeckActivity";
+import { InsightsTabs } from "@/components/dashboard/InsightsTabs";
+import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
+import { EventCard } from "@/components/dashboard/EventCard";
+import { DashboardCalendar } from "@/components/dashboard/DashboardCalendar";
+import { useStartup, useTasks, useDeals } from "@/hooks/useDashboardData";
+import { useInvestors } from "@/hooks/useInvestors";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Bell, Settings } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
   const { profile } = useAuth();
   const { data: startup, isLoading: startupLoading } = useStartup();
-  const { data: projects = [], isLoading: projectsLoading } = useProjects(startup?.id);
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks(startup?.id);
-  const { data: deals = [], isLoading: dealsLoading } = useDeals(startup?.id);
-  
-  const metrics = useKeyMetrics(startup);
-  
-  // Get first name for greeting
-  const firstName = profile?.full_name?.split(' ')[0] || 'there';
-  
-  // Get current hour for greeting
+  const { data: tasks = [] } = useTasks(startup?.id);
+  const { data: deals = [] } = useDeals(startup?.id);
+  const { data: investors = [] } = useInvestors(startup?.id);
+
+  const firstName = profile?.full_name?.split(' ')[0] || 'Founder';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   
-  // Count priority tasks
+  const currentDate = new Date();
+  const dateString = currentDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    month: 'long', 
+    day: 'numeric' 
+  }).toUpperCase();
+
   const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
 
+  // Right panel content
+  const rightPanel = (
+    <div className="space-y-6">
+      <AIStrategicReview />
+      <EventCard />
+      <DashboardCalendar />
+    </div>
+  );
+
   return (
-    <DashboardLayout aiPanel={<AIPanel />}>
-      <div className="max-w-5xl">
-        {/* Page header */}
+    <DashboardLayout aiPanel={rightPanel}>
+      <div className="max-w-4xl space-y-6">
+        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="flex flex-col md:flex-row md:items-start md:justify-between gap-4"
         >
-          {startupLoading ? (
-            <>
-              <Skeleton className="h-8 w-64 mb-2" />
-              <Skeleton className="h-5 w-96" />
-            </>
-          ) : (
-            <>
-              <h1 className="text-2xl font-semibold mb-1">
-                {greeting}, {firstName}
-              </h1>
-              <p className="text-muted-foreground">
-                {startup ? (
-                  <>
-                    Here's {startup.name} at a glance.
-                    {pendingTasks > 0 && ` You have ${pendingTasks} priority task${pendingTasks !== 1 ? 's' : ''} for today.`}
-                  </>
-                ) : (
-                  "Welcome to StartupAI. Set up your startup profile to get started."
-                )}
-              </p>
-            </>
-          )}
+          <div>
+            <p className="text-xs font-medium text-primary tracking-wide mb-1">{dateString}</p>
+            {startupLoading ? (
+              <Skeleton className="h-8 w-64" />
+            ) : (
+              <>
+                <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
+                  {greeting}, {firstName}.
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Your command center for growth and fundraising.
+                </p>
+              </>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search your startup..." 
+                className="pl-9 w-48 md:w-64 bg-card"
+              />
+            </div>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="w-5 h-5" />
+            </Button>
+          </div>
         </motion.div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <MetricCard
-            label="MRR"
-            value={formatCurrency(metrics.mrr)}
-            change={metrics.growthRate > 0 ? `+${metrics.growthRate}%` : undefined}
-            trend={metrics.growthRate > 0 ? 'up' : 'neutral'}
-            index={0}
-          />
-          <MetricCard
-            label="Active Users"
-            value={formatNumber(metrics.users)}
-            trend="neutral"
-            index={1}
-          />
-          <MetricCard
-            label="Customers"
-            value={formatNumber(metrics.customers)}
-            trend="neutral"
-            index={2}
-          />
-          <MetricCard
-            label="Team Size"
-            value={String(metrics.teamSize)}
-            trend="neutral"
-            index={3}
-          />
-        </div>
+        {/* Quick Actions */}
+        <QuickActions />
 
-        {/* Fundraising Banner (if raising) */}
-        {metrics.isRaising && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="mb-8 p-4 rounded-2xl bg-sage-light border border-sage/20"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-sage-foreground">
-                  Currently Raising
-                </p>
-                <p className="text-xl font-semibold text-sage-foreground">
-                  {formatCurrency(metrics.raiseAmount)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-sage-foreground/70">Pipeline Value</p>
-                <p className="text-lg font-semibold text-sage-foreground">
-                  {formatCurrency(deals.reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Today's Priorities */}
-          <TaskList 
-            tasks={tasks as Array<{
-              id: string;
-              title: string;
-              status: string | null;
-              priority: string | null;
-              project: { name: string } | null;
-            }>} 
-            isLoading={tasksLoading || startupLoading} 
-          />
-
-          {/* Active Projects */}
-          <ProjectList 
-            projects={projects} 
-            isLoading={projectsLoading || startupLoading} 
-          />
-        </div>
-
-        {/* Deals Pipeline */}
-        <DealsPipeline 
-          deals={deals} 
-          isLoading={dealsLoading || startupLoading} 
+        {/* Summary Metrics */}
+        <SummaryMetrics 
+          decksCount={12}
+          investorsCount={investors.length || 8}
+          tasksCount={pendingTasks || 28}
+          eventsCount={3}
         />
+
+        {/* Startup Health & Deck Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <StartupHealth 
+            overallScore={startup?.profile_strength || 75}
+            brandStoryScore={80}
+            tractionScore={40}
+          />
+          <DeckActivity />
+        </div>
+
+        {/* Insights Tabs */}
+        <InsightsTabs />
       </div>
     </DashboardLayout>
   );
