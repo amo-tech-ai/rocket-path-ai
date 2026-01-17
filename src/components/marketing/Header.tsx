@@ -9,8 +9,8 @@ const Header = () => {
   const location = useLocation();
 
   const navigation = [
-    { name: "Features", href: "#features" },
-    { name: "How it Works", href: "#how-it-works" },
+    { name: "Features", href: "/features" },
+    { name: "How it Works", href: "/how-it-works" },
     { name: "Pricing", href: "#pricing" },
   ];
 
@@ -26,13 +26,13 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navigation.map((item) => (
-              <a
+              <Link
                 key={item.name}
-                href={item.href}
+                to={item.href}
                 className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.name}
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -71,14 +71,14 @@ const Header = () => {
           >
             <div className="container-marketing py-4 space-y-4">
               {navigation.map((item) => (
-                <a
+                <Link
                   key={item.name}
-                  href={item.href}
+                  to={item.href}
                   className="block text-base font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}
-                </a>
+                </Link>
               ))}
               <div className="pt-4 border-t border-border flex flex-col gap-3">
                 <Button variant="outline" className="w-full" asChild>
