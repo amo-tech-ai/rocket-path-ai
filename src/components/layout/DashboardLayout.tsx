@@ -9,7 +9,9 @@ import {
   Settings,
   Menu,
   X,
-  LayoutGrid
+  LayoutGrid,
+  User,
+  Building2
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,8 @@ const navItems = [
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
   { label: "Investors", path: "/investors", icon: TrendingUp },
+  { label: "User Profile", path: "/user-profile", icon: User },
+  { label: "Company Profile", path: "/company-profile", icon: Building2 },
 ];
 
 interface DashboardLayoutProps {
