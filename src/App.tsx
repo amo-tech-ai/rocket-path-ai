@@ -17,6 +17,8 @@ import Investors from "./pages/Investors";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import LeanCanvas from "./pages/LeanCanvas";
+import UserProfile from "./pages/UserProfile";
+import CompanyProfile from "./pages/CompanyProfile";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +101,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <LeanCanvas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user-profile"
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/company-profile"
+              element={
+                <ProtectedRoute>
+                  <CompanyProfile />
                 </ProtectedRoute>
               }
             />
