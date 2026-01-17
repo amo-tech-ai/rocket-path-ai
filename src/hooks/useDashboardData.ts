@@ -7,14 +7,16 @@ export type Project = Tables<'projects'>;
 export type Task = Tables<'tasks'>;
 export type Deal = Tables<'deals'>;
 
-// Fetch user's startup
+// Fetch user's startup (with fallback for demo data)
 export function useStartup() {
   return useQuery({
     queryKey: ['startup'],
     queryFn: async () => {
+      // Get first available startup (fallback for demo)
       const { data, error } = await supabase
         .from('startups')
         .select('*')
+        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
       
