@@ -19,6 +19,7 @@ import { InvestorCard } from "@/components/investors/InvestorCard";
 import { InvestorDialog } from "@/components/investors/InvestorDialog";
 import { InvestorDetailSheet } from "@/components/investors/InvestorDetailSheet";
 import { FundraisingProgress } from "@/components/investors/FundraisingProgress";
+import { InvestorsAIPanel } from "@/components/investors/InvestorsAIPanel";
 
 const Investors = () => {
   const { data: investors = [], isLoading: investorsLoading } = useAllInvestors();
@@ -69,7 +70,7 @@ const Investors = () => {
   // Empty state
   if (!isLoading && investors.length === 0) {
     return (
-      <DashboardLayout>
+      <DashboardLayout aiPanel={<InvestorsAIPanel investorsCount={0} interestedCount={0} meetingCount={0} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -102,7 +103,7 @@ const Investors = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout aiPanel={<InvestorsAIPanel investorsCount={investors.length} interestedCount={investors.filter(i => i.status === 'due_diligence' || i.status === 'term_sheet').length} meetingCount={investors.filter(i => i.status === 'meeting_scheduled').length} />}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

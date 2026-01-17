@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { CRMAIPanel } from '@/components/crm/CRMAIPanel';
 import { ContactCard } from '@/components/crm/ContactCard';
 import { DealPipeline } from '@/components/crm/DealPipeline';
 import { ContactDialog } from '@/components/crm/ContactDialog';
@@ -204,7 +205,7 @@ const CRM = () => {
   // Empty state
   if (!isLoading && contacts.length === 0 && deals.length === 0) {
     return (
-      <DashboardLayout>
+      <DashboardLayout aiPanel={<CRMAIPanel contactsCount={0} dealsCount={0} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -249,7 +250,7 @@ const CRM = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout aiPanel={<CRMAIPanel contactsCount={contacts.length} dealsCount={deals.length} />}>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 

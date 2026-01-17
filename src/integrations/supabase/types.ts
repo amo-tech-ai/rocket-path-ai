@@ -71,6 +71,109 @@ export type Database = {
           },
         ]
       }
+      activities: {
+        Row: {
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          contact_id: string | null
+          created_at: string
+          deal_id: string | null
+          description: string | null
+          document_id: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          importance: string | null
+          is_system_generated: boolean | null
+          metadata: Json | null
+          project_id: string | null
+          startup_id: string
+          task_id: string | null
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: Database["public"]["Enums"]["activity_type"]
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          document_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: string | null
+          is_system_generated?: boolean | null
+          metadata?: Json | null
+          project_id?: string | null
+          startup_id: string
+          task_id?: string | null
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: Database["public"]["Enums"]["activity_type"]
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          document_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: string | null
+          is_system_generated?: boolean | null
+          metadata?: Json | null
+          project_id?: string | null
+          startup_id?: string
+          task_id?: string | null
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_configs: {
         Row: {
           agent_name: string
@@ -970,6 +1073,77 @@ export type Database = {
           },
         ]
       }
+      deck_templates: {
+        Row: {
+          category: Database["public"]["Enums"]["template_category"]
+          color_scheme: Json | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          fonts: Json | null
+          id: string
+          is_default: boolean | null
+          is_public: boolean | null
+          name: string
+          org_id: string | null
+          preview_url: string | null
+          slide_count: number | null
+          structure: Json
+          theme: string
+          thumbnail_url: string | null
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["template_category"]
+          color_scheme?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fonts?: Json | null
+          id?: string
+          is_default?: boolean | null
+          is_public?: boolean | null
+          name: string
+          org_id?: string | null
+          preview_url?: string | null
+          slide_count?: number | null
+          structure?: Json
+          theme?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["template_category"]
+          color_scheme?: Json | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fonts?: Json | null
+          id?: string
+          is_default?: boolean | null
+          is_public?: boolean | null
+          name?: string
+          org_id?: string | null
+          preview_url?: string | null
+          slide_count?: number | null
+          structure?: Json
+          theme?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_generated: boolean | null
@@ -1036,6 +1210,110 @@ export type Database = {
             columns: ["wizard_session_id"]
             isOneToOne: false
             referencedRelation: "wizard_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          all_day: boolean | null
+          attendees: Json | null
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          event_type: Database["public"]["Enums"]["event_type"]
+          id: string
+          location: string | null
+          metadata: Json | null
+          recurrence_rule: string | null
+          related_contact_id: string | null
+          related_deal_id: string | null
+          related_project_id: string | null
+          reminder_minutes: number | null
+          start_date: string
+          startup_id: string
+          status: Database["public"]["Enums"]["event_status"]
+          title: string
+          updated_at: string
+          virtual_meeting_url: string | null
+        }
+        Insert: {
+          all_day?: boolean | null
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"]
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+          recurrence_rule?: string | null
+          related_contact_id?: string | null
+          related_deal_id?: string | null
+          related_project_id?: string | null
+          reminder_minutes?: number | null
+          start_date: string
+          startup_id: string
+          status?: Database["public"]["Enums"]["event_status"]
+          title: string
+          updated_at?: string
+          virtual_meeting_url?: string | null
+        }
+        Update: {
+          all_day?: boolean | null
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"]
+          id?: string
+          location?: string | null
+          metadata?: Json | null
+          recurrence_rule?: string | null
+          related_contact_id?: string | null
+          related_deal_id?: string | null
+          related_project_id?: string | null
+          reminder_minutes?: number | null
+          start_date?: string
+          startup_id?: string
+          status?: Database["public"]["Enums"]["event_status"]
+          title?: string
+          updated_at?: string
+          virtual_meeting_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_related_contact_id_fkey"
+            columns: ["related_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_related_deal_id_fkey"
+            columns: ["related_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_related_project_id_fkey"
+            columns: ["related_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -1475,6 +1753,127 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      pitch_deck_slides: {
+        Row: {
+          background_url: string | null
+          content: Json | null
+          created_at: string
+          deck_id: string
+          id: string
+          image_url: string | null
+          is_visible: boolean | null
+          layout: string | null
+          notes: string | null
+          slide_number: number
+          slide_type: Database["public"]["Enums"]["slide_type"]
+          subtitle: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          background_url?: string | null
+          content?: Json | null
+          created_at?: string
+          deck_id: string
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean | null
+          layout?: string | null
+          notes?: string | null
+          slide_number: number
+          slide_type?: Database["public"]["Enums"]["slide_type"]
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          background_url?: string | null
+          content?: Json | null
+          created_at?: string
+          deck_id?: string
+          id?: string
+          image_url?: string | null
+          is_visible?: boolean | null
+          layout?: string | null
+          notes?: string | null
+          slide_number?: number
+          slide_type?: Database["public"]["Enums"]["slide_type"]
+          subtitle?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pitch_deck_slides_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "pitch_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pitch_decks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deck_type: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          last_edited_by: string | null
+          slide_count: number | null
+          startup_id: string
+          status: Database["public"]["Enums"]["pitch_deck_status"]
+          template: string | null
+          theme: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deck_type?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_edited_by?: string | null
+          slide_count?: number | null
+          startup_id: string
+          status?: Database["public"]["Enums"]["pitch_deck_status"]
+          template?: string | null
+          theme?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deck_type?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          last_edited_by?: string | null
+          slide_count?: number | null
+          startup_id?: string
+          status?: Database["public"]["Enums"]["pitch_deck_status"]
+          template?: string | null
+          theme?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pitch_decks_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       playbooks: {
         Row: {
@@ -2227,13 +2626,115 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_template_usage: {
+        Args: { template_id: string }
+        Returns: undefined
+      }
       is_org_member: { Args: { check_org_id: string }; Returns: boolean }
+      log_activity: {
+        Args: {
+          p_activity_type: Database["public"]["Enums"]["activity_type"]
+          p_description?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_is_system?: boolean
+          p_metadata?: Json
+          p_startup_id: string
+          p_title: string
+        }
+        Returns: string
+      }
       org_role: { Args: never; Returns: string }
+      slide_in_org: { Args: { slide_deck_id: string }; Returns: boolean }
       startup_in_org: { Args: { check_startup_id: string }; Returns: boolean }
       user_org_id: { Args: never; Returns: string }
     }
     Enums: {
+      activity_type:
+        | "task_created"
+        | "task_updated"
+        | "task_completed"
+        | "task_deleted"
+        | "task_assigned"
+        | "deal_created"
+        | "deal_updated"
+        | "deal_stage_changed"
+        | "deal_won"
+        | "deal_lost"
+        | "contact_created"
+        | "contact_updated"
+        | "contact_deleted"
+        | "email_sent"
+        | "call_logged"
+        | "meeting_scheduled"
+        | "project_created"
+        | "project_updated"
+        | "project_completed"
+        | "milestone_reached"
+        | "document_created"
+        | "document_updated"
+        | "document_shared"
+        | "deck_created"
+        | "deck_updated"
+        | "deck_shared"
+        | "deck_exported"
+        | "ai_insight_generated"
+        | "ai_task_suggested"
+        | "ai_analysis_completed"
+        | "ai_extraction_completed"
+        | "user_joined"
+        | "user_left"
+        | "settings_changed"
+        | "other"
       app_role: "admin" | "moderator" | "user"
+      event_status:
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "rescheduled"
+      event_type:
+        | "meeting"
+        | "deadline"
+        | "reminder"
+        | "milestone"
+        | "call"
+        | "demo"
+        | "pitch"
+        | "funding_round"
+        | "other"
+      pitch_deck_status:
+        | "draft"
+        | "in_progress"
+        | "review"
+        | "final"
+        | "archived"
+      slide_type:
+        | "title"
+        | "problem"
+        | "solution"
+        | "product"
+        | "market"
+        | "business_model"
+        | "traction"
+        | "competition"
+        | "team"
+        | "financials"
+        | "ask"
+        | "contact"
+        | "custom"
+      template_category:
+        | "startup"
+        | "series_a"
+        | "series_b"
+        | "growth"
+        | "enterprise"
+        | "saas"
+        | "marketplace"
+        | "fintech"
+        | "healthtech"
+        | "general"
+        | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2361,7 +2862,97 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_type: [
+        "task_created",
+        "task_updated",
+        "task_completed",
+        "task_deleted",
+        "task_assigned",
+        "deal_created",
+        "deal_updated",
+        "deal_stage_changed",
+        "deal_won",
+        "deal_lost",
+        "contact_created",
+        "contact_updated",
+        "contact_deleted",
+        "email_sent",
+        "call_logged",
+        "meeting_scheduled",
+        "project_created",
+        "project_updated",
+        "project_completed",
+        "milestone_reached",
+        "document_created",
+        "document_updated",
+        "document_shared",
+        "deck_created",
+        "deck_updated",
+        "deck_shared",
+        "deck_exported",
+        "ai_insight_generated",
+        "ai_task_suggested",
+        "ai_analysis_completed",
+        "ai_extraction_completed",
+        "user_joined",
+        "user_left",
+        "settings_changed",
+        "other",
+      ],
       app_role: ["admin", "moderator", "user"],
+      event_status: [
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "rescheduled",
+      ],
+      event_type: [
+        "meeting",
+        "deadline",
+        "reminder",
+        "milestone",
+        "call",
+        "demo",
+        "pitch",
+        "funding_round",
+        "other",
+      ],
+      pitch_deck_status: [
+        "draft",
+        "in_progress",
+        "review",
+        "final",
+        "archived",
+      ],
+      slide_type: [
+        "title",
+        "problem",
+        "solution",
+        "product",
+        "market",
+        "business_model",
+        "traction",
+        "competition",
+        "team",
+        "financials",
+        "ask",
+        "contact",
+        "custom",
+      ],
+      template_category: [
+        "startup",
+        "series_a",
+        "series_b",
+        "growth",
+        "enterprise",
+        "saas",
+        "marketplace",
+        "fintech",
+        "healthtech",
+        "general",
+        "custom",
+      ],
     },
   },
 } as const
