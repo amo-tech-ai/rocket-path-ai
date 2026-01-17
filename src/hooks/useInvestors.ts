@@ -86,10 +86,11 @@ export function useAllInvestors() {
   return useQuery({
     queryKey: ['investors', 'all'],
     queryFn: async () => {
-      // First get user's startup
+      // First try to get user's startup
       const { data: startup } = await supabase
         .from('startups')
         .select('id')
+        .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
       

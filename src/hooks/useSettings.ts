@@ -51,32 +51,42 @@ export function useUpdateProfile() {
   });
 }
 
-// Fetch user's startup
+// Fetch user's startup (fallback to first available startup for demo)
 export function useUserStartup() {
   return useQuery({
     queryKey: ['user-startup'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      
+      // Try to get startup via user's org first
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('org_id')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      // Get profile to get org_id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('org_id')
-        .eq('id', user.id)
-        .single();
+        if (profile?.org_id) {
+          const { data: startup } = await supabase
+            .from('startups')
+            .select('*')
+            .eq('org_id', profile.org_id)
+            .maybeSingle();
 
-      if (!profile?.org_id) return null;
+          if (startup) return startup;
+        }
+      }
 
-      // Get startup for that org
-      const { data, error } = await supabase
+      // Fallback: Get first available startup (for demo/development)
+      const { data: fallbackStartup, error } = await supabase
         .from('startups')
         .select('*')
-        .eq('org_id', profile.org_id)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      return fallbackStartup;
     },
   });
 }

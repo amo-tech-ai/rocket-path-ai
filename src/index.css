@@ -69,10 +69,11 @@
     --sidebar-border: 30 20% 92%;
     --sidebar-ring: 25 95% 53%;
 
-    /* AI Panel specific - dark navy/charcoal for contrast */
-    --ai-background: 220 25% 18%;
-    --ai-border: 220 20% 25%;
+    /* AI Panel specific - light background for clean look */
+    --ai-background: 30 20% 97%;
+    --ai-border: 30 15% 90%;
     --ai-accent: 25 95% 55%;
+    --ai-card: 0 0% 100%;
 
     /* Typography */
     --font-display: 'Playfair Display', Georgia, serif;
@@ -162,10 +163,16 @@
     box-shadow: var(--shadow-lg);
   }
 
-  /* AI panel styling - dark theme */
+  /* AI panel styling - light theme */
   .ai-panel {
     background: hsl(var(--ai-background));
     border-left: 1px solid hsl(var(--ai-border));
+  }
+  
+  .ai-panel-card {
+    background: hsl(var(--ai-card));
+    @apply rounded-xl border border-border/50 p-4;
+    box-shadow: var(--shadow-sm);
   }
 
   /* Quick action card */
