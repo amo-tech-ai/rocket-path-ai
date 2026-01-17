@@ -5,6 +5,7 @@ import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { AITaskSuggestions } from '@/components/tasks/AITaskSuggestions';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
+import { TasksAIPanel } from '@/components/tasks/TasksAIPanel';
 import { 
   useAllTasks, 
   useCreateTask,
@@ -215,8 +216,15 @@ const Tasks = () => {
     );
   }
 
+  const aiPanel = (
+    <TasksAIPanel 
+      stats={stats} 
+      onGenerateTasks={() => setShowAISuggestions(true)} 
+    />
+  );
+
   return (
-    <DashboardLayout>
+    <DashboardLayout aiPanel={aiPanel}>
       <div className="flex h-[calc(100vh-8rem)]">
         {/* Main Content */}
         <div className={cn(
