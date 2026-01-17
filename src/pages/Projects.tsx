@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { ProjectsAIPanel } from '@/components/projects/ProjectsAIPanel';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
 import { 
@@ -133,7 +134,7 @@ const Projects = () => {
   // Empty state
   if (!isLoading && projects.length === 0) {
     return (
-      <DashboardLayout>
+      <DashboardLayout aiPanel={<ProjectsAIPanel stats={{ total: 0, active: 0, completed: 0, atRisk: 0 }} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -164,7 +165,7 @@ const Projects = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout aiPanel={<ProjectsAIPanel stats={{ total: projects.length, active: projects.filter(p => p.status === 'active').length, completed: projects.filter(p => p.status === 'completed').length, atRisk: projects.filter(p => p.health === 'at_risk').length }} />}>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 

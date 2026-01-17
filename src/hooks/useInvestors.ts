@@ -86,9 +86,19 @@ export function useAllInvestors() {
   return useQuery({
     queryKey: ['investors', 'all'],
     queryFn: async () => {
+      // First get user's startup
+      const { data: startup } = await supabase
+        .from('startups')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+      
+      if (!startup?.id) return [];
+      
       const { data, error } = await supabase
         .from('investors')
         .select('*')
+        .eq('startup_id', startup.id)
         .order('priority', { ascending: false })
         .order('updated_at', { ascending: false });
       
