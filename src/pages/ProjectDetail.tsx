@@ -8,13 +8,13 @@ import {
   PROJECT_STATUSES,
   PROJECT_HEALTH,
   PROJECT_TYPES,
-  Project
 } from '@/hooks/useProjects';
 import { useTasksByProject, useUpdateTaskStatus, TaskWithProject } from '@/hooks/useTasks';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
+import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
+import { ProjectDetailAIPanel } from '@/components/projects/ProjectDetailAIPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -32,8 +32,7 @@ import {
   Target,
   CheckCircle2,
   Clock,
-  AlertTriangle,
-  Sparkles
+  AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,6 +71,7 @@ const ProjectDetail = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskWithProject | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<TaskWithProject | null>(null);
@@ -216,16 +216,20 @@ const ProjectDetail = () => {
     );
   }
 
+  const aiPanel = (
+    <ProjectDetailAIPanel
+      projectName={project.name}
+      projectHealth={project.health || 'on_track'}
+      taskStats={taskStats}
+      progress={progress}
+    />
+  );
+
   return (
-    <DashboardLayout>
-      <div className="flex h-[calc(100vh-8rem)]">
-        {/* Main Content */}
-        <div className={cn(
-          "flex-1 overflow-hidden transition-all duration-300",
-          selectedTask ? "pr-0" : ""
-        )}>
-          <ScrollArea className="h-full pr-4">
-            <div className="max-w-4xl space-y-6">
+    <DashboardLayout aiPanel={aiPanel}>
+      <div className="max-w-4xl">
+        <ScrollArea className="h-[calc(100vh-8rem)]">
+          <div className="space-y-6 pr-4">
               {/* Back Link & Header */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -445,7 +449,10 @@ const ProjectDetail = () => {
                             {filteredTasks.map((task, index) => (
                               <div
                                 key={task.id}
-                                onClick={() => setSelectedTask(task)}
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setDetailSheetOpen(true);
+                                }}
                                 className={cn(
                                   "cursor-pointer transition-colors rounded-lg",
                                   selectedTask?.id === task.id && "ring-2 ring-primary"
@@ -474,29 +481,28 @@ const ProjectDetail = () => {
           </ScrollArea>
         </div>
 
-        {/* Right Panel - Task Details */}
-        <AnimatePresence>
-          {selectedTask && (
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: 380 }}
-              exit={{ width: 0 }}
-              className="flex-shrink-0 overflow-hidden"
-            >
-              <TaskDetailPanel
-                task={selectedTask}
-                onClose={() => setSelectedTask(null)}
-                onEdit={() => {
-                  setEditingTask(selectedTask);
-                  setTaskDialogOpen(true);
-                }}
-                onDelete={() => setTaskToDelete(selectedTask)}
-                onStatusChange={(status) => handleStatusChange(selectedTask.id, status)}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Task Detail Sheet - Overlays on far right */}
+      <TaskDetailSheet
+        task={selectedTask}
+        open={detailSheetOpen}
+        onOpenChange={(open) => {
+          setDetailSheetOpen(open);
+          if (!open) setSelectedTask(null);
+        }}
+        onEdit={() => {
+          if (selectedTask) {
+            setEditingTask(selectedTask);
+            setTaskDialogOpen(true);
+          }
+          setDetailSheetOpen(false);
+        }}
+        onDelete={() => {
+          if (selectedTask) setTaskToDelete(selectedTask);
+        }}
+        onStatusChange={(status) => {
+          if (selectedTask) handleStatusChange(selectedTask.id, status);
+        }}
+      />
 
       {/* Dialogs */}
       <CreateProjectDialog
