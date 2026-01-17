@@ -1,11 +1,15 @@
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import HeroSection from "@/components/home/HeroSection";
-import ProblemSection from "@/components/home/ProblemSection";
-import HowItWorksSection from "@/components/home/HowItWorksSection";
-import WhatChangesSection from "@/components/home/WhatChangesSection";
-import FeaturesSection from "@/components/home/FeaturesSection";
-import CTASection from "@/components/home/CTASection";
+import Header from "@/components/marketing/Header";
+import Footer from "@/components/marketing/Footer";
+import HeroSection from "@/components/marketing/HeroSection";
+import HowItWorksSection from "@/components/marketing/HowItWorksSection";
+import InsightSection from "@/components/marketing/InsightSection";
+import FeaturesSection from "@/components/marketing/FeaturesSection";
+import TimelineSection from "@/components/marketing/TimelineSection";
+import ValuePillarsSection from "@/components/marketing/ValuePillarsSection";
+import GuidedFlowSection from "@/components/marketing/GuidedFlowSection";
+import HubSection from "@/components/marketing/HubSection";
+import OutcomesSection from "@/components/marketing/OutcomesSection";
+import CTASection from "@/components/marketing/CTASection";
 
 const Index = () => {
   return (
@@ -13,10 +17,14 @@ const Index = () => {
       <Header />
       <main>
         <HeroSection />
-        <ProblemSection />
         <HowItWorksSection />
-        <WhatChangesSection />
+        <InsightSection />
         <FeaturesSection />
+        <TimelineSection />
+        <ValuePillarsSection />
+        <GuidedFlowSection />
+        <HubSection />
+        <OutcomesSection />
         <CTASection />
       </main>
       <Footer />

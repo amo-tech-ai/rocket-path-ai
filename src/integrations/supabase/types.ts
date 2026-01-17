@@ -1214,6 +1214,737 @@ export type Database = {
           },
         ]
       }
+      event_assets: {
+        Row: {
+          ai_generated: boolean | null
+          ai_model: string | null
+          ai_prompt: string | null
+          approved_at: string | null
+          approved_by: string | null
+          asset_type: Database["public"]["Enums"]["event_asset_type"]
+          call_to_action: string | null
+          caption: string | null
+          clicks: number | null
+          comments: number | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          dimensions: Json | null
+          engagement: Json | null
+          expires_at: string | null
+          external_post_id: string | null
+          external_url: string | null
+          file_size_bytes: number | null
+          generation_params: Json | null
+          hashtags: string[] | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          link_url: string | null
+          media_type: string | null
+          media_url: string | null
+          media_urls: string[] | null
+          name: string
+          notes: string | null
+          parent_asset_id: string | null
+          platform: Database["public"]["Enums"]["asset_platform"]
+          published_at: string | null
+          rejection_reason: string | null
+          scheduled_at: string | null
+          shares: number | null
+          startup_event_id: string
+          status: Database["public"]["Enums"]["asset_status"]
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          version: number | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          asset_type: Database["public"]["Enums"]["event_asset_type"]
+          call_to_action?: string | null
+          caption?: string | null
+          clicks?: number | null
+          comments?: number | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          engagement?: Json | null
+          expires_at?: string | null
+          external_post_id?: string | null
+          external_url?: string | null
+          file_size_bytes?: number | null
+          generation_params?: Json | null
+          hashtags?: string[] | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_url?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          media_urls?: string[] | null
+          name: string
+          notes?: string | null
+          parent_asset_id?: string | null
+          platform?: Database["public"]["Enums"]["asset_platform"]
+          published_at?: string | null
+          rejection_reason?: string | null
+          scheduled_at?: string | null
+          shares?: number | null
+          startup_event_id: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          version?: number | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          ai_model?: string | null
+          ai_prompt?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          asset_type?: Database["public"]["Enums"]["event_asset_type"]
+          call_to_action?: string | null
+          caption?: string | null
+          clicks?: number | null
+          comments?: number | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          engagement?: Json | null
+          expires_at?: string | null
+          external_post_id?: string | null
+          external_url?: string | null
+          file_size_bytes?: number | null
+          generation_params?: Json | null
+          hashtags?: string[] | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          link_url?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          media_urls?: string[] | null
+          name?: string
+          notes?: string | null
+          parent_asset_id?: string | null
+          platform?: Database["public"]["Enums"]["asset_platform"]
+          published_at?: string | null
+          rejection_reason?: string | null
+          scheduled_at?: string | null
+          shares?: number | null
+          startup_event_id?: string
+          status?: Database["public"]["Enums"]["asset_status"]
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_assets_parent_asset_id_fkey"
+            columns: ["parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "event_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_assets_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_attendees: {
+        Row: {
+          accessibility_needs: string | null
+          attended_sessions: Json | null
+          attendee_type: Database["public"]["Enums"]["attendee_type"]
+          badge_printed: boolean | null
+          cancelled_at: string | null
+          checked_in: boolean | null
+          checked_in_at: string | null
+          checked_in_by: string | null
+          company: string | null
+          confirmed_at: string | null
+          contact_id: string | null
+          created_at: string
+          dietary_requirements: string | null
+          email: string
+          email_opted_in: boolean | null
+          feedback_rating: number | null
+          feedback_submitted: boolean | null
+          feedback_text: string | null
+          id: string
+          internal_notes: string | null
+          invited_at: string | null
+          last_messaged_at: string | null
+          linkedin_url: string | null
+          messages_received: number | null
+          name: string
+          notes: string | null
+          phone: string | null
+          referral_code: string | null
+          registered_at: string | null
+          registration_code: string | null
+          registration_source: string | null
+          rsvp_status: Database["public"]["Enums"]["rsvp_status"]
+          session_preferences: Json | null
+          startup_event_id: string
+          ticket_price: number | null
+          ticket_type: string | null
+          title: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          whatsapp_opted_in: boolean | null
+        }
+        Insert: {
+          accessibility_needs?: string | null
+          attended_sessions?: Json | null
+          attendee_type?: Database["public"]["Enums"]["attendee_type"]
+          badge_printed?: boolean | null
+          cancelled_at?: string | null
+          checked_in?: boolean | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          company?: string | null
+          confirmed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          dietary_requirements?: string | null
+          email: string
+          email_opted_in?: boolean | null
+          feedback_rating?: number | null
+          feedback_submitted?: boolean | null
+          feedback_text?: string | null
+          id?: string
+          internal_notes?: string | null
+          invited_at?: string | null
+          last_messaged_at?: string | null
+          linkedin_url?: string | null
+          messages_received?: number | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          registered_at?: string | null
+          registration_code?: string | null
+          registration_source?: string | null
+          rsvp_status?: Database["public"]["Enums"]["rsvp_status"]
+          session_preferences?: Json | null
+          startup_event_id: string
+          ticket_price?: number | null
+          ticket_type?: string | null
+          title?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp_opted_in?: boolean | null
+        }
+        Update: {
+          accessibility_needs?: string | null
+          attended_sessions?: Json | null
+          attendee_type?: Database["public"]["Enums"]["attendee_type"]
+          badge_printed?: boolean | null
+          cancelled_at?: string | null
+          checked_in?: boolean | null
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          company?: string | null
+          confirmed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          dietary_requirements?: string | null
+          email?: string
+          email_opted_in?: boolean | null
+          feedback_rating?: number | null
+          feedback_submitted?: boolean | null
+          feedback_text?: string | null
+          id?: string
+          internal_notes?: string | null
+          invited_at?: string | null
+          last_messaged_at?: string | null
+          linkedin_url?: string | null
+          messages_received?: number | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          registered_at?: string | null
+          registration_code?: string | null
+          registration_source?: string | null
+          rsvp_status?: Database["public"]["Enums"]["rsvp_status"]
+          session_preferences?: Json | null
+          startup_event_id?: string
+          ticket_price?: number | null
+          ticket_type?: string | null
+          title?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp_opted_in?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_attendees_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_messages: {
+        Row: {
+          ai_confidence: number | null
+          ai_handled: boolean | null
+          ai_intent: string | null
+          ai_response_time_ms: number | null
+          attendee_id: string | null
+          broadcast_id: string | null
+          channel: Database["public"]["Enums"]["message_channel"]
+          content: string
+          conversation_id: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["message_direction"]
+          error_message: string | null
+          escalated: boolean | null
+          escalated_at: string | null
+          escalated_to: string | null
+          escalation_reason: string | null
+          external_message_id: string | null
+          failed_at: string | null
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message_type: Database["public"]["Enums"]["message_type"]
+          read_at: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          sent_at: string | null
+          startup_event_id: string
+          status: Database["public"]["Enums"]["message_status"]
+          template_name: string | null
+          template_params: Json | null
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_handled?: boolean | null
+          ai_intent?: string | null
+          ai_response_time_ms?: number | null
+          attendee_id?: string | null
+          broadcast_id?: string | null
+          channel?: Database["public"]["Enums"]["message_channel"]
+          content: string
+          conversation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction: Database["public"]["Enums"]["message_direction"]
+          error_message?: string | null
+          escalated?: boolean | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          external_message_id?: string | null
+          failed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_at?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          sent_at?: string | null
+          startup_event_id: string
+          status?: Database["public"]["Enums"]["message_status"]
+          template_name?: string | null
+          template_params?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_handled?: boolean | null
+          ai_intent?: string | null
+          ai_response_time_ms?: number | null
+          attendee_id?: string | null
+          broadcast_id?: string | null
+          channel?: Database["public"]["Enums"]["message_channel"]
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction?: Database["public"]["Enums"]["message_direction"]
+          error_message?: string | null
+          escalated?: boolean | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          external_message_id?: string | null
+          failed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_at?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          sent_at?: string | null
+          startup_event_id?: string
+          status?: Database["public"]["Enums"]["message_status"]
+          template_name?: string | null
+          template_params?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_messages_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "event_attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_messages_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_sponsors: {
+        Row: {
+          ai_notes: string | null
+          amount: number | null
+          benefits: Json | null
+          company_name: string | null
+          confirmed_at: string | null
+          contact_email: string | null
+          contact_id: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_title: string | null
+          contract_signed_at: string | null
+          created_at: string
+          created_by: string | null
+          deliverables: Json | null
+          description: string | null
+          discovery_source: string | null
+          follow_up_date: string | null
+          id: string
+          in_kind_description: string | null
+          in_kind_value: number | null
+          internal_notes: string | null
+          last_contacted_at: string | null
+          logo_url: string | null
+          match_score: number | null
+          name: string
+          notes: string | null
+          outreach_sent_at: string | null
+          outreach_template: string | null
+          payment_received_at: string | null
+          response_received_at: string | null
+          startup_event_id: string
+          status: Database["public"]["Enums"]["sponsor_status"]
+          tier: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          ai_notes?: string | null
+          amount?: number | null
+          benefits?: Json | null
+          company_name?: string | null
+          confirmed_at?: string | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_title?: string | null
+          contract_signed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deliverables?: Json | null
+          description?: string | null
+          discovery_source?: string | null
+          follow_up_date?: string | null
+          id?: string
+          in_kind_description?: string | null
+          in_kind_value?: number | null
+          internal_notes?: string | null
+          last_contacted_at?: string | null
+          logo_url?: string | null
+          match_score?: number | null
+          name: string
+          notes?: string | null
+          outreach_sent_at?: string | null
+          outreach_template?: string | null
+          payment_received_at?: string | null
+          response_received_at?: string | null
+          startup_event_id: string
+          status?: Database["public"]["Enums"]["sponsor_status"]
+          tier?: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          ai_notes?: string | null
+          amount?: number | null
+          benefits?: Json | null
+          company_name?: string | null
+          confirmed_at?: string | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_title?: string | null
+          contract_signed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deliverables?: Json | null
+          description?: string | null
+          discovery_source?: string | null
+          follow_up_date?: string | null
+          id?: string
+          in_kind_description?: string | null
+          in_kind_value?: number | null
+          internal_notes?: string | null
+          last_contacted_at?: string | null
+          logo_url?: string | null
+          match_score?: number | null
+          name?: string
+          notes?: string | null
+          outreach_sent_at?: string | null
+          outreach_template?: string | null
+          payment_received_at?: string | null
+          response_received_at?: string | null
+          startup_event_id?: string
+          status?: Database["public"]["Enums"]["sponsor_status"]
+          tier?: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_sponsors_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_sponsors_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_venues: {
+        Row: {
+          accessibility_info: string | null
+          additional_fees: Json | null
+          address: string | null
+          ai_analysis: string | null
+          amenities: Json | null
+          av_equipment: boolean | null
+          booked_at: string | null
+          capacity: number | null
+          catering_available: boolean | null
+          catering_minimum: number | null
+          catering_required: boolean | null
+          city: string | null
+          cons: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contract_signed_at: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          deposit_amount: number | null
+          deposit_paid_at: string | null
+          description: string | null
+          discovery_source: string | null
+          equipment_included: Json | null
+          fit_score: number | null
+          floor_plan_url: string | null
+          google_place_id: string | null
+          id: string
+          is_primary: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          notes: string | null
+          parking_info: string | null
+          photos: string[] | null
+          postal_code: string | null
+          pros: string | null
+          rental_cost: number | null
+          seated_capacity: number | null
+          standing_capacity: number | null
+          startup_event_id: string
+          state: string | null
+          status: Database["public"]["Enums"]["venue_status"]
+          updated_at: string
+          venue_type: string | null
+          virtual_tour_url: string | null
+          visited_at: string | null
+          website: string | null
+          wifi_available: boolean | null
+        }
+        Insert: {
+          accessibility_info?: string | null
+          additional_fees?: Json | null
+          address?: string | null
+          ai_analysis?: string | null
+          amenities?: Json | null
+          av_equipment?: boolean | null
+          booked_at?: string | null
+          capacity?: number | null
+          catering_available?: boolean | null
+          catering_minimum?: number | null
+          catering_required?: boolean | null
+          city?: string | null
+          cons?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_signed_at?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_amount?: number | null
+          deposit_paid_at?: string | null
+          description?: string | null
+          discovery_source?: string | null
+          equipment_included?: Json | null
+          fit_score?: number | null
+          floor_plan_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          is_primary?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          notes?: string | null
+          parking_info?: string | null
+          photos?: string[] | null
+          postal_code?: string | null
+          pros?: string | null
+          rental_cost?: number | null
+          seated_capacity?: number | null
+          standing_capacity?: number | null
+          startup_event_id: string
+          state?: string | null
+          status?: Database["public"]["Enums"]["venue_status"]
+          updated_at?: string
+          venue_type?: string | null
+          virtual_tour_url?: string | null
+          visited_at?: string | null
+          website?: string | null
+          wifi_available?: boolean | null
+        }
+        Update: {
+          accessibility_info?: string | null
+          additional_fees?: Json | null
+          address?: string | null
+          ai_analysis?: string | null
+          amenities?: Json | null
+          av_equipment?: boolean | null
+          booked_at?: string | null
+          capacity?: number | null
+          catering_available?: boolean | null
+          catering_minimum?: number | null
+          catering_required?: boolean | null
+          city?: string | null
+          cons?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contract_signed_at?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_amount?: number | null
+          deposit_paid_at?: string | null
+          description?: string | null
+          discovery_source?: string | null
+          equipment_included?: Json | null
+          fit_score?: number | null
+          floor_plan_url?: string | null
+          google_place_id?: string | null
+          id?: string
+          is_primary?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          notes?: string | null
+          parking_info?: string | null
+          photos?: string[] | null
+          postal_code?: string | null
+          pros?: string | null
+          rental_cost?: number | null
+          seated_capacity?: number | null
+          standing_capacity?: number | null
+          startup_event_id?: string
+          state?: string | null
+          status?: Database["public"]["Enums"]["venue_status"]
+          updated_at?: string
+          venue_type?: string | null
+          virtual_tour_url?: string | null
+          visited_at?: string | null
+          website?: string | null
+          wifi_available?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_venues_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           all_day: boolean | null
@@ -2170,6 +2901,179 @@ export type Database = {
           },
         ]
       }
+      startup_event_tasks: {
+        Row: {
+          blocks: string[] | null
+          category: Database["public"]["Enums"]["event_task_category"]
+          created_at: string
+          depends_on: string[] | null
+          due_offset_days: number | null
+          id: string
+          is_critical_path: boolean | null
+          is_milestone: boolean | null
+          notes: string | null
+          startup_event_id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          blocks?: string[] | null
+          category?: Database["public"]["Enums"]["event_task_category"]
+          created_at?: string
+          depends_on?: string[] | null
+          due_offset_days?: number | null
+          id?: string
+          is_critical_path?: boolean | null
+          is_milestone?: boolean | null
+          notes?: string | null
+          startup_event_id: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          blocks?: string[] | null
+          category?: Database["public"]["Enums"]["event_task_category"]
+          created_at?: string
+          depends_on?: string[] | null
+          due_offset_days?: number | null
+          id?: string
+          is_critical_path?: boolean | null
+          is_milestone?: boolean | null
+          notes?: string | null
+          startup_event_id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_event_tasks_startup_event_id_fkey"
+            columns: ["startup_event_id"]
+            isOneToOne: false
+            referencedRelation: "startup_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "startup_event_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      startup_events: {
+        Row: {
+          agenda: Json | null
+          budget: number | null
+          cancelled_at: string | null
+          capacity: number | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          event_date: string
+          event_type: Database["public"]["Enums"]["startup_event_type"]
+          health_score: number | null
+          id: string
+          is_public: boolean | null
+          location_type: Database["public"]["Enums"]["event_location_type"]
+          metadata: Json | null
+          name: string
+          published_at: string | null
+          registration_deadline: string | null
+          registration_url: string | null
+          requires_approval: boolean | null
+          slug: string | null
+          sponsors_confirmed: number | null
+          sponsors_target: number | null
+          startup_id: string
+          status: Database["public"]["Enums"]["startup_event_status"]
+          tags: string[] | null
+          tasks_completed: number | null
+          tasks_total: number | null
+          ticket_price: number | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          agenda?: Json | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_date: string
+          event_type?: Database["public"]["Enums"]["startup_event_type"]
+          health_score?: number | null
+          id?: string
+          is_public?: boolean | null
+          location_type?: Database["public"]["Enums"]["event_location_type"]
+          metadata?: Json | null
+          name: string
+          published_at?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
+          startup_id: string
+          status?: Database["public"]["Enums"]["startup_event_status"]
+          tags?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agenda?: Json | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_date?: string
+          event_type?: Database["public"]["Enums"]["startup_event_type"]
+          health_score?: number | null
+          id?: string
+          is_public?: boolean | null
+          location_type?: Database["public"]["Enums"]["event_location_type"]
+          metadata?: Json | null
+          name?: string
+          published_at?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
+          startup_id?: string
+          status?: Database["public"]["Enums"]["startup_event_status"]
+          tags?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       startup_playbooks: {
         Row: {
           completed_at: string | null
@@ -2687,12 +3591,76 @@ export type Database = {
         | "settings_changed"
         | "other"
       app_role: "admin" | "moderator" | "user"
+      asset_platform:
+        | "twitter"
+        | "linkedin"
+        | "instagram"
+        | "facebook"
+        | "tiktok"
+        | "youtube"
+        | "email"
+        | "website"
+        | "whatsapp"
+        | "press"
+        | "internal"
+        | "other"
+      asset_status:
+        | "draft"
+        | "review"
+        | "approved"
+        | "scheduled"
+        | "published"
+        | "failed"
+        | "archived"
+      attendee_type:
+        | "general"
+        | "vip"
+        | "speaker"
+        | "panelist"
+        | "sponsor_rep"
+        | "press"
+        | "investor"
+        | "founder"
+        | "mentor"
+        | "staff"
+        | "volunteer"
+      event_asset_type:
+        | "social_post"
+        | "email"
+        | "graphic"
+        | "banner"
+        | "flyer"
+        | "press_release"
+        | "blog_post"
+        | "video"
+        | "landing_page"
+        | "registration_form"
+        | "agenda"
+        | "speaker_bio"
+        | "sponsor_logo_pack"
+        | "photo"
+        | "other"
+      event_location_type: "in_person" | "virtual" | "hybrid"
       event_status:
         | "scheduled"
         | "in_progress"
         | "completed"
         | "cancelled"
         | "rescheduled"
+      event_task_category:
+        | "planning"
+        | "venue"
+        | "sponsors"
+        | "speakers"
+        | "marketing"
+        | "registration"
+        | "logistics"
+        | "catering"
+        | "av_tech"
+        | "content"
+        | "communications"
+        | "post_event"
+        | "other"
       event_type:
         | "meeting"
         | "deadline"
@@ -2703,12 +3671,39 @@ export type Database = {
         | "pitch"
         | "funding_round"
         | "other"
+      message_channel: "whatsapp" | "sms" | "email" | "in_app"
+      message_direction: "inbound" | "outbound"
+      message_status:
+        | "pending"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+        | "cancelled"
+      message_type:
+        | "text"
+        | "template"
+        | "broadcast"
+        | "image"
+        | "document"
+        | "location"
+        | "contact"
+        | "interactive"
       pitch_deck_status:
         | "draft"
         | "in_progress"
         | "review"
         | "final"
         | "archived"
+      rsvp_status:
+        | "invited"
+        | "pending"
+        | "registered"
+        | "confirmed"
+        | "waitlist"
+        | "declined"
+        | "cancelled"
+        | "no_show"
       slide_type:
         | "title"
         | "problem"
@@ -2723,6 +3718,42 @@ export type Database = {
         | "ask"
         | "contact"
         | "custom"
+      sponsor_status:
+        | "prospect"
+        | "researching"
+        | "contacted"
+        | "negotiating"
+        | "interested"
+        | "confirmed"
+        | "declined"
+        | "cancelled"
+      sponsor_tier:
+        | "platinum"
+        | "gold"
+        | "silver"
+        | "bronze"
+        | "in_kind"
+        | "media"
+        | "community"
+      startup_event_status:
+        | "draft"
+        | "planning"
+        | "confirmed"
+        | "live"
+        | "completed"
+        | "cancelled"
+        | "postponed"
+      startup_event_type:
+        | "demo_day"
+        | "pitch_night"
+        | "networking"
+        | "workshop"
+        | "investor_meetup"
+        | "founder_dinner"
+        | "hackathon"
+        | "conference"
+        | "webinar"
+        | "other"
       template_category:
         | "startup"
         | "series_a"
@@ -2735,6 +3766,15 @@ export type Database = {
         | "healthtech"
         | "general"
         | "custom"
+      venue_status:
+        | "researching"
+        | "shortlisted"
+        | "contacted"
+        | "visiting"
+        | "negotiating"
+        | "booked"
+        | "cancelled"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2900,12 +3940,81 @@ export const Constants = {
         "other",
       ],
       app_role: ["admin", "moderator", "user"],
+      asset_platform: [
+        "twitter",
+        "linkedin",
+        "instagram",
+        "facebook",
+        "tiktok",
+        "youtube",
+        "email",
+        "website",
+        "whatsapp",
+        "press",
+        "internal",
+        "other",
+      ],
+      asset_status: [
+        "draft",
+        "review",
+        "approved",
+        "scheduled",
+        "published",
+        "failed",
+        "archived",
+      ],
+      attendee_type: [
+        "general",
+        "vip",
+        "speaker",
+        "panelist",
+        "sponsor_rep",
+        "press",
+        "investor",
+        "founder",
+        "mentor",
+        "staff",
+        "volunteer",
+      ],
+      event_asset_type: [
+        "social_post",
+        "email",
+        "graphic",
+        "banner",
+        "flyer",
+        "press_release",
+        "blog_post",
+        "video",
+        "landing_page",
+        "registration_form",
+        "agenda",
+        "speaker_bio",
+        "sponsor_logo_pack",
+        "photo",
+        "other",
+      ],
+      event_location_type: ["in_person", "virtual", "hybrid"],
       event_status: [
         "scheduled",
         "in_progress",
         "completed",
         "cancelled",
         "rescheduled",
+      ],
+      event_task_category: [
+        "planning",
+        "venue",
+        "sponsors",
+        "speakers",
+        "marketing",
+        "registration",
+        "logistics",
+        "catering",
+        "av_tech",
+        "content",
+        "communications",
+        "post_event",
+        "other",
       ],
       event_type: [
         "meeting",
@@ -2918,12 +4027,42 @@ export const Constants = {
         "funding_round",
         "other",
       ],
+      message_channel: ["whatsapp", "sms", "email", "in_app"],
+      message_direction: ["inbound", "outbound"],
+      message_status: [
+        "pending",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
+        "cancelled",
+      ],
+      message_type: [
+        "text",
+        "template",
+        "broadcast",
+        "image",
+        "document",
+        "location",
+        "contact",
+        "interactive",
+      ],
       pitch_deck_status: [
         "draft",
         "in_progress",
         "review",
         "final",
         "archived",
+      ],
+      rsvp_status: [
+        "invited",
+        "pending",
+        "registered",
+        "confirmed",
+        "waitlist",
+        "declined",
+        "cancelled",
+        "no_show",
       ],
       slide_type: [
         "title",
@@ -2940,6 +4079,46 @@ export const Constants = {
         "contact",
         "custom",
       ],
+      sponsor_status: [
+        "prospect",
+        "researching",
+        "contacted",
+        "negotiating",
+        "interested",
+        "confirmed",
+        "declined",
+        "cancelled",
+      ],
+      sponsor_tier: [
+        "platinum",
+        "gold",
+        "silver",
+        "bronze",
+        "in_kind",
+        "media",
+        "community",
+      ],
+      startup_event_status: [
+        "draft",
+        "planning",
+        "confirmed",
+        "live",
+        "completed",
+        "cancelled",
+        "postponed",
+      ],
+      startup_event_type: [
+        "demo_day",
+        "pitch_night",
+        "networking",
+        "workshop",
+        "investor_meetup",
+        "founder_dinner",
+        "hackathon",
+        "conference",
+        "webinar",
+        "other",
+      ],
       template_category: [
         "startup",
         "series_a",
@@ -2952,6 +4131,16 @@ export const Constants = {
         "healthtech",
         "general",
         "custom",
+      ],
+      venue_status: [
+        "researching",
+        "shortlisted",
+        "contacted",
+        "visiting",
+        "negotiating",
+        "booked",
+        "cancelled",
+        "rejected",
       ],
     },
   },
