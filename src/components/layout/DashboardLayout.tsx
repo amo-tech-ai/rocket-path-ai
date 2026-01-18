@@ -11,7 +11,8 @@ import {
   X,
   LayoutGrid,
   User,
-  Building2
+  Building2,
+  CalendarDays
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Projects", path: "/projects", icon: FolderKanban },
   { label: "Tasks", path: "/tasks", icon: CheckSquare },
+  { label: "Events", path: "/app/events", icon: CalendarDays },
   { label: "CRM", path: "/crm", icon: Users },
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
@@ -87,10 +89,9 @@ const DashboardLayout = ({ children, aiPanel }: DashboardLayoutProps) => {
           </Button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             return (
               <Link
                 key={item.path}

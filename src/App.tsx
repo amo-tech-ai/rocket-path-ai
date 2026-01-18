@@ -22,6 +22,7 @@ import LeanCanvas from "./pages/LeanCanvas";
 import UserProfile from "./pages/UserProfile";
 import CompanyProfile from "./pages/CompanyProfile";
 import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
 
 const queryClient = new QueryClient();
 
@@ -130,6 +131,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Events />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/events/:id"
+              element={
+                <ProtectedRoute>
+                  <EventDetail />
                 </ProtectedRoute>
               }
             />

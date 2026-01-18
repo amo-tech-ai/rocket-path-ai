@@ -57,22 +57,25 @@ function useStartupId() {
 }
 
 export function useEvents(filters?: EventFilters) {
-  const { data: startupId } = useStartupId();
+  const { data: startupId, isLoading: startupLoading } = useStartupId();
 
   return useQuery({
     queryKey: ['events', startupId, filters],
     queryFn: async () => {
-      if (!startupId) return [];
-
       let query = supabase
         .from('startup_events')
         .select(`
           *,
           event_sponsors(id, status),
-          event_attendees(id, rsvp_status)
+          event_attendees(id, rsvp_status),
+          event_venues(id, name, city, is_primary)
         `)
-        .eq('startup_id', startupId)
         .order('event_date', { ascending: true });
+
+      // Only filter by startup if we have one
+      if (startupId) {
+        query = query.eq('startup_id', startupId);
+      }
 
       // Apply status filter
       if (filters?.status && filters.status.length > 0) {
@@ -99,18 +102,24 @@ export function useEvents(filters?: EventFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Transform data to include counts
-      return (data || []).map((event: any) => ({
-        ...event,
-        attendee_count: event.event_attendees?.filter((a: any) => 
-          ['registered', 'confirmed'].includes(a.rsvp_status)
-        ).length || 0,
-        sponsor_count: event.event_sponsors?.filter((s: any) => 
-          s.status === 'confirmed'
-        ).length || 0,
-      })) as EventWithRelations[];
+      // Transform data to include counts and primary venue
+      return (data || []).map((event: any) => {
+        const primaryVenue = event.event_venues?.find((v: any) => v.is_primary) || event.event_venues?.[0];
+        return {
+          ...event,
+          attendee_count: event.event_attendees?.filter((a: any) => 
+            ['registered', 'confirmed'].includes(a.rsvp_status)
+          ).length || 0,
+          sponsor_count: event.event_sponsors?.filter((s: any) => 
+            s.status === 'confirmed'
+          ).length || 0,
+          venues: event.event_venues,
+          primary_venue_name: primaryVenue?.name || primaryVenue?.city,
+        };
+      }) as EventWithRelations[];
     },
-    enabled: !!startupId,
+    // Enable even if no startupId - show all events user can see
+    enabled: !startupLoading,
   });
 }
 
@@ -140,21 +149,24 @@ export function useEvent(eventId: string | undefined) {
 }
 
 export function useEventStats() {
-  const { data: startupId } = useStartupId();
+  const { data: startupId, isLoading: startupLoading } = useStartupId();
 
   return useQuery({
     queryKey: ['event-stats', startupId],
     queryFn: async () => {
-      if (!startupId) return null;
-
       const now = new Date().toISOString();
       const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      // Get all events
-      const { data: events, error } = await supabase
+      let query = supabase
         .from('startup_events')
-        .select('id, event_date, status')
-        .eq('startup_id', startupId);
+        .select('id, event_date, status');
+
+      // Only filter by startup if we have one
+      if (startupId) {
+        query = query.eq('startup_id', startupId);
+      }
+
+      const { data: events, error } = await query;
 
       if (error) throw error;
 
@@ -171,7 +183,7 @@ export function useEventStats() {
         completed: events?.filter(e => e.status === 'completed').length || 0,
       };
     },
-    enabled: !!startupId,
+    enabled: !startupLoading,
   });
 }
 
