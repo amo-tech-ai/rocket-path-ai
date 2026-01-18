@@ -3,15 +3,16 @@ import { format } from 'date-fns';
 import { 
   Calendar, 
   MapPin, 
-  Users, 
-  DollarSign, 
+  User, 
+  Users,
+  CheckCircle2,
   MoreVertical,
-  ExternalLink
+  Rocket,
+  Globe
 } from 'lucide-react';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -26,14 +27,27 @@ interface EventCardProps {
   viewMode: 'grid' | 'list';
 }
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  planning: 'bg-amber-100 text-amber-700',
-  confirmed: 'bg-emerald-100 text-emerald-700',
-  live: 'bg-blue-100 text-blue-700',
-  completed: 'bg-purple-100 text-purple-700',
-  cancelled: 'bg-red-100 text-red-700',
-  postponed: 'bg-orange-100 text-orange-700',
+// Priority mapping based on event status and health
+const getPriority = (event: EventWithRelations) => {
+  const healthScore = event.health_score || 0;
+  if (healthScore < 30) return { label: 'CRITICAL', className: 'bg-red-500 text-white' };
+  if (healthScore < 50) return { label: 'HIGH PRIORITY', className: 'bg-emerald-500 text-white' };
+  if (healthScore < 70) return { label: 'MEDIUM PRIORITY', className: 'bg-amber-100 text-amber-800' };
+  return { label: 'LOW PRIORITY', className: 'bg-gray-100 text-gray-700' };
+};
+
+// Event image placeholders based on type
+const eventImages: Record<string, string> = {
+  demo_day: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop',
+  pitch_night: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=400&h=200&fit=crop',
+  networking: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=200&fit=crop',
+  workshop: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=200&fit=crop',
+  investor_meetup: 'https://images.unsplash.com/photo-1560439514-4e9645039924?w=400&h=200&fit=crop',
+  founder_dinner: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=200&fit=crop',
+  hackathon: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=200&fit=crop',
+  conference: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=200&fit=crop',
+  webinar: 'https://images.unsplash.com/photo-1588196749597-9ff075ee6b5b?w=400&h=200&fit=crop',
+  other: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop',
 };
 
 const typeLabels: Record<string, string> = {
@@ -50,72 +64,62 @@ const typeLabels: Record<string, string> = {
 };
 
 export default function EventCard({ event, viewMode }: EventCardProps) {
-  const healthScore = event.health_score || 0;
+  const priority = getPriority(event);
   const attendeeCount = event.attendee_count || 0;
-  const capacity = event.capacity || 0;
+  const eventImage = eventImages[event.event_type] || eventImages.other;
   
-  // Get primary venue name from venues array
+  // Get primary venue
   const primaryVenue = event.venues?.find(v => v.is_primary) || event.venues?.[0];
-  const locationName = primaryVenue?.name;
+  const locationName = primaryVenue?.name || primaryVenue?.city;
+
+  // Format date & time
+  const formattedDate = event.event_date 
+    ? format(new Date(event.event_date), 'MMM dd, yyyy')
+    : 'Date TBD';
+  const formattedTime = event.event_date 
+    ? format(new Date(event.event_date), 'h:mm a')
+    : '';
+  const isFullDay = event.event_type === 'conference' || event.event_type === 'hackathon';
+
+  // Mock data for demo purposes
+  const assignee = 'Team Lead';
+  const statusInfo = event.status === 'confirmed' ? 'Booth Secured' : null;
 
   if (viewMode === 'list') {
     return (
       <Link to={`/app/events/${event.id}`}>
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              {/* Date */}
-              <div className="w-16 text-center shrink-0">
-                {event.event_date ? (
-                  <>
-                    <p className="text-xs text-muted-foreground uppercase">
-                      {format(new Date(event.event_date), 'MMM')}
-                    </p>
-                    <p className="text-2xl font-bold">
-                      {format(new Date(event.event_date), 'd')}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">TBD</p>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-medium truncate">{event.name}</h3>
-                  <Badge variant="outline" className={statusColors[event.status]}>
-                    {event.status}
-                  </Badge>
-                </div>
+        <Card className="hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden">
+          <div className="flex">
+            {/* Image */}
+            <div className="relative w-32 h-24 shrink-0">
+              <img 
+                src={eventImage} 
+                alt={event.name}
+                className="w-full h-full object-cover"
+              />
+              <Badge className={`absolute top-2 left-2 text-[10px] font-semibold ${priority.className}`}>
+                {priority.label}
+              </Badge>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 p-4 flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="font-semibold line-clamp-1">{event.name}</h3>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {typeLabels[event.event_type] || event.event_type}
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {formattedDate}
                   </span>
                   {locationName && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
                       {locationName}
                     </span>
                   )}
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {attendeeCount}/{capacity || '∞'}
-                  </span>
                 </div>
               </div>
-
-              {/* Health Score */}
-              <div className="w-24 shrink-0">
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Ready</span>
-                  <span className="font-medium">{healthScore}%</span>
-                </div>
-                <Progress value={healthScore} className="h-2" />
-              </div>
-
-              {/* Actions */}
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" onClick={(e) => e.preventDefault()}>
@@ -129,88 +133,102 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </CardContent>
+          </div>
         </Card>
       </Link>
     );
   }
 
-  // Grid view
+  // Grid view - Premium card design
   return (
     <Link to={`/app/events/${event.id}`}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-        <CardContent className="p-4">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-3">
-            <Badge variant="outline" className={statusColors[event.status]}>
-              {event.status}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.preventDefault()}>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Edit</DropdownMenuItem>
-                <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border-0 shadow-sm bg-card">
+        {/* Image Section */}
+        <div className="relative h-36 overflow-hidden">
+          <img 
+            src={eventImage} 
+            alt={event.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          
+          {/* Priority Badge */}
+          <Badge className={`absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wide ${priority.className}`}>
+            {priority.label}
+          </Badge>
+
+          {/* Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute top-2 right-2 h-8 w-8 bg-white/80 hover:bg-white text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.preventDefault()}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Edit</DropdownMenuItem>
+              <DropdownMenuItem>Duplicate</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Content Section */}
+        <div className="p-4 space-y-3">
+          {/* Title */}
+          <h3 className="font-semibold text-base line-clamp-1 group-hover:text-primary transition-colors">
+            {event.name}
+          </h3>
+
+          {/* Date */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>
+              {formattedDate}
+              {formattedTime && !isFullDay && ` • ${formattedTime}`}
+              {isFullDay && ' • Full Day'}
+            </span>
           </div>
 
-          {/* Title & Type */}
-          <h3 className="font-semibold text-lg mb-1 line-clamp-1">{event.name}</h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            {typeLabels[event.event_type] || event.event_type}
-          </p>
+          {/* Assignee / Owner */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span>{assignee}</span>
+          </div>
 
-          {/* Date & Location */}
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              {event.event_date ? (
-                <span>{format(new Date(event.event_date), 'MMM d, yyyy • h:mm a')}</span>
-              ) : (
-                <span className="text-muted-foreground">Date TBD</span>
-              )}
-            </div>
-            {locationName && (
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate">{locationName}</span>
+          {/* Bottom row - Status or Location info */}
+          <div className="pt-1">
+            {statusInfo ? (
+              <div className="flex items-center gap-2 text-sm text-emerald-600">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="font-medium">{statusInfo}</span>
               </div>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex items-center gap-1.5">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">{attendeeCount}</span>
-              <span className="text-sm text-muted-foreground">/{capacity || '∞'}</span>
-            </div>
-            {event.sponsor_count !== undefined && event.sponsor_count > 0 && (
-              <div className="flex items-center gap-1.5">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{event.sponsor_count}</span>
-                <span className="text-sm text-muted-foreground">sponsors</span>
+            ) : attendeeCount > 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Users className="h-4 w-4" />
+                <span>{attendeeCount} RSVPs Confirmed</span>
               </div>
-            )}
+            ) : locationName ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {event.location_type === 'virtual' ? (
+                  <Globe className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <MapPin className="h-4 w-4 text-emerald-600" />
+                )}
+                <span>{locationName}</span>
+              </div>
+            ) : event.event_type ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Rocket className="h-4 w-4" />
+                <span>{typeLabels[event.event_type]}</span>
+              </div>
+            ) : null}
           </div>
-
-          {/* Health Score */}
-          <div>
-            <div className="flex items-center justify-between text-sm mb-1.5">
-              <span className="text-muted-foreground">Readiness</span>
-              <span className="font-medium">{healthScore}%</span>
-            </div>
-            <Progress 
-              value={healthScore} 
-              className="h-2"
-            />
-          </div>
-        </CardContent>
+        </div>
       </Card>
     </Link>
   );
