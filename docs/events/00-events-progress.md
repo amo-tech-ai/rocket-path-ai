@@ -1,7 +1,7 @@
 # Events System — Progress Tracker
 
-> **Last Updated:** 2026-01-17  
-> **Status:** 🟡 In Progress
+> **Last Updated:** 2026-01-19  
+> **Status:** 🟢 Core Complete
 
 ---
 
@@ -18,15 +18,15 @@ The Events System enables startup founders to create, manage, and promote small-
 | Task Name | Description | Status | % Complete | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|------------|--------------|---------------------|-----------------|
 | Database Tables | Core event tables in Supabase | 🟢 Completed | 100% | `startup_events`, `event_sponsors`, `event_venues`, `event_attendees`, `event_assets`, `event_messages` | — | None |
-| RLS Policies | Row Level Security policies | 🟢 Completed | 100% | All tables have RLS via `startup_in_org()` | — | None |
+| RLS Policies | Row Level Security policies | 🟢 Completed | 100% | All tables have RLS via `startup_in_org()` + demo access policies | — | None |
 | Edge Functions | AI edge functions for events | 🟡 In Progress | 20% | `ai-chat` exists | `event-analytics`, `event-wizard`, `event-marketing`, `sponsor-search`, `venue-search` | Create edge functions |
 
 ### Frontend — Pages
 
 | Task Name | Description | Status | % Complete | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|------------|--------------|---------------------|-----------------|
-| Events Directory | `/app/events` - Browse all events | 🟢 Completed | 100% | Page, EventCard, FiltersPanel, AIPanel | — | None |
-| Event Detail | `/app/events/:id` - Event dashboard | 🔴 Not Started | 0% | — | Page, tabs, components | Create EventDetail.tsx |
+| Events Directory | `/app/events` - Browse all events | 🟢 Completed | 100% | Page, EventCard, FiltersPanel, AIPanel, Supabase wired | — | None |
+| Event Detail | `/app/events/:id` - Event dashboard | 🟢 Completed | 100% | Page with tabs, guest list, sponsors, venues, AI panel | — | None |
 | Event Wizard | `/app/events/new` - 4-step wizard | 🔴 Not Started | 0% | — | Wizard steps, AI integration | Create EventWizard.tsx |
 | Sponsor Wizard | `/app/events/:id/sponsors/new` | 🔴 Not Started | 0% | — | Search, outreach generation | Create SponsorWizard.tsx |
 | Venue Finder | `/app/events/:id/venues/search` | 🔴 Not Started | 0% | — | Search, photo analysis | Create VenueFinder.tsx |
@@ -36,7 +36,7 @@ The Events System enables startup founders to create, manage, and promote small-
 
 | Task Name | Description | Status | % Complete | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|------------|--------------|---------------------|-----------------|
-| EventCard | Event card with health score | 🟢 Completed | 100% | Grid/list views, status badges | — | None |
+| EventCard | Event card with health score | 🟢 Completed | 100% | Grid/list views, status badges, placeholder images | — | None |
 | EventFilters | Filter controls | 🟢 Completed | 100% | Status, type, date range filters | — | None |
 | EventsAIPanel | Right panel AI coach | 🟢 Completed | 100% | Insights, quick actions, chat | — | None |
 | HealthScoreCard | Progress breakdown card | 🔴 Not Started | 0% | — | Component not created | Create HealthScoreCard.tsx |
@@ -46,10 +46,13 @@ The Events System enables startup founders to create, manage, and promote small-
 
 | Task Name | Description | Status | % Complete | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|------------|--------------|---------------------|-----------------|
-| useEvents | Events CRUD operations | 🔴 Not Started | 0% | — | Hook not created | Create useEvents.ts |
-| useEventDetail | Single event with relations | 🔴 Not Started | 0% | — | Hook not created | Create useEventDetail.ts |
-| useEventSponsors | Sponsor management | 🔴 Not Started | 0% | — | Hook not created | Create useEventSponsors.ts |
-| useEventAttendees | Attendee management | 🔴 Not Started | 0% | — | Hook not created | Create useEventAttendees.ts |
+| useEvents | Events CRUD operations | 🟢 Completed | 100% | All CRUD + filters working | — | None |
+| useEvent | Single event with relations | 🟢 Completed | 100% | Loads sponsors, venues, attendees, assets | — | None |
+| useEventStats | Event statistics | 🟢 Completed | 100% | Total, upcoming, status counts | — | None |
+| useEventSponsors | Sponsor management | 🟢 Completed | 100% | Query sponsors by event | — | None |
+| useEventAttendees | Attendee management | 🟢 Completed | 100% | Query attendees by event | — | None |
+| useEventVenues | Venue management | 🟢 Completed | 100% | Query venues by event | — | None |
+| useEventAssets | Asset management | 🟢 Completed | 100% | Query assets by event | — | None |
 
 ### AI Agents
 
@@ -88,32 +91,38 @@ The Events System enables startup founders to create, manage, and promote small-
 
 ---
 
-## Implementation Order
+## Recent Fixes (2026-01-19)
 
-1. ✅ Database tables (Supabase) — **DONE**
-2. ✅ RLS policies — **DONE**
-3. 🔴 Create `useEvents` hook — **NEXT**
-4. 🔴 Create Events Directory page (`/app/events`)
-5. 🔴 Create Event Detail page (`/app/events/:id`)
-6. 🔴 Create Event Wizard (`/app/events/new`)
-7. 🔴 Create edge functions for AI agents
-8. 🔴 Create Sponsor Wizard
-9. 🔴 Create Venue Finder
-10. 🔴 Create Marketing Hub
+### Database
+- ✅ `event_location_type` enum exists and works
+- ✅ `startup_events` table has all columns (event_date, location_type, etc.)
+- ✅ Child tables (event_attendees, event_sponsors, event_venues, event_assets) properly linked
+- ✅ RLS policies added for authenticated users to view all events (demo mode)
+- ✅ All existing events set to `is_public = true`
 
----
+### Frontend
+- ✅ `useEvents` hook properly queries `startup_events` table
+- ✅ Events page loads with stats cards, tabs, and event grid
+- ✅ Event detail page with Overview, Guests, Sponsors, Logistics tabs
+- ✅ Placeholder images based on event type
+- ✅ Navigation link added to sidebar
 
-## Routes to Add
-
+### Routes Added
 ```typescript
 // In App.tsx
 <Route path="/app/events" element={<Events />} />
-<Route path="/app/events/new" element={<EventWizard />} />
 <Route path="/app/events/:id" element={<EventDetail />} />
-<Route path="/app/events/:id/sponsors/new" element={<SponsorWizard />} />
-<Route path="/app/events/:id/venues/search" element={<VenueFinder />} />
-<Route path="/app/events/:id/marketing" element={<MarketingHub />} />
 ```
+
+---
+
+## Next Steps
+
+1. 🔴 Create Event Wizard (`/app/events/new`)
+2. 🔴 Create Sponsor Wizard
+3. 🔴 Create Venue Finder
+4. 🔴 Create Marketing Hub
+5. 🔴 Create AI edge functions
 
 ---
 
