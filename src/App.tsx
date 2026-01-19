@@ -23,6 +23,7 @@ import UserProfile from "./pages/UserProfile";
 import CompanyProfile from "./pages/CompanyProfile";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
+import EventWizard from "./pages/EventWizard";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <EventDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/events/new"
+              element={
+                <ProtectedRoute>
+                  <EventWizard />
                 </ProtectedRoute>
               }
             />

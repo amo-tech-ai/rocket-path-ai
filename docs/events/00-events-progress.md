@@ -1,7 +1,7 @@
 # Events System — Progress Tracker
 
 > **Last Updated:** 2026-01-19  
-> **Status:** 🟢 Core Complete
+> **Status:** 🟢 Core Complete + Wizard
 
 ---
 
@@ -27,7 +27,7 @@ The Events System enables startup founders to create, manage, and promote small-
 |-----------|-------------|--------|------------|--------------|---------------------|-----------------|
 | Events Directory | `/app/events` - Browse all events | 🟢 Completed | 100% | Page, EventCard, FiltersPanel, AIPanel, Supabase wired | — | None |
 | Event Detail | `/app/events/:id` - Event dashboard | 🟢 Completed | 100% | Page with tabs, guest list, sponsors, venues, AI panel | — | None |
-| Event Wizard | `/app/events/new` - 4-step wizard | 🔴 Not Started | 0% | — | Wizard steps, AI integration | Create EventWizard.tsx |
+| Event Wizard | `/app/events/new` - 4-step wizard | 🟢 Completed | 100% | 4 steps: Context, Strategy, Logistics, Review | AI edge functions | Wire AI pre-fill |
 | Sponsor Wizard | `/app/events/:id/sponsors/new` | 🔴 Not Started | 0% | — | Search, outreach generation | Create SponsorWizard.tsx |
 | Venue Finder | `/app/events/:id/venues/search` | 🔴 Not Started | 0% | — | Search, photo analysis | Create VenueFinder.tsx |
 | Marketing Hub | `/app/events/:id/marketing` | 🔴 Not Started | 0% | — | Asset generation, scheduling | Create MarketingHub.tsx |
@@ -39,6 +39,11 @@ The Events System enables startup founders to create, manage, and promote small-
 | EventCard | Event card with health score | 🟢 Completed | 100% | Grid/list views, status badges, placeholder images | — | None |
 | EventFilters | Filter controls | 🟢 Completed | 100% | Status, type, date range filters | — | None |
 | EventsAIPanel | Right panel AI coach | 🟢 Completed | 100% | Insights, quick actions, chat | — | None |
+| WizardStepContext | Step 1: Event basics | 🟢 Completed | 100% | Name, type, URL, description | AI pre-fill | Connect AI extraction |
+| WizardStepStrategy | Step 2: Goals & audience | 🟢 Completed | 100% | Goals, budget, attendees, metrics | — | None |
+| WizardStepLogistics | Step 3: When & where | 🟢 Completed | 100% | Date, time, location type, venue | — | None |
+| WizardStepReview | Step 4: Review & create | 🟢 Completed | 100% | Summary, create button | — | None |
+| WizardAIPanel | Wizard AI assistant | 🟢 Completed | 100% | Guidance, readiness score, tips | — | None |
 | HealthScoreCard | Progress breakdown card | 🔴 Not Started | 0% | — | Component not created | Create HealthScoreCard.tsx |
 | TimelineView | Event preparation timeline | 🔴 Not Started | 0% | — | Component not created | Create TimelineView.tsx |
 
@@ -106,23 +111,31 @@ The Events System enables startup founders to create, manage, and promote small-
 - ✅ Event detail page with Overview, Guests, Sponsors, Logistics tabs
 - ✅ Placeholder images based on event type
 - ✅ Navigation link added to sidebar
+- ✅ **Event Wizard** - 4-step wizard at `/app/events/new`
+  - Step 1: Context (name, type, URL, description)
+  - Step 2: Strategy (goals, audience, budget, metrics)
+  - Step 3: Logistics (date, time, location, venue)
+  - Step 4: Review & Create
+  - localStorage progress saving
+  - AI assistant panel with guidance
 
 ### Routes Added
 ```typescript
 // In App.tsx
 <Route path="/app/events" element={<Events />} />
 <Route path="/app/events/:id" element={<EventDetail />} />
+<Route path="/app/events/new" element={<EventWizard />} />
 ```
 
 ---
 
 ## Next Steps
 
-1. 🔴 Create Event Wizard (`/app/events/new`)
-2. 🔴 Create Sponsor Wizard
-3. 🔴 Create Venue Finder
-4. 🔴 Create Marketing Hub
-5. 🔴 Create AI edge functions
+1. 🔴 Create Sponsor Wizard (`/app/events/:id/sponsors/new`)
+2. 🔴 Create Venue Finder
+3. 🔴 Create Marketing Hub
+4. 🔴 Create AI edge functions (event-wizard, sponsor-search, venue-search, event-marketing)
+5. 🔴 Wire AI pre-fill to wizard Step 1
 
 ---
 
