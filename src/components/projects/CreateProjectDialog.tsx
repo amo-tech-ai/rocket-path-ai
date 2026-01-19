@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -63,16 +63,45 @@ export function CreateProjectDialog({
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
-      name: project?.name || '',
-      description: project?.description || '',
-      type: project?.type || 'other',
-      status: project?.status || 'active',
-      health: project?.health || 'on_track',
-      progress: project?.progress || 0,
-      start_date: project?.start_date || '',
-      end_date: project?.end_date || '',
+      name: '',
+      description: '',
+      type: 'other',
+      status: 'active',
+      health: 'on_track',
+      progress: 0,
+      start_date: '',
+      end_date: '',
     },
   });
+
+  // Reset form when project changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      if (project) {
+        form.reset({
+          name: project.name || '',
+          description: project.description || '',
+          type: project.type || 'other',
+          status: project.status || 'active',
+          health: project.health || 'on_track',
+          progress: project.progress || 0,
+          start_date: project.start_date || '',
+          end_date: project.end_date || '',
+        });
+      } else {
+        form.reset({
+          name: '',
+          description: '',
+          type: 'other',
+          status: 'active',
+          health: 'on_track',
+          progress: 0,
+          start_date: '',
+          end_date: '',
+        });
+      }
+    }
+  }, [project, open, form]);
 
   const handleSubmit = async (data: ProjectFormData) => {
     await onSubmit(data);

@@ -76,27 +76,30 @@ export function TaskDialog({
     },
   });
 
+  // Reset form when task changes or dialog opens
   useEffect(() => {
-    if (task) {
-      form.reset({
-        title: task.title || '',
-        description: task.description || '',
-        status: task.status || 'pending',
-        priority: task.priority || 'medium',
-        project_id: task.project_id || '',
-        due_at: task.due_at || '',
-      });
-    } else {
-      form.reset({
-        title: '',
-        description: '',
-        status: defaultStatus,
-        priority: 'medium',
-        project_id: '',
-        due_at: '',
-      });
+    if (open) {
+      if (task) {
+        form.reset({
+          title: task.title || '',
+          description: task.description || '',
+          status: task.status || 'pending',
+          priority: task.priority || 'medium',
+          project_id: task.project_id || '',
+          due_at: task.due_at ? task.due_at.split('T')[0] : '',
+        });
+      } else {
+        form.reset({
+          title: '',
+          description: '',
+          status: defaultStatus,
+          priority: 'medium',
+          project_id: '',
+          due_at: '',
+        });
+      }
     }
-  }, [task, form, defaultStatus]);
+  }, [task, form, defaultStatus, open]);
 
   const handleSubmit = async (data: TaskFormData) => {
     await onSubmit(data);
