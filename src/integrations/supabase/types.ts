@@ -1232,6 +1232,7 @@ export type Database = {
           description: string | null
           dimensions: Json | null
           engagement: Json | null
+          event_id: string | null
           expires_at: string | null
           external_post_id: string | null
           external_url: string | null
@@ -1253,7 +1254,6 @@ export type Database = {
           rejection_reason: string | null
           scheduled_at: string | null
           shares: number | null
-          startup_event_id: string
           status: Database["public"]["Enums"]["asset_status"]
           thumbnail_url: string | null
           title: string | null
@@ -1277,6 +1277,7 @@ export type Database = {
           description?: string | null
           dimensions?: Json | null
           engagement?: Json | null
+          event_id?: string | null
           expires_at?: string | null
           external_post_id?: string | null
           external_url?: string | null
@@ -1298,7 +1299,6 @@ export type Database = {
           rejection_reason?: string | null
           scheduled_at?: string | null
           shares?: number | null
-          startup_event_id: string
           status?: Database["public"]["Enums"]["asset_status"]
           thumbnail_url?: string | null
           title?: string | null
@@ -1322,6 +1322,7 @@ export type Database = {
           description?: string | null
           dimensions?: Json | null
           engagement?: Json | null
+          event_id?: string | null
           expires_at?: string | null
           external_post_id?: string | null
           external_url?: string | null
@@ -1343,7 +1344,6 @@ export type Database = {
           rejection_reason?: string | null
           scheduled_at?: string | null
           shares?: number | null
-          startup_event_id?: string
           status?: Database["public"]["Enums"]["asset_status"]
           thumbnail_url?: string | null
           title?: string | null
@@ -1352,17 +1352,17 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "event_assets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "event_assets_parent_asset_id_fkey"
             columns: ["parent_asset_id"]
             isOneToOne: false
             referencedRelation: "event_assets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_assets_startup_event_id_fkey"
-            columns: ["startup_event_id"]
-            isOneToOne: false
-            referencedRelation: "startup_events"
             referencedColumns: ["id"]
           },
         ]
@@ -1384,6 +1384,7 @@ export type Database = {
           dietary_requirements: string | null
           email: string
           email_opted_in: boolean | null
+          event_id: string | null
           feedback_rating: number | null
           feedback_submitted: boolean | null
           feedback_text: string | null
@@ -1402,7 +1403,6 @@ export type Database = {
           registration_source: string | null
           rsvp_status: Database["public"]["Enums"]["rsvp_status"]
           session_preferences: Json | null
-          startup_event_id: string
           ticket_price: number | null
           ticket_type: string | null
           title: string | null
@@ -1428,6 +1428,7 @@ export type Database = {
           dietary_requirements?: string | null
           email: string
           email_opted_in?: boolean | null
+          event_id?: string | null
           feedback_rating?: number | null
           feedback_submitted?: boolean | null
           feedback_text?: string | null
@@ -1446,7 +1447,6 @@ export type Database = {
           registration_source?: string | null
           rsvp_status?: Database["public"]["Enums"]["rsvp_status"]
           session_preferences?: Json | null
-          startup_event_id: string
           ticket_price?: number | null
           ticket_type?: string | null
           title?: string | null
@@ -1472,6 +1472,7 @@ export type Database = {
           dietary_requirements?: string | null
           email?: string
           email_opted_in?: boolean | null
+          event_id?: string | null
           feedback_rating?: number | null
           feedback_submitted?: boolean | null
           feedback_text?: string | null
@@ -1490,7 +1491,6 @@ export type Database = {
           registration_source?: string | null
           rsvp_status?: Database["public"]["Enums"]["rsvp_status"]
           session_preferences?: Json | null
-          startup_event_id?: string
           ticket_price?: number | null
           ticket_type?: string | null
           title?: string | null
@@ -1509,271 +1509,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "event_attendees_startup_event_id_fkey"
-            columns: ["startup_event_id"]
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "startup_events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      event_messages: {
-        Row: {
-          ai_confidence: number | null
-          ai_handled: boolean | null
-          ai_intent: string | null
-          ai_response_time_ms: number | null
-          attendee_id: string | null
-          broadcast_id: string | null
-          channel: Database["public"]["Enums"]["message_channel"]
-          content: string
-          conversation_id: string | null
-          created_at: string
-          created_by: string | null
-          delivered_at: string | null
-          direction: Database["public"]["Enums"]["message_direction"]
-          error_message: string | null
-          escalated: boolean | null
-          escalated_at: string | null
-          escalated_to: string | null
-          escalation_reason: string | null
-          external_message_id: string | null
-          failed_at: string | null
-          id: string
-          media_type: string | null
-          media_url: string | null
-          message_type: Database["public"]["Enums"]["message_type"]
-          read_at: string | null
-          recipient_email: string | null
-          recipient_name: string | null
-          recipient_phone: string | null
-          resolved: boolean | null
-          resolved_at: string | null
-          sent_at: string | null
-          startup_event_id: string
-          status: Database["public"]["Enums"]["message_status"]
-          template_name: string | null
-          template_params: Json | null
-          updated_at: string
-        }
-        Insert: {
-          ai_confidence?: number | null
-          ai_handled?: boolean | null
-          ai_intent?: string | null
-          ai_response_time_ms?: number | null
-          attendee_id?: string | null
-          broadcast_id?: string | null
-          channel?: Database["public"]["Enums"]["message_channel"]
-          content: string
-          conversation_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          delivered_at?: string | null
-          direction: Database["public"]["Enums"]["message_direction"]
-          error_message?: string | null
-          escalated?: boolean | null
-          escalated_at?: string | null
-          escalated_to?: string | null
-          escalation_reason?: string | null
-          external_message_id?: string | null
-          failed_at?: string | null
-          id?: string
-          media_type?: string | null
-          media_url?: string | null
-          message_type?: Database["public"]["Enums"]["message_type"]
-          read_at?: string | null
-          recipient_email?: string | null
-          recipient_name?: string | null
-          recipient_phone?: string | null
-          resolved?: boolean | null
-          resolved_at?: string | null
-          sent_at?: string | null
-          startup_event_id: string
-          status?: Database["public"]["Enums"]["message_status"]
-          template_name?: string | null
-          template_params?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          ai_confidence?: number | null
-          ai_handled?: boolean | null
-          ai_intent?: string | null
-          ai_response_time_ms?: number | null
-          attendee_id?: string | null
-          broadcast_id?: string | null
-          channel?: Database["public"]["Enums"]["message_channel"]
-          content?: string
-          conversation_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          delivered_at?: string | null
-          direction?: Database["public"]["Enums"]["message_direction"]
-          error_message?: string | null
-          escalated?: boolean | null
-          escalated_at?: string | null
-          escalated_to?: string | null
-          escalation_reason?: string | null
-          external_message_id?: string | null
-          failed_at?: string | null
-          id?: string
-          media_type?: string | null
-          media_url?: string | null
-          message_type?: Database["public"]["Enums"]["message_type"]
-          read_at?: string | null
-          recipient_email?: string | null
-          recipient_name?: string | null
-          recipient_phone?: string | null
-          resolved?: boolean | null
-          resolved_at?: string | null
-          sent_at?: string | null
-          startup_event_id?: string
-          status?: Database["public"]["Enums"]["message_status"]
-          template_name?: string | null
-          template_params?: Json | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_messages_attendee_id_fkey"
-            columns: ["attendee_id"]
-            isOneToOne: false
-            referencedRelation: "event_attendees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_messages_startup_event_id_fkey"
-            columns: ["startup_event_id"]
-            isOneToOne: false
-            referencedRelation: "startup_events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      event_sponsors: {
-        Row: {
-          ai_notes: string | null
-          amount: number | null
-          benefits: Json | null
-          company_name: string | null
-          confirmed_at: string | null
-          contact_email: string | null
-          contact_id: string | null
-          contact_name: string | null
-          contact_phone: string | null
-          contact_title: string | null
-          contract_signed_at: string | null
-          created_at: string
-          created_by: string | null
-          deliverables: Json | null
-          description: string | null
-          discovery_source: string | null
-          follow_up_date: string | null
-          id: string
-          in_kind_description: string | null
-          in_kind_value: number | null
-          internal_notes: string | null
-          last_contacted_at: string | null
-          logo_url: string | null
-          match_score: number | null
-          name: string
-          notes: string | null
-          outreach_sent_at: string | null
-          outreach_template: string | null
-          payment_received_at: string | null
-          response_received_at: string | null
-          startup_event_id: string
-          status: Database["public"]["Enums"]["sponsor_status"]
-          tier: Database["public"]["Enums"]["sponsor_tier"]
-          updated_at: string
-          website: string | null
-        }
-        Insert: {
-          ai_notes?: string | null
-          amount?: number | null
-          benefits?: Json | null
-          company_name?: string | null
-          confirmed_at?: string | null
-          contact_email?: string | null
-          contact_id?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          contact_title?: string | null
-          contract_signed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          deliverables?: Json | null
-          description?: string | null
-          discovery_source?: string | null
-          follow_up_date?: string | null
-          id?: string
-          in_kind_description?: string | null
-          in_kind_value?: number | null
-          internal_notes?: string | null
-          last_contacted_at?: string | null
-          logo_url?: string | null
-          match_score?: number | null
-          name: string
-          notes?: string | null
-          outreach_sent_at?: string | null
-          outreach_template?: string | null
-          payment_received_at?: string | null
-          response_received_at?: string | null
-          startup_event_id: string
-          status?: Database["public"]["Enums"]["sponsor_status"]
-          tier?: Database["public"]["Enums"]["sponsor_tier"]
-          updated_at?: string
-          website?: string | null
-        }
-        Update: {
-          ai_notes?: string | null
-          amount?: number | null
-          benefits?: Json | null
-          company_name?: string | null
-          confirmed_at?: string | null
-          contact_email?: string | null
-          contact_id?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          contact_title?: string | null
-          contract_signed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          deliverables?: Json | null
-          description?: string | null
-          discovery_source?: string | null
-          follow_up_date?: string | null
-          id?: string
-          in_kind_description?: string | null
-          in_kind_value?: number | null
-          internal_notes?: string | null
-          last_contacted_at?: string | null
-          logo_url?: string | null
-          match_score?: number | null
-          name?: string
-          notes?: string | null
-          outreach_sent_at?: string | null
-          outreach_template?: string | null
-          payment_received_at?: string | null
-          response_received_at?: string | null
-          startup_event_id?: string
-          status?: Database["public"]["Enums"]["sponsor_status"]
-          tier?: Database["public"]["Enums"]["sponsor_tier"]
-          updated_at?: string
-          website?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_sponsors_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "event_sponsors_startup_event_id_fkey"
-            columns: ["startup_event_id"]
-            isOneToOne: false
-            referencedRelation: "startup_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -1805,6 +1544,7 @@ export type Database = {
           description: string | null
           discovery_source: string | null
           equipment_included: Json | null
+          event_id: string | null
           fit_score: number | null
           floor_plan_url: string | null
           google_place_id: string | null
@@ -1821,7 +1561,6 @@ export type Database = {
           rental_cost: number | null
           seated_capacity: number | null
           standing_capacity: number | null
-          startup_event_id: string
           state: string | null
           status: Database["public"]["Enums"]["venue_status"]
           updated_at: string
@@ -1857,6 +1596,7 @@ export type Database = {
           description?: string | null
           discovery_source?: string | null
           equipment_included?: Json | null
+          event_id?: string | null
           fit_score?: number | null
           floor_plan_url?: string | null
           google_place_id?: string | null
@@ -1873,7 +1613,6 @@ export type Database = {
           rental_cost?: number | null
           seated_capacity?: number | null
           standing_capacity?: number | null
-          startup_event_id: string
           state?: string | null
           status?: Database["public"]["Enums"]["venue_status"]
           updated_at?: string
@@ -1909,6 +1648,7 @@ export type Database = {
           description?: string | null
           discovery_source?: string | null
           equipment_included?: Json | null
+          event_id?: string | null
           fit_score?: number | null
           floor_plan_url?: string | null
           google_place_id?: string | null
@@ -1925,7 +1665,6 @@ export type Database = {
           rental_cost?: number | null
           seated_capacity?: number | null
           standing_capacity?: number | null
-          startup_event_id?: string
           state?: string | null
           status?: Database["public"]["Enums"]["venue_status"]
           updated_at?: string
@@ -1937,83 +1676,197 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "event_venues_startup_event_id_fkey"
-            columns: ["startup_event_id"]
+            foreignKeyName: "event_venues_event_id_fkey"
+            columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "startup_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
       }
       events: {
         Row: {
+          agenda: Json | null
           all_day: boolean | null
           attendees: Json | null
+          attending_status:
+            | Database["public"]["Enums"]["attending_status"]
+            | null
+          budget: number | null
+          cancelled_at: string | null
+          capacity: number | null
+          cfp_deadline: string | null
+          cfp_url: string | null
           color: string | null
+          cover_image_url: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          discovered_at: string | null
           end_date: string | null
+          event_scope: Database["public"]["Enums"]["event_scope"]
           event_type: Database["public"]["Enums"]["event_type"]
+          external_url: string | null
+          health_score: number | null
           id: string
+          industry: string | null
+          is_featured: boolean | null
+          is_public: boolean | null
           location: string | null
+          location_type:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
           metadata: Json | null
+          name: string | null
+          organizer_logo_url: string | null
+          organizer_name: string | null
+          published_at: string | null
           recurrence_rule: string | null
+          registration_deadline: string | null
+          registration_url: string | null
           related_contact_id: string | null
           related_deal_id: string | null
           related_project_id: string | null
+          relevance_score: number | null
           reminder_minutes: number | null
+          requires_approval: boolean | null
+          slug: string | null
+          source: string | null
+          sponsors_confirmed: number | null
+          sponsors_target: number | null
           start_date: string
           startup_id: string
           status: Database["public"]["Enums"]["event_status"]
+          tags: string[] | null
+          target_audience: string[] | null
+          tasks_completed: number | null
+          tasks_total: number | null
+          ticket_price: number | null
+          timezone: string | null
           title: string
           updated_at: string
           virtual_meeting_url: string | null
         }
         Insert: {
+          agenda?: Json | null
           all_day?: boolean | null
           attendees?: Json | null
+          attending_status?:
+            | Database["public"]["Enums"]["attending_status"]
+            | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cfp_deadline?: string | null
+          cfp_url?: string | null
           color?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discovered_at?: string | null
           end_date?: string | null
+          event_scope?: Database["public"]["Enums"]["event_scope"]
           event_type?: Database["public"]["Enums"]["event_type"]
+          external_url?: string | null
+          health_score?: number | null
           id?: string
+          industry?: string | null
+          is_featured?: boolean | null
+          is_public?: boolean | null
           location?: string | null
+          location_type?:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
           metadata?: Json | null
+          name?: string | null
+          organizer_logo_url?: string | null
+          organizer_name?: string | null
+          published_at?: string | null
           recurrence_rule?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
           related_contact_id?: string | null
           related_deal_id?: string | null
           related_project_id?: string | null
+          relevance_score?: number | null
           reminder_minutes?: number | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          source?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
           start_date: string
           startup_id: string
           status?: Database["public"]["Enums"]["event_status"]
+          tags?: string[] | null
+          target_audience?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
           title: string
           updated_at?: string
           virtual_meeting_url?: string | null
         }
         Update: {
+          agenda?: Json | null
           all_day?: boolean | null
           attendees?: Json | null
+          attending_status?:
+            | Database["public"]["Enums"]["attending_status"]
+            | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cfp_deadline?: string | null
+          cfp_url?: string | null
           color?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discovered_at?: string | null
           end_date?: string | null
+          event_scope?: Database["public"]["Enums"]["event_scope"]
           event_type?: Database["public"]["Enums"]["event_type"]
+          external_url?: string | null
+          health_score?: number | null
           id?: string
+          industry?: string | null
+          is_featured?: boolean | null
+          is_public?: boolean | null
           location?: string | null
+          location_type?:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
           metadata?: Json | null
+          name?: string | null
+          organizer_logo_url?: string | null
+          organizer_name?: string | null
+          published_at?: string | null
           recurrence_rule?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
           related_contact_id?: string | null
           related_deal_id?: string | null
           related_project_id?: string | null
+          relevance_score?: number | null
           reminder_minutes?: number | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          source?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
           start_date?: string
           startup_id?: string
           status?: Database["public"]["Enums"]["event_status"]
+          tags?: string[] | null
+          target_audience?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
           title?: string
           updated_at?: string
           virtual_meeting_url?: string | null
@@ -2331,6 +2184,141 @@ export type Database = {
             columns: ["startup_id"]
             isOneToOne: false
             referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          ai_confidence: number | null
+          ai_handled: boolean | null
+          ai_intent: string | null
+          ai_response_time_ms: number | null
+          attendee_id: string | null
+          broadcast_id: string | null
+          channel: Database["public"]["Enums"]["message_channel"]
+          content: string
+          conversation_id: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["message_direction"]
+          error_message: string | null
+          escalated: boolean | null
+          escalated_at: string | null
+          escalated_to: string | null
+          escalation_reason: string | null
+          event_id: string | null
+          external_message_id: string | null
+          failed_at: string | null
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message_type: Database["public"]["Enums"]["message_type"]
+          read_at: string | null
+          recipient_email: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          sent_at: string | null
+          startup_event_id: string
+          status: Database["public"]["Enums"]["message_status"]
+          template_name: string | null
+          template_params: Json | null
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_handled?: boolean | null
+          ai_intent?: string | null
+          ai_response_time_ms?: number | null
+          attendee_id?: string | null
+          broadcast_id?: string | null
+          channel?: Database["public"]["Enums"]["message_channel"]
+          content: string
+          conversation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction: Database["public"]["Enums"]["message_direction"]
+          error_message?: string | null
+          escalated?: boolean | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          event_id?: string | null
+          external_message_id?: string | null
+          failed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_at?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          sent_at?: string | null
+          startup_event_id: string
+          status?: Database["public"]["Enums"]["message_status"]
+          template_name?: string | null
+          template_params?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_handled?: boolean | null
+          ai_intent?: string | null
+          ai_response_time_ms?: number | null
+          attendee_id?: string | null
+          broadcast_id?: string | null
+          channel?: Database["public"]["Enums"]["message_channel"]
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          direction?: Database["public"]["Enums"]["message_direction"]
+          error_message?: string | null
+          escalated?: boolean | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          event_id?: string | null
+          external_message_id?: string | null
+          failed_at?: string | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message_type?: Database["public"]["Enums"]["message_type"]
+          read_at?: string | null
+          recipient_email?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          sent_at?: string | null
+          startup_event_id?: string
+          status?: Database["public"]["Enums"]["message_status"]
+          template_name?: string | null
+          template_params?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_messages_attendee_id_fkey"
+            columns: ["attendee_id"]
+            isOneToOne: false
+            referencedRelation: "event_attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -2901,6 +2889,135 @@ export type Database = {
           },
         ]
       }
+      sponsors: {
+        Row: {
+          ai_notes: string | null
+          amount: number | null
+          benefits: Json | null
+          company_name: string | null
+          confirmed_at: string | null
+          contact_email: string | null
+          contact_id: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_title: string | null
+          contract_signed_at: string | null
+          created_at: string
+          created_by: string | null
+          deliverables: Json | null
+          description: string | null
+          discovery_source: string | null
+          event_id: string | null
+          follow_up_date: string | null
+          id: string
+          in_kind_description: string | null
+          in_kind_value: number | null
+          internal_notes: string | null
+          last_contacted_at: string | null
+          logo_url: string | null
+          match_score: number | null
+          name: string
+          notes: string | null
+          outreach_sent_at: string | null
+          outreach_template: string | null
+          payment_received_at: string | null
+          response_received_at: string | null
+          status: Database["public"]["Enums"]["sponsor_status"]
+          tier: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          ai_notes?: string | null
+          amount?: number | null
+          benefits?: Json | null
+          company_name?: string | null
+          confirmed_at?: string | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_title?: string | null
+          contract_signed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deliverables?: Json | null
+          description?: string | null
+          discovery_source?: string | null
+          event_id?: string | null
+          follow_up_date?: string | null
+          id?: string
+          in_kind_description?: string | null
+          in_kind_value?: number | null
+          internal_notes?: string | null
+          last_contacted_at?: string | null
+          logo_url?: string | null
+          match_score?: number | null
+          name: string
+          notes?: string | null
+          outreach_sent_at?: string | null
+          outreach_template?: string | null
+          payment_received_at?: string | null
+          response_received_at?: string | null
+          status?: Database["public"]["Enums"]["sponsor_status"]
+          tier?: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          ai_notes?: string | null
+          amount?: number | null
+          benefits?: Json | null
+          company_name?: string | null
+          confirmed_at?: string | null
+          contact_email?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_title?: string | null
+          contract_signed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deliverables?: Json | null
+          description?: string | null
+          discovery_source?: string | null
+          event_id?: string | null
+          follow_up_date?: string | null
+          id?: string
+          in_kind_description?: string | null
+          in_kind_value?: number | null
+          internal_notes?: string | null
+          last_contacted_at?: string | null
+          logo_url?: string | null
+          match_score?: number | null
+          name?: string
+          notes?: string | null
+          outreach_sent_at?: string | null
+          outreach_template?: string | null
+          payment_received_at?: string | null
+          response_received_at?: string | null
+          status?: Database["public"]["Enums"]["sponsor_status"]
+          tier?: Database["public"]["Enums"]["sponsor_tier"]
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_sponsors_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_sponsors_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       startup_event_tasks: {
         Row: {
           blocks: string[] | null
@@ -2946,130 +3063,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "startup_event_tasks_startup_event_id_fkey"
-            columns: ["startup_event_id"]
-            isOneToOne: false
-            referencedRelation: "startup_events"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "startup_event_tasks_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      startup_events: {
-        Row: {
-          agenda: Json | null
-          budget: number | null
-          cancelled_at: string | null
-          capacity: number | null
-          cover_image_url: string | null
-          created_at: string
-          created_by: string | null
-          description: string | null
-          end_date: string | null
-          event_date: string
-          event_type: Database["public"]["Enums"]["startup_event_type"]
-          health_score: number | null
-          id: string
-          is_public: boolean | null
-          location_type: Database["public"]["Enums"]["event_location_type"]
-          metadata: Json | null
-          name: string
-          published_at: string | null
-          registration_deadline: string | null
-          registration_url: string | null
-          requires_approval: boolean | null
-          slug: string | null
-          sponsors_confirmed: number | null
-          sponsors_target: number | null
-          startup_id: string
-          status: Database["public"]["Enums"]["startup_event_status"]
-          tags: string[] | null
-          tasks_completed: number | null
-          tasks_total: number | null
-          ticket_price: number | null
-          timezone: string | null
-          updated_at: string
-        }
-        Insert: {
-          agenda?: Json | null
-          budget?: number | null
-          cancelled_at?: string | null
-          capacity?: number | null
-          cover_image_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          end_date?: string | null
-          event_date: string
-          event_type?: Database["public"]["Enums"]["startup_event_type"]
-          health_score?: number | null
-          id?: string
-          is_public?: boolean | null
-          location_type?: Database["public"]["Enums"]["event_location_type"]
-          metadata?: Json | null
-          name: string
-          published_at?: string | null
-          registration_deadline?: string | null
-          registration_url?: string | null
-          requires_approval?: boolean | null
-          slug?: string | null
-          sponsors_confirmed?: number | null
-          sponsors_target?: number | null
-          startup_id: string
-          status?: Database["public"]["Enums"]["startup_event_status"]
-          tags?: string[] | null
-          tasks_completed?: number | null
-          tasks_total?: number | null
-          ticket_price?: number | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          agenda?: Json | null
-          budget?: number | null
-          cancelled_at?: string | null
-          capacity?: number | null
-          cover_image_url?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          end_date?: string | null
-          event_date?: string
-          event_type?: Database["public"]["Enums"]["startup_event_type"]
-          health_score?: number | null
-          id?: string
-          is_public?: boolean | null
-          location_type?: Database["public"]["Enums"]["event_location_type"]
-          metadata?: Json | null
-          name?: string
-          published_at?: string | null
-          registration_deadline?: string | null
-          registration_url?: string | null
-          requires_approval?: boolean | null
-          slug?: string | null
-          sponsors_confirmed?: number | null
-          sponsors_target?: number | null
-          startup_id?: string
-          status?: Database["public"]["Enums"]["startup_event_status"]
-          tags?: string[] | null
-          tasks_completed?: number | null
-          tasks_total?: number | null
-          ticket_price?: number | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "startup_events_startup_id_fkey"
-            columns: ["startup_id"]
-            isOneToOne: false
-            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -3142,6 +3139,9 @@ export type Database = {
           github_url: string | null
           id: string
           industry: string | null
+          interview_signals: string[] | null
+          investor_ready_score: number | null
+          investor_score_breakdown: Json | null
           is_raising: boolean | null
           key_features: string[] | null
           linkedin_url: string | null
@@ -3155,6 +3155,7 @@ export type Database = {
           sub_industry: string | null
           tagline: string | null
           target_customers: string[] | null
+          target_market: string | null
           team_size: number | null
           traction_data: Json | null
           twitter_url: string | null
@@ -3163,6 +3164,7 @@ export type Database = {
           use_of_funds: string[] | null
           valuation_cap: number | null
           website_url: string | null
+          year_founded: number | null
         }
         Insert: {
           ai_summary?: string | null
@@ -3177,6 +3179,9 @@ export type Database = {
           github_url?: string | null
           id?: string
           industry?: string | null
+          interview_signals?: string[] | null
+          investor_ready_score?: number | null
+          investor_score_breakdown?: Json | null
           is_raising?: boolean | null
           key_features?: string[] | null
           linkedin_url?: string | null
@@ -3190,6 +3195,7 @@ export type Database = {
           sub_industry?: string | null
           tagline?: string | null
           target_customers?: string[] | null
+          target_market?: string | null
           team_size?: number | null
           traction_data?: Json | null
           twitter_url?: string | null
@@ -3198,6 +3204,7 @@ export type Database = {
           use_of_funds?: string[] | null
           valuation_cap?: number | null
           website_url?: string | null
+          year_founded?: number | null
         }
         Update: {
           ai_summary?: string | null
@@ -3212,6 +3219,9 @@ export type Database = {
           github_url?: string | null
           id?: string
           industry?: string | null
+          interview_signals?: string[] | null
+          investor_ready_score?: number | null
+          investor_score_breakdown?: Json | null
           is_raising?: boolean | null
           key_features?: string[] | null
           linkedin_url?: string | null
@@ -3225,6 +3235,7 @@ export type Database = {
           sub_industry?: string | null
           tagline?: string | null
           target_customers?: string[] | null
+          target_market?: string | null
           team_size?: number | null
           traction_data?: Json | null
           twitter_url?: string | null
@@ -3233,6 +3244,7 @@ export type Database = {
           use_of_funds?: string[] | null
           valuation_cap?: number | null
           website_url?: string | null
+          year_founded?: number | null
         }
         Relationships: [
           {
@@ -3445,9 +3457,15 @@ export type Database = {
           created_at: string | null
           current_step: number | null
           diagnostic_answers: Json | null
+          enrichment_confidence: number | null
+          enrichment_sources: string[] | null
+          extracted_funding: Json | null
+          extracted_traction: Json | null
           form_data: Json | null
           id: string
           industry_pack_id: string | null
+          interview_answers: Json | null
+          interview_progress: number | null
           last_activity_at: string | null
           profile_strength: number | null
           signals: string[] | null
@@ -3462,9 +3480,15 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           diagnostic_answers?: Json | null
+          enrichment_confidence?: number | null
+          enrichment_sources?: string[] | null
+          extracted_funding?: Json | null
+          extracted_traction?: Json | null
           form_data?: Json | null
           id?: string
           industry_pack_id?: string | null
+          interview_answers?: Json | null
+          interview_progress?: number | null
           last_activity_at?: string | null
           profile_strength?: number | null
           signals?: string[] | null
@@ -3479,9 +3503,15 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           diagnostic_answers?: Json | null
+          enrichment_confidence?: number | null
+          enrichment_sources?: string[] | null
+          extracted_funding?: Json | null
+          extracted_traction?: Json | null
           form_data?: Json | null
           id?: string
           industry_pack_id?: string | null
+          interview_answers?: Json | null
+          interview_progress?: number | null
           last_activity_at?: string | null
           profile_strength?: number | null
           signals?: string[] | null
@@ -3624,6 +3654,12 @@ export type Database = {
         | "mentor"
         | "staff"
         | "volunteer"
+      attending_status:
+        | "interested"
+        | "registered"
+        | "attending"
+        | "attended"
+        | "not_attending"
       event_asset_type:
         | "social_post"
         | "email"
@@ -3641,6 +3677,7 @@ export type Database = {
         | "photo"
         | "other"
       event_location_type: "in_person" | "virtual" | "hybrid"
+      event_scope: "internal" | "hosted" | "external"
       event_status:
         | "scheduled"
         | "in_progress"
@@ -3976,6 +4013,13 @@ export const Constants = {
         "staff",
         "volunteer",
       ],
+      attending_status: [
+        "interested",
+        "registered",
+        "attending",
+        "attended",
+        "not_attending",
+      ],
       event_asset_type: [
         "social_post",
         "email",
@@ -3994,6 +4038,7 @@ export const Constants = {
         "other",
       ],
       event_location_type: ["in_person", "virtual", "hybrid"],
+      event_scope: ["internal", "hosted", "external"],
       event_status: [
         "scheduled",
         "in_progress",

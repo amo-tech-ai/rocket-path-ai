@@ -3,15 +3,14 @@ import {
   Filter, 
   CheckCircle2, 
   Clock, 
-  FileEdit, 
   XCircle,
-  Mic2,
-  Users,
-  Presentation,
-  Coffee,
-  Code,
   Video,
-  PartyPopper
+  Phone,
+  Target,
+  Clock3,
+  Flag,
+  Bell,
+  MoreHorizontal
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -20,10 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { EventFilters } from '@/hooks/useEvents';
-import type { Enums } from '@/integrations/supabase/types';
-
-type StartupEventStatus = Enums<'startup_event_status'>;
-type StartupEventType = Enums<'startup_event_type'>;
 
 interface EventFiltersPanelProps {
   filters: EventFilters;
@@ -31,32 +26,33 @@ interface EventFiltersPanelProps {
   stats?: {
     total: number;
     upcoming: number;
-    draft: number;
-    planning: number;
-    confirmed: number;
-    completed: number;
+    draft?: number;
+    planning?: number;
+    confirmed?: number;
+    completed?: number;
   } | null;
 }
 
-const statusOptions: { value: StartupEventStatus; label: string; icon: React.ReactNode }[] = [
-  { value: 'draft', label: 'Draft', icon: <FileEdit className="h-4 w-4" /> },
-  { value: 'planning', label: 'Planning', icon: <Clock className="h-4 w-4" /> },
-  { value: 'confirmed', label: 'Confirmed', icon: <CheckCircle2 className="h-4 w-4" /> },
-  { value: 'live', label: 'Live', icon: <Mic2 className="h-4 w-4" /> },
+// Status options matching the actual event_status enum
+const statusOptions = [
+  { value: 'scheduled', label: 'Scheduled', icon: <Clock className="h-4 w-4" /> },
+  { value: 'in_progress', label: 'In Progress', icon: <Clock3 className="h-4 w-4" /> },
   { value: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4" /> },
   { value: 'cancelled', label: 'Cancelled', icon: <XCircle className="h-4 w-4" /> },
+  { value: 'rescheduled', label: 'Rescheduled', icon: <Calendar className="h-4 w-4" /> },
 ];
 
-const typeOptions: { value: StartupEventType; label: string; icon: React.ReactNode }[] = [
-  { value: 'demo_day', label: 'Demo Day', icon: <Presentation className="h-4 w-4" /> },
-  { value: 'pitch_night', label: 'Pitch Night', icon: <Mic2 className="h-4 w-4" /> },
-  { value: 'networking', label: 'Networking', icon: <Users className="h-4 w-4" /> },
-  { value: 'workshop', label: 'Workshop', icon: <Code className="h-4 w-4" /> },
-  { value: 'investor_meetup', label: 'Investor Meetup', icon: <Users className="h-4 w-4" /> },
-  { value: 'founder_dinner', label: 'Founder Dinner', icon: <Coffee className="h-4 w-4" /> },
-  { value: 'hackathon', label: 'Hackathon', icon: <Code className="h-4 w-4" /> },
-  { value: 'webinar', label: 'Webinar', icon: <Video className="h-4 w-4" /> },
-  { value: 'conference', label: 'Conference', icon: <PartyPopper className="h-4 w-4" /> },
+// Type options matching the actual event_type enum
+const typeOptions = [
+  { value: 'meeting', label: 'Meeting', icon: <Video className="h-4 w-4" /> },
+  { value: 'call', label: 'Call', icon: <Phone className="h-4 w-4" /> },
+  { value: 'demo', label: 'Demo', icon: <Target className="h-4 w-4" /> },
+  { value: 'pitch', label: 'Pitch', icon: <Target className="h-4 w-4" /> },
+  { value: 'deadline', label: 'Deadline', icon: <Flag className="h-4 w-4" /> },
+  { value: 'milestone', label: 'Milestone', icon: <CheckCircle2 className="h-4 w-4" /> },
+  { value: 'reminder', label: 'Reminder', icon: <Bell className="h-4 w-4" /> },
+  { value: 'funding_round', label: 'Funding Round', icon: <Target className="h-4 w-4" /> },
+  { value: 'other', label: 'Other', icon: <MoreHorizontal className="h-4 w-4" /> },
 ];
 
 export default function EventFiltersPanel({ 
@@ -64,7 +60,7 @@ export default function EventFiltersPanel({
   onFilterChange,
   stats 
 }: EventFiltersPanelProps) {
-  const handleStatusToggle = (status: StartupEventStatus) => {
+  const handleStatusToggle = (status: string) => {
     const current = filters.status || [];
     const updated = current.includes(status)
       ? current.filter(s => s !== status)
@@ -72,7 +68,7 @@ export default function EventFiltersPanel({
     onFilterChange({ status: updated });
   };
 
-  const handleTypeToggle = (type: StartupEventType) => {
+  const handleTypeToggle = (type: string) => {
     const current = filters.event_type || [];
     const updated = current.includes(type)
       ? current.filter(t => t !== type)
