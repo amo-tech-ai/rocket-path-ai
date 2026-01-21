@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { LeanCanvasData, usePreFillCanvas, useValidateCanvas, CANVAS_BOX_CONFIG, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
+import { usePreFillCanvas, useValidateCanvas } from '@/hooks/useLeanCanvas';
+import { LeanCanvasData, CANVAS_BOX_CONFIG, EMPTY_CANVAS } from '@/types/canvas.types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 

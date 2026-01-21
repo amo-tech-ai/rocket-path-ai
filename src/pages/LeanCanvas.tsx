@@ -2,12 +2,8 @@ import { useState, useCallback } from 'react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LeanCanvasGrid } from '@/components/leancanvas/LeanCanvasGrid';
 import { CanvasAIPanel } from '@/components/leancanvas/CanvasAIPanel';
-import { 
-  useLeanCanvas, 
-  useSaveLeanCanvas, 
-  LeanCanvasData, 
-  EMPTY_CANVAS 
-} from '@/hooks/useLeanCanvas';
+import { useLeanCanvas, useSaveLeanCanvas } from '@/hooks/useLeanCanvas';
+import { LeanCanvasData, EMPTY_CANVAS } from '@/types/canvas.types';
 import { useStartup } from '@/hooks/useDashboardData';
 import { 
   LayoutGrid, 
