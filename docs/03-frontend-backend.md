@@ -1,15 +1,25 @@
 # Frontend-Backend Wiring Setup
 
-> **Status:** Connected  
+> **Status:** ✅ Production Ready  
 > **Project ID:** yvyesmiczbjqwbqtlidy  
-> **Last Updated:** 2026-01-21
+> **Last Updated:** 2026-01-21  
+> **Verified:** Edge functions deployed, secrets configured
 
 ---
 
-## Connection Overview
+## Connection Status
 
-```mermaid
-graph LR
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Supabase Client | ✅ Connected | TypeScript types auto-generated |
+| Auth (Google OAuth) | ✅ Working | Auto profile creation via trigger |
+| RLS Policies | ✅ Active | 168 policies on 43 tables |
+| ai-chat Edge Function | ✅ Deployed | Gemini + Anthropic models |
+| GEMINI_API_KEY | ✅ Configured | Used for chat, extraction |
+| ANTHROPIC_API_KEY | ✅ Configured | Used for task prioritization |
+| LOVABLE_API_KEY | ✅ Auto-provisioned | Fallback gateway |
+
+---
     subgraph Frontend
         React[React 18 + Vite]
         RQ[React Query]
