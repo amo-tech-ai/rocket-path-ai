@@ -134,10 +134,11 @@ export default function EventWizard() {
         : new Date().toISOString();
 
       const result = await createEvent.mutateAsync({
+        title: data.name,
         name: data.name,
         event_type: data.event_type as any,
         description: data.description,
-        event_date: eventDateTime,
+        start_date: eventDateTime,
         location_type: data.location_type,
         capacity: data.expected_attendees,
         budget: data.budget,

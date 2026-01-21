@@ -267,17 +267,17 @@ export function useDeleteEvent() {
 export function useEventSponsors(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-sponsors', eventId],
-    queryFn: async () => {
+    queryFn: async (): Promise<EventSponsor[]> => {
       if (!eventId) return [];
 
       const { data, error } = await supabase
-        .from('event_sponsors')
+        .from('event_sponsors' as any)
         .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as EventSponsor[];
+      return (data || []) as EventSponsor[];
     },
     enabled: !!eventId,
   });
@@ -287,17 +287,17 @@ export function useEventSponsors(eventId: string | undefined) {
 export function useEventAttendees(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-attendees', eventId],
-    queryFn: async () => {
+    queryFn: async (): Promise<EventAttendee[]> => {
       if (!eventId) return [];
 
       const { data, error } = await supabase
-        .from('event_attendees')
+        .from('event_attendees' as any)
         .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as EventAttendee[];
+      return (data || []) as EventAttendee[];
     },
     enabled: !!eventId,
   });
@@ -307,17 +307,17 @@ export function useEventAttendees(eventId: string | undefined) {
 export function useEventVenues(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-venues', eventId],
-    queryFn: async () => {
+    queryFn: async (): Promise<EventVenue[]> => {
       if (!eventId) return [];
 
       const { data, error } = await supabase
-        .from('event_venues')
+        .from('event_venues' as any)
         .select('*')
         .eq('event_id', eventId)
         .order('is_primary', { ascending: false });
 
       if (error) throw error;
-      return data as EventVenue[];
+      return (data || []) as EventVenue[];
     },
     enabled: !!eventId,
   });
@@ -327,17 +327,17 @@ export function useEventVenues(eventId: string | undefined) {
 export function useEventAssets(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-assets', eventId],
-    queryFn: async () => {
+    queryFn: async (): Promise<EventAsset[]> => {
       if (!eventId) return [];
 
       const { data, error } = await supabase
-        .from('event_assets')
+        .from('event_assets' as any)
         .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as EventAsset[];
+      return (data || []) as EventAsset[];
     },
     enabled: !!eventId,
   });
