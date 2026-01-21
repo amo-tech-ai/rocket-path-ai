@@ -1,5 +1,5 @@
 import { CanvasBox } from './CanvasBox';
-import { LeanCanvasData, CANVAS_BOX_CONFIG } from '@/types/canvas.types';
+import { LeanCanvasData, CANVAS_BOX_CONFIG } from '@/hooks/useLeanCanvas';
 import { motion } from 'framer-motion';
 
 interface LeanCanvasGridProps {
