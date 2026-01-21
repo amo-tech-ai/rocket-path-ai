@@ -26,9 +26,10 @@
 | Discovery Module | 🔴 Not Started | 0% | 11.4 |
 | Strategy Module | 🔴 Not Started | 0% | 11.5 |
 | Settings Module | 🟡 In Progress | 30% | — |
-| AI Agents & Chat | 🟡 In Progress | 50% | 05, 16, 18, 23 |
-| Edge Functions | 🟢 Completed | 100% | 05, 06, 11-EF |
+| AI Agents & Chat | ✅ Completed | 80% | 05, 16, 18, 23 |
+| Edge Functions | ✅ Completed | 100% | 05, 06, 11-EF |
 | Wizards & Onboarding | 🔴 Not Started | 0% | 04, 07, 16 |
+| **Events Module** | ✅ Completed | 85% | events/* |
 
 ---
 
