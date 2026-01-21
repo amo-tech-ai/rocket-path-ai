@@ -7,9 +7,12 @@ import { InsightsTabs } from "@/components/dashboard/InsightsTabs";
 import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
 import { EventCard } from "@/components/dashboard/EventCard";
 import { DashboardCalendar } from "@/components/dashboard/DashboardCalendar";
+import { StageGuidanceCard } from "@/components/dashboard/StageGuidanceCard";
 import { useStartup, useTasks, useDeals } from "@/hooks/useDashboardData";
 import { useInvestors } from "@/hooks/useInvestors";
+import { useDocuments } from "@/hooks/useDocuments";
 import { useAuth } from "@/hooks/useAuth";
+import { StartupStage } from "@/hooks/useStageGuidance";
 import { motion } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Bell, Settings } from "lucide-react";
@@ -22,8 +25,13 @@ const Dashboard = () => {
   const { data: tasks = [] } = useTasks(startup?.id);
   const { data: deals = [] } = useDeals(startup?.id);
   const { data: investors = [] } = useInvestors(startup?.id);
+  const { data: documents = [] } = useDocuments(startup?.id);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Founder';
+  
+  // Calculate startup data for stage guidance
+  const hasLeanCanvas = documents.some(d => d.type === 'lean_canvas');
+  const currentStage = (startup?.stage as StartupStage) || 'idea';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   
@@ -39,6 +47,16 @@ const Dashboard = () => {
   // Right panel content
   const rightPanel = (
     <div className="space-y-6">
+      <StageGuidanceCard 
+        stage={currentStage}
+        startupData={{
+          hasLeanCanvas,
+          profileStrength: startup?.profile_strength || 0,
+          investorCount: investors.length,
+          taskCompletionRate: pendingTasks > 0 ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0,
+          documentCount: documents.length,
+        }}
+      />
       <AIStrategicReview />
       <EventCard />
       <DashboardCalendar />
