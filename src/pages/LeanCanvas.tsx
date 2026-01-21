@@ -1,15 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LeanCanvasGrid } from '@/components/leancanvas/LeanCanvasGrid';
 import { CanvasAIPanel } from '@/components/leancanvas/CanvasAIPanel';
+import { AutosaveIndicator } from '@/components/leancanvas/AutosaveIndicator';
 import { useLeanCanvas, useSaveLeanCanvas, LeanCanvasData, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
+import { useCanvasAutosave } from '@/hooks/useCanvasAutosave';
+import { exportToPDF, exportToPNG } from '@/lib/canvasExport';
 import { useStartup } from '@/hooks/useDashboardData';
 import { 
   LayoutGrid, 
   Save, 
   Download, 
   History,
-  Loader2
+  Loader2,
+  FileImage,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -30,40 +35,53 @@ const LeanCanvas = () => {
   const [canvasData, setCanvasData] = useState<LeanCanvasData>(
     savedCanvas?.data || EMPTY_CANVAS
   );
-  const [hasChanges, setHasChanges] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   // Sync with saved data when it loads
-  useState(() => {
+  useEffect(() => {
     if (savedCanvas?.data) {
       setCanvasData(savedCanvas.data);
     }
-  });
+  }, [savedCanvas?.data]);
 
   const isLoading = startupLoading || canvasLoading;
+
+  // Autosave functionality
+  const performSave = useCallback(async () => {
+    if (!startup?.id) return;
+    
+    await saveCanvas.mutateAsync({
+      startupId: startup.id,
+      canvasData,
+      existingId: savedCanvas?.id,
+    });
+  }, [startup?.id, canvasData, savedCanvas?.id, saveCanvas]);
+
+  const autosave = useCanvasAutosave({
+    debounceMs: 2000,
+    onSave: performSave,
+    enabled: !!startup?.id,
+  });
 
   const handleBoxUpdate = useCallback((key: keyof LeanCanvasData, items: string[]) => {
     setCanvasData(prev => ({
       ...prev,
       [key]: { ...prev[key], items }
     }));
-    setHasChanges(true);
-  }, []);
+    autosave.markDirty();
+  }, [autosave]);
 
-  const handleSave = async () => {
+  const handleManualSave = async () => {
     if (!startup?.id) {
       toast.error('No startup found');
       return;
     }
 
     try {
-      await saveCanvas.mutateAsync({
-        startupId: startup.id,
-        canvasData,
-        existingId: savedCanvas?.id,
-      });
-      setHasChanges(false);
+      await autosave.saveNow();
       toast.success('Canvas saved');
-    } catch (err) {
+    } catch {
       toast.error('Failed to save canvas');
     }
   };
@@ -73,7 +91,6 @@ const LeanCanvas = () => {
       const updated = { ...prev };
       for (const [key, value] of Object.entries(suggestions)) {
         if (value?.items?.length > 0) {
-          // Merge with existing items, avoiding duplicates
           const existing = prev[key as keyof LeanCanvasData]?.items || [];
           const newItems = value.items.filter(item => !existing.includes(item));
           updated[key as keyof LeanCanvasData] = {
@@ -84,7 +101,7 @@ const LeanCanvas = () => {
       }
       return updated;
     });
-    setHasChanges(true);
+    autosave.markDirty();
   };
 
   const handleValidationComplete = (results: Record<string, { validation: 'valid' | 'warning' | 'error'; message: string }>) => {
@@ -103,8 +120,34 @@ const LeanCanvas = () => {
     });
   };
 
-  const handleExport = (format: 'pdf' | 'png') => {
-    toast.info(`Export to ${format.toUpperCase()} coming soon`);
+  const handleExport = async (format: 'pdf' | 'png') => {
+    if (!canvasRef.current) {
+      toast.error('Canvas not ready');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const filename = `lean-canvas-${startup?.name?.toLowerCase().replace(/\s+/g, '-') || 'export'}`;
+      const options = {
+        title: 'Lean Canvas',
+        companyName: startup?.name,
+        includeDate: true,
+      };
+
+      if (format === 'pdf') {
+        await exportToPDF(canvasRef.current, `${filename}.pdf`, options);
+        toast.success('PDF exported successfully');
+      } else {
+        await exportToPNG(canvasRef.current, `${filename}.png`);
+        toast.success('PNG exported successfully');
+      }
+    } catch (error) {
+      toast.error(`Failed to export ${format.toUpperCase()}`);
+      console.error('Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // AI Panel for right sidebar
@@ -152,13 +195,12 @@ const LeanCanvas = () => {
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"
         >
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold">Lean Canvas</h1>
-              {hasChanges && (
-                <span className="text-xs text-muted-foreground bg-warm/20 px-2 py-0.5 rounded">
-                  Unsaved changes
-                </span>
-              )}
+              <AutosaveIndicator 
+                status={autosave.status} 
+                lastSaved={autosave.lastSaved} 
+              />
             </div>
             <p className="text-muted-foreground">
               {startup?.name ? `Business model for ${startup.name}` : 'Define your business model'}
@@ -178,26 +220,33 @@ const LeanCanvas = () => {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
+                <Button variant="outline" size="sm" disabled={isExporting}>
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   Export
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                  <FileText className="w-4 h-4 mr-2" />
                   Export as PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('png')}>
+                  <FileImage className="w-4 h-4 mr-2" />
                   Export as PNG
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             
             <Button 
-              onClick={handleSave}
-              disabled={!hasChanges || saveCanvas.isPending}
+              onClick={handleManualSave}
+              disabled={autosave.status === 'saving' || autosave.status === 'idle'}
+              variant={autosave.status === 'pending' ? 'default' : 'outline'}
             >
-              {saveCanvas.isPending ? (
+              {autosave.status === 'saving' ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
@@ -227,10 +276,12 @@ const LeanCanvas = () => {
             </div>
           </div>
         ) : (
-          <LeanCanvasGrid
-            data={canvasData}
-            onUpdate={handleBoxUpdate}
-          />
+          <div ref={canvasRef}>
+            <LeanCanvasGrid
+              data={canvasData}
+              onUpdate={handleBoxUpdate}
+            />
+          </div>
         )}
 
         {/* Last saved info */}
