@@ -1,6 +1,9 @@
 # Supabase Schema Rules
 
 > **The Supabase schema is the source of truth for all data, authentication, and frontend-backend integration.**
+> 
+> **Project ID:** yvyesmiczbjqwbqtlidy  
+> **Tables:** 43 | **RLS Policies:** 168
 
 ## Core Principles
 
@@ -20,7 +23,7 @@ Supabase Schema → types.ts → React Components
 ### 3. Authentication Flow
 - All auth flows through Supabase Auth
 - `handle_new_user()` trigger creates profiles automatically
-- User roles stored in `user_roles` table
+- User roles stored in `user_roles` table (app_role enum)
 - Org membership via `profiles.org_id`
 
 ---
@@ -34,17 +37,17 @@ Supabase Schema → types.ts → React Components
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 
-type Startup = Tables<'startups'>;
+type Event = Tables<'events'>;
 
 const { data } = await supabase
-  .from('startups')
+  .from('events')
   .select('*')
-  .eq('org_id', orgId);
+  .eq('startup_id', startupId);
 
 // ❌ WRONG: Manual type definitions
-interface Startup {
+interface Event {
   id: string;
-  name: string;
+  title: string;
   // ... duplicates schema
 }
 ```
@@ -55,16 +58,16 @@ interface Startup {
 // ✅ CORRECT: Use TablesInsert type
 import { TablesInsert } from '@/integrations/supabase/types';
 
-type NewContact = TablesInsert<'contacts'>;
+type NewEvent = TablesInsert<'events'>;
 
-const newContact: NewContact = {
+const newEvent: NewEvent = {
   startup_id: startupId,
-  name: 'John Doe',
-  email: 'john@example.com',
-  type: 'investor',
+  title: 'Demo Day 2026',
+  start_date: new Date().toISOString(),
+  event_type: 'demo_day',
 };
 
-await supabase.from('contacts').insert(newContact);
+await supabase.from('events').insert(newEvent);
 ```
 
 ### Updating Data
@@ -73,14 +76,14 @@ await supabase.from('contacts').insert(newContact);
 // ✅ CORRECT: Use TablesUpdate type
 import { TablesUpdate } from '@/integrations/supabase/types';
 
-type UpdateDeal = TablesUpdate<'deals'>;
+type UpdateEvent = TablesUpdate<'events'>;
 
-const updates: UpdateDeal = {
-  stage: 'meeting',
-  probability: 50,
+const updates: UpdateEvent = {
+  status: 'in_progress',
+  health_score: 85,
 };
 
-await supabase.from('deals').update(updates).eq('id', dealId);
+await supabase.from('events').update(updates).eq('id', eventId);
 ```
 
 ---
@@ -94,26 +97,77 @@ await supabase.from('deals').update(updates).eq('id', dealId);
 // User can only see their org's data
 
 // ✅ CORRECT: Let RLS filter
-const { data: tasks } = await supabase
-  .from('tasks')
+const { data: events } = await supabase
+  .from('events')
   .select('*');
-// Returns only tasks from user's org
+// Returns only events from user's org
 
-// ⚠️ REDUNDANT but safe: Explicit org filter
-const { data: tasks } = await supabase
-  .from('tasks')
+// ⚠️ REDUNDANT but safe: Explicit startup filter
+const { data: events } = await supabase
+  .from('events')
   .select('*')
   .eq('startup_id', startupId);
 ```
 
-### Use Helper Functions in Policies
+### RLS Helper Functions
 
 | Function | Purpose |
 |----------|---------|
 | `user_org_id()` | Get current user's org_id |
-| `org_role()` | Get user's role in org |
+| `org_role()` | Get user's role in org (owner/admin/member) |
 | `startup_in_org(id)` | Check startup belongs to user's org |
-| `has_role(user_id, role)` | Check app-level role |
+
+---
+
+## Key Table Patterns
+
+### Org-Scoped Tables (use `org_id`)
+- `organizations`, `startups`, `ai_runs`, `proposed_actions`, `integrations`, `agent_configs`
+
+### Startup-Scoped Tables (use `startup_in_org()`)
+- `projects`, `tasks`, `contacts`, `deals`, `documents`, `communications`, `investors`, `events`
+
+### Event-Scoped Tables (child of events)
+- `event_attendees`, `event_venues`, `event_assets`, `sponsors`
+- RLS checks: `event_id IN (SELECT id FROM events WHERE startup_in_org(startup_id))`
+
+### User-Scoped Tables (use `auth.uid()`)
+- `chat_sessions`, `chat_messages`, `notifications`, `chat_facts`
+
+---
+
+## Events System Rules
+
+### Field Names (IMPORTANT!)
+```typescript
+// ✅ CORRECT field names for events table
+event.start_date   // NOT event_date
+event.title        // Primary display name
+event.name         // Optional alternate name
+event.status       // Uses event_status enum
+
+// ✅ Event status enum values
+type EventStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
+
+// ✅ Event type enum values  
+type EventType = 'conference' | 'meetup' | 'workshop' | 'pitch_event' | 
+                 'demo_day' | 'webinar' | 'networking' | 'hackathon' | 'other';
+```
+
+### Querying Events with Relations
+```typescript
+// ✅ CORRECT: Query events with child tables
+const { data } = await supabase
+  .from('events')
+  .select(`
+    *,
+    event_attendees(id, rsvp_status),
+    event_venues(id, name, city, is_primary),
+    event_assets(id, asset_type, status)
+  `)
+  .eq('startup_id', startupId)
+  .order('start_date', { ascending: true });
+```
 
 ---
 
@@ -121,84 +175,19 @@ const { data: tasks } = await supabase
 
 ### 1. Create Migration
 ```sql
--- supabase/migrations/YYYYMMDD_description.sql
-ALTER TABLE contacts ADD COLUMN priority text DEFAULT 'normal';
+-- Use Lovable migration tool
+ALTER TABLE events ADD COLUMN custom_field text;
 ```
 
-### 2. Regenerate Types
-Types auto-sync when migration is applied in Lovable.
+### 2. Types Auto-Sync
+Types regenerate automatically when migration is applied.
 
 ### 3. Update Frontend
 ```typescript
 // New column now available with type safety
-const contact: Tables<'contacts'> = {
-  // ... priority is now a valid field
+const event: Tables<'events'> = {
+  // ... custom_field is now a valid field
 };
-```
-
----
-
-## Relationship Patterns
-
-### Org-Scoped Data
-Tables with `org_id` column use direct org filtering:
-- `organizations`
-- `startups`
-- `ai_runs`
-- `proposed_actions`
-- `integrations`
-
-### Startup-Scoped Data
-Tables with `startup_id` use `startup_in_org()` for access:
-- `projects`
-- `tasks`
-- `contacts`
-- `deals`
-- `documents`
-- `communications`
-
-### User-Scoped Data
-Tables with `user_id` use `auth.uid()` for access:
-- `chat_sessions`
-- `chat_messages`
-- `notifications`
-- `chat_facts`
-
----
-
-## Foreign Key Relationships
-
-When selecting related data:
-
-```typescript
-// ✅ CORRECT: Join via Supabase query syntax
-const { data } = await supabase
-  .from('deals')
-  .select(`
-    *,
-    contact:contacts(name, email),
-    startup:startups(name)
-  `)
-  .eq('stage', 'meeting');
-
-// ❌ WRONG: Multiple separate queries
-const deals = await supabase.from('deals').select('*');
-const contacts = await supabase.from('contacts').select('*');
-// Manual joining in JS...
-```
-
----
-
-## Enums
-
-Use the Constants export for enum values:
-
-```typescript
-import { Constants } from '@/integrations/supabase/types';
-
-// Available app roles
-const roles = Constants.public.Enums.app_role;
-// ['admin', 'moderator', 'user']
 ```
 
 ---
@@ -207,18 +196,16 @@ const roles = Constants.public.Enums.app_role;
 
 ```typescript
 const { data, error } = await supabase
-  .from('startups')
+  .from('events')
   .select('*')
   .single();
 
 if (error) {
-  // Handle Supabase errors
-  console.error('Database error:', error.message);
-  
   // Common errors:
   // - PGRST116: No rows returned for .single()
   // - 42501: RLS policy violation
   // - 23505: Unique constraint violation
+  console.error('Database error:', error.message);
 }
 ```
 
@@ -231,20 +218,21 @@ if (error) {
 AI suggests action → proposed_actions table → User approves → action_executions → Target table updated
 ```
 
-### Tracking AI Usage
+### AI Runs Tracking
 All AI operations logged to `ai_runs`:
-- Model used
-- Token counts
-- Cost calculation
-- Success/error status
+- agent_name, model, provider
+- input/output/thinking tokens
+- cost_usd calculation
+- status (success/error)
 
 ---
 
 ## Security Checklist
 
-- [ ] RLS enabled on all tables
-- [ ] No service role key in frontend
-- [ ] User data scoped by `auth.uid()` or `user_org_id()`
-- [ ] Admin actions check `org_role()` 
-- [ ] Sensitive operations use `SECURITY DEFINER`
-- [ ] Audit log captures important changes
+- [x] RLS enabled on all 43 tables
+- [x] 168 RLS policies active
+- [x] No service role key in frontend
+- [x] User data scoped by `auth.uid()` or `user_org_id()`
+- [x] Admin actions check `org_role()`
+- [x] Event child tables scoped via parent event
+- [ ] Leaked password protection (minor - OAuth primary)
