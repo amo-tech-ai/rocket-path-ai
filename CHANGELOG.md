@@ -5,6 +5,29 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-01-21
+
+### Fixed
+- **Events Type Errors**
+  - Fixed TS2589 "Type instantiation excessively deep" in child table hooks
+  - Fixed `event_date` → `start_date` in EventWizard creation
+  - Added missing `title` field to event creation
+  - Child table hooks (`useEventSponsors`, `useEventAttendees`, `useEventVenues`, `useEventAssets`) now use safe type casting
+
+### Added
+- **Events Audit & Checklist**
+  - Created `docs/events/audit-checklist.md` with comprehensive system audit
+  - 85% overall completion tracked with detailed breakdown
+  - Security audit confirming RLS on all tables
+  - Implementation priority queue for remaining features
+
+### Changed
+- **EventsAIPanel** - Now calls `event-agent` edge function with proper fallback
+- **Progress Tracker** - Updated to reflect correct table names (`events` not `startup_events`)
+- **EventCard** - Confirmed using `start_date` and `title` fields
+
+---
+
 ## [0.4.2] - 2026-01-19
 
 ### Added
