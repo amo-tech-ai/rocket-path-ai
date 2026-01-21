@@ -1,9 +1,10 @@
 # StartupAI Progress Tracker
 
-> **Last Updated:** 2026-01-16  
-> **Version:** 0.4.1  
-> **Overall Progress:** 60%  
-> **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)
+> **Last Updated:** 2026-01-21  
+> **Version:** 0.5.0  
+> **Overall Progress:** 72%  
+> **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
+> **Supabase:** Connected (43 tables, 168 RLS policies)
 
 ---
 
