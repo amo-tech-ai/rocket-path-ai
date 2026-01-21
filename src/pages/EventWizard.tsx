@@ -141,7 +141,7 @@ export default function EventWizard() {
         location_type: data.location_type,
         capacity: data.expected_attendees,
         budget: data.budget,
-        status: 'planning',
+        status: 'scheduled',
         timezone: data.timezone,
       });
 

@@ -7,16 +7,20 @@ import {
   FileText,
   CalendarSync,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useQuery, useMutation } from '@tanstack/react-query';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EventWithRelations } from '@/hooks/useEvents';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventsAIPanelProps {
   events: EventWithRelations[];
@@ -28,31 +32,99 @@ interface EventsAIPanelProps {
   } | null;
 }
 
+interface AIAnalysisResponse {
+  insight?: string;
+  recommendations?: string[];
+  suggestions?: Array<{ icon: string; label: string; action: string }>;
+  network_score?: number;
+}
+
 export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
   const [message, setMessage] = useState('');
+  const [chatResponse, setChatResponse] = useState<string | null>(null);
+
+  // Call event-agent for AI analysis
+  const { data: aiAnalysis, isLoading: analysisLoading } = useQuery({
+    queryKey: ['events-ai-analysis', events.length],
+    queryFn: async (): Promise<AIAnalysisResponse> => {
+      try {
+        const { data, error } = await supabase.functions.invoke('event-agent', {
+          body: { 
+            action: 'analyze_events',
+            events_summary: {
+              total: events.length,
+              upcoming: stats?.upcoming || 0,
+              thisWeek: stats?.thisWeek || 0,
+            }
+          }
+        });
+        if (error) throw error;
+        return data || {};
+      } catch (err) {
+        console.warn('AI analysis not available:', err);
+        return {};
+      }
+    },
+    enabled: events.length > 0,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Chat mutation
+  const chatMutation = useMutation({
+    mutationFn: async (userMessage: string) => {
+      const { data, error } = await supabase.functions.invoke('event-agent', {
+        body: {
+          action: 'chat',
+          message: userMessage,
+          context: {
+            events_count: events.length,
+            upcoming: stats?.upcoming || 0,
+          }
+        }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setChatResponse(data?.response || 'I can help you with your events!');
+    },
+  });
 
   // Find events needing attention
   const eventsNeedingAttention = events.filter(e => 
     (e.health_score || 0) < 50 && 
-    ['draft', 'planning', 'confirmed'].includes(e.status)
+    ['scheduled', 'in_progress'].includes(e.status)
   );
 
-  // Mock insight - in production this would come from AI
-  const insight = stats?.thisWeek && stats.thisWeek > 2 
-    ? `3 events overlap on next Tuesday. I recommend delegating the Tech Hub Meetup to the Community Lead.`
-    : `You have ${stats?.upcoming || 0} upcoming events. Consider adding more networking opportunities.`;
+  // Use AI insight or fallback
+  const insight = aiAnalysis?.insight || (
+    stats?.thisWeek && stats.thisWeek > 2 
+      ? `3 events overlap on next Tuesday. I recommend reviewing the schedule.`
+      : `You have ${stats?.upcoming || 0} upcoming events. Consider adding more networking opportunities.`
+  );
 
   const handleSend = () => {
-    console.log('Send message:', message);
+    if (!message.trim()) return;
+    chatMutation.mutate(message);
     setMessage('');
   };
 
-  const suggestedActions = [
-    { icon: Mail, label: 'Delegate RSVP', color: 'text-emerald-600' },
-    { icon: Plane, label: 'Book Lisbon Travel', color: 'text-blue-600' },
-    { icon: FileText, label: 'View Briefing Docs', color: 'text-amber-600' },
-    { icon: CalendarSync, label: 'Sync with Calendar', color: 'text-purple-600' },
+  // Use AI suggestions or fallback defaults
+  const suggestedActions = aiAnalysis?.suggestions || [
+    { icon: 'Mail', label: 'Delegate RSVP', action: 'delegate_rsvp' },
+    { icon: 'Plane', label: 'Book Travel', action: 'book_travel' },
+    { icon: 'FileText', label: 'View Briefing Docs', action: 'view_docs' },
+    { icon: 'CalendarSync', label: 'Sync with Calendar', action: 'sync_calendar' },
   ];
+
+  const iconMap: Record<string, React.ReactNode> = {
+    Mail: <Mail className="h-4 w-4" />,
+    Plane: <Plane className="h-4 w-4" />,
+    FileText: <FileText className="h-4 w-4" />,
+    CalendarSync: <CalendarSync className="h-4 w-4" />,
+  };
+
+  const networkScore = aiAnalysis?.network_score || 85;
 
   return (
     <div className="h-full flex flex-col">
@@ -70,17 +142,35 @@ export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
 
       <div className="flex-1 overflow-auto p-4 space-y-5">
         {/* Insight Card */}
-        <Card className="bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900">
-          <CardContent className="p-4">
-            <div className="flex gap-2">
-              <AlertCircle className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-              <p className="text-sm">
-                <span className="font-semibold text-emerald-700 dark:text-emerald-400">Insight: </span>
-                <span className="text-foreground/80">{insight}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {analysisLoading ? (
+          <Card className="bg-muted/50">
+            <CardContent className="p-4">
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4" />
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900">
+            <CardContent className="p-4">
+              <div className="flex gap-2">
+                <AlertCircle className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                <p className="text-sm">
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400">Insight: </span>
+                  <span className="text-foreground/80">{insight}</span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Chat Response */}
+        {chatResponse && (
+          <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900">
+            <CardContent className="p-4">
+              <p className="text-sm text-foreground/80">{chatResponse}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Suggested Actions */}
         <div className="space-y-3">
@@ -88,14 +178,14 @@ export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
             Suggested Actions
           </p>
           <div className="space-y-2">
-            {suggestedActions.map((action, index) => (
+            {suggestedActions.slice(0, 4).map((action, index) => (
               <Button 
                 key={index}
                 variant="ghost" 
                 className="w-full justify-start gap-3 h-11 hover:bg-muted/50 px-3"
               >
-                <div className={`p-1.5 rounded-md bg-muted ${action.color}`}>
-                  <action.icon className="h-4 w-4" />
+                <div className="p-1.5 rounded-md bg-muted text-emerald-600">
+                  {iconMap[action.icon] || <Sparkles className="h-4 w-4" />}
                 </div>
                 <span className="font-medium">{action.label}</span>
               </Button>
@@ -109,9 +199,11 @@ export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Network Growth Trend</p>
-            <span className="text-xs font-semibold text-emerald-600 uppercase">Excellent</span>
+            <span className="text-xs font-semibold text-emerald-600 uppercase">
+              {networkScore >= 80 ? 'Excellent' : networkScore >= 60 ? 'Good' : 'Needs Attention'}
+            </span>
           </div>
-          <Progress value={85} className="h-2 bg-muted" />
+          <Progress value={networkScore} className="h-2 bg-muted" />
         </div>
 
         {/* Events Needing Attention */}
@@ -129,10 +221,10 @@ export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
                 {eventsNeedingAttention.slice(0, 3).map((event) => (
                   <Card key={event.id} className="bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900">
                     <CardContent className="p-3">
-                      <p className="text-sm font-medium line-clamp-1">{event.name}</p>
+                      <p className="text-sm font-medium line-clamp-1">{event.title || event.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {event.event_date 
-                          ? format(new Date(event.event_date), 'MMM d, yyyy')
+                        {event.start_date 
+                          ? format(new Date(event.start_date), 'MMM d, yyyy')
                           : 'Date TBD'
                         } • Readiness: {event.health_score || 0}%
                       </p>
@@ -175,14 +267,19 @@ export default function EventsAIPanel({ events, stats }: EventsAIPanelProps) {
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             className="text-sm bg-background"
+            disabled={chatMutation.isPending}
           />
           <Button 
             size="icon" 
             onClick={handleSend} 
-            disabled={!message.trim()}
+            disabled={!message.trim() || chatMutation.isPending}
             className="shrink-0"
           >
-            <Send className="h-4 w-4" />
+            {chatMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>

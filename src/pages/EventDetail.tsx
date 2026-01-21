@@ -139,8 +139,8 @@ export default function EventDetail() {
   }
 
   const eventImage = event.cover_image_url || eventPlaceholders[event.event_type] || eventPlaceholders.other;
-  const formattedDate = event.event_date ? format(new Date(event.event_date), 'MMM dd, yyyy') : 'TBD';
-  const formattedTime = event.event_date ? format(new Date(event.event_date), 'h:mm a') : '';
+  const formattedDate = event.start_date ? format(new Date(event.start_date), 'MMM dd, yyyy') : 'TBD';
+  const formattedTime = event.start_date ? format(new Date(event.start_date), 'h:mm a') : '';
   const healthScore = event.health_score || 0;
   const taskProgress = event.tasks_total ? Math.round((event.tasks_completed || 0) / event.tasks_total * 100) : 0;
 

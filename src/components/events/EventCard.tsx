@@ -38,28 +38,26 @@ const getPriority = (event: EventWithRelations) => {
 
 // Event image placeholders based on type
 const eventImages: Record<string, string> = {
-  demo_day: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop',
-  pitch_night: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=400&h=200&fit=crop',
-  networking: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=200&fit=crop',
-  workshop: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=200&fit=crop',
-  investor_meetup: 'https://images.unsplash.com/photo-1560439514-4e9645039924?w=400&h=200&fit=crop',
-  founder_dinner: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=200&fit=crop',
-  hackathon: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=200&fit=crop',
-  conference: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=200&fit=crop',
-  webinar: 'https://images.unsplash.com/photo-1588196749597-9ff075ee6b5b?w=400&h=200&fit=crop',
+  demo: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop',
+  pitch: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=400&h=200&fit=crop',
+  meeting: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=200&fit=crop',
+  call: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=400&h=200&fit=crop',
+  funding_round: 'https://images.unsplash.com/photo-1560439514-4e9645039924?w=400&h=200&fit=crop',
+  milestone: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=200&fit=crop',
+  deadline: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=200&fit=crop',
+  reminder: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=200&fit=crop',
   other: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop',
 };
 
 const typeLabels: Record<string, string> = {
-  demo_day: 'Demo Day',
-  pitch_night: 'Pitch Night',
-  networking: 'Networking',
-  workshop: 'Workshop',
-  investor_meetup: 'Investor Meetup',
-  founder_dinner: 'Founder Dinner',
-  hackathon: 'Hackathon',
-  conference: 'Conference',
-  webinar: 'Webinar',
+  demo: 'Demo',
+  pitch: 'Pitch',
+  meeting: 'Meeting',
+  call: 'Call',
+  funding_round: 'Funding Round',
+  milestone: 'Milestone',
+  deadline: 'Deadline',
+  reminder: 'Reminder',
   other: 'Other',
 };
 
@@ -67,23 +65,24 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
   const priority = getPriority(event);
   const attendeeCount = event.attendee_count || 0;
   const eventImage = eventImages[event.event_type] || eventImages.other;
+  const displayName = event.title || event.name || 'Untitled Event';
   
   // Get primary venue
   const primaryVenue = event.venues?.find(v => v.is_primary) || event.venues?.[0];
-  const locationName = primaryVenue?.name || primaryVenue?.city;
+  const locationName = primaryVenue?.name || primaryVenue?.city || event.location;
 
-  // Format date & time
-  const formattedDate = event.event_date 
-    ? format(new Date(event.event_date), 'MMM dd, yyyy')
+  // Format date & time using start_date
+  const formattedDate = event.start_date 
+    ? format(new Date(event.start_date), 'MMM dd, yyyy')
     : 'Date TBD';
-  const formattedTime = event.event_date 
-    ? format(new Date(event.event_date), 'h:mm a')
+  const formattedTime = event.start_date 
+    ? format(new Date(event.start_date), 'h:mm a')
     : '';
-  const isFullDay = event.event_type === 'conference' || event.event_type === 'hackathon';
+  const isFullDay = event.all_day === true;
 
   // Mock data for demo purposes
   const assignee = 'Team Lead';
-  const statusInfo = event.status === 'confirmed' ? 'Booth Secured' : null;
+  const statusInfo = event.status === 'scheduled' ? 'Scheduled' : null;
 
   if (viewMode === 'list') {
     return (
@@ -93,8 +92,8 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
             {/* Image */}
             <div className="relative w-32 h-24 shrink-0">
               <img 
-                src={eventImage} 
-                alt={event.name}
+                src={event.cover_image_url || eventImage} 
+                alt={displayName}
                 className="w-full h-full object-cover"
               />
               <Badge className={`absolute top-2 left-2 text-[10px] font-semibold ${priority.className}`}>
@@ -105,7 +104,7 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
             {/* Content */}
             <div className="flex-1 p-4 flex items-center justify-between">
               <div className="space-y-1">
-                <h3 className="font-semibold line-clamp-1">{event.name}</h3>
+                <h3 className="font-semibold line-clamp-1">{displayName}</h3>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
@@ -146,8 +145,8 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
         {/* Image Section */}
         <div className="relative h-36 overflow-hidden">
           <img 
-            src={eventImage} 
-            alt={event.name}
+            src={event.cover_image_url || eventImage} 
+            alt={displayName}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -181,7 +180,7 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
         <div className="p-4 space-y-3">
           {/* Title */}
           <h3 className="font-semibold text-base line-clamp-1 group-hover:text-primary transition-colors">
-            {event.name}
+            {displayName}
           </h3>
 
           {/* Date */}
@@ -224,7 +223,7 @@ export default function EventCard({ event, viewMode }: EventCardProps) {
             ) : event.event_type ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Rocket className="h-4 w-4" />
-                <span>{typeLabels[event.event_type]}</span>
+                <span>{typeLabels[event.event_type] || event.event_type}</span>
               </div>
             ) : null}
           </div>

@@ -1,31 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import type { Database, Enums } from '@/integrations/supabase/types';
+import type { Database } from '@/integrations/supabase/types';
 
-type StartupEvent = Database['public']['Tables']['startup_events']['Row'];
-type StartupEventInsert = Database['public']['Tables']['startup_events']['Insert'];
-type StartupEventUpdate = Database['public']['Tables']['startup_events']['Update'];
-type EventSponsor = Database['public']['Tables']['event_sponsors']['Row'];
-type EventVenue = Database['public']['Tables']['event_venues']['Row'];
-type EventAttendee = Database['public']['Tables']['event_attendees']['Row'];
-type EventAsset = Database['public']['Tables']['event_assets']['Row'];
+// Type definitions from the events table
+type Event = Database['public']['Tables']['events']['Row'];
+type EventInsert = Database['public']['Tables']['events']['Insert'];
+type EventUpdate = Database['public']['Tables']['events']['Update'];
+// Use any for child tables to avoid type instantiation issues
+type EventSponsor = any;
+type EventVenue = any;
+type EventAttendee = any;
+type EventAsset = any;
 
-type StartupEventStatus = Enums<'startup_event_status'>;
-type StartupEventType = Enums<'startup_event_type'>;
+// Use actual enum types from events table
+type EventStatus = Event['status'];
+type EventType = Event['event_type'];
 
-export interface EventWithRelations extends StartupEvent {
+export interface EventWithRelations extends Omit<Event, 'attendees'> {
+  event_sponsors?: Array<{ id: string; status: string }>;
+  event_venues?: Array<{ id: string; name: string; city?: string | null; is_primary?: boolean | null }>;
+  event_attendees?: Array<{ id: string; rsvp_status: string }>;
+  event_assets?: EventAsset[];
   sponsors?: EventSponsor[];
   venues?: EventVenue[];
   attendees?: EventAttendee[];
   assets?: EventAsset[];
   attendee_count?: number;
   sponsor_count?: number;
+  primary_venue_name?: string;
 }
 
 export interface EventFilters {
-  status?: StartupEventStatus[];
-  event_type?: StartupEventType[];
+  status?: string[];
+  event_type?: string[];
   date_range?: 'upcoming' | 'past' | 'all';
   search?: string;
 }
@@ -63,14 +71,14 @@ export function useEvents(filters?: EventFilters) {
     queryKey: ['events', startupId, filters],
     queryFn: async () => {
       let query = supabase
-        .from('startup_events')
+        .from('events')
         .select(`
           *,
           event_sponsors(id, status),
           event_attendees(id, rsvp_status),
           event_venues(id, name, city, is_primary)
         `)
-        .order('event_date', { ascending: true });
+        .order('start_date', { ascending: true });
 
       // Only filter by startup if we have one
       if (startupId) {
@@ -79,24 +87,24 @@ export function useEvents(filters?: EventFilters) {
 
       // Apply status filter
       if (filters?.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
+        query = query.in('status', filters.status as EventStatus[]);
       }
 
       // Apply event type filter
       if (filters?.event_type && filters.event_type.length > 0) {
-        query = query.in('event_type', filters.event_type);
+        query = query.in('event_type', filters.event_type as EventType[]);
       }
 
       // Apply date range filter
       if (filters?.date_range === 'upcoming') {
-        query = query.gte('event_date', new Date().toISOString());
+        query = query.gte('start_date', new Date().toISOString());
       } else if (filters?.date_range === 'past') {
-        query = query.lt('event_date', new Date().toISOString());
+        query = query.lt('start_date', new Date().toISOString());
       }
 
       // Apply search filter
       if (filters?.search) {
-        query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        query = query.or(`title.ilike.%${filters.search}%,name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
       }
 
       const { data, error } = await query;
@@ -130,7 +138,7 @@ export function useEvent(eventId: string | undefined) {
       if (!eventId) return null;
 
       const { data, error } = await supabase
-        .from('startup_events')
+        .from('events')
         .select(`
           *,
           event_sponsors(*),
@@ -142,7 +150,7 @@ export function useEvent(eventId: string | undefined) {
         .single();
 
       if (error) throw error;
-      return data as EventWithRelations;
+      return data as unknown as EventWithRelations;
     },
     enabled: !!eventId,
   });
@@ -158,8 +166,8 @@ export function useEventStats() {
       const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
       let query = supabase
-        .from('startup_events')
-        .select('id, event_date, status');
+        .from('events')
+        .select('id, start_date, status');
 
       // Only filter by startup if we have one
       if (startupId) {
@@ -174,13 +182,15 @@ export function useEventStats() {
       
       return {
         total: events?.length || 0,
-        upcoming: events?.filter(e => e.event_date && new Date(e.event_date) > new Date()).length || 0,
-        today: events?.filter(e => e.event_date && new Date(e.event_date).toDateString() === today).length || 0,
-        thisWeek: events?.filter(e => e.event_date && new Date(e.event_date) >= new Date() && new Date(e.event_date) <= new Date(weekFromNow)).length || 0,
-        draft: events?.filter(e => e.status === 'draft').length || 0,
-        planning: events?.filter(e => e.status === 'planning').length || 0,
-        confirmed: events?.filter(e => e.status === 'confirmed').length || 0,
+        upcoming: events?.filter(e => e.start_date && new Date(e.start_date) > new Date()).length || 0,
+        today: events?.filter(e => e.start_date && new Date(e.start_date).toDateString() === today).length || 0,
+        thisWeek: events?.filter(e => e.start_date && new Date(e.start_date) >= new Date() && new Date(e.start_date) <= new Date(weekFromNow)).length || 0,
+        scheduled: events?.filter(e => e.status === 'scheduled').length || 0,
+        in_progress: events?.filter(e => e.status === 'in_progress').length || 0,
+        confirmed: events?.filter(e => e.status === 'scheduled').length || 0, // Map scheduled to confirmed for UI
         completed: events?.filter(e => e.status === 'completed').length || 0,
+        draft: 0, // events table doesn't have draft status
+        planning: 0, // events table doesn't have planning status
       };
     },
     enabled: !startupLoading,
@@ -192,11 +202,11 @@ export function useCreateEvent() {
   const { data: startupId } = useStartupId();
 
   return useMutation({
-    mutationFn: async (event: Omit<StartupEventInsert, 'startup_id'>) => {
+    mutationFn: async (event: Omit<EventInsert, 'startup_id'>) => {
       if (!startupId) throw new Error('No startup selected');
 
       const { data, error } = await supabase
-        .from('startup_events')
+        .from('events')
         .insert({ ...event, startup_id: startupId })
         .select()
         .single();
@@ -215,9 +225,9 @@ export function useUpdateEvent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: StartupEventUpdate & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: EventUpdate & { id: string }) => {
       const { data, error } = await supabase
-        .from('startup_events')
+        .from('events')
         .update(updates)
         .eq('id', id)
         .select()
@@ -240,7 +250,7 @@ export function useDeleteEvent() {
   return useMutation({
     mutationFn: async (eventId: string) => {
       const { error } = await supabase
-        .from('startup_events')
+        .from('events')
         .delete()
         .eq('id', eventId);
 
@@ -263,7 +273,7 @@ export function useEventSponsors(eventId: string | undefined) {
       const { data, error } = await supabase
         .from('event_sponsors')
         .select('*')
-        .eq('startup_event_id', eventId)
+        .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -283,7 +293,7 @@ export function useEventAttendees(eventId: string | undefined) {
       const { data, error } = await supabase
         .from('event_attendees')
         .select('*')
-        .eq('startup_event_id', eventId)
+        .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -303,7 +313,7 @@ export function useEventVenues(eventId: string | undefined) {
       const { data, error } = await supabase
         .from('event_venues')
         .select('*')
-        .eq('startup_event_id', eventId)
+        .eq('event_id', eventId)
         .order('is_primary', { ascending: false });
 
       if (error) throw error;
@@ -323,7 +333,7 @@ export function useEventAssets(eventId: string | undefined) {
       const { data, error } = await supabase
         .from('event_assets')
         .select('*')
-        .eq('startup_event_id', eventId)
+        .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
