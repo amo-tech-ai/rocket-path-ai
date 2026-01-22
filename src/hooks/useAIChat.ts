@@ -28,7 +28,7 @@ export interface AIContext {
   data?: Record<string, unknown>;
 }
 
-type AIAction = 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile';
+type AIAction = 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance';
 
 export function useAIChat() {
   const { user } = useAuth();

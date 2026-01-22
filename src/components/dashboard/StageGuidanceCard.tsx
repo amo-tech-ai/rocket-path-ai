@@ -1,11 +1,12 @@
-import { Target, ChevronRight, CheckCircle, Circle, Loader2, ArrowRight, Sparkles } from 'lucide-react';
+import { Target, ChevronRight, CheckCircle, Circle, Loader2, ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStageGuidance, StartupStage, Milestone } from '@/hooks/useStageGuidance';
+import { useStageGuidanceAI, StageRecommendation } from '@/hooks/useStageGuidanceAI';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StageGuidanceCardProps {
@@ -25,6 +26,13 @@ const stageColors: Record<StartupStage, string> = {
   pre_seed: 'bg-purple-500/10 text-purple-600 border-purple-200',
   seed: 'bg-sage-light text-sage border-sage/30',
   series_a: 'bg-amber-500/10 text-amber-600 border-amber-200',
+};
+
+const categoryColors: Record<string, string> = {
+  discovery: 'bg-blue-100 text-blue-700',
+  product: 'bg-purple-100 text-purple-700',
+  growth: 'bg-green-100 text-green-700',
+  fundraising: 'bg-amber-100 text-amber-700',
 };
 
 function MilestoneItem({ milestone }: { milestone: Milestone }) {
@@ -65,12 +73,45 @@ function MilestoneItem({ milestone }: { milestone: Milestone }) {
   );
 }
 
-export function StageGuidanceCard({ stage = 'idea', startupData, onAskAI }: StageGuidanceCardProps) {
+function RecommendationItem({ recommendation }: { recommendation: StageRecommendation }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-start gap-2 py-2 border-b last:border-0"
+    >
+      <Sparkles className={cn(
+        'w-3.5 h-3.5 mt-0.5 shrink-0',
+        recommendation.priority === 'high' ? 'text-amber-500' : 'text-muted-foreground'
+      )} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm">{recommendation.action}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', categoryColors[recommendation.category] || '')}>
+            {recommendation.category}
+          </Badge>
+          {recommendation.time_estimate && (
+            <span className="text-[10px] text-muted-foreground">~{recommendation.time_estimate}</span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+export function StageGuidanceCard({ stage = 'idea', startupData = {}, onAskAI }: StageGuidanceCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [showAIGuidance, setShowAIGuidance] = useState(false);
   const guidance = useStageGuidance(stage, startupData);
+  const { isLoading: aiLoading, error: aiError, guidance: aiGuidance, fetchGuidance } = useStageGuidanceAI();
 
   const { currentStage, progressPercent, completedMilestones, totalMilestones } = guidance;
   const visibleMilestones = expanded ? currentStage.milestones : currentStage.milestones.slice(0, 3);
+
+  const handleGetAIGuidance = async () => {
+    setShowAIGuidance(true);
+    await fetchGuidance(stage, currentStage.milestones, startupData);
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -112,49 +153,139 @@ export function StageGuidanceCard({ stage = 'idea', startupData, onAskAI }: Stag
           </div>
         </div>
 
-        {/* Milestones */}
-        <div className="divide-y">
-          <AnimatePresence>
-            {visibleMilestones.map((milestone, index) => (
-              <motion.div
-                key={milestone.id}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <MilestoneItem milestone={milestone} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        {/* AI Guidance Section */}
+        <AnimatePresence>
+          {showAIGuidance && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-muted/30 rounded-lg p-3 space-y-3"
+            >
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-4 gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Getting personalized guidance...</span>
+                </div>
+              ) : aiError ? (
+                <div className="text-center py-3">
+                  <p className="text-sm text-destructive">{aiError}</p>
+                  <Button variant="ghost" size="sm" onClick={handleGetAIGuidance} className="mt-2">
+                    <RefreshCw className="w-3 h-3 mr-1" /> Retry
+                  </Button>
+                </div>
+              ) : aiGuidance ? (
+                <>
+                  {/* Primary Focus */}
+                  <div className="bg-primary/5 rounded p-2 border border-primary/10">
+                    <p className="text-[10px] text-primary font-medium uppercase tracking-wide">Focus Now</p>
+                    <p className="text-sm font-medium mt-0.5">{aiGuidance.primary_focus}</p>
+                  </div>
 
-        {/* Expand/collapse */}
-        {currentStage.milestones.length > 3 && (
+                  {/* Stage Assessment */}
+                  <p className="text-xs text-muted-foreground">{aiGuidance.stage_assessment}</p>
+
+                  {/* Recommendations */}
+                  {aiGuidance.recommendations.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Recommendations
+                      </p>
+                      <div className="divide-y">
+                        {aiGuidance.recommendations.slice(0, 3).map((rec, i) => (
+                          <RecommendationItem key={i} recommendation={rec} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Templates */}
+                  {aiGuidance.templates.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {aiGuidance.templates.map((template, i) => (
+                        <Badge key={i} variant="secondary" className="text-[10px]">
+                          {template}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Encouragement */}
+                  <p className="text-xs text-sage italic">{aiGuidance.encouragement}</p>
+
+                  {/* Refresh button */}
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={handleGetAIGuidance}>
+                    <RefreshCw className="w-3 h-3 mr-1" /> Refresh Guidance
+                  </Button>
+                </>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Milestones */}
+        {!showAIGuidance && (
+          <>
+            <div className="divide-y">
+              <AnimatePresence>
+                {visibleMilestones.map((milestone, index) => (
+                  <motion.div
+                    key={milestone.id}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <MilestoneItem milestone={milestone} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Expand/collapse */}
+            {currentStage.milestones.length > 3 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? 'Show less' : `Show all ${currentStage.milestones.length} milestones`}
+                <ChevronRight className={cn(
+                  'w-3 h-3 ml-1 transition-transform',
+                  expanded && 'rotate-90'
+                )} />
+              </Button>
+            )}
+          </>
+        )}
+
+        {/* AI guidance CTA */}
+        <Button
+          variant={showAIGuidance ? "secondary" : "outline"}
+          size="sm"
+          className="w-full text-xs gap-2"
+          onClick={() => {
+            if (showAIGuidance) {
+              setShowAIGuidance(false);
+            } else {
+              handleGetAIGuidance();
+            }
+          }}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {showAIGuidance ? 'Show Milestones' : `Get AI Guidance for ${currentStage.label}`}
+        </Button>
+
+        {/* Ask AI directly */}
+        {onAskAI && !showAIGuidance && (
           <Button
             variant="ghost"
             size="sm"
             className="w-full text-xs"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? 'Show less' : `Show all ${currentStage.milestones.length} milestones`}
-            <ChevronRight className={cn(
-              'w-3 h-3 ml-1 transition-transform',
-              expanded && 'rotate-90'
-            )} />
-          </Button>
-        )}
-
-        {/* AI guidance CTA */}
-        {onAskAI && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs gap-2"
             onClick={() => onAskAI(`What should I focus on next at the ${currentStage.label} stage?`)}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Get AI Guidance for {currentStage.label}
+            Ask in AI Panel →
           </Button>
         )}
       </CardContent>

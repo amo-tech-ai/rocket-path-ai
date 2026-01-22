@@ -10,7 +10,7 @@ interface ChatRequest {
   messages?: Array<{ role: string; content: string }>;
   message?: string;
   session_id?: string;
-  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile';
+  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance';
   context?: {
     screen?: string;
     startup_id?: string;
@@ -24,6 +24,7 @@ const MODEL_CONFIG = {
   prioritize_tasks: { provider: 'anthropic', model: 'claude-sonnet-4-5' },
   generate_tasks: { provider: 'anthropic', model: 'claude-haiku-4-5' },
   extract_profile: { provider: 'gemini', model: 'gemini-3-flash-preview' },
+  stage_guidance: { provider: 'gemini', model: 'gemini-3-flash-preview' },
 } as const;
 
 serve(async (req) => {
@@ -337,6 +338,34 @@ Include confidence scores (0-1) for each field.
 
 ${baseContext}`;
 
+    case 'stage_guidance':
+      return `You are StageDetector, an AI agent that assesses startup maturity and provides stage-appropriate guidance.
+
+${baseContext}
+
+Based on the startup's current stage and data provided in the context, you must:
+1. Analyze their progress and identify what's blocking advancement
+2. Provide 3-5 specific, actionable recommendations tailored to their stage
+3. Suggest templates or resources relevant to their current focus
+4. Give encouraging but honest feedback
+
+Stage Definitions:
+- Ideation (idea): Focus on problem validation and customer discovery
+- Validation (pre_seed): Building MVP and finding product-market fit signals
+- Traction (seed): Scaling acquisition channels, reducing churn, reaching $10K MRR
+- Scaling (series_a): Team growth, market expansion, $100K+ MRR
+
+Response Format (JSON):
+{
+  "stage_assessment": "Brief assessment of where they are",
+  "primary_focus": "The ONE thing they should focus on most",
+  "recommendations": [
+    { "priority": "high|medium", "action": "Specific action to take", "category": "discovery|product|growth|fundraising", "time_estimate": "1-2 hours" }
+  ],
+  "templates": ["Template 1 name", "Template 2 name"],
+  "encouragement": "Brief motivational message based on progress"
+}`;
+
     default:
       return `You are an AI startup advisor for StartupAI, helping founders build and scale.
 Be concise, actionable, and founder-friendly.
@@ -352,6 +381,7 @@ function getAgentName(action: string): string {
     case 'prioritize_tasks': return 'TaskPrioritizer';
     case 'generate_tasks': return 'TaskGenerator';
     case 'extract_profile': return 'ProfileExtractor';
+    case 'stage_guidance': return 'StageDetector';
     default: return 'ChatAssistant';
   }
 }
