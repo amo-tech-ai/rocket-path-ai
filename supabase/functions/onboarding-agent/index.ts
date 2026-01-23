@@ -500,60 +500,71 @@ async function getQuestions(
   const industry = formData.industry || extractions.industry || [];
 
   // Define question bank based on stage and industry
+  // Shape matches Step3Interview's Question interface: id, text, type, options, topic, why_matters
   const allQuestions = [
     {
       id: "q1_traction",
-      question: "What's your current monthly revenue or traction?",
-      category: "traction",
+      text: "What's your current monthly revenue or traction?",
+      type: "multiple_choice" as const,
+      topic: "traction",
+      why_matters: "Traction is one of the strongest predictors of investor interest.",
       options: [
-        { id: "a1", text: "Pre-revenue", value: "pre_revenue" },
-        { id: "a2", text: "Under $1K MRR", value: "under_1k" },
-        { id: "a3", text: "$1K - $10K MRR", value: "1k_10k" },
-        { id: "a4", text: "$10K+ MRR", value: "10k_plus" },
+        { id: "a1", text: "Pre-revenue" },
+        { id: "a2", text: "Under $1K MRR" },
+        { id: "a3", text: "$1K - $10K MRR" },
+        { id: "a4", text: "$10K+ MRR" },
       ],
     },
     {
       id: "q2_users",
-      question: "How many active users do you have?",
-      category: "traction",
+      text: "How many active users do you have?",
+      type: "multiple_choice" as const,
+      topic: "traction",
+      why_matters: "User growth signals product-market fit and validates demand.",
       options: [
-        { id: "a1", text: "None yet", value: "none" },
-        { id: "a2", text: "1-100", value: "1_100" },
-        { id: "a3", text: "100-1000", value: "100_1000" },
-        { id: "a4", text: "1000+", value: "1000_plus" },
+        { id: "a1", text: "None yet" },
+        { id: "a2", text: "1-100" },
+        { id: "a3", text: "100-1000" },
+        { id: "a4", text: "1000+" },
       ],
     },
     {
       id: "q3_fundraising",
-      question: "Are you currently fundraising?",
-      category: "funding",
+      text: "Are you currently fundraising?",
+      type: "multiple_choice" as const,
+      topic: "funding",
+      why_matters: "Understanding your fundraising status helps tailor investor strategy.",
       options: [
-        { id: "a1", text: "Not yet", value: "not_yet" },
-        { id: "a2", text: "Planning to start", value: "planning" },
-        { id: "a3", text: "Actively raising", value: "active" },
-        { id: "a4", text: "Just closed a round", value: "closed" },
+        { id: "a1", text: "Not yet" },
+        { id: "a2", text: "Planning to start" },
+        { id: "a3", text: "Actively raising" },
+        { id: "a4", text: "Just closed a round" },
       ],
     },
     {
       id: "q4_team",
-      question: "What's your team size?",
-      category: "team",
+      text: "What's your team size?",
+      type: "multiple_choice" as const,
+      topic: "team",
+      why_matters: "Team composition is a key factor in early-stage investment decisions.",
       options: [
-        { id: "a1", text: "Solo founder", value: "solo" },
-        { id: "a2", text: "2-3 co-founders", value: "2_3" },
-        { id: "a3", text: "4-10 people", value: "4_10" },
-        { id: "a4", text: "10+ people", value: "10_plus" },
+        { id: "a1", text: "Solo founder" },
+        { id: "a2", text: "2-3 co-founders" },
+        { id: "a3", text: "4-10 people" },
+        { id: "a4", text: "10+ people" },
       ],
     },
     {
       id: "q5_pmf",
-      question: "How would you describe your product-market fit?",
-      category: "product",
+      text: "How would you describe your product-market fit?",
+      type: "multiple_choice" as const,
+      topic: "market",
+      why_matters: "PMF signals determine whether investors see scalable potential.",
       options: [
-        { id: "a1", text: "Still searching", value: "searching" },
-        { id: "a2", text: "Early signals", value: "early" },
-        { id: "a3", text: "Strong indicators", value: "strong" },
-        { id: "a4", text: "Achieved PMF", value: "achieved" },
+        { id: "a1", text: "Still searching" },
+        { id: "a2", text: "Early signals" },
+        { id: "a3", text: "Strong indicators" },
+        { id: "a4", text: "Achieved PMF" },
       ],
     },
   ];
@@ -563,12 +574,13 @@ async function getQuestions(
     (q) => !answeredQuestionIds.includes(q.id)
   );
 
-  // Select advisor persona based on stage
+  // Select advisor persona based on stage - matches AdvisorPersona interface
   const advisor = {
     name: stage === "Idea" ? "Sarah Chen" : "Michael Torres",
     title: stage === "Idea" ? "Early-Stage Advisor" : "Growth Expert",
-    avatar: stage === "Idea" ? "👩‍💼" : "👨‍💼",
-    style: stage === "Idea" ? "supportive" : "analytical",
+    intro: stage === "Idea"
+      ? "Let's tighten the core story so your pitch is instantly clear."
+      : "Let's pressure-test traction and positioning like an investor would.",
   };
 
   return {

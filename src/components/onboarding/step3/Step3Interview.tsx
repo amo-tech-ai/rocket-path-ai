@@ -68,9 +68,11 @@ export function Step3Interview({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
   
-  const currentQuestion = questions[currentQuestionIndex];
-  const isComplete = currentQuestionIndex >= questions.length;
-  const progressPercent = Math.min((currentQuestionIndex / questions.length) * 100, 100);
+  // Guard: If questions failed to load or are empty, show loading state instead of "complete"
+  const hasQuestions = questions && questions.length > 0;
+  const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null;
+  const isComplete = hasQuestions && currentQuestionIndex >= questions.length;
+  const progressPercent = hasQuestions ? Math.min((currentQuestionIndex / questions.length) * 100, 100) : 0;
 
   // Reset selection when question changes
   useEffect(() => {
@@ -95,6 +97,21 @@ export function Step3Interview({
     onSetCurrentIndex(currentQuestionIndex + 1);
     onSkip();
   };
+
+  // Loading state: questions haven't loaded yet
+  if (!hasQuestions) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Loading Interview Questions...</h2>
+        <p className="text-muted-foreground">
+          Preparing your personalized interview. This may take a moment.
+        </p>
+      </div>
+    );
+  }
 
   if (isComplete) {
     return (

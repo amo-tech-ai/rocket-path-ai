@@ -39,22 +39,108 @@ interface CompleteWizardResult {
   error?: string;
 }
 
+// Response types for typed mutations - aligned with useWizardSession types
+interface ReadinessResult {
+  success: boolean;
+  readiness_score?: {
+    overall_score: number;
+    category_scores: {
+      product: number;
+      market: number;
+      team: number;
+      clarity: number;
+    };
+    benchmarks: string[];
+    recommendations: string[];
+  };
+}
+
+interface QuestionsResult {
+  success: boolean;
+  questions: Array<{
+    id: string;
+    text: string;
+    type: 'multiple_choice' | 'multi_select' | 'text' | 'number';
+    options?: Array<{ id: string; text: string; emoji?: string }>;
+    topic: string;
+    why_matters: string;
+  }>;
+  total_questions: number;
+  answered: number;
+  advisor: { name: string; title: string; intro: string } | null;
+}
+
+interface ProcessAnswerResult {
+  success: boolean;
+  signals: string[];
+  extracted_traction?: Record<string, unknown>;
+  extracted_funding?: Record<string, unknown>;
+}
+
+interface InvestorScoreResult {
+  success: boolean;
+  investor_score?: {
+    total_score: number;
+    breakdown: {
+      team: number;
+      traction: number;
+      market: number;
+      product: number;
+      fundraising: number;
+    };
+    recommendations: Array<{ action: string; points_gain: number }>;
+  };
+}
+
+interface SummaryResult {
+  success: boolean;
+  summary?: {
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+  };
+}
+
+interface FounderEnrichmentResult {
+  success: boolean;
+  founder_data?: {
+    name?: string;
+    title?: string;
+    bio?: string;
+    experience?: string[];
+  };
+}
+
+// Helper to invoke edge function with explicit JWT attachment
+async function invokeAgent<T>(body: Record<string, unknown>): Promise<T> {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  
+  if (sessionError || !session?.access_token) {
+    throw new Error("No active Supabase session. User is not authenticated.");
+  }
+
+  const response = await supabase.functions.invoke('onboarding-agent', {
+    body,
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (response.error) throw response.error;
+  return response.data as T;
+}
+
 export function useOnboardingAgent() {
   const { toast } = useToast();
 
   // Enrich from URL
   const enrichUrlMutation = useMutation({
-    mutationFn: async (params: EnrichUrlParams): Promise<EnrichmentResult> => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'enrich_url',
-          session_id: params.session_id,
-          url: params.url,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: EnrichUrlParams): Promise<EnrichmentResult> =>
+      invokeAgent({
+        action: 'enrich_url',
+        session_id: params.session_id,
+        url: params.url,
+      }),
     onError: (error) => {
       console.error('URL enrichment failed:', error);
       toast({
@@ -67,18 +153,13 @@ export function useOnboardingAgent() {
 
   // Enrich from context/description
   const enrichContextMutation = useMutation({
-    mutationFn: async (params: EnrichContextParams): Promise<EnrichmentResult> => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'enrich_context',
-          session_id: params.session_id,
-          description: params.description,
-          target_market: params.target_market,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: EnrichContextParams): Promise<EnrichmentResult> =>
+      invokeAgent({
+        action: 'enrich_context',
+        session_id: params.session_id,
+        description: params.description,
+        target_market: params.target_market,
+      }),
     onError: (error) => {
       console.error('Context enrichment failed:', error);
       toast({
@@ -91,18 +172,13 @@ export function useOnboardingAgent() {
 
   // Enrich founder from LinkedIn
   const enrichFounderMutation = useMutation({
-    mutationFn: async (params: { session_id: string; linkedin_url: string; name?: string }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'enrich_founder',
-          session_id: params.session_id,
-          linkedin_url: params.linkedin_url,
-          name: params.name,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string; linkedin_url: string; name?: string }): Promise<FounderEnrichmentResult> =>
+      invokeAgent<FounderEnrichmentResult>({
+        action: 'enrich_founder',
+        session_id: params.session_id,
+        linkedin_url: params.linkedin_url,
+        name: params.name,
+      }),
     onError: (error) => {
       console.error('Founder enrichment failed:', error);
     },
@@ -110,16 +186,11 @@ export function useOnboardingAgent() {
 
   // Calculate readiness score (Step 2)
   const calculateReadinessMutation = useMutation({
-    mutationFn: async (params: { session_id: string }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'calculate_readiness',
-          session_id: params.session_id,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string }): Promise<ReadinessResult> =>
+      invokeAgent<ReadinessResult>({
+        action: 'calculate_readiness',
+        session_id: params.session_id,
+      }),
     onError: (error) => {
       console.error('Readiness calculation failed:', error);
     },
@@ -127,17 +198,12 @@ export function useOnboardingAgent() {
 
   // Get interview questions (Step 3)
   const getQuestionsMutation = useMutation({
-    mutationFn: async (params: { session_id: string; answered_question_ids?: string[] }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'get_questions',
-          session_id: params.session_id,
-          answered_question_ids: params.answered_question_ids || [],
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string; answered_question_ids?: string[] }): Promise<QuestionsResult> =>
+      invokeAgent<QuestionsResult>({
+        action: 'get_questions',
+        session_id: params.session_id,
+        answered_question_ids: params.answered_question_ids || [],
+      }),
     onError: (error) => {
       console.error('Get questions failed:', error);
     },
@@ -145,19 +211,14 @@ export function useOnboardingAgent() {
 
   // Process answer (Step 3)
   const processAnswerMutation = useMutation({
-    mutationFn: async (params: { session_id: string; question_id: string; answer_id: string; answer_text?: string }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'process_answer',
-          session_id: params.session_id,
-          question_id: params.question_id,
-          answer_id: params.answer_id,
-          answer_text: params.answer_text,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string; question_id: string; answer_id: string; answer_text?: string }): Promise<ProcessAnswerResult> =>
+      invokeAgent<ProcessAnswerResult>({
+        action: 'process_answer',
+        session_id: params.session_id,
+        question_id: params.question_id,
+        answer_id: params.answer_id,
+        answer_text: params.answer_text,
+      }),
     onError: (error) => {
       console.error('Process answer failed:', error);
     },
@@ -165,16 +226,11 @@ export function useOnboardingAgent() {
 
   // Calculate investor score (Step 4)
   const calculateScoreMutation = useMutation({
-    mutationFn: async (params: { session_id: string }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'calculate_score',
-          session_id: params.session_id,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string }): Promise<InvestorScoreResult> =>
+      invokeAgent<InvestorScoreResult>({
+        action: 'calculate_score',
+        session_id: params.session_id,
+      }),
     onError: (error) => {
       console.error('Calculate score failed:', error);
     },
@@ -182,16 +238,11 @@ export function useOnboardingAgent() {
 
   // Generate summary (Step 4)
   const generateSummaryMutation = useMutation({
-    mutationFn: async (params: { session_id: string }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'generate_summary',
-          session_id: params.session_id,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string }): Promise<SummaryResult> =>
+      invokeAgent<SummaryResult>({
+        action: 'generate_summary',
+        session_id: params.session_id,
+      }),
     onError: (error) => {
       console.error('Generate summary failed:', error);
     },
@@ -199,16 +250,11 @@ export function useOnboardingAgent() {
 
   // Complete wizard
   const completeWizardMutation = useMutation({
-    mutationFn: async (params: CompleteWizardParams): Promise<CompleteWizardResult> => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'complete_wizard',
-          session_id: params.session_id,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: CompleteWizardParams): Promise<CompleteWizardResult> =>
+      invokeAgent({
+        action: 'complete_wizard',
+        session_id: params.session_id,
+      }),
     onSuccess: (data) => {
       toast({
         title: 'Setup complete!',
@@ -227,16 +273,11 @@ export function useOnboardingAgent() {
 
   // Run AI analysis
   const runAnalysisMutation = useMutation({
-    mutationFn: async (params: { session_id: string }): Promise<{ success: boolean; analysis?: Record<string, unknown> }> => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'run_analysis',
-          session_id: params.session_id,
-        },
-      });
-      if (response.error) throw response.error;
-      return response.data;
-    },
+    mutationFn: (params: { session_id: string }): Promise<{ success: boolean; analysis?: Record<string, unknown> }> =>
+      invokeAgent({
+        action: 'run_analysis',
+        session_id: params.session_id,
+      }),
     onError: (error) => {
       console.error('Analysis failed:', error);
       toast({
