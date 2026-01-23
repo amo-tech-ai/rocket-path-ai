@@ -5,6 +5,21 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-01-23
+
+### Fixed
+- **Step 1 Navigation**
+  - Fixed validation callback flow preventing step advancement
+  - Added comprehensive console logging for debugging
+  - Made Step 2 non-blocking (readiness score optional for progression)
+  - Made AI operations async (non-blocking for navigation)
+  - Founding Team now optional (removed misleading "required" label)
+
+### Added
+- `docs/onboardingV2/checklist.md` - Production verification checklist
+
+---
+
 ## [0.6.0] - 2026-01-23
 
 ### Added

@@ -50,20 +50,26 @@ export function Step1Context({
       ? data.industry 
       : (data.industry ? [data.industry] : []);
     
-    return validateStep1({
-      company_name: data.name || data.company_name,
-      description: data.description,
-      target_market: data.target_market,
-      stage: data.stage,
-      business_model: data.business_model,
+    const validationData = {
+      company_name: data.name || data.company_name || '',
+      description: data.description || '',
+      target_market: data.target_market || '',
+      stage: data.stage || '',
+      business_model: data.business_model || [],
       industry: industryArray,
-      website_url: data.website_url,
-      linkedin_url: data.linkedin_url,
-    });
+      website_url: data.website_url || '',
+      linkedin_url: data.linkedin_url || '',
+    };
+    
+    console.log('[Step1Context] Validating:', validationData);
+    const result = validateStep1(validationData);
+    console.log('[Step1Context] Validation result:', result);
+    return result;
   }, [data]);
 
   // Notify parent of validation changes
   useEffect(() => {
+    console.log('[Step1Context] Notifying parent of validation:', validation.isValid);
     if (onValidationChange) {
       onValidationChange(validation.isValid, validation.errors);
     }
