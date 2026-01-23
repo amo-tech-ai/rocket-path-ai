@@ -52,6 +52,9 @@ const SIGNAL_LABELS: Record<string, { label: string; color: string }> = {
 
 const TOPICS = ['Business Model', 'Market', 'Traction', 'Team', 'Funding'];
 
+// Normalize topic strings for comparison (handles "Business Model" vs "business_model" vs "businessmodel")
+const normalizeTopic = (s: string): string => s.trim().toLowerCase().replace(/[\s_-]+/g, '');
+
 export function Step3Interview({
   sessionId,
   questions,
@@ -131,10 +134,13 @@ export function Step3Interview({
     );
   }
 
-  const topicsCovered = [...new Set(answers.map(a => {
-    const q = questions.find(q => q.id === a.question_id);
-    return q?.topic;
-  }).filter(Boolean))] as string[];
+  // Build set of covered topics with normalized comparison
+  const topicsCoveredSet = new Set(
+    answers
+      .map(a => questions.find(q => q.id === a.question_id)?.topic)
+      .filter(Boolean)
+      .map(t => normalizeTopic(t as string))
+  );
 
   return (
     <div className="space-y-6">
@@ -152,7 +158,7 @@ export function Step3Interview({
       {/* Topics Covered */}
       <div className="flex flex-wrap gap-2">
         {TOPICS.map((topic) => {
-          const isCovered = topicsCovered.includes(topic.toLowerCase());
+          const isCovered = topicsCoveredSet.has(normalizeTopic(topic));
           return (
             <Badge
               key={topic}
