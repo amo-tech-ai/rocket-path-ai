@@ -10,6 +10,10 @@
 - Mermaid diagrams for data flow, component hierarchy, and validation
 - Full verification checklist with hard proof
 
+### Updated
+- Progress tracker corrected: Documents 30%→90%, Settings 30%→85%
+- Overall progress updated to 85%
+
 ## [0.6.4] - 2026-01-23
 
 ### Fixed

@@ -1,11 +1,12 @@
 # StartupAI Progress Tracker
 
 > **Last Updated:** 2026-01-23  
-> **Version:** 0.6.4  
-> **Overall Progress:** 80%
+> **Version:** 0.6.5  
+> **Overall Progress:** 85%
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
 > **Supabase:** Connected (43 tables, 168 RLS policies)
 > **Onboarding Audit:** [docs/05-audit-solution.md](./05-audit-solution.md)
+> **Production Audit:** [docs/onboardingV2/06-production-audit.md](./onboardingV2/06-production-audit.md)
 
 ---
 
@@ -21,12 +22,12 @@
 | CRM Module | 🟢 Completed | 95% | — |
 | Investors Module | 🟢 Completed | 95% | — |
 | Projects Module | 🟢 Completed | 90% | 11, 11.1 |
-| Documents Module | 🟡 In Progress | 30% | 11.1 |
+| Documents Module | 🟢 Completed | 90% | 11.1 |
 | Lean Canvas | 🟢 Completed | 90% | 11.2 |
 | GTM Strategy | 🔴 Not Started | 0% | 11.3 |
 | Discovery Module | 🔴 Not Started | 0% | 11.4 |
 | Strategy Module | 🔴 Not Started | 0% | 11.5 |
-| Settings Module | 🟡 In Progress | 30% | — |
+| Settings Module | 🟢 Completed | 85% | — |
 | AI Agents & Chat | ✅ Completed | 80% | 05, 16, 18, 23 |
 | Edge Functions | ✅ Completed | 100% | 05, 06, 11-EF |
 | Wizards & Onboarding | 🟢 Completed | 100% | 04, 07, 16 |
