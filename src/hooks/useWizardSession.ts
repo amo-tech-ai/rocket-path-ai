@@ -15,15 +15,20 @@ export interface Founder {
 
 export interface TractionData {
   current_mrr?: number;
+  mrr_range?: string;
   growth_rate?: number;
+  growth_range?: string;
   users?: number;
+  users_range?: string;
   customers?: number;
+  [key: string]: unknown; // Allow additional dynamic fields from backend
 }
 
 export interface FundingData {
-  is_raising?: boolean;
-  target_amount?: number;
+  is_raising?: boolean | string;
+  target_amount?: number | string;
   use_of_funds?: string[];
+  [key: string]: unknown; // Allow additional dynamic fields from backend
 }
 
 export interface ReadinessScore {
@@ -197,8 +202,9 @@ export function useWizardSession() {
         completed_at: null,
       };
     },
-    onSuccess: (newSession) => {
-      queryClient.setQueryData(['wizard-session', user?.id], newSession);
+    onSuccess: async () => {
+      // Invalidate and refetch to get the real DB row instead of optimistic data
+      await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
     },
     onError: (error) => {
       console.error('Failed to create session:', error);

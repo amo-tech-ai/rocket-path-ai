@@ -271,23 +271,6 @@ export function useOnboardingAgent() {
     },
   });
 
-  // Run AI analysis
-  const runAnalysisMutation = useMutation({
-    mutationFn: (params: { session_id: string }): Promise<{ success: boolean; analysis?: Record<string, unknown> }> =>
-      invokeAgent({
-        action: 'run_analysis',
-        session_id: params.session_id,
-      }),
-    onError: (error) => {
-      console.error('Analysis failed:', error);
-      toast({
-        title: 'Analysis failed',
-        description: 'Could not run AI analysis. Please try again.',
-        variant: 'destructive',
-      });
-    },
-  });
-
   return {
     enrichUrl: enrichUrlMutation.mutateAsync,
     enrichContext: enrichContextMutation.mutateAsync,
@@ -298,7 +281,6 @@ export function useOnboardingAgent() {
     calculateScore: calculateScoreMutation.mutateAsync,
     generateSummary: generateSummaryMutation.mutateAsync,
     completeWizard: completeWizardMutation.mutateAsync,
-    runAnalysis: runAnalysisMutation.mutateAsync,
     isEnrichingUrl: enrichUrlMutation.isPending,
     isEnrichingContext: enrichContextMutation.isPending,
     isEnrichingFounder: enrichFounderMutation.isPending,
@@ -308,7 +290,6 @@ export function useOnboardingAgent() {
     isCalculatingScore: calculateScoreMutation.isPending,
     isGeneratingSummary: generateSummaryMutation.isPending,
     isCompletingWizard: completeWizardMutation.isPending,
-    isRunningAnalysis: runAnalysisMutation.isPending,
     isProcessing:
       enrichUrlMutation.isPending ||
       enrichContextMutation.isPending ||
@@ -318,8 +299,7 @@ export function useOnboardingAgent() {
       processAnswerMutation.isPending ||
       calculateScoreMutation.isPending ||
       generateSummaryMutation.isPending ||
-      completeWizardMutation.isPending ||
-      runAnalysisMutation.isPending,
+      completeWizardMutation.isPending,
   };
 }
 

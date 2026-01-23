@@ -27,6 +27,63 @@ import {
 } from '@/hooks/useWizardSession';
 import { cn } from '@/lib/utils';
 
+// Traction/funding display helpers - aligned with backend storage
+const MRR_LABELS: Record<string, string> = {
+  'pre_revenue': 'Pre-revenue',
+  '0_1k': '$0 - $1K',
+  '1k_10k': '$1K - $10K',
+  '10k_50k': '$10K - $50K',
+  '50k_100k': '$50K - $100K',
+  '100k_plus': '$100K+',
+};
+
+const GROWTH_LABELS: Record<string, string> = {
+  'negative': 'Declining',
+  '0_5': '0-5% MoM',
+  '5_10': '5-10% MoM',
+  '10_20': '10-20% MoM',
+  '20_plus': '20%+ MoM',
+};
+
+const USERS_LABELS: Record<string, string> = {
+  '0_100': '0-100',
+  '100_1k': '100-1K',
+  '1k_10k': '1K-10K',
+  '10k_100k': '10K-100K',
+  '100k_plus': '100K+',
+};
+
+function parseTractionValue(value: unknown, labels: Record<string, string>, fallback = 'Not set'): string {
+  if (typeof value === 'string' && labels[value]) {
+    return labels[value];
+  }
+  if (typeof value === 'number') {
+    return value.toLocaleString();
+  }
+  return fallback;
+}
+
+function parseFundingStatus(extracted_funding?: Record<string, unknown>): string {
+  if (!extracted_funding) return 'Not set';
+  
+  const isRaising = extracted_funding.is_raising;
+  const targetAmount = extracted_funding.target_amount;
+  
+  if (isRaising === false || isRaising === 'no') {
+    return 'Not raising';
+  }
+  if (isRaising === true || isRaising === 'yes') {
+    if (typeof targetAmount === 'number') {
+      return `Raising $${targetAmount.toLocaleString()}`;
+    }
+    if (typeof targetAmount === 'string') {
+      return `Raising ${targetAmount}`;
+    }
+    return 'Currently raising';
+  }
+  return 'Not set';
+}
+
 interface Step4ReviewProps {
   data: WizardFormData;
   onUpdate: (updates: Partial<WizardFormData>) => void;
@@ -308,31 +365,34 @@ export function Step4Review({
                 <div>
                   <p className="text-xs text-muted-foreground">MRR</p>
                   <p className="text-sm font-medium">
-                    {data.extracted_traction?.current_mrr 
-                      ? `$${data.extracted_traction.current_mrr.toLocaleString()}`
-                      : 'Not set'}
+                    {parseTractionValue(
+                      data.extracted_traction?.mrr_range || data.extracted_traction?.current_mrr,
+                      MRR_LABELS
+                    )}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Growth</p>
                   <p className="text-sm font-medium">
-                    {data.extracted_traction?.growth_rate 
-                      ? `${data.extracted_traction.growth_rate}% MoM`
-                      : 'Not set'}
+                    {parseTractionValue(
+                      data.extracted_traction?.growth_range || data.extracted_traction?.growth_rate,
+                      GROWTH_LABELS
+                    )}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Users</p>
                   <p className="text-sm font-medium">
-                    {data.extracted_traction?.users || 'Not set'}
+                    {parseTractionValue(
+                      data.extracted_traction?.users_range || data.extracted_traction?.users,
+                      USERS_LABELS
+                    )}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Raising</p>
+                  <p className="text-xs text-muted-foreground">Fundraising</p>
                   <p className="text-sm font-medium">
-                    {data.extracted_funding?.is_raising 
-                      ? `$${(data.extracted_funding.target_amount || 0).toLocaleString()}`
-                      : 'Not raising'}
+                    {parseFundingStatus(data.extracted_funding)}
                   </p>
                 </div>
               </div>
