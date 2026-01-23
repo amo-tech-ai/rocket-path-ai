@@ -164,6 +164,8 @@ export default function OnboardingWizard() {
           // Don't require readiness score - user can proceed without it
           return true;
         case 3:
+          // FIX C: Require questions to be loaded before proceeding
+          if (questions.length === 0) return false;
           return currentQuestionIndex >= questions.length || answers.length >= 3;
         case 4:
           return true;
@@ -171,7 +173,7 @@ export default function OnboardingWizard() {
           return false;
       }
     })();
-    console.log('[Wizard] canProceed:', result, 'step:', currentStep, 'step1Valid:', step1Valid);
+    console.log('[Wizard] canProceed:', result, 'step:', currentStep, 'step1Valid:', step1Valid, 'questions:', questions.length);
     return result;
   };
 
@@ -271,23 +273,51 @@ export default function OnboardingWizard() {
 
   // Step 3 handlers
   const loadQuestions = async () => {
-    if (!session?.id) return;
+    if (!session?.id) {
+      console.warn('[Wizard] loadQuestions: No session ID');
+      return;
+    }
     
+    console.log('[Wizard] Loading questions for session:', session.id);
     try {
       const result = await getQuestions({ 
         session_id: session.id,
         answered_question_ids: answers.map(a => a.question_id),
       });
-      if (result.questions) {
-        setQuestions(result.questions);
+      console.log('[Wizard] Questions loaded:', result);
+      
+      // FIX D: Map API questions to UI Question shape (in case of mismatch)
+      if (result.questions && Array.isArray(result.questions)) {
+        const mappedQuestions: Question[] = result.questions.map((q: any) => ({
+          id: q.id,
+          text: q.text || q.question, // Handle both shapes
+          type: q.type || 'multiple_choice',
+          topic: q.topic || q.category || 'general',
+          why_matters: q.why_matters || 'Helps tailor the next steps to your situation.',
+          options: (q.options ?? []).map((o: any) => ({
+            id: o.id,
+            text: o.text,
+            emoji: o.emoji,
+          })),
+        }));
+        setQuestions(mappedQuestions);
+        console.log('[Wizard] Mapped questions:', mappedQuestions.length);
       }
       if (result.advisor) {
         setAdvisor(result.advisor);
       }
     } catch (error) {
-      console.error('Get questions error:', error);
+      console.error('[Wizard] Get questions error:', error);
     }
   };
+  
+  // FIX A: Load questions when Step 3 starts (not when leaving Step 2)
+  useEffect(() => {
+    if (currentStep === 3 && session?.id && questions.length === 0 && !isGettingQuestions) {
+      console.log('[Wizard] Step 3 mounted, loading questions...');
+      loadQuestions().catch(console.error);
+    }
+  }, [currentStep, session?.id, questions.length, isGettingQuestions]);
 
   const handleAnswer = async (questionId: string, answerId: string, answerText?: string) => {
     if (!session?.id) return;
@@ -600,19 +630,36 @@ export default function OnboardingWizard() {
               />
             )}
             {currentStep === 3 && (
-              <Step3Interview
-                sessionId={session?.id || ''}
-                questions={questions}
-                answers={answers}
-                signals={signals}
-                advisor={advisor}
-                onAnswer={handleAnswer}
-                onSkip={handleSkipQuestion}
-                onComplete={handleInterviewComplete}
-                isProcessing={isProcessingAnswer}
-                currentQuestionIndex={currentQuestionIndex}
-                onSetCurrentIndex={setCurrentQuestionIndex}
-              />
+              // FIX B: Gate rendering - don't show Step3Interview until questions are loaded
+              questions.length === 0 ? (
+                <div className="text-center py-16 space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                  <p className="text-muted-foreground">Loading interview questions...</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadQuestions()}
+                    disabled={isGettingQuestions}
+                    className="mt-4"
+                  >
+                    {isGettingQuestions ? 'Loading...' : 'Retry'}
+                  </Button>
+                </div>
+              ) : (
+                <Step3Interview
+                  sessionId={session?.id || ''}
+                  questions={questions}
+                  answers={answers}
+                  signals={signals}
+                  advisor={advisor}
+                  onAnswer={handleAnswer}
+                  onSkip={handleSkipQuestion}
+                  onComplete={handleInterviewComplete}
+                  isProcessing={isProcessingAnswer}
+                  currentQuestionIndex={currentQuestionIndex}
+                  onSetCurrentIndex={setCurrentQuestionIndex}
+                />
+              )
             )}
             {currentStep === 4 && (
               <Step4Review
