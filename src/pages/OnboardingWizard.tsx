@@ -580,8 +580,10 @@ export default function OnboardingWizard() {
                 readinessScore={readinessScore}
                 onRecalculate={handleCalculateReadiness}
                 onEnhanceField={handleEnhanceField}
+                onEnhanceFounder={handleEnrichFounder}
                 isCalculating={isCalculatingReadiness}
                 isEnhancing={isEnhancing}
+                isEnrichingFounder={isEnrichingFounder}
               />
             )}
             {currentStep === 3 && (
