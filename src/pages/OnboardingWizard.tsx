@@ -643,27 +643,46 @@ export default function OnboardingWizard() {
               Back
             </Button>
 
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed() || isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : currentStep === 1 ? (
-                <>
-                  Run Smart Autofill
-                  <Sparkles className="h-4 w-4 ml-2" />
-                </>
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </>
+            <div className="flex items-center gap-3">
+              {/* Step 1: Optional Smart Autofill button */}
+              {currentStep === 1 && formData.website_url && !urlExtractionDone && (
+                <Button
+                  variant="outline"
+                  onClick={handleEnrichUrl}
+                  disabled={isEnrichingUrl}
+                >
+                  {isEnrichingUrl ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Smart Autofill
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+
+              {/* Main Continue/Next button - ALWAYS CLICKABLE on Step 1 */}
+              <Button
+                onClick={handleNext}
+                disabled={currentStep === 1 ? isProcessing : (!canProceed() || isProcessing)}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </div>
