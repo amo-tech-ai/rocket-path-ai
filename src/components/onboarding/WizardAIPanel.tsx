@@ -1,5 +1,17 @@
-import { Sparkles, Globe, Search, Target, FileText, Brain } from 'lucide-react';
+import { Sparkles, Globe, Search, Target, FileText, Brain, TrendingUp, BarChart3, Users, MessageSquare, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { ReadinessScore, InvestorScore, AISummary } from '@/hooks/useWizardSession';
+import { cn } from '@/lib/utils';
+
+interface AdvisorPersona {
+  name: string;
+  title: string;
+  intro: string;
+}
 
 interface WizardAIPanelProps {
   currentStep: number;
@@ -9,147 +21,486 @@ interface WizardAIPanelProps {
     industry?: string;
     features?: string[];
     competitors?: string[];
+    tagline?: string;
+    target_customers?: string[];
   };
+  readinessScore?: ReadinessScore | null;
+  investorScore?: InvestorScore | null;
+  aiSummary?: AISummary | null;
+  signals?: string[];
+  advisor?: AdvisorPersona | null;
+  questionCount?: { answered: number; total: number };
 }
 
+// Step-specific advisor personas
+const ADVISORS: Record<number, AdvisorPersona> = {
+  1: {
+    name: 'Luna',
+    title: 'Context Specialist',
+    intro: 'I\'ll analyze your digital footprint and build a comprehensive profile.',
+  },
+  2: {
+    name: 'Atlas',
+    title: 'Market Analyst',
+    intro: 'Let me benchmark your startup against industry standards.',
+  },
+  3: {
+    name: 'Sage',
+    title: 'Strategy Advisor',
+    intro: 'I\'ll ask a few questions to understand your unique position.',
+  },
+  4: {
+    name: 'Nova',
+    title: 'Investor Relations',
+    intro: 'Here\'s your investor-ready profile and score.',
+  },
+};
+
+// Step-specific guidance content
 const stepGuidance = [
   {
     title: 'What Gemini Will Do',
     items: [
-      { icon: Globe, text: 'Run URL Context on all links' },
-      { icon: Search, text: 'Search the web using grounded search' },
-      { icon: Target, text: 'Extract features, audience, pricing, problem' },
-      { icon: FileText, text: 'Find real competitors + trends' },
-      { icon: Brain, text: 'Combine with your description + target market' },
-      { icon: Sparkles, text: 'Autofill later steps' },
+      { icon: Globe, text: 'Analyze your website and LinkedIn' },
+      { icon: Search, text: 'Research market using Google Search' },
+      { icon: Target, text: 'Extract features, audience, pricing' },
+      { icon: FileText, text: 'Find real competitors & trends' },
+      { icon: Brain, text: 'Combine with your description' },
+      { icon: Sparkles, text: 'Autofill profile fields' },
     ],
   },
   {
     title: 'AI Analysis',
     items: [
-      { icon: Brain, text: 'Analyzing your startup context' },
-      { icon: Search, text: 'Researching market and competitors' },
-      { icon: Target, text: 'Identifying opportunities' },
+      { icon: BarChart3, text: 'Calculating readiness score' },
+      { icon: TrendingUp, text: 'Benchmarking against industry' },
+      { icon: Target, text: 'Identifying market position' },
+      { icon: Users, text: 'Analyzing team composition' },
     ],
   },
   {
     title: 'Smart Interview',
     items: [
-      { icon: Brain, text: 'Asking clarifying questions' },
-      { icon: Target, text: 'Refining your profile' },
-      { icon: Sparkles, text: 'Building comprehensive analysis' },
+      { icon: MessageSquare, text: 'Adaptive questions based on gaps' },
+      { icon: Brain, text: 'Extracting traction signals' },
+      { icon: Target, text: 'Understanding your strategy' },
+      { icon: Sparkles, text: 'Building investor narrative' },
     ],
   },
   {
     title: 'Final Review',
     items: [
-      { icon: FileText, text: 'Profile strength score' },
-      { icon: Target, text: 'Areas for improvement' },
+      { icon: CheckCircle2, text: 'Investor-ready score (0-100)' },
+      { icon: FileText, text: 'AI-generated summary' },
+      { icon: Target, text: 'Improvement recommendations' },
       { icon: Sparkles, text: 'Ready to generate assets' },
     ],
   },
 ];
 
+const SIGNAL_LABELS: Record<string, { label: string; color: string }> = {
+  b2b_saas: { label: 'B2B SaaS', color: 'bg-primary/10 text-primary' },
+  has_revenue: { label: 'Has Revenue', color: 'bg-accent text-accent-foreground' },
+  pre_revenue: { label: 'Pre-Revenue', color: 'bg-muted text-muted-foreground' },
+  raising_seed: { label: 'Raising Seed', color: 'bg-secondary text-secondary-foreground' },
+  technical_founder: { label: 'Technical Team', color: 'bg-accent text-accent-foreground' },
+  early_traction: { label: 'Early Traction', color: 'bg-primary/10 text-primary' },
+  product_market_fit: { label: 'PMF Signals', color: 'bg-accent text-accent-foreground' },
+};
+
+function getScoreColor(score: number) {
+  if (score >= 80) return 'text-primary';
+  if (score >= 65) return 'text-primary/80';
+  if (score >= 50) return 'text-muted-foreground';
+  return 'text-destructive';
+}
+
+function getScoreLabel(score: number) {
+  if (score >= 80) return 'Excellent';
+  if (score >= 65) return 'Good';
+  if (score >= 50) return 'Fair';
+  return 'Needs Work';
+}
+
 export function WizardAIPanel({
   currentStep,
   isProcessing = false,
   extractions,
+  readinessScore,
+  investorScore,
+  aiSummary,
+  signals = [],
+  advisor: customAdvisor,
+  questionCount,
 }: WizardAIPanelProps) {
   const currentGuidance = stepGuidance[currentStep - 1] || stepGuidance[0];
+  const advisor = customAdvisor || ADVISORS[currentStep];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Main Guidance Card */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="h-5 w-5 text-primary" />
-            {currentGuidance.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {currentGuidance.items.map((item, index) => (
-            <div key={index} className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
-              <span className="text-sm text-muted-foreground">{item.text}</span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Context Card */}
-      {currentStep === 1 && (
-        <Card className="bg-accent/30 border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Brain className="h-5 w-5 text-primary" />
-              Why accurate context?
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              The more details you provide here, the better Gemini can tailor your Pitch Deck, 
-              One-Pager, and Financial Models in later steps.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Processing Indicator */}
-      {isProcessing && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              <span className="text-sm font-medium text-primary">AI is processing...</span>
+    <ScrollArea className="h-full">
+      <div className="p-6 space-y-6">
+        {/* Advisor Card */}
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">{advisor.name}</p>
+                <p className="text-xs text-muted-foreground">{advisor.title}</p>
+                <p className="text-sm mt-2 text-foreground/80">{advisor.intro}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Extractions Display */}
-      {extractions && Object.keys(extractions).length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Extracted Data</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {extractions.company_name && (
-              <div>
-                <span className="text-xs text-muted-foreground">Company</span>
-                <p className="text-sm font-medium">{extractions.company_name}</p>
+        {/* Processing Indicator */}
+        {isProcessing && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                <span className="text-sm font-medium text-primary">AI is processing...</span>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 1: Guidance + Extractions */}
+        {currentStep === 1 && (
+          <>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Brain className="h-4 w-4 text-primary" />
+                  {currentGuidance.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {currentGuidance.items.map((item, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                    <span className="text-sm text-muted-foreground">{item.text}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Extractions Display */}
+            {extractions && Object.keys(extractions).length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    Extracted Data
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {extractions.company_name && (
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Company</span>
+                      <p className="text-sm font-medium">{extractions.company_name}</p>
+                    </div>
+                  )}
+                  {extractions.industry && (
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Industry</span>
+                      <p className="text-sm font-medium">{extractions.industry}</p>
+                    </div>
+                  )}
+                  {extractions.tagline && (
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Value Prop</span>
+                      <p className="text-sm">{extractions.tagline}</p>
+                    </div>
+                  )}
+                  {extractions.features && extractions.features.length > 0 && (
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Features</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {extractions.features.slice(0, 5).map((feature, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{feature}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {extractions.competitors && extractions.competitors.length > 0 && (
+                    <div>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Competitors</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {extractions.competitors.slice(0, 4).map((comp, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{comp}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
-            {extractions.industry && (
-              <div>
-                <span className="text-xs text-muted-foreground">Industry</span>
-                <p className="text-sm font-medium">{extractions.industry}</p>
-              </div>
-            )}
-            {extractions.features && extractions.features.length > 0 && (
-              <div>
-                <span className="text-xs text-muted-foreground">Features</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {extractions.features.slice(0, 5).map((feature, i) => (
-                    <span
-                      key={i}
-                      className="text-xs px-2 py-0.5 bg-accent rounded-full"
-                    >
-                      {feature}
-                    </span>
-                  ))}
+
+            {/* Context Card */}
+            <Card className="bg-accent/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    More details = better results. Your Pitch Deck, One-Pager, and Financial Models will be tailored to this context.
+                  </p>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          </>
+        )}
 
-      {/* Footer Note */}
-      <p className="text-xs text-muted-foreground text-center px-4">
-        Gemini 3 uses Google Search Grounding to find up-to-date market data that matches your startup's context.
-      </p>
-    </div>
+        {/* Step 2: Readiness Score + Benchmarks */}
+        {currentStep === 2 && (
+          <>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Readiness Score</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {readinessScore ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <span className={cn('text-4xl font-bold', getScoreColor(readinessScore.overall_score))}>
+                        {readinessScore.overall_score}
+                      </span>
+                      <span className="text-lg text-muted-foreground">/100</span>
+                      <p className={cn('text-sm font-medium mt-1', getScoreColor(readinessScore.overall_score))}>
+                        {getScoreLabel(readinessScore.overall_score)}
+                      </p>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      {Object.entries(readinessScore.category_scores).map(([key, value]) => (
+                        <div key={key} className="text-center p-2 bg-accent/30 rounded-lg">
+                          <p className="text-lg font-semibold">{value}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{key}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {readinessScore.benchmarks.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Benchmarks</p>
+                        <div className="space-y-1">
+                          {readinessScore.benchmarks.slice(0, 3).map((b, i) => (
+                            <p key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary">•</span>
+                              {b}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Score will appear after analysis</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Analysis Focus
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {currentGuidance.items.map((item, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                    <span className="text-sm text-muted-foreground">{item.text}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Step 3: Interview Progress + Signals */}
+        {currentStep === 3 && (
+          <>
+            {questionCount && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Interview Progress</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Questions Answered</span>
+                      <span className="font-medium">{questionCount.answered}/{questionCount.total}</span>
+                    </div>
+                    <Progress value={(questionCount.answered / questionCount.total) * 100} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {signals.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    Signals Detected
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {signals.map((signal) => {
+                      const info = SIGNAL_LABELS[signal] || { label: signal, color: 'bg-muted text-muted-foreground' };
+                      return (
+                        <Badge key={signal} className={cn('text-xs', info.color)}>
+                          {info.label}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  How This Works
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {currentGuidance.items.map((item, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                    <span className="text-sm text-muted-foreground">{item.text}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-accent/30">
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground text-center">
+                  Answer honestly — accuracy improves your score more than optimism.
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Step 4: Investor Score + Recommendations */}
+        {currentStep === 4 && (
+          <>
+            {investorScore && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Investor Score</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <span className={cn('text-4xl font-bold', getScoreColor(investorScore.total_score))}>
+                        {investorScore.total_score}
+                      </span>
+                      <span className="text-lg text-muted-foreground">/100</span>
+                      <p className={cn('text-sm font-medium mt-1', getScoreColor(investorScore.total_score))}>
+                        {getScoreLabel(investorScore.total_score)}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1">
+                      {Object.entries(investorScore.breakdown).map(([key, value]) => (
+                        <div key={key} className="text-center">
+                          <div className="w-full aspect-square rounded-lg bg-accent flex items-center justify-center mb-1">
+                            <span className="text-xs font-semibold">{value}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground capitalize">{key}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {investorScore?.recommendations && investorScore.recommendations.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Quick Wins
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {investorScore.recommendations.slice(0, 3).map((rec, i) => (
+                    <div key={i} className="flex items-start justify-between gap-2 p-2 bg-accent/30 rounded-lg">
+                      <span className="text-xs">{rec.action}</span>
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        +{rec.points_gain} pts
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {aiSummary && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">AI Insights</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-muted-foreground">{aiSummary.summary}</p>
+                  {aiSummary.strengths.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-primary mb-1">Strengths</p>
+                      <ul className="space-y-0.5">
+                        {aiSummary.strengths.slice(0, 2).map((s, i) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  What's Next
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {currentGuidance.items.map((item, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                    <span className="text-sm text-muted-foreground">{item.text}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Footer */}
+        <p className="text-xs text-muted-foreground text-center px-4">
+          Powered by Gemini 3 with Google Search Grounding
+        </p>
+      </div>
+    </ScrollArea>
   );
 }
 
