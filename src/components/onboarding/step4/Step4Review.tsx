@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Collapsible,
   CollapsibleContent,
@@ -179,7 +180,16 @@ export function Step4Review({
           </div>
 
           {/* Score Breakdown */}
-          {investorScore && (
+          {isCalculatingScore && !investorScore ? (
+            <div className="grid grid-cols-5 gap-4 mt-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="text-center">
+                  <Skeleton className="w-12 h-12 rounded-lg mx-auto mb-1" />
+                  <Skeleton className="h-3 w-10 mx-auto" />
+                </div>
+              ))}
+            </div>
+          ) : investorScore ? (
             <div className="grid grid-cols-5 gap-4 mt-6">
               {Object.entries(investorScore.breakdown).map(([key, value]) => {
                 const maxScores: Record<string, number> = {
@@ -199,7 +209,7 @@ export function Step4Review({
                 );
               })}
             </div>
-          )}
+          ) : null}
 
           <div className="flex justify-center mt-4">
             <Button
@@ -252,9 +262,23 @@ export function Step4Review({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
-              {isGeneratingSummary ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              {isGeneratingSummary && !aiSummary ? (
+                <div className="space-y-3 py-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
+                    </div>
+                  </div>
                 </div>
               ) : aiSummary ? (
                 <div className="space-y-4">
