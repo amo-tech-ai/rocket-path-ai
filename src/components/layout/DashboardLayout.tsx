@@ -12,7 +12,8 @@ import {
   LayoutGrid,
   User,
   Building2,
-  CalendarDays
+  CalendarDays,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Onboarding", path: "/onboarding", icon: Sparkles },
   { label: "Projects", path: "/projects", icon: FolderKanban },
   { label: "Tasks", path: "/tasks", icon: CheckSquare },
   { label: "Events", path: "/app/events", icon: CalendarDays },

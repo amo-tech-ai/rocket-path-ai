@@ -19,10 +19,10 @@ interface Step2AnalysisProps {
 }
 
 function getScoreLabel(score: number) {
-  if (score >= 80) return { label: 'EXCELLENT', color: 'text-emerald-500' };
-  if (score >= 65) return { label: 'GOOD', color: 'text-green-500' };
-  if (score >= 50) return { label: 'FAIR', color: 'text-yellow-500' };
-  return { label: 'NEEDS WORK', color: 'text-orange-500' };
+  if (score >= 80) return { label: 'EXCELLENT', color: 'text-primary' };
+  if (score >= 65) return { label: 'GOOD', color: 'text-primary/80' };
+  if (score >= 50) return { label: 'FAIR', color: 'text-muted-foreground' };
+  return { label: 'NEEDS WORK', color: 'text-destructive' };
 }
 
 interface EditableFieldProps {
