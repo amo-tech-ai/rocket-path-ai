@@ -114,6 +114,13 @@ Returns { success: true } when all 6 fields valid
 - ✅ Direct validation callback (removed JSON stringify/parse)
 - ✅ Continue button always clickable on Step 1
 
+### v0.6.7 (2026-01-23) — Step 3 Interview Fixes
+- ✅ **JWT Attachment**: Added `invokeAgent()` helper that explicitly attaches session JWT
+- ✅ **Question Shape**: Edge function now returns `text/topic/type/why_matters` (not `question/category`)
+- ✅ **Advisor Shape**: Edge function now returns `name/title/intro` (not `avatar/style`)
+- ✅ **Loading State**: Step3Interview shows "Loading..." when questions array is empty (not "Complete!")
+- ✅ **Typed Responses**: All mutations now have proper TypeScript interfaces
+
 ---
 
 ## Success Criteria
@@ -122,14 +129,17 @@ Returns { success: true } when all 6 fields valid
 - [x] AIDetectedFields sends correct types (arrays/strings)
 - [x] Step1Context uses single source of truth
 - [x] Validation callback is direct (no serialization)
-- [ ] **User test:** Fill all 6 fields → `isValid: true` → Step 2 renders
+- [x] Edge function returns correct Question interface
+- [x] All mutations attach JWT explicitly
+- [x] Step3 shows loading when questions fail to load
+- [ ] **User test:** Step 3 loads questions → interview works
 
 ---
 
 ## Root Cause Summary
 
-The architecture is now correct. If Step 2 still doesn't render:
+The architecture is now correct. If Step 3 still shows "Loading..." forever:
 
-1. **Check console for actual validation output**
-2. **Verify all 6 fields have values** (especially the 3 chip-based fields)
-3. **Check for stale props** in `updateData()` if debouncing too aggressively
+1. **Check console for 401 errors** (user not logged in)
+2. **Check network tab for response** (should see `questions: [...]`)
+3. **Verify auth session exists** in localStorage
