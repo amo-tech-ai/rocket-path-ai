@@ -192,11 +192,12 @@ npm run lint
 
 | Issue | Status | Resolution |
 |-------|--------|------------|
-| Step 1 not advancing | ✅ Fixed | Validation callback + logging + async AI |
+| Step 1 not advancing | ✅ Fixed | useRef for callback to prevent dependency loop |
 | Step 2 blocking on AI | ✅ Fixed | Made readiness optional |
 | Chip selection not multi-select | ✅ Fixed | Updated AIDetectedFields |
 | Missing Target Market field | ✅ Fixed | Added TargetMarketInput |
 | Founding Team misleading label | ✅ Fixed | Made optional |
+| Validation callback loop | ✅ Fixed | Used useRef pattern for stable callback |
 
 ---
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.2] - 2026-01-23
+
+### Fixed
+- **Step 1 Navigation**: Fixed useEffect dependency loop in validation callback using useRef pattern
+- Validation state now properly propagates without causing infinite re-renders
+
+---
+
+
 All notable changes to StartupAI will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
