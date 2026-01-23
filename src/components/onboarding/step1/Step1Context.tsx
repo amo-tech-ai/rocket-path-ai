@@ -44,14 +44,14 @@ export function Step1Context({
   const [additionalUrl, setAdditionalUrl] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  // Validation
+  // Validation - use company_name as single source of truth
   const validation = useMemo(() => {
     const industryArray = Array.isArray(data.industry) 
       ? data.industry 
       : (data.industry ? [data.industry] : []);
     
     const validationData = {
-      company_name: data.name || data.company_name || '',
+      company_name: data.company_name || '',
       description: data.description || '',
       target_market: data.target_market || '',
       stage: data.stage || '',
@@ -65,20 +65,13 @@ export function Step1Context({
     const result = validateStep1(validationData);
     console.log('[Step1Context] Validation result:', result);
     return result;
-  }, [data]);
+  }, [data.company_name, data.description, data.target_market, data.stage, data.business_model, data.industry, data.website_url, data.linkedin_url]);
 
-  // Notify parent of validation changes - use ref + stable string comparison
-  const onValidationChangeRef = React.useRef(onValidationChange);
-  onValidationChangeRef.current = onValidationChange;
-  
-  // Stringify errors for stable dependency comparison (prevents infinite loops)
-  const errorsString = JSON.stringify(validation.errors);
-
+  // Notify parent of validation changes - direct callback, no stringify/parse
   useEffect(() => {
-    const parsedErrors = JSON.parse(errorsString) as Record<string, string>;
-    console.log('[Step1Context] Notifying parent of validation:', validation.isValid, parsedErrors);
-    onValidationChangeRef.current?.(validation.isValid, parsedErrors);
-  }, [validation.isValid, errorsString]);
+    console.log('[Step1Context] Notifying parent of validation:', validation.isValid, validation.errors);
+    onValidationChange?.(validation.isValid, validation.errors);
+  }, [validation.isValid, validation.errors, onValidationChange]);
 
   const missingFields = getMissingFields(validation.errors);
   const showErrors = showValidation || Object.keys(touched).length > 0;
@@ -144,17 +137,17 @@ export function Step1Context({
         </Alert>
       )}
 
-      {/* Company Name */}
+      {/* Company Name - single source of truth: company_name */}
       <div className="space-y-2">
-        <Label htmlFor="name" className="flex items-center gap-1">
+        <Label htmlFor="company_name" className="flex items-center gap-1">
           Company Name
           <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="name"
+          id="company_name"
           placeholder="e.g. ACME Corp"
-          value={data.name || data.company_name || ''}
-          onChange={(e) => updateData({ name: e.target.value, company_name: e.target.value })}
+          value={data.company_name || ''}
+          onChange={(e) => updateData({ company_name: e.target.value })}
           onBlur={() => handleBlur('company_name')}
           className={showErrors && validation.errors.company_name ? 'border-destructive' : ''}
         />
