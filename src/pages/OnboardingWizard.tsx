@@ -33,9 +33,13 @@ export default function OnboardingWizard() {
     isLoading,
     isSaving,
     isWizardComplete,
+    ensureSession,
     saveFormData,
+    flushSave,
     setCurrentStep,
   } = useWizardSession();
+  
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const {
     enrichUrl,
@@ -410,7 +414,13 @@ export default function OnboardingWizard() {
 
   // Navigation handlers
   const handleNext = async () => {
-    console.log('[Wizard] handleNext called:', { currentStep, step1Valid, sessionId: session?.id });
+    console.log('[Wizard] handleNext called:', { currentStep, step1Valid, sessionId: session?.id, isNavigating });
+    
+    // Prevent double-clicks
+    if (isNavigating) {
+      console.log('[Wizard] Navigation already in progress, ignoring');
+      return;
+    }
     
     // Validate Step 1 before proceeding
     if (currentStep === 1) {
@@ -425,9 +435,46 @@ export default function OnboardingWizard() {
         return;
       }
       
-      // Ensure session exists
-      if (!session?.id) {
-        console.error('[Wizard] No session ID available for navigation');
+      setIsNavigating(true);
+      
+      try {
+        // CRITICAL: Ensure session exists before proceeding
+        console.log('[Wizard] Ensuring session exists...');
+        const sessionId = await ensureSession();
+        console.log('[Wizard] Session confirmed:', sessionId);
+        
+        // Flush save form data before advancing (don't debounce)
+        console.log('[Wizard] Flushing form data...');
+        await flushSave(formData);
+        
+        // Move to next step
+        const nextStep = 2;
+        console.log('[Wizard] ✅ Advancing to step:', nextStep);
+        await setCurrentStep(nextStep);
+        setShowStep1Validation(false);
+        
+        // Run readiness calculation (async, don't await)
+        if (!readinessScore) {
+          handleCalculateReadiness().catch(console.error);
+        }
+      } catch (error) {
+        console.error('[Wizard] Navigation error:', error);
+        toast({
+          title: 'Session error',
+          description: 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsNavigating(false);
+      }
+      return;
+    }
+
+    // Steps 2, 3, 4 navigation
+    if (currentStep < 4) {
+      const sessionId = session?.id;
+      if (!sessionId) {
+        console.error('[Wizard] Cannot advance: no session ID');
         toast({
           title: 'Session error',
           description: 'Please refresh and try again.',
@@ -435,13 +482,7 @@ export default function OnboardingWizard() {
         });
         return;
       }
-      
-      // Save form data before advancing
-      console.log('[Wizard] Step 1 valid, saving form data...');
-      saveFormData(formData);
-    }
 
-    if (currentStep < 4 && session?.id) {
       const nextStep = currentStep + 1;
       console.log('[Wizard] ✅ Advancing to step:', nextStep);
       
@@ -450,13 +491,6 @@ export default function OnboardingWizard() {
       setShowStep1Validation(false);
       
       // Run step-specific actions AFTER moving (non-blocking)
-      if (currentStep === 1) {
-        // Run readiness calculation when entering step 2 (async, don't await)
-        if (!readinessScore) {
-          handleCalculateReadiness().catch(console.error);
-        }
-      }
-      
       if (currentStep === 2) {
         // Load questions when entering step 3 (async, don't await)
         if (questions.length === 0) {
@@ -471,8 +505,6 @@ export default function OnboardingWizard() {
           handleGenerateSummary().catch(console.error);
         }
       }
-    } else if (!session?.id) {
-      console.error('[Wizard] Cannot advance: no session ID');
     }
   };
 
