@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.5] - 2026-01-23
+
+### Fixed
+- Deleted orphan `src/components/onboarding/steps/Step1Context.tsx` (duplicate causing confusion)
+
+### Added
+- Comprehensive production audit report: `docs/onboardingV2/06-production-audit.md`
+- Mermaid diagrams for data flow, component hierarchy, and validation
+- Full verification checklist with hard proof
+
 ## [0.6.4] - 2026-01-23
 
 ### Fixed
