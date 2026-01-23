@@ -1,13 +1,16 @@
-import { useState } from 'react';
-import { Linkedin, Link2, Plus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Linkedin, Link2, Plus, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WizardFormData, Founder } from '@/hooks/useWizardSession';
+import { validateStep1, getMissingFields, Step1ValidationErrors } from '@/lib/step1Schema';
 import DescriptionInput from './DescriptionInput';
 import URLInput from './URLInput';
 import AIDetectedFields from './AIDetectedFields';
 import FounderCards from './FounderCard';
+import TargetMarketInput from './TargetMarketInput';
 
 interface Step1ContextProps {
   data: WizardFormData;
@@ -20,6 +23,8 @@ interface Step1ContextProps {
   isEnrichingFounder?: boolean;
   urlExtractionDone?: boolean;
   urlExtractionError?: string;
+  showValidation?: boolean;
+  onValidationChange?: (isValid: boolean, errors: Step1ValidationErrors) => void;
 }
 
 export function Step1Context({
@@ -33,8 +38,43 @@ export function Step1Context({
   isEnrichingFounder = false,
   urlExtractionDone = false,
   urlExtractionError,
+  showValidation = false,
+  onValidationChange,
 }: Step1ContextProps) {
   const [additionalUrl, setAdditionalUrl] = useState('');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Validation
+  const validation = useMemo(() => {
+    const industryArray = Array.isArray(data.industry) 
+      ? data.industry 
+      : (data.industry ? [data.industry] : []);
+    
+    return validateStep1({
+      company_name: data.name || data.company_name,
+      description: data.description,
+      target_market: data.target_market,
+      stage: data.stage,
+      business_model: data.business_model,
+      industry: industryArray,
+      website_url: data.website_url,
+      linkedin_url: data.linkedin_url,
+    });
+  }, [data]);
+
+  // Notify parent of validation changes
+  useEffect(() => {
+    if (onValidationChange) {
+      onValidationChange(validation.isValid, validation.errors);
+    }
+  }, [validation, onValidationChange]);
+
+  const missingFields = getMissingFields(validation.errors);
+  const showErrors = showValidation || Object.keys(touched).length > 0;
+
+  const handleBlur = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
 
   const handleAddUrl = () => {
     if (additionalUrl.trim()) {
@@ -77,33 +117,71 @@ export function Step1Context({
     value: string | string[]
   ) => {
     updateData({ [field]: value });
+    setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
   return (
     <div className="space-y-8">
+      {/* Validation Summary */}
+      {showErrors && !validation.isValid && missingFields.length > 0 && (
+        <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <span className="font-medium">Missing required fields: </span>
+            {missingFields.join(', ')}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Company Name */}
       <div className="space-y-2">
-        <Label htmlFor="name">Company Name</Label>
+        <Label htmlFor="name" className="flex items-center gap-1">
+          Company Name
+          <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="name"
           placeholder="e.g. ACME Corp"
           value={data.name || data.company_name || ''}
           onChange={(e) => updateData({ name: e.target.value, company_name: e.target.value })}
+          onBlur={() => handleBlur('company_name')}
+          className={showErrors && validation.errors.company_name ? 'border-destructive' : ''}
         />
+        {showErrors && touched.company_name && validation.errors.company_name && (
+          <p className="text-xs text-destructive">{validation.errors.company_name}</p>
+        )}
       </div>
 
       {/* Description */}
       <DescriptionInput
         value={data.description || ''}
-        onChange={(value) => updateData({ description: value })}
+        onChange={(value) => {
+          updateData({ description: value });
+          setTouched((prev) => ({ ...prev, description: true }));
+        }}
         onEnrich={onEnrichContext}
         isEnriching={isEnrichingContext}
+        error={showErrors && touched.description ? validation.errors.description : undefined}
+      />
+
+      {/* Target Market - NEW REQUIRED FIELD */}
+      <TargetMarketInput
+        value={data.target_market || ''}
+        onChange={(value) => {
+          updateData({ target_market: value });
+          setTouched((prev) => ({ ...prev, target_market: true }));
+        }}
+        error={validation.errors.target_market}
+        touched={showErrors || touched.target_market}
       />
 
       {/* Website URL */}
       <URLInput
         value={data.website_url || ''}
-        onChange={(value) => updateData({ website_url: value })}
+        onChange={(value) => {
+          updateData({ website_url: value });
+          setTouched((prev) => ({ ...prev, website_url: true }));
+        }}
         onExtract={onEnrichUrl}
         isExtracting={isEnrichingUrl}
         extractionDone={urlExtractionDone}
@@ -120,6 +198,7 @@ export function Step1Context({
             placeholder="https://linkedin.com/company/..."
             value={data.linkedin_url || ''}
             onChange={(e) => updateData({ linkedin_url: e.target.value })}
+            onBlur={() => handleBlur('linkedin_url')}
             className="pl-10"
           />
         </div>
@@ -168,11 +247,21 @@ export function Step1Context({
 
       {/* AI Detected Fields */}
       <AIDetectedFields
-        industry={data.industry || ''}
+        industry={Array.isArray(data.industry) ? data.industry : (data.industry ? [data.industry] : [])}
         businessModel={data.business_model || []}
         stage={data.stage || ''}
         onUpdate={handleFieldUpdate}
         isFromAI={urlExtractionDone || isEnrichingContext}
+        errors={{
+          industry: validation.errors.industry,
+          business_model: validation.errors.business_model,
+          stage: validation.errors.stage,
+        }}
+        touched={{
+          industry: showErrors || touched.industry,
+          business_model: showErrors || touched.business_model,
+          stage: showErrors || touched.stage,
+        }}
       />
 
       <div className="border-t border-border pt-6" />
