@@ -340,6 +340,20 @@ export default function OnboardingWizard() {
     }
   }, [currentStep, session?.id, questions.length, isGettingQuestions, loadQuestions]);
 
+  // Step 4: Auto-load score and summary when entering
+  useEffect(() => {
+    if (currentStep === 4 && session?.id) {
+      console.log('[Wizard] Step 4 mounted, loading score and summary...');
+      if (!investorScore && !isCalculatingScore) {
+        handleCalculateScore().catch(console.error);
+      }
+      if (!aiSummary && !isGeneratingSummary) {
+        handleGenerateSummary().catch(console.error);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, session?.id]);
+
   // FIX 1, 2, 6: handleAnswer with session guard, error toast, and optimistic updates
   const handleAnswer = async (questionId: string, answerId: string, answerText?: string) => {
     // FIX 1: Session guard with user feedback
@@ -417,10 +431,14 @@ export default function OnboardingWizard() {
 
   const handleSkipQuestion = () => {
     // Just move to next question without recording answer
+    setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
-  const handleInterviewComplete = () => {
+  const handleInterviewComplete = async () => {
+    // Flush any pending saves before transitioning
+    await flushSave(formData);
     setCurrentStep(4);
+    // Score/summary will auto-load via Step 4 mount effect
   };
 
   // Step 4 handlers
