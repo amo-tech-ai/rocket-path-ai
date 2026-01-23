@@ -127,6 +127,8 @@ export function useWizardSession() {
   const queryClient = useQueryClient();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const createPromiseRef = useRef<Promise<string> | null>(null);
 
   // Fetch existing session
   const {
@@ -172,11 +174,14 @@ export function useWizardSession() {
     enabled: !!user?.id,
   });
 
-  // Create new session
-  const createSessionMutation = useMutation({
-    mutationFn: async (): Promise<WizardSession> => {
-      if (!user?.id) throw new Error('User not authenticated');
+  // Create session with retry and proper waiting
+  const createSessionInternal = async (): Promise<string> => {
+    if (!user?.id) throw new Error('User not authenticated');
 
+    console.log('[WizardSession] Creating session...');
+    setIsCreatingSession(true);
+
+    try {
       const response = await supabase.functions.invoke('onboarding-agent', {
         body: {
           action: 'create_session',
@@ -186,10 +191,71 @@ export function useWizardSession() {
 
       if (response.error) throw response.error;
       
-      const data = response.data;
+      const sessionId = response.data?.session_id || response.data?.id;
+      if (!sessionId) {
+        throw new Error('No session ID returned from server');
+      }
+
+      console.log('[WizardSession] Session created:', sessionId);
+      
+      // Invalidate and refetch to get the real DB row
+      await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
+      
+      // Wait for the query to actually refetch and find the session
+      let retries = 0;
+      const maxRetries = 5;
+      while (retries < maxRetries) {
+        await new Promise(r => setTimeout(r, 200));
+        const { data: freshSession } = await supabase
+          .from('wizard_sessions')
+          .select('id')
+          .eq('id', sessionId)
+          .single();
+        
+        if (freshSession?.id) {
+          console.log('[WizardSession] Session confirmed in DB');
+          await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
+          return sessionId;
+        }
+        retries++;
+      }
+
+      // Even if we couldn't verify, return the ID since it was created
+      console.warn('[WizardSession] Session created but not yet visible in query');
+      return sessionId;
+    } finally {
+      setIsCreatingSession(false);
+      createPromiseRef.current = null;
+    }
+  };
+
+  // Ensure session exists - CRITICAL: prevents race conditions
+  const ensureSession = useCallback(async (): Promise<string> => {
+    // If we already have a session, return it
+    if (session?.id) {
+      console.log('[WizardSession] ensureSession: Using existing session', session.id);
+      return session.id;
+    }
+
+    // If creation is already in progress, wait for it
+    if (createPromiseRef.current) {
+      console.log('[WizardSession] ensureSession: Waiting for in-flight creation');
+      return createPromiseRef.current;
+    }
+
+    // Start new creation
+    console.log('[WizardSession] ensureSession: Starting new session creation');
+    createPromiseRef.current = createSessionInternal();
+    return createPromiseRef.current;
+  }, [session?.id, user?.id]);
+
+  // Create new session mutation (for backwards compatibility)
+  const createSessionMutation = useMutation({
+    mutationFn: async (): Promise<WizardSession> => {
+      const sessionId = await ensureSession();
       return {
-        id: data.session_id || data.id,
-        user_id: user.id,
+        id: sessionId,
+        user_id: user?.id || '',
         startup_id: null,
         current_step: 1,
         status: 'in_progress',
@@ -201,10 +267,6 @@ export function useWizardSession() {
         started_at: new Date().toISOString(),
         completed_at: null,
       };
-    },
-    onSuccess: async () => {
-      // Invalidate and refetch to get the real DB row instead of optimistic data
-      await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
     },
     onError: (error) => {
       console.error('Failed to create session:', error);
@@ -248,7 +310,10 @@ export function useWizardSession() {
   // Debounced save
   const saveFormData = useCallback(
     (formData: WizardFormData) => {
-      if (!session?.id) return;
+      if (!session?.id) {
+        console.warn('[WizardSession] saveFormData: No session ID, skipping');
+        return;
+      }
 
       setIsSaving(true);
 
@@ -266,10 +331,48 @@ export function useWizardSession() {
     [session?.id, updateSessionMutation]
   );
 
+  // Flush pending saves (for navigation)
+  const flushSave = useCallback(
+    async (formData: WizardFormData) => {
+      if (!session?.id) {
+        console.warn('[WizardSession] flushSave: No session ID');
+        return;
+      }
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+
+      setIsSaving(true);
+      try {
+        await updateSessionMutation.mutateAsync({
+          sessionId: session.id,
+          updates: { form_data: formData },
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [session?.id, updateSessionMutation]
+  );
+
   // Update current step
   const setCurrentStep = useCallback(
-    (step: number) => {
-      if (!session?.id) return;
+    async (step: number) => {
+      // Get session ID, creating if needed
+      let sessionId = session?.id;
+      if (!sessionId) {
+        console.log('[WizardSession] setCurrentStep: No session, ensuring one exists');
+        try {
+          sessionId = await ensureSession();
+        } catch (e) {
+          console.error('[WizardSession] setCurrentStep: Failed to ensure session', e);
+          return;
+        }
+      }
+
+      console.log('[WizardSession] setCurrentStep:', step, 'sessionId:', sessionId);
 
       // Optimistic update
       queryClient.setQueryData(['wizard-session', user?.id], (old: WizardSession | null) =>
@@ -277,19 +380,20 @@ export function useWizardSession() {
       );
 
       updateSessionMutation.mutate({
-        sessionId: session.id,
+        sessionId,
         updates: { current_step: step },
       });
     },
-    [session?.id, user?.id, queryClient, updateSessionMutation]
+    [session?.id, user?.id, queryClient, updateSessionMutation, ensureSession]
   );
 
-  // Initialize session on mount
+  // Initialize session on mount (only if none exists)
   useEffect(() => {
-    if (user?.id && !isLoading && !session && !createSessionMutation.isPending) {
-      createSessionMutation.mutate();
+    if (user?.id && !isLoading && !session && !isCreatingSession && !createPromiseRef.current) {
+      console.log('[WizardSession] Auto-creating session on mount');
+      ensureSession().catch(console.error);
     }
-  }, [user?.id, isLoading, session, createSessionMutation.isPending]);
+  }, [user?.id, isLoading, session, isCreatingSession, ensureSession]);
 
   // Cleanup debounce on unmount
   useEffect(() => {
@@ -305,11 +409,13 @@ export function useWizardSession() {
 
   return {
     session,
-    isLoading: isLoading || createSessionMutation.isPending,
+    isLoading: isLoading || isCreatingSession,
     isSaving,
     error,
     isWizardComplete,
+    ensureSession,
     saveFormData,
+    flushSave,
     setCurrentStep,
     refetch,
   };
