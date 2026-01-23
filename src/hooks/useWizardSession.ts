@@ -5,8 +5,67 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Json } from '@/integrations/supabase/types';
 
+export interface Founder {
+  id: string;
+  name: string;
+  role: string;
+  linkedin_url?: string;
+  enriched?: boolean;
+}
+
+export interface TractionData {
+  current_mrr?: number;
+  growth_rate?: number;
+  users?: number;
+  customers?: number;
+}
+
+export interface FundingData {
+  is_raising?: boolean;
+  target_amount?: number;
+  use_of_funds?: string[];
+}
+
+export interface ReadinessScore {
+  overall_score: number;
+  category_scores: {
+    product: number;
+    market: number;
+    team: number;
+    clarity: number;
+  };
+  benchmarks: string[];
+  recommendations: string[];
+}
+
+export interface InvestorScore {
+  total_score: number;
+  breakdown: {
+    team: number;
+    traction: number;
+    market: number;
+    product: number;
+    fundraising: number;
+  };
+  recommendations: { action: string; points_gain: number }[];
+}
+
+export interface AISummary {
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+}
+
+export interface InterviewAnswer {
+  question_id: string;
+  answer_id: string;
+  answer_text?: string;
+  timestamp: string;
+}
+
 export interface WizardFormData {
   // Step 1: Context & Enrichment
+  name?: string;
   company_name?: string;
   website_url?: string;
   linkedin_url?: string;
@@ -15,8 +74,29 @@ export interface WizardFormData {
   target_market?: string;
   search_terms?: string;
   industry?: string;
+  business_model?: string[];
+  stage?: string;
   year_founded?: number;
   cover_image_url?: string;
+  tagline?: string;
+  key_features?: string[];
+  target_customers?: string[];
+  competitors?: string[];
+  founders?: Founder[];
+  
+  // Step 2: Analysis (read from session)
+  readiness_score?: ReadinessScore | null;
+  url_insights?: Record<string, unknown> | null;
+  
+  // Step 3: Interview
+  interview_answers?: InterviewAnswer[];
+  signals?: string[];
+  extracted_traction?: TractionData;
+  extracted_funding?: FundingData;
+  
+  // Step 4: Review
+  investor_score?: InvestorScore | null;
+  ai_summary?: AISummary | null;
 }
 
 export interface WizardSession {
