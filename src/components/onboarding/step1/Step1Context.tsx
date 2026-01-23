@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Linkedin, Link2, Plus, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,13 +67,14 @@ export function Step1Context({
     return result;
   }, [data]);
 
-  // Notify parent of validation changes
+  // Notify parent of validation changes - use ref to avoid dependency loop
+  const onValidationChangeRef = React.useRef(onValidationChange);
+  onValidationChangeRef.current = onValidationChange;
+
   useEffect(() => {
-    console.log('[Step1Context] Notifying parent of validation:', validation.isValid);
-    if (onValidationChange) {
-      onValidationChange(validation.isValid, validation.errors);
-    }
-  }, [validation, onValidationChange]);
+    console.log('[Step1Context] Notifying parent of validation:', validation.isValid, validation.errors);
+    onValidationChangeRef.current?.(validation.isValid, validation.errors);
+  }, [validation.isValid, validation.errors]);
 
   const missingFields = getMissingFields(validation.errors);
   const showErrors = showValidation || Object.keys(touched).length > 0;
