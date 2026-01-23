@@ -67,14 +67,18 @@ export function Step1Context({
     return result;
   }, [data]);
 
-  // Notify parent of validation changes - use ref to avoid dependency loop
+  // Notify parent of validation changes - use ref + stable string comparison
   const onValidationChangeRef = React.useRef(onValidationChange);
   onValidationChangeRef.current = onValidationChange;
+  
+  // Stringify errors for stable dependency comparison (prevents infinite loops)
+  const errorsString = JSON.stringify(validation.errors);
 
   useEffect(() => {
-    console.log('[Step1Context] Notifying parent of validation:', validation.isValid, validation.errors);
-    onValidationChangeRef.current?.(validation.isValid, validation.errors);
-  }, [validation.isValid, validation.errors]);
+    const parsedErrors = JSON.parse(errorsString) as Record<string, string>;
+    console.log('[Step1Context] Notifying parent of validation:', validation.isValid, parsedErrors);
+    onValidationChangeRef.current?.(validation.isValid, parsedErrors);
+  }, [validation.isValid, errorsString]);
 
   const missingFields = getMissingFields(validation.errors);
   const showErrors = showValidation || Object.keys(touched).length > 0;

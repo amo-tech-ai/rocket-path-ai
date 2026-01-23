@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.4] - 2026-01-23
+
+### Fixed
+- **Critical: Validation Object Stability**: Fixed infinite re-render risk by using `JSON.stringify` for stable error comparison in `Step1Context.tsx`
+- **Navigation Reliability**: Added defensive session checks and explicit error logging in `handleNext()`
+- **Silent Failure Prevention**: Navigation now logs warnings and shows toast when session is missing
+
+### Added
+- **Forensic Audit Document**: Created `docs/05-audit-solution.md` with complete diagnostic analysis
+- Comprehensive Mermaid diagrams for data flow, architecture, and component hierarchy
+- Production readiness checklist with 100% verification
+
+---
+
 ## [0.6.3] - 2026-01-23
 
 ### Verified

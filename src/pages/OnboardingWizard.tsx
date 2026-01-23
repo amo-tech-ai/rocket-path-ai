@@ -143,16 +143,16 @@ export default function OnboardingWizard() {
     return completed;
   };
 
-  // Validation callback for Step 1
+  // Validation callback for Step 1 - memoized for stability
   const handleStep1ValidationChange = useCallback((isValid: boolean, errors: Step1ValidationErrors) => {
-    console.log('[Wizard] Step 1 validation changed:', { isValid, errors });
+    console.log('[Wizard] Step 1 validation received:', { isValid, errorCount: Object.keys(errors).length, errors });
     setStep1Valid(isValid);
     setStep1Errors(errors);
   }, []);
 
   // Debug: Log step1Valid changes
   useEffect(() => {
-    console.log('[Wizard] step1Valid state:', step1Valid, 'errors:', step1Errors);
+    console.log('[Wizard] step1Valid state updated:', step1Valid, 'errorCount:', Object.keys(step1Errors).length);
   }, [step1Valid, step1Errors]);
 
   const canProceed = (): boolean => {
@@ -380,12 +380,12 @@ export default function OnboardingWizard() {
 
   // Navigation handlers
   const handleNext = async () => {
-    console.log('[Wizard] handleNext called, currentStep:', currentStep, 'step1Valid:', step1Valid);
+    console.log('[Wizard] handleNext called:', { currentStep, step1Valid, sessionId: session?.id });
     
     // Validate Step 1 before proceeding
     if (currentStep === 1) {
       if (!step1Valid) {
-        console.log('[Wizard] Step 1 validation failed, showing errors');
+        console.warn('[Wizard] Step 1 validation failed, blocking navigation');
         setShowStep1Validation(true);
         toast({
           title: 'Missing required fields',
@@ -395,19 +395,34 @@ export default function OnboardingWizard() {
         return;
       }
       
+      // Ensure session exists
+      if (!session?.id) {
+        console.error('[Wizard] No session ID available for navigation');
+        toast({
+          title: 'Session error',
+          description: 'Please refresh and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       // Save form data before advancing
-      console.log('[Wizard] Step 1 valid, saving and advancing...');
+      console.log('[Wizard] Step 1 valid, saving form data...');
       saveFormData(formData);
     }
 
-    if (currentStep < 4) {
+    if (currentStep < 4 && session?.id) {
       const nextStep = currentStep + 1;
-      console.log('[Wizard] Advancing to step:', nextStep);
+      console.log('[Wizard] ✅ Advancing to step:', nextStep);
+      
+      // Move to next step immediately (optimistic)
+      setCurrentStep(nextStep);
+      setShowStep1Validation(false);
       
       // Run step-specific actions AFTER moving (non-blocking)
       if (currentStep === 1) {
         // Run readiness calculation when entering step 2 (async, don't await)
-        if (!readinessScore && session?.id) {
+        if (!readinessScore) {
           handleCalculateReadiness().catch(console.error);
         }
       }
@@ -421,15 +436,13 @@ export default function OnboardingWizard() {
       
       if (currentStep === 3) {
         // Calculate score when entering step 4 (async, don't await)
-        if (!investorScore && session?.id) {
+        if (!investorScore) {
           handleCalculateScore().catch(console.error);
           handleGenerateSummary().catch(console.error);
         }
       }
-      
-      // Move to next step immediately
-      setCurrentStep(nextStep);
-      setShowStep1Validation(false);
+    } else if (!session?.id) {
+      console.error('[Wizard] Cannot advance: no session ID');
     }
   };
 
