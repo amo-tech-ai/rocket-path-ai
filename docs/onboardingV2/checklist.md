@@ -1,8 +1,8 @@
 # Onboarding Wizard V2 - Production Checklist
 
-> **Version:** 0.6.1  
+> **Version:** 0.6.3  
 > **Last Updated:** 2026-01-23  
-> **Status:** ✅ Production Ready
+> **Status:** ✅ Production Ready (100% Complete)
 
 ---
 
@@ -142,11 +142,21 @@ graph TD
 - `AIDetectedFields.tsx` - Industry/Model/Stage chips
 - `FounderCard.tsx` - Founding team management
 
+### Step 2 Components
+- `Step2Analysis.tsx` - Main analysis container
+- `StartupOverviewCard.tsx` - Editable company name, summary, tags
+- `FounderIdentityCard.tsx` - Founder cards with signals, enrichment
+- `WebsiteInsightsCard.tsx` - Value prop, features, audience
+- `CompetitorIntelCard.tsx` - Competitors, trends, market labels
+- `DetectedSignalsCard.tsx` - Grouped signal table
+- `ResearchQueriesCard.tsx` - Collapsible query log
+
 ### AI Panel Components
 - `WizardAIPanel.tsx` - Step-specific AI insights
-- Dynamic advisor persona
-- Real-time signal detection
-- Readiness benchmarks
+- Step 1: Guidance + extractions display
+- Step 2: Confidence score, analyst brief, recommendations
+- Step 3: Interview progress, advisor persona
+- Step 4: Final score, summary, completion
 
 ---
 
