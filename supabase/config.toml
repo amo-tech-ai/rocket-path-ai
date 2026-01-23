@@ -2,3 +2,6 @@ project_id = "yvyesmiczbjqwbqtlidy"
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.onboarding-agent]
+verify_jwt = false

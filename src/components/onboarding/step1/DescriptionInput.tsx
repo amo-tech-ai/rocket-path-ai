@@ -11,6 +11,7 @@ interface DescriptionInputProps {
   onEnrich?: () => void;
   isEnriching?: boolean;
   minWords?: number;
+  error?: string;
 }
 
 export function DescriptionInput({
@@ -19,6 +20,7 @@ export function DescriptionInput({
   onEnrich,
   isEnriching = false,
   minWords = 50,
+  error,
 }: DescriptionInputProps) {
   const [wordCount, setWordCount] = useState(0);
   
@@ -57,7 +59,7 @@ export function DescriptionInput({
         placeholder="Describe what your startup does, the problem you solve, and who your customers are. Be specific about your unique value proposition..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="min-h-[120px] resize-none"
+        className={cn('min-h-[120px] resize-none', error && 'border-destructive')}
       />
       <div className="flex items-center justify-between">
         <p
@@ -69,10 +71,13 @@ export function DescriptionInput({
           {wordCount}/{minWords} words
           {isValid && <Check className="h-3 w-3" />}
         </p>
-        {!isValid && (
+        {!isValid && !error && (
           <p className="text-xs text-muted-foreground">
             Add at least {minWords} words for AI analysis
           </p>
+        )}
+        {error && (
+          <p className="text-xs text-destructive">{error}</p>
         )}
       </div>
     </div>

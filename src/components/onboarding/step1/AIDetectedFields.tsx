@@ -16,11 +16,21 @@ const STAGES = [
 ];
 
 interface AIDetectedFieldsProps {
-  industry: string;
+  industry: string[];  // Changed to array for multi-select
   businessModel: string[];
   stage: string;
   onUpdate: (field: 'industry' | 'business_model' | 'stage', value: string | string[]) => void;
   isFromAI?: boolean;
+  errors?: {
+    industry?: string;
+    business_model?: string;
+    stage?: string;
+  };
+  touched?: {
+    industry?: boolean;
+    business_model?: boolean;
+    stage?: boolean;
+  };
 }
 
 export function AIDetectedFields({
@@ -29,7 +39,19 @@ export function AIDetectedFields({
   stage,
   onUpdate,
   isFromAI = false,
+  errors,
+  touched,
 }: AIDetectedFieldsProps) {
+  // Industry is now multi-select
+  const toggleIndustry = (ind: string) => {
+    const currentIndustries = Array.isArray(industry) ? industry : (industry ? [industry] : []);
+    if (currentIndustries.includes(ind)) {
+      onUpdate('industry', currentIndustries.filter(i => i !== ind));
+    } else {
+      onUpdate('industry', [...currentIndustries, ind]);
+    }
+  };
+
   const toggleBusinessModel = (model: string) => {
     if (businessModel.includes(model)) {
       onUpdate('business_model', businessModel.filter(m => m !== model));
@@ -37,6 +59,11 @@ export function AIDetectedFields({
       onUpdate('business_model', [...businessModel, model]);
     }
   };
+
+  const industryArray = Array.isArray(industry) ? industry : (industry ? [industry] : []);
+  const showIndustryError = touched?.industry && errors?.industry;
+  const showBusinessModelError = touched?.business_model && errors?.business_model;
+  const showStageError = touched?.stage && errors?.stage;
 
   return (
     <div className="space-y-4">
@@ -47,30 +74,39 @@ export function AIDetectedFields({
         )}
       </div>
 
-      {/* Industry */}
+      {/* Industry - Multi-select */}
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Industry</Label>
+        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          Industry (select multiple)
+          <span className="text-destructive">*</span>
+        </Label>
         <div className="flex flex-wrap gap-2">
           {INDUSTRIES.map((ind) => (
             <Badge
               key={ind}
-              variant={industry === ind ? 'default' : 'outline'}
+              variant={industryArray.includes(ind) ? 'default' : 'outline'}
               className={cn(
                 'cursor-pointer transition-colors',
-                industry === ind && 'bg-primary text-primary-foreground'
+                industryArray.includes(ind) && 'bg-primary text-primary-foreground'
               )}
-              onClick={() => onUpdate('industry', ind)}
+              onClick={() => toggleIndustry(ind)}
             >
               {ind}
-              {industry === ind && ' ✓'}
+              {industryArray.includes(ind) && ' ✓'}
             </Badge>
           ))}
         </div>
+        {showIndustryError && (
+          <p className="text-xs text-destructive">{errors?.industry}</p>
+        )}
       </div>
 
-      {/* Business Model */}
+      {/* Business Model - Multi-select */}
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Business Model (select multiple)</Label>
+        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          Business Model (select multiple)
+          <span className="text-destructive">*</span>
+        </Label>
         <div className="flex flex-wrap gap-2">
           {BUSINESS_MODELS.map((model) => (
             <Badge
@@ -87,11 +123,17 @@ export function AIDetectedFields({
             </Badge>
           ))}
         </div>
+        {showBusinessModelError && (
+          <p className="text-xs text-destructive">{errors?.business_model}</p>
+        )}
       </div>
 
-      {/* Stage */}
+      {/* Stage - Single select */}
       <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground">Stage</Label>
+        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          Stage
+          <span className="text-destructive">*</span>
+        </Label>
         <div className="flex flex-wrap gap-2">
           {STAGES.map((s) => (
             <Badge
@@ -108,6 +150,9 @@ export function AIDetectedFields({
             </Badge>
           ))}
         </div>
+        {showStageError && (
+          <p className="text-xs text-destructive">{errors?.stage}</p>
+        )}
       </div>
     </div>
   );

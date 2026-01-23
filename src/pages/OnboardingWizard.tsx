@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import useWizardSession, { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/useWizardSession';
 import useOnboardingAgent from '@/hooks/useOnboardingAgent';
+import { Step1ValidationErrors, validateStep1 } from '@/lib/step1Schema';
 
 // Step components
 import Step1Context from '@/components/onboarding/step1/Step1Context';
@@ -77,6 +78,11 @@ export default function OnboardingWizard() {
   // Step 4 state
   const [investorScore, setInvestorScore] = useState<InvestorScore | null>(null);
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
+  
+  // Step 1 validation state
+  const [step1Valid, setStep1Valid] = useState(false);
+  const [step1Errors, setStep1Errors] = useState<Step1ValidationErrors>({});
+  const [showStep1Validation, setShowStep1Validation] = useState(false);
 
   // Redirect if wizard is already complete
   useEffect(() => {
@@ -137,10 +143,16 @@ export default function OnboardingWizard() {
     return completed;
   };
 
+  // Validation callback for Step 1
+  const handleStep1ValidationChange = useCallback((isValid: boolean, errors: Step1ValidationErrors) => {
+    setStep1Valid(isValid);
+    setStep1Errors(errors);
+  }, []);
+
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
-        return !!(formData.company_name?.trim() || formData.website_url?.trim() || formData.description?.trim());
+        return step1Valid;
       case 2:
         return !!readinessScore;
       case 3:
@@ -357,6 +369,19 @@ export default function OnboardingWizard() {
 
   // Navigation handlers
   const handleNext = async () => {
+    // Validate Step 1 before proceeding
+    if (currentStep === 1) {
+      if (!step1Valid) {
+        setShowStep1Validation(true);
+        toast({
+          title: 'Missing required fields',
+          description: 'Please fill in all required fields before continuing.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     if (currentStep < 4) {
       // Run step-specific actions before moving
       if (currentStep === 1) {
@@ -382,6 +407,7 @@ export default function OnboardingWizard() {
       }
       
       setCurrentStep(currentStep + 1);
+      setShowStep1Validation(false); // Reset validation display for next step
     }
   };
 
@@ -521,6 +547,8 @@ export default function OnboardingWizard() {
                 isEnrichingFounder={isEnrichingFounder}
                 urlExtractionDone={urlExtractionDone}
                 urlExtractionError={urlExtractionError}
+                showValidation={showStep1Validation}
+                onValidationChange={handleStep1ValidationChange}
               />
             )}
             {currentStep === 2 && (
