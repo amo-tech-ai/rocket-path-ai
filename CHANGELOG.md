@@ -5,9 +5,46 @@ All notable changes to StartupAI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.3] - 2026-01-21
+## [0.6.0] - 2026-01-23
 
-### Fixed
+### Added
+- **Onboarding Wizard V2 (Complete)**
+  - 4-step wizard flow: Context & Enrichment → AI Analysis → Smart Interview → Review & Score
+  - Full session persistence with auto-save (500ms debounce)
+  - Step 1: Company info, Target Market (required), URL enrichment with Gemini 3
+  - Step 2: Readiness score calculation with category breakdown
+  - Step 3: Dynamic interview questions with signal extraction
+  - Step 4: Investor score and AI-generated summary
+  - WizardLayout with 3-panel design (Navigation, Form, AI Intelligence)
+  - WizardAIPanel with step-specific content and advisor personas
+  - Multi-select chips for Industry and Business Model
+  - Single-select chips for Stage
+  - Zod validation schema for Step 1 with inline errors
+  - Dashboard sidebar link to `/onboarding`
+
+- **onboarding-agent Edge Function**
+  - 11 actions: create_session, get_session, update_session, enrich_url, enrich_context, enrich_founder, calculate_readiness, get_questions, process_answer, calculate_score, generate_summary, complete_wizard
+  - Gemini 3 Flash integration for AI operations
+  - AI run logging to `ai_runs` table
+  - Session-based authentication
+
+- **New Hooks**
+  - `useWizardSession` - Session CRUD, auto-save, step navigation
+  - `useOnboardingAgent` - Edge function client with all 11 actions
+  - `step1Schema.ts` - Zod validation for Step 1 fields
+
+- **New Components**
+  - `TargetMarketInput` - Required field with validation
+  - `AIDetectedFields` - Multi-select chips with validation
+  - `Step1Context`, `Step2Analysis`, `Step3Interview`, `Step4Review`
+
+### Changed
+- Dashboard sidebar now includes Onboarding link with Sparkles icon
+- Progress tracker updated to reflect 78% overall completion
+
+---
+
+## [0.4.3] - 2026-01-21
 - **Events Type Errors**
   - Fixed TS2589 "Type instantiation excessively deep" in child table hooks
   - Fixed `event_date` → `start_date` in EventWizard creation

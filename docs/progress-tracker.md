@@ -1,8 +1,8 @@
 # StartupAI Progress Tracker
 
-> **Last Updated:** 2026-01-21  
-> **Version:** 0.5.0  
-> **Overall Progress:** 72%  
+> **Last Updated:** 2026-01-23  
+> **Version:** 0.6.0  
+> **Overall Progress:** 78%
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
 > **Supabase:** Connected (43 tables, 168 RLS policies)
 
@@ -28,7 +28,7 @@
 | Settings Module | 🟡 In Progress | 30% | — |
 | AI Agents & Chat | ✅ Completed | 80% | 05, 16, 18, 23 |
 | Edge Functions | ✅ Completed | 100% | 05, 06, 11-EF |
-| Wizards & Onboarding | 🔴 Not Started | 0% | 04, 07, 16 |
+| Wizards & Onboarding | 🟢 Completed | 100% | 04, 07, 16 |
 | **Events Module** | ✅ Completed | 85% | events/* |
 
 ---
@@ -230,9 +230,9 @@
 | Task Name | Description | Status | % | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|---|--------------|---------------------|----------------|
 | Edge Function Directory | supabase/functions/ | 🟢 Completed | 100% | 13 functions deployed | — | None |
-| ai-chat | Conversational AI assistant | 🟢 Completed | 100% | Claude Haiku 4.5 | — | Connect to AIPanel |
-| ai-helper | Multi-agent wizard hub | 🟢 Completed | 100% | Gemini 3 Pro | — | Connect to wizard |
-| strategic-plan | High-stakes decisions | 🟢 Completed | 100% | Claude Opus 4.5 | — | Connect to strategy |
+| ai-chat | Conversational AI assistant | 🟢 Completed | 100% | Claude Haiku 4.5 | — | Connected |
+| onboarding-agent | Wizard session orchestration | 🟢 Completed | 100% | Gemini 3 Flash | 11 actions | Deployed |
+| ai-helper | Multi-agent wizard hub | 🟢 Completed | 100% | Gemini 3 Pro | — | Connected |
 | orchestrate | Multi-step workflows | 🟢 Completed | 100% | Claude Sonnet 4.5 | — | Connect to workflows |
 | audit-system | Security audits | 🟢 Completed | 100% | Claude Opus 4.5 | — | Connect to settings |
 | automation-run | Fast event triggers | 🟢 Completed | 100% | Claude Haiku 4.5 | — | Connect to automations |
@@ -248,23 +248,30 @@
 | Provider | Functions | Models |
 |----------|-----------|--------|
 | Claude | 5 | Opus 4.5, Sonnet 4.5, Haiku 4.5 |
-| Gemini | 5 | 3 Pro, 3 Flash, 3 Pro Image |
+| Gemini | 6 | 3 Pro, 3 Flash, 3 Pro Image |
 | Infrastructure | 3 | health, auth-check, stripe-webhook |
 
 See [docs/prompts/11-edge-functions-summary.md](./prompts/11-edge-functions-summary.md) for full documentation.
 
 ---
 
-### 🧙 Wizards & Onboarding
+### 🧙 Wizards & Onboarding (V2 - Complete)
 
 | Task Name | Description | Status | % | ✅ Confirmed | ⚠️ Missing/Failing | 💡 Next Action |
 |-----------|-------------|--------|---|--------------|---------------------|----------------|
-| Onboarding Flow | New user setup | 🔴 Not Started | 0% | — | wizard_sessions table exists | Build onboarding UI |
-| Startup Setup Wizard | Company profile wizard | 🔴 Not Started | 0% | — | — | Create multi-step form |
-| Industry Selection | Pick industry pack | 🔴 Not Started | 0% | — | industry_pack_id exists | Build selector |
-| AI Extraction | Auto-fill from URL | 🔴 Not Started | 0% | — | wizard_extractions table | Implement AI extraction |
-| Profile Strength | Completeness meter | 🔴 Not Started | 0% | — | profile_strength field | Add strength calculator |
-| Diagnostic Questions | Industry-specific questions | 🔴 Not Started | 0% | — | diagnostic_answers field | Build questionnaire |
+| Onboarding Flow | 4-step wizard at `/onboarding` | 🟢 Completed | 100% | Full UI, session management | — | None |
+| Step 1: Context & Enrichment | Company info + URL enrichment | 🟢 Completed | 100% | Validation, AI extraction | — | None |
+| Step 2: AI Analysis | Readiness score calculation | 🟢 Completed | 100% | Score display, recommendations | — | None |
+| Step 3: Smart Interview | Dynamic questions | 🟢 Completed | 100% | Signals extraction | — | None |
+| Step 4: Review & Score | Investor score + summary | 🟢 Completed | 100% | Profile completion | — | None |
+| WizardLayout | 3-panel layout | 🟢 Completed | 100% | Responsive, step nav | — | None |
+| WizardAIPanel | Step-specific AI content | 🟢 Completed | 100% | Advisor personas, signals | — | None |
+| useWizardSession | Session persistence | 🟢 Completed | 100% | Auto-save, resume | — | None |
+| useOnboardingAgent | Edge function client | 🟢 Completed | 100% | All 11 actions | — | None |
+| onboarding-agent | Edge function | 🟢 Completed | 100% | Gemini 3 Flash, 11 actions | — | None |
+| Target Market Field | Required field in Step 1 | 🟢 Completed | 100% | Zod validation | — | None |
+| Multi-select Chips | Industry/Business Model | 🟢 Completed | 100% | Click-to-edit chips | — | None |
+| Sidebar Navigation | Dashboard link | 🟢 Completed | 100% | Sparkles icon | — | None |
 
 ---
 
@@ -338,8 +345,12 @@ See [docs/prompts/11-edge-functions-summary.md](./prompts/11-edge-functions-summ
 
 1. **🔴 Critical**: Remove DEV_BYPASS_AUTH before production
 2. **🔴 Critical**: Create storage bucket for file uploads
-3. **🟡 High**: Connect AIPanel to ai-chat edge function
-4. **🟡 High**: Complete Projects module with full CRUD
+3. **🟡 High**: Complete Projects module with full CRUD
+4. **🟡 High**: Connect CRM enrichment to extract-contact-info
+5. **🟡 Medium**: Build GTM Strategy screen (11.3)
+6. **🟡 Medium**: Build Discovery module (11.4)
+7. **🟢 Low**: Add more unit tests
+8. **🟢 Low**: Implement communications log in CRM
 5. **🟡 High**: Build Lean Canvas screen (11.2)
 6. **🟡 High**: Connect Tasks AI generation to ai-helper
 7. **🟡 Medium**: Build Onboarding wizard with ai-helper extraction
