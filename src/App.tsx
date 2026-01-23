@@ -24,6 +24,7 @@ import CompanyProfile from "./pages/CompanyProfile";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import EventWizard from "./pages/EventWizard";
+import OnboardingWizard from "./pages/OnboardingWizard";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <EventWizard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <OnboardingWizard />
                 </ProtectedRoute>
               }
             />

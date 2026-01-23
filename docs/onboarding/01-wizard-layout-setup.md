@@ -1,7 +1,7 @@
 # Prompt 01 — Wizard Layout & Infrastructure Setup
 
 **Purpose:** Set up 3-panel wizard layout infrastructure and routing  
-**Status:** 🟡 Backend Ready | Frontend Pending  
+**Status:** ✅ Complete  
 **Priority:** P0 — Critical Blocker
 
 ---
@@ -41,15 +41,19 @@
 
 ---
 
-## Files to Create
+## Files Created ✅
 
-**New Files:**
-- `src/pages/OnboardingWizard.tsx` — Main wizard page
-- `src/components/onboarding/WizardLayout.tsx` — 3-panel layout wrapper
-- `src/components/onboarding/StepProgress.tsx` — Left panel progress indicator
+**New Files Created:**
+- `src/pages/OnboardingWizard.tsx` — Main wizard page ✅
+- `src/components/onboarding/WizardLayout.tsx` — 3-panel layout wrapper ✅
+- `src/components/onboarding/StepProgress.tsx` — Left panel progress indicator ✅
+- `src/components/onboarding/WizardAIPanel.tsx` — Right panel AI guidance ✅
+- `src/components/onboarding/steps/Step1Context.tsx` — Step 1 form ✅
+- `src/hooks/useWizardSession.ts` — Session management hook ✅
+- `src/hooks/useOnboardingAgent.ts` — Edge function hook ✅
 
-**Files to Modify:**
-- `src/App.tsx` — Add `/onboarding` route with ProtectedRoute
+**Files Modified:**
+- `src/App.tsx` — Added `/onboarding` route with ProtectedRoute ✅
 
 ---
 
@@ -156,7 +160,7 @@ const steps = [
 
 - ✅ `/onboarding` route accessible and protected
 - ✅ 3-panel layout renders correctly
-- ✅ Left panel shows step progress (1 of 3, 2 of 3, 3 of 3)
+- ✅ Left panel shows step progress (1 of 4, 2 of 4, 3 of 4, 4 of 4)
 - ✅ Session loads from database on mount
 - ✅ Auto-save works (debounced 500ms)
 - ✅ Step navigation works (forward/back)
