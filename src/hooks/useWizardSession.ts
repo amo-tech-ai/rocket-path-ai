@@ -98,6 +98,7 @@ export interface WizardFormData {
   signals?: string[];
   extracted_traction?: TractionData;
   extracted_funding?: FundingData;
+  current_question_index?: number; // FIX 7: Persist question progress
   
   // Step 4: Review
   investor_score?: InvestorScore | null;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -87,6 +87,10 @@ export default function OnboardingWizard() {
   const [step1Valid, setStep1Valid] = useState(false);
   const [step1Errors, setStep1Errors] = useState<Step1ValidationErrors>({});
   const [showStep1Validation, setShowStep1Validation] = useState(false);
+  
+  // FIX 3: Ref for stable answers access in loadQuestions
+  const answersRef = useRef<InterviewAnswer[]>([]);
+  answersRef.current = answers;
 
   // Redirect if wizard is already complete
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function OnboardingWizard() {
     }
   }, [isWizardComplete, navigate]);
 
-  // Sync form data from session
+  // Sync form data from session - FIX 7: Restore question progress
   useEffect(() => {
     if (session?.form_data) {
       setFormData(session.form_data);
@@ -104,6 +108,11 @@ export default function OnboardingWizard() {
       }
       if (session.form_data.interview_answers) {
         setAnswers(session.form_data.interview_answers);
+      }
+      // FIX 7: Restore question index from persisted value, fallback to answers length
+      if (session.form_data.current_question_index !== undefined) {
+        setCurrentQuestionIndex(session.form_data.current_question_index);
+      } else if (session.form_data.interview_answers) {
         setCurrentQuestionIndex(session.form_data.interview_answers.length);
       }
       if (session.form_data.signals) {
@@ -275,22 +284,25 @@ export default function OnboardingWizard() {
     }, 1000);
   };
 
-  // Step 3 handlers
-  const loadQuestions = async () => {
+  // Step 3 handlers - FIX 3: Use ref for stable answers access
+  const loadQuestions = useCallback(async () => {
     if (!session?.id) {
       console.warn('[Wizard] loadQuestions: No session ID');
       return;
     }
     
+    // FIX 3: Read current answers from ref instead of closure
+    const currentAnswers = answersRef.current;
+    
     console.log('[Wizard] Loading questions for session:', session.id);
     try {
       const result = await getQuestions({ 
         session_id: session.id,
-        answered_question_ids: answers.map(a => a.question_id),
+        answered_question_ids: currentAnswers.map(a => a.question_id),
       });
       console.log('[Wizard] Questions loaded:', result);
       
-      // FIX D: Map API questions to UI Question shape (in case of mismatch)
+      // Map API questions to UI Question shape (in case of mismatch)
       if (result.questions && Array.isArray(result.questions)) {
         const mappedQuestions: Question[] = result.questions.map((q: any) => ({
           id: q.id,
@@ -312,21 +324,58 @@ export default function OnboardingWizard() {
       }
     } catch (error) {
       console.error('[Wizard] Get questions error:', error);
+      toast({
+        title: 'Failed to load questions',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
     }
-  };
+  }, [session?.id, getQuestions, toast]);
   
-  // FIX A: Load questions when Step 3 starts (not when leaving Step 2)
+  // FIX 4: Load questions when Step 3 starts with session check
   useEffect(() => {
     if (currentStep === 3 && session?.id && questions.length === 0 && !isGettingQuestions) {
       console.log('[Wizard] Step 3 mounted, loading questions...');
       loadQuestions().catch(console.error);
     }
-  }, [currentStep, session?.id, questions.length, isGettingQuestions]);
+  }, [currentStep, session?.id, questions.length, isGettingQuestions, loadQuestions]);
 
+  // FIX 1, 2, 6: handleAnswer with session guard, error toast, and optimistic updates
   const handleAnswer = async (questionId: string, answerId: string, answerText?: string) => {
-    if (!session?.id) return;
+    // FIX 1: Session guard with user feedback
+    if (!session?.id) {
+      toast({
+        title: 'Session expired',
+        description: 'Please refresh the page to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // FIX 6: Create answer object immediately (optimistic)
+    const newAnswer: InterviewAnswer = {
+      question_id: questionId,
+      answer_id: answerId,
+      answer_text: answerText,
+      timestamp: new Date().toISOString(),
+    };
+    
+    // FIX 6: Optimistic local state update
+    const previousAnswers = [...answers];
+    const newAnswers = [...answers, newAnswer];
+    const newQuestionIndex = currentQuestionIndex + 1;
+    
+    setAnswers(newAnswers);
+    setCurrentQuestionIndex(newQuestionIndex);
+    
+    // FIX 7: Persist question progress immediately
+    updateFormData({ 
+      interview_answers: newAnswers,
+      current_question_index: newQuestionIndex,
+    });
     
     try {
+      // Call API after optimistic update
       const result = await processAnswer({
         session_id: session.id,
         question_id: questionId,
@@ -334,17 +383,7 @@ export default function OnboardingWizard() {
         answer_text: answerText,
       });
       
-      const newAnswer: InterviewAnswer = {
-        question_id: questionId,
-        answer_id: answerId,
-        answer_text: answerText,
-        timestamp: new Date().toISOString(),
-      };
-      
-      const newAnswers = [...answers, newAnswer];
-      setAnswers(newAnswers);
-      updateFormData({ interview_answers: newAnswers });
-      
+      // Merge signals from API response
       if (result.signals) {
         const newSignals = [...new Set([...signals, ...result.signals])];
         setSignals(newSignals);
@@ -358,7 +397,21 @@ export default function OnboardingWizard() {
         updateFormData({ extracted_funding: result.extracted_funding });
       }
     } catch (error) {
+      // FIX 6: Rollback on failure
       console.error('Process answer error:', error);
+      setAnswers(previousAnswers);
+      setCurrentQuestionIndex(currentQuestionIndex);
+      updateFormData({ 
+        interview_answers: previousAnswers,
+        current_question_index: currentQuestionIndex,
+      });
+      
+      // FIX 2: Error toast on API failure
+      toast({
+        title: 'Failed to save answer',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
