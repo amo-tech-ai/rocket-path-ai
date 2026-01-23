@@ -85,7 +85,7 @@ export function FounderCards({
 
   return (
     <div className="space-y-3">
-      <Label>Founding Team (at least 1 required) *</Label>
+      <Label>Founding Team (optional)</Label>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Add Founder Card */}

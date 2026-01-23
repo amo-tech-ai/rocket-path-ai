@@ -145,23 +145,34 @@ export default function OnboardingWizard() {
 
   // Validation callback for Step 1
   const handleStep1ValidationChange = useCallback((isValid: boolean, errors: Step1ValidationErrors) => {
+    console.log('[Wizard] Step 1 validation changed:', { isValid, errors });
     setStep1Valid(isValid);
     setStep1Errors(errors);
   }, []);
 
+  // Debug: Log step1Valid changes
+  useEffect(() => {
+    console.log('[Wizard] step1Valid state:', step1Valid, 'errors:', step1Errors);
+  }, [step1Valid, step1Errors]);
+
   const canProceed = (): boolean => {
-    switch (currentStep) {
-      case 1:
-        return step1Valid;
-      case 2:
-        return !!readinessScore;
-      case 3:
-        return currentQuestionIndex >= questions.length || answers.length >= 3;
-      case 4:
-        return true;
-      default:
-        return false;
-    }
+    const result = (() => {
+      switch (currentStep) {
+        case 1:
+          return step1Valid;
+        case 2:
+          // Don't require readiness score - user can proceed without it
+          return true;
+        case 3:
+          return currentQuestionIndex >= questions.length || answers.length >= 3;
+        case 4:
+          return true;
+        default:
+          return false;
+      }
+    })();
+    console.log('[Wizard] canProceed:', result, 'step:', currentStep, 'step1Valid:', step1Valid);
+    return result;
   };
 
   // Step 1 handlers
@@ -369,9 +380,12 @@ export default function OnboardingWizard() {
 
   // Navigation handlers
   const handleNext = async () => {
+    console.log('[Wizard] handleNext called, currentStep:', currentStep, 'step1Valid:', step1Valid);
+    
     // Validate Step 1 before proceeding
     if (currentStep === 1) {
       if (!step1Valid) {
+        console.log('[Wizard] Step 1 validation failed, showing errors');
         setShowStep1Validation(true);
         toast({
           title: 'Missing required fields',
@@ -380,34 +394,42 @@ export default function OnboardingWizard() {
         });
         return;
       }
+      
+      // Save form data before advancing
+      console.log('[Wizard] Step 1 valid, saving and advancing...');
+      saveFormData(formData);
     }
 
     if (currentStep < 4) {
-      // Run step-specific actions before moving
+      const nextStep = currentStep + 1;
+      console.log('[Wizard] Advancing to step:', nextStep);
+      
+      // Run step-specific actions AFTER moving (non-blocking)
       if (currentStep === 1) {
-        // Run readiness calculation when entering step 2
+        // Run readiness calculation when entering step 2 (async, don't await)
         if (!readinessScore && session?.id) {
-          handleCalculateReadiness();
+          handleCalculateReadiness().catch(console.error);
         }
       }
       
       if (currentStep === 2) {
-        // Load questions when entering step 3
+        // Load questions when entering step 3 (async, don't await)
         if (questions.length === 0) {
-          loadQuestions();
+          loadQuestions().catch(console.error);
         }
       }
       
       if (currentStep === 3) {
-        // Calculate score when entering step 4
+        // Calculate score when entering step 4 (async, don't await)
         if (!investorScore && session?.id) {
-          handleCalculateScore();
-          handleGenerateSummary();
+          handleCalculateScore().catch(console.error);
+          handleGenerateSummary().catch(console.error);
         }
       }
       
-      setCurrentStep(currentStep + 1);
-      setShowStep1Validation(false); // Reset validation display for next step
+      // Move to next step immediately
+      setCurrentStep(nextStep);
+      setShowStep1Validation(false);
     }
   };
 
