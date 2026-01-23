@@ -1,158 +1,246 @@
-# Step 1 Validation Audit Checklist
+# Onboarding Wizard Forensic Audit Report
 
-**Created:** 2026-01-23  
-**Status:** ✅ COMPLETE
-
----
-
-## Problem Statement
-
-Step 1 → Step 2 navigation is blocked because `step1Valid` never becomes `true`.
+**Audit Date**: 2026-01-23  
+**Auditor**: Forensic Software Audit System  
+**Version**: 2.0
 
 ---
 
-## Required Fields (ALL must pass)
+## 🎯 Executive Summary
 
-| # | Field | Type | Schema Requirement | Status |
-|---|-------|------|-------------------|--------|
-| 1 | `company_name` | string | min 1 char | ✅ |
-| 2 | `description` | string | min 1 char | ✅ |
-| 3 | `target_market` | string | min 10 chars | ✅ |
-| 4 | `stage` | string | min 1 char (any value) | ✅ |
-| 5 | `business_model` | string[] | min 1 item | ✅ |
-| 6 | `industry` | string[] | min 1 item | ✅ |
+| Category | Status | Score |
+|----------|--------|-------|
+| Step 3 "0 questions = complete" | ✅ **FIXED** | 100% |
+| Topics covered logic | ⚠️ **PARTIAL** | 70% |
+| Backend question schema | ✅ **FIXED** | 100% |
+| `run_analysis` missing action | ❌ **RED FLAG** | 0% |
+| Step 4 traction display | ❌ **BROKEN** | 20% |
+| Advisor persona shape | ✅ **FIXED** | 100% |
+| Multi-select answer storage | ⚠️ **RISK** | 50% |
+| Authentication (401 fix) | ✅ **FIXED** | 100% |
 
----
-
-## Component Audit: AIDetectedFields.tsx
-
-### ✅ VERIFIED WORKING
-
-- [x] `toggleIndustry()` sends array: `onUpdate('industry', [...currentIndustries, ind])`
-- [x] `toggleBusinessModel()` sends array: `onUpdate('business_model', [...businessModel, model])`
-- [x] `stage` sends string: `onUpdate('stage', s)`
-- [x] Error display wired correctly
-- [x] Required asterisks shown
-- [x] Stage values accepted: `'Idea', 'Pre-seed', 'Seed', 'Series A', 'Series B+'` - schema accepts any string
+**Overall Correctness**: **68%**
 
 ---
 
-## Component Audit: Step1Context.tsx
+## 📊 Detailed Analysis
 
-### ✅ VERIFIED WORKING (v0.6.6)
+### ✅ Issue #1: Step 3 "0 questions = complete" (FIXED - 100%)
 
-- [x] Single source of truth: `company_name` only
-- [x] Direct validation callback (no JSON stringify/parse)
-- [x] Proper dependency array in useEffect
-- [x] `handleFieldUpdate()` correctly passes values to `updateData()`
+**Claim**: Step 3 treats empty questions as complete, causing instant skip.
 
----
-
-## Schema Audit: step1Schema.ts
-
-### ✅ VERIFIED CORRECT
-
+**Verification**:
 ```typescript
-// All fields validated correctly:
-company_name: z.string().min(1)           // ✅ Any non-empty string
-description: z.string().min(1)            // ✅ Any non-empty string  
-target_market: z.string().min(10)         // ✅ At least 10 chars
-stage: z.string().min(1)                  // ✅ Any non-empty string
-business_model: z.array(z.string()).min(1) // ✅ Array with 1+ items
-industry: z.array(z.string()).min(1)       // ✅ Array with 1+ items
+// Step3Interview.tsx lines 71-75
+const hasQuestions = questions && questions.length > 0;
+const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null;
+const isComplete = hasQuestions && currentQuestionIndex >= questions.length;
+const progressPercent = hasQuestions ? Math.min((currentQuestionIndex / questions.length) * 100, 100) : 0;
 ```
 
-**No enum mismatch.** Stage accepts ANY string value.
+**Status**: ✅ **CORRECTLY IMPLEMENTED**
+- Guard `hasQuestions` prevents false completion
+- NaN division prevented with `hasQuestions` check
+- Loading state renders when questions empty (lines 102-114)
 
 ---
 
-## Data Flow Trace
+### ⚠️ Issue #2: Topics Covered Badge Logic (PARTIAL - 70%)
 
-```
-User clicks "Idea" badge
-    ↓
-AIDetectedFields.onClick
-    ↓
-onUpdate('stage', 'Idea')
-    ↓
-Step1Context.handleFieldUpdate('stage', 'Idea')
-    ↓
-updateData({ stage: 'Idea' })
-    ↓
-validation.useMemo runs
-    ↓
-validateStep1({ stage: 'Idea', ... })
-    ↓
-step1Schema.safeParse()
-    ↓
-Returns { success: true } when all 6 fields valid
+**Claim**: Topic matching is broken because of case mismatch.
+
+**Verification**:
+```typescript
+// Step3Interview.tsx lines 134-137
+const topicsCovered = [...new Set(answers.map(a => {
+  const q = questions.find(q => q.id === a.question_id);
+  return q?.topic;
+}).filter(Boolean))] as string[];
+
+// Line 155
+const isCovered = topicsCovered.includes(topic.toLowerCase());
 ```
 
----
+**Backend topics** (onboarding-agent lines 509-568):
+```typescript
+topic: "traction"  // lowercase
+topic: "funding"   // lowercase
+topic: "team"      // lowercase
+topic: "market"    // lowercase
+```
 
-## Console Verification Steps
+**UI TOPICS array** (line 53):
+```typescript
+const TOPICS = ['Business Model', 'Market', 'Traction', 'Team', 'Funding'];
+```
 
-1. Open `/onboarding`
-2. Open browser console
-3. Fill all 6 required fields:
-   - Company Name: "Acme Corp"
-   - Description: "We build widgets"
-   - Target Market: "Enterprise SaaS companies"
-   - Stage: Click "Idea"
-   - Business Model: Click "B2B"
-   - Industry: Click "SaaS"
-4. Look for: `[Step1Context] Validation result: { isValid: true, errors: {} }`
-5. Look for: `[Wizard] Step 1 validation received: { isValid: true, errorCount: 0 }`
-6. Click Continue → Step 2 should render
+**Problem Found**: 
+- Backend sends: `"traction"`, `"market"`, `"team"`, `"funding"`
+- UI checks: `"business model"`, `"market"`, `"traction"`, `"team"`, `"funding"`
+- **Partial match**: `market`, `traction`, `team`, `funding` will work
+- **Broken**: "Business Model" will NEVER match (backend has no such topic)
 
----
-
-## Fixes Applied
-
-### v0.6.6 (2026-01-23)
-- ✅ Single `company_name` field (removed `name` confusion)
-- ✅ Direct validation callback (removed JSON stringify/parse)
-- ✅ Continue button always clickable on Step 1
-
-### v0.6.7 (2026-01-23) — Step 3 Interview Fixes
-- ✅ **JWT Attachment**: Added `invokeAgent()` helper that explicitly attaches session JWT
-- ✅ **Question Shape**: Edge function now returns `text/topic/type/why_matters` (not `question/category`)
-- ✅ **Advisor Shape**: Edge function now returns `name/title/intro` (not `avatar/style`)
-- ✅ **Loading State**: Step3Interview shows "Loading..." when questions array is empty (not "Complete!")
-- ✅ **Typed Responses**: All mutations now have proper TypeScript interfaces
-
-### v0.6.8 (2026-01-23) — Step 3 Skip Prevention
-- ✅ **Fix A**: Load questions when Step 3 mounts (useEffect with currentStep === 3)
-- ✅ **Fix B**: Gate Step3Interview render - show "Loading..." until questions.length > 0
-- ✅ **Fix C**: `canProceed()` returns false when questions.length === 0
-- ✅ **Fix D**: Map API response to Question interface (handles both `text` and `question` keys)
+**Status**: ⚠️ **PARTIALLY WORKING** (4/5 topics match, 1 never matches)
 
 ---
 
-## Success Criteria
+### ✅ Issue #3: Backend Question Schema (FIXED - 100%)
 
-- [x] Schema accepts all UI values (no enum mismatch)
-- [x] AIDetectedFields sends correct types (arrays/strings)
-- [x] Step1Context uses single source of truth
-- [x] Validation callback is direct (no serialization)
-- [x] Edge function returns correct Question interface
-- [x] All mutations attach JWT explicitly
-- [x] Step3 shows loading when questions fail to load
-- [x] **Step 3 cannot skip** - must have questions loaded before proceeding
-- [ ] **User test:** Step 3 loads questions → interview works
+**Claim**: Backend returns wrong shape (question/category vs text/topic).
+
+**Verification** (onboarding-agent lines 504-570):
+```typescript
+const allQuestions = [
+  {
+    id: "q1_traction",
+    text: "What's your current monthly revenue or traction?",  // ✅ text (not question)
+    type: "multiple_choice" as const,                          // ✅ type present
+    topic: "traction",                                          // ✅ topic (not category)
+    why_matters: "Traction is one of the strongest...",        // ✅ why_matters present
+    options: [
+      { id: "a1", text: "Pre-revenue" },                       // ✅ correct shape
+    ],
+  },
+];
+```
+
+**Status**: ✅ **CORRECTLY IMPLEMENTED**
 
 ---
 
-## Root Cause Summary
+### ❌ Issue #4: `run_analysis` Action Missing (RED FLAG - 0%)
 
-**Step 3 "skipped" to "Interview Complete!" because:**
+**Claim**: Client calls `run_analysis` but backend has no case for it.
 
-1. `loadQuestions()` was triggered when *leaving* Step 2 (async, non-blocking)
-2. Step 3 rendered before questions arrived → `questions.length === 0`
-3. `isComplete = currentQuestionIndex >= questions.length` → `0 >= 0` = TRUE
-4. Result: Immediate "Interview Complete!" even though no questions existed
+**Client** (useOnboardingAgent.ts lines 275-289):
+```typescript
+const runAnalysisMutation = useMutation({
+  mutationFn: (params: { session_id: string }): Promise<...> =>
+    invokeAgent({
+      action: 'run_analysis',  // ❌ This action is called
+      session_id: params.session_id,
+    }),
+});
+```
 
-**Fixed by:**
-- Loading questions on Step 3 mount (not Step 2 exit)
-- Gating Step3Interview render until `questions.length > 0`
-- Blocking `canProceed()` until questions are loaded
+**Backend switch** (onboarding-agent lines 1018-1111):
+```typescript
+switch (action) {
+  case "create_session": ...
+  case "update_session": ...
+  // ... NO "run_analysis" case
+  default:
+    throw new Error(`Unknown action: ${action}`);  // ❌ Will hit this
+}
+```
+
+**Status**: ❌ **GUARANTEED RUNTIME ERROR** when called
+
+---
+
+### ❌ Issue #5: Step 4 Traction Display (BROKEN - 20%)
+
+**Claim**: Step 4 expects `current_mrr` but backend stores `mrr_range`.
+
+**Step4Review expectations** (lines 307-338):
+```typescript
+{data.extracted_traction?.current_mrr    // expects NUMBER
+  ? `$${data.extracted_traction.current_mrr.toLocaleString()}`
+  : 'Not set'}
+```
+
+**Backend stores** (onboarding-agent lines 611-643):
+```typescript
+extractedTraction = { mrr_range: "10k_plus" };    // ❌ STRING not number
+extractedFunding = { is_raising: true };          // ❌ No target_amount
+```
+
+**Status**: ❌ **WILL ALWAYS SHOW "Not set"**
+
+---
+
+### ✅ Issue #6: Advisor Persona Shape (FIXED - 100%)
+
+**Status**: ✅ Backend now returns `intro` field (lines 581-584)
+
+---
+
+### ⚠️ Issue #7: Multi-select Answer Storage (RISK - 50%)
+
+**Status**: ⚠️ **FUTURE BUG** - No multi_select questions exist yet, but when added, signals won't detect
+
+---
+
+### ✅ Issue #8: Authentication 401 Fix (FIXED - 100%)
+
+**Status**: ✅ `invokeAgent()` helper explicitly attaches JWT (lines 114-131)
+
+---
+
+## 🔴 Critical Errors (P0 - Fix Immediately)
+
+| # | Issue | File | Impact |
+|---|-------|------|--------|
+| 1 | `run_analysis` not implemented | `onboarding-agent/index.ts` | 400 error when called |
+| 2 | Traction fields mismatch | `Step4Review.tsx` + backend | Always shows "Not set" |
+
+---
+
+## 🟡 Medium Issues (P1 - Fix Soon)
+
+| # | Issue | File | Impact |
+|---|-------|------|--------|
+| 3 | "Business Model" topic never matches | `Step3Interview.tsx` | Badge never activates |
+| 4 | Multi-select will break signals | `processAnswer()` | Future bug |
+
+---
+
+## 🟢 Working Correctly
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Empty questions guard | ✅ |
+| 2 | Question schema (text/topic/type) | ✅ |
+| 3 | Advisor intro field | ✅ |
+| 4 | JWT authentication helper | ✅ |
+| 5 | Loading state for questions | ✅ |
+| 6 | Questions load on Step 3 mount | ✅ |
+| 7 | canProceed() guards empty questions | ✅ |
+
+---
+
+## 📋 Implementation Fixes Required
+
+### Fix #1: Remove `run_analysis` (Immediate)
+Remove lines 274-289, 301, 311, 322 from `useOnboardingAgent.ts`
+
+### Fix #2: Align Traction Display (Immediate)
+Update `Step4Review.tsx` to display `mrr_range` string instead of `current_mrr` number
+
+### Fix #3: Normalize Topic Matching
+Add normalization to topic comparison in `Step3Interview.tsx`
+
+---
+
+## 📈 Progress Tracker
+
+| Milestone | Status |
+|-----------|--------|
+| Authentication fix (invokeAgent) | ✅ Done |
+| Question schema alignment | ✅ Done |
+| Empty questions guard | ✅ Done |
+| Questions load on Step 3 mount | ✅ Done |
+| canProceed() guards Step 3 | ✅ Done |
+| Remove `run_analysis` | ⏳ Pending |
+| Fix traction display | ⏳ Pending |
+| Fix topic normalization | ⏳ Pending |
+
+---
+
+## 🧪 User Journey Verification
+
+- [ ] **Step 1 → Step 2**: Form validates, advances
+- [ ] **Step 2 → Step 3**: Readiness calculated, questions load
+- [ ] **Step 3**: Questions render, answers record, topics highlight
+- [ ] **Step 3 → Step 4**: Score calculates, summary generates
+- [ ] **Step 4 → Complete**: Startup created, redirects to dashboard
