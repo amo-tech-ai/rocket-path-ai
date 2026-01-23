@@ -7,11 +7,14 @@ import WizardLayout from '@/components/onboarding/WizardLayout';
 import WizardAIPanel from '@/components/onboarding/WizardAIPanel';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import useWizardSession, { WizardFormData } from '@/hooks/useWizardSession';
+import useWizardSession, { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/useWizardSession';
 import useOnboardingAgent from '@/hooks/useOnboardingAgent';
 
-// Step placeholder components (to be implemented in later prompts)
-import Step1Context from '@/components/onboarding/steps/Step1Context';
+// Step components
+import Step1Context from '@/components/onboarding/step1/Step1Context';
+import Step2Analysis from '@/components/onboarding/step2/Step2Analysis';
+import Step3Interview, { Question, AdvisorPersona } from '@/components/onboarding/step3/Step3Interview';
+import Step4Review from '@/components/onboarding/step4/Step4Review';
 
 const WIZARD_STEPS = [
   { number: 1, title: 'Context & Enrichment', description: 'Add your links and info' },
@@ -36,12 +39,44 @@ export default function OnboardingWizard() {
   const {
     enrichUrl,
     enrichContext,
+    enrichFounder,
+    calculateReadiness,
+    getQuestions,
+    processAnswer,
+    calculateScore,
+    generateSummary,
     completeWizard,
+    isEnrichingUrl,
+    isEnrichingContext,
+    isEnrichingFounder,
+    isCalculatingReadiness,
+    isGettingQuestions,
+    isProcessingAnswer,
+    isCalculatingScore,
+    isGeneratingSummary,
+    isCompletingWizard,
     isProcessing,
   } = useOnboardingAgent();
 
   const [formData, setFormData] = useState<WizardFormData>({});
   const [extractions, setExtractions] = useState<Record<string, unknown>>({});
+  const [urlExtractionDone, setUrlExtractionDone] = useState(false);
+  const [urlExtractionError, setUrlExtractionError] = useState<string | undefined>();
+  
+  // Step 2 state
+  const [readinessScore, setReadinessScore] = useState<ReadinessScore | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState<Record<string, boolean>>({});
+  
+  // Step 3 state
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<InterviewAnswer[]>([]);
+  const [signals, setSignals] = useState<string[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [advisor, setAdvisor] = useState<AdvisorPersona | null>(null);
+  
+  // Step 4 state
+  const [investorScore, setInvestorScore] = useState<InvestorScore | null>(null);
+  const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
 
   // Redirect if wizard is already complete
   useEffect(() => {
@@ -54,9 +89,26 @@ export default function OnboardingWizard() {
   useEffect(() => {
     if (session?.form_data) {
       setFormData(session.form_data);
+      if (session.form_data.readiness_score) {
+        setReadinessScore(session.form_data.readiness_score);
+      }
+      if (session.form_data.interview_answers) {
+        setAnswers(session.form_data.interview_answers);
+        setCurrentQuestionIndex(session.form_data.interview_answers.length);
+      }
+      if (session.form_data.signals) {
+        setSignals(session.form_data.signals);
+      }
+      if (session.form_data.investor_score) {
+        setInvestorScore(session.form_data.investor_score);
+      }
+      if (session.form_data.ai_summary) {
+        setAiSummary(session.form_data.ai_summary);
+      }
     }
     if (session?.ai_extractions) {
       setExtractions(session.ai_extractions);
+      setUrlExtractionDone(Object.keys(session.ai_extractions).length > 0);
     }
   }, [session]);
 
@@ -70,64 +122,223 @@ export default function OnboardingWizard() {
 
   const completedSteps = (): number[] => {
     const completed: number[] = [];
-    // Step 1 is complete if we have company name or website
-    if (formData.company_name || formData.website_url) {
+    if (formData.company_name || formData.website_url || formData.description) {
       completed.push(1);
     }
-    // Add more step completion logic as needed
+    if (readinessScore) {
+      completed.push(2);
+    }
+    if (answers.length > 0) {
+      completed.push(3);
+    }
+    if (investorScore) {
+      completed.push(4);
+    }
     return completed;
   };
 
   const canProceed = (): boolean => {
     switch (currentStep) {
       case 1:
-        return !!(formData.company_name?.trim() || formData.website_url?.trim());
+        return !!(formData.company_name?.trim() || formData.website_url?.trim() || formData.description?.trim());
       case 2:
-        return true; // AI Analysis is read-only
+        return !!readinessScore;
       case 3:
-        return true; // Smart Interviewer completion TBD
+        return currentQuestionIndex >= questions.length || answers.length >= 3;
       case 4:
-        return true; // Review is always ready
+        return true;
       default:
         return false;
     }
   };
 
-  const handleNext = async () => {
-    if (currentStep < 4) {
-      // Run AI enrichment when moving from step 1 to 2
-      if (currentStep === 1 && session?.id) {
-        try {
-          if (formData.website_url) {
-            const result = await enrichUrl({
-              session_id: session.id,
-              url: formData.website_url,
-            });
-            if (result.extractions) {
-              setExtractions(result.extractions);
-            }
-          } else if (formData.description) {
-            const result = await enrichContext({
-              session_id: session.id,
-              description: formData.description,
-              target_market: formData.target_market,
-            });
-            if (result.extractions) {
-              setExtractions(result.extractions);
-            }
-          }
-        } catch (error) {
-          console.error('Enrichment error:', error);
+  // Step 1 handlers
+  const handleEnrichUrl = async () => {
+    if (!session?.id || !formData.website_url) return;
+    
+    setUrlExtractionError(undefined);
+    try {
+      const result = await enrichUrl({
+        session_id: session.id,
+        url: formData.website_url,
+      });
+      if (result.extractions) {
+        setExtractions(result.extractions);
+        setUrlExtractionDone(true);
+        // Auto-fill form fields
+        if (result.extractions.company_name && !formData.company_name) {
+          updateFormData({ 
+            company_name: result.extractions.company_name,
+            name: result.extractions.company_name,
+          });
+        }
+        if (result.extractions.industry) {
+          updateFormData({ industry: result.extractions.industry });
+        }
+        if (result.extractions.description && !formData.description) {
+          updateFormData({ description: result.extractions.description });
         }
       }
-      
-      setCurrentStep(currentStep + 1);
+    } catch (error: any) {
+      setUrlExtractionError(error?.message || 'Failed to extract data');
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+  const handleEnrichContext = async () => {
+    if (!session?.id || !formData.description) return;
+    
+    try {
+      const result = await enrichContext({
+        session_id: session.id,
+        description: formData.description,
+        target_market: formData.target_market,
+      });
+      if (result.extractions) {
+        setExtractions(prev => ({ ...prev, ...result.extractions }));
+      }
+    } catch (error) {
+      console.error('Context enrichment error:', error);
+    }
+  };
+
+  const handleEnrichFounder = async (founderId: string, linkedinUrl: string) => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await enrichFounder({
+        session_id: session.id,
+        linkedin_url: linkedinUrl,
+      });
+      if (result.success) {
+        // Update founder with enriched data
+        const founders = formData.founders || [];
+        updateFormData({
+          founders: founders.map(f => 
+            f.id === founderId ? { ...f, enriched: true } : f
+          ),
+        });
+      }
+    } catch (error) {
+      console.error('Founder enrichment error:', error);
+    }
+  };
+
+  // Step 2 handlers
+  const handleCalculateReadiness = async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await calculateReadiness({ session_id: session.id });
+      if (result.readiness_score) {
+        setReadinessScore(result.readiness_score);
+        updateFormData({ readiness_score: result.readiness_score });
+      }
+    } catch (error) {
+      console.error('Readiness calculation error:', error);
+    }
+  };
+
+  const handleEnhanceField = async (fieldName: string) => {
+    setIsEnhancing(prev => ({ ...prev, [fieldName]: true }));
+    // Placeholder for field enhancement
+    setTimeout(() => {
+      setIsEnhancing(prev => ({ ...prev, [fieldName]: false }));
+    }, 1000);
+  };
+
+  // Step 3 handlers
+  const loadQuestions = async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await getQuestions({ 
+        session_id: session.id,
+        answered_question_ids: answers.map(a => a.question_id),
+      });
+      if (result.questions) {
+        setQuestions(result.questions);
+      }
+      if (result.advisor) {
+        setAdvisor(result.advisor);
+      }
+    } catch (error) {
+      console.error('Get questions error:', error);
+    }
+  };
+
+  const handleAnswer = async (questionId: string, answerId: string, answerText?: string) => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await processAnswer({
+        session_id: session.id,
+        question_id: questionId,
+        answer_id: answerId,
+        answer_text: answerText,
+      });
+      
+      const newAnswer: InterviewAnswer = {
+        question_id: questionId,
+        answer_id: answerId,
+        answer_text: answerText,
+        timestamp: new Date().toISOString(),
+      };
+      
+      const newAnswers = [...answers, newAnswer];
+      setAnswers(newAnswers);
+      updateFormData({ interview_answers: newAnswers });
+      
+      if (result.signals) {
+        const newSignals = [...new Set([...signals, ...result.signals])];
+        setSignals(newSignals);
+        updateFormData({ signals: newSignals });
+      }
+      
+      if (result.extracted_traction) {
+        updateFormData({ extracted_traction: result.extracted_traction });
+      }
+      if (result.extracted_funding) {
+        updateFormData({ extracted_funding: result.extracted_funding });
+      }
+    } catch (error) {
+      console.error('Process answer error:', error);
+    }
+  };
+
+  const handleSkipQuestion = () => {
+    // Just move to next question without recording answer
+  };
+
+  const handleInterviewComplete = () => {
+    setCurrentStep(4);
+  };
+
+  // Step 4 handlers
+  const handleCalculateScore = async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await calculateScore({ session_id: session.id });
+      if (result.investor_score) {
+        setInvestorScore(result.investor_score);
+        updateFormData({ investor_score: result.investor_score });
+      }
+    } catch (error) {
+      console.error('Calculate score error:', error);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await generateSummary({ session_id: session.id });
+      if (result.summary) {
+        setAiSummary(result.summary);
+        updateFormData({ ai_summary: result.summary });
+      }
+    } catch (error) {
+      console.error('Generate summary error:', error);
     }
   };
 
@@ -144,6 +355,42 @@ export default function OnboardingWizard() {
     }
   };
 
+  // Navigation handlers
+  const handleNext = async () => {
+    if (currentStep < 4) {
+      // Run step-specific actions before moving
+      if (currentStep === 1) {
+        // Run readiness calculation when entering step 2
+        if (!readinessScore && session?.id) {
+          handleCalculateReadiness();
+        }
+      }
+      
+      if (currentStep === 2) {
+        // Load questions when entering step 3
+        if (questions.length === 0) {
+          loadQuestions();
+        }
+      }
+      
+      if (currentStep === 3) {
+        // Calculate score when entering step 4
+        if (!investorScore && session?.id) {
+          handleCalculateScore();
+          handleGenerateSummary();
+        }
+      }
+      
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleSaveLater = () => {
     toast({
       title: 'Progress saved',
@@ -153,7 +400,6 @@ export default function OnboardingWizard() {
   };
 
   const handleStepChange = (step: number) => {
-    // Only allow going to completed steps or current step
     if (step <= currentStep) {
       setCurrentStep(step);
     }
@@ -183,6 +429,11 @@ export default function OnboardingWizard() {
           currentStep={currentStep}
           isProcessing={isProcessing}
           extractions={extractions as any}
+          readinessScore={readinessScore}
+          investorScore={investorScore}
+          aiSummary={aiSummary}
+          signals={signals}
+          questionCount={questions.length > 0 ? { answered: answers.length, total: questions.length } : undefined}
         />
       }
     >
@@ -262,38 +513,71 @@ export default function OnboardingWizard() {
               <Step1Context
                 data={formData}
                 updateData={updateFormData}
+                onEnrichUrl={handleEnrichUrl}
+                onEnrichContext={handleEnrichContext}
+                onEnrichFounder={handleEnrichFounder}
+                isEnrichingUrl={isEnrichingUrl}
+                isEnrichingContext={isEnrichingContext}
+                isEnrichingFounder={isEnrichingFounder}
+                urlExtractionDone={urlExtractionDone}
+                urlExtractionError={urlExtractionError}
               />
             )}
             {currentStep === 2 && (
-              <div className="ai-panel-card p-6">
-                <p className="text-muted-foreground">AI Analysis step - coming in Prompt 02</p>
-              </div>
+              <Step2Analysis
+                data={formData}
+                onUpdate={updateFormData}
+                readinessScore={readinessScore}
+                onRecalculate={handleCalculateReadiness}
+                onEnhanceField={handleEnhanceField}
+                isCalculating={isCalculatingReadiness}
+                isEnhancing={isEnhancing}
+              />
             )}
             {currentStep === 3 && (
-              <div className="ai-panel-card p-6">
-                <p className="text-muted-foreground">Smart Interviewer step - coming in Prompt 03</p>
-              </div>
+              <Step3Interview
+                sessionId={session?.id || ''}
+                questions={questions}
+                answers={answers}
+                signals={signals}
+                advisor={advisor}
+                onAnswer={handleAnswer}
+                onSkip={handleSkipQuestion}
+                onComplete={handleInterviewComplete}
+                isProcessing={isProcessingAnswer}
+                currentQuestionIndex={currentQuestionIndex}
+                onSetCurrentIndex={setCurrentQuestionIndex}
+              />
             )}
             {currentStep === 4 && (
-              <div className="ai-panel-card p-6">
-                <p className="text-muted-foreground">Review & Score step - coming in Prompt 04</p>
-              </div>
+              <Step4Review
+                data={formData}
+                onUpdate={updateFormData}
+                investorScore={investorScore}
+                aiSummary={aiSummary}
+                onRecalculateScore={handleCalculateScore}
+                onRegenerateSummary={handleGenerateSummary}
+                onComplete={handleComplete}
+                isCalculatingScore={isCalculatingScore}
+                isGeneratingSummary={isGeneratingSummary}
+                isCompleting={isCompletingWizard}
+              />
             )}
           </motion.div>
         </AnimatePresence>
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 1}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+        {currentStep < 4 && (
+          <div className="flex items-center justify-between mt-8 pt-6 border-t">
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={currentStep === 1}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
 
-          {currentStep < 4 ? (
             <Button
               onClick={handleNext}
               disabled={!canProceed() || isProcessing}
@@ -315,26 +599,8 @@ export default function OnboardingWizard() {
                 </>
               )}
             </Button>
-          ) : (
-            <Button
-              onClick={handleComplete}
-              disabled={isProcessing}
-              className="gap-2"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Complete Setup
-                </>
-              )}
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </WizardLayout>
   );
