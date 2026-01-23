@@ -121,6 +121,12 @@ Returns { success: true } when all 6 fields valid
 - ✅ **Loading State**: Step3Interview shows "Loading..." when questions array is empty (not "Complete!")
 - ✅ **Typed Responses**: All mutations now have proper TypeScript interfaces
 
+### v0.6.8 (2026-01-23) — Step 3 Skip Prevention
+- ✅ **Fix A**: Load questions when Step 3 mounts (useEffect with currentStep === 3)
+- ✅ **Fix B**: Gate Step3Interview render - show "Loading..." until questions.length > 0
+- ✅ **Fix C**: `canProceed()` returns false when questions.length === 0
+- ✅ **Fix D**: Map API response to Question interface (handles both `text` and `question` keys)
+
 ---
 
 ## Success Criteria
@@ -132,14 +138,21 @@ Returns { success: true } when all 6 fields valid
 - [x] Edge function returns correct Question interface
 - [x] All mutations attach JWT explicitly
 - [x] Step3 shows loading when questions fail to load
+- [x] **Step 3 cannot skip** - must have questions loaded before proceeding
 - [ ] **User test:** Step 3 loads questions → interview works
 
 ---
 
 ## Root Cause Summary
 
-The architecture is now correct. If Step 3 still shows "Loading..." forever:
+**Step 3 "skipped" to "Interview Complete!" because:**
 
-1. **Check console for 401 errors** (user not logged in)
-2. **Check network tab for response** (should see `questions: [...]`)
-3. **Verify auth session exists** in localStorage
+1. `loadQuestions()` was triggered when *leaving* Step 2 (async, non-blocking)
+2. Step 3 rendered before questions arrived → `questions.length === 0`
+3. `isComplete = currentQuestionIndex >= questions.length` → `0 >= 0` = TRUE
+4. Result: Immediate "Interview Complete!" even though no questions existed
+
+**Fixed by:**
+- Loading questions on Step 3 mount (not Step 2 exit)
+- Gating Step3Interview render until `questions.length > 0`
+- Blocking `canProceed()` until questions are loaded
