@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { InterviewAnswer } from '@/hooks/useWizardSession';
 import { cn } from '@/lib/utils';
 
@@ -101,17 +102,51 @@ export function Step3Interview({
     onSkip();
   };
 
-  // Loading state: questions haven't loaded yet
+  // FIX 8: Loading skeleton that matches question card layout
   if (!hasQuestions) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+      <div className="space-y-6">
+        {/* Progress skeleton */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <Skeleton className="h-2 w-full" />
         </div>
-        <h2 className="text-xl font-semibold mb-2">Loading Interview Questions...</h2>
-        <p className="text-muted-foreground">
-          Preparing your personalized interview. This may take a moment.
-        </p>
+        
+        {/* Topics skeleton */}
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-6 w-20 rounded-full" />
+          ))}
+        </div>
+        
+        {/* Question card skeleton */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-3/4" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-4 w-2/3 mt-4" />
+          </CardContent>
+        </Card>
+        
+        {/* Navigation skeleton */}
+        <div className="flex items-center justify-between pt-4">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-28" />
+        </div>
+        
+        {/* Loading indicator */}
+        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">Loading interview questions...</span>
+        </div>
       </div>
     );
   }
@@ -269,10 +304,12 @@ export function Step3Interview({
           <SkipForward className="h-4 w-4 mr-2" />
           Skip Question
         </Button>
+        {/* FIX 5: Disable Continue when no currentQuestion */}
         <Button
           onClick={handleContinue}
           disabled={
             isProcessing ||
+            !currentQuestion ||
             (currentQuestion?.type === 'multiple_choice' && !selectedAnswer) ||
             (currentQuestion?.type === 'multi_select' && selectedMulti.length === 0)
           }
