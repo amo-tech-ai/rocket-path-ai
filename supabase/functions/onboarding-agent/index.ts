@@ -82,17 +82,15 @@ async function createSession(
 ) {
   console.log("Creating session for user:", userId);
   
-  // Get user's org_id
-  const { data: profile, error: profileError } = await supabase
+  // Get user's org_id (use maybeSingle to handle missing profile gracefully)
+  const { data: profile } = await supabase
     .from("profiles")
     .select("org_id")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
 
-  if (profileError) {
-    console.error("Profile error:", profileError);
-    throw new Error("Could not find user profile");
-  }
+  // Continue even if profile doesn't exist yet (new signup race condition)
+  const userOrgId = profile?.org_id || null;
 
   // Check for existing in-progress session
   const { data: existingSession } = await supabase
