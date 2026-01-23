@@ -41,11 +41,11 @@ interface Step4ReviewProps {
 }
 
 function getScoreLabel(score: number) {
-  if (score >= 85) return { label: 'EXCELLENT', sublabel: 'Ready for Series A talks', color: 'text-emerald-500' };
-  if (score >= 70) return { label: 'STRONG', sublabel: 'Ready for Seed talks', color: 'text-green-500' };
-  if (score >= 55) return { label: 'GOOD', sublabel: 'Building momentum', color: 'text-primary' };
-  if (score >= 40) return { label: 'FAIR', sublabel: 'Keep building', color: 'text-yellow-500' };
-  return { label: 'EARLY', sublabel: 'Focus on fundamentals', color: 'text-orange-500' };
+  if (score >= 85) return { label: 'EXCELLENT', sublabel: 'Ready for Series A talks', color: 'text-primary' };
+  if (score >= 70) return { label: 'STRONG', sublabel: 'Ready for Seed talks', color: 'text-primary/90' };
+  if (score >= 55) return { label: 'GOOD', sublabel: 'Building momentum', color: 'text-primary/80' };
+  if (score >= 40) return { label: 'FAIR', sublabel: 'Keep building', color: 'text-muted-foreground' };
+  return { label: 'EARLY', sublabel: 'Focus on fundamentals', color: 'text-destructive' };
 }
 
 interface ScoreBreakdownBarProps {
@@ -211,7 +211,7 @@ export function Step4Review({
                       <ul className="space-y-1">
                         {aiSummary.strengths.map((s, i) => (
                           <li key={i} className="text-sm flex items-start gap-2">
-                            <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                            <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                             {s}
                           </li>
                         ))}
