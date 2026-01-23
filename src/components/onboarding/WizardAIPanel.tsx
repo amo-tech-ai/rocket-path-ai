@@ -1,4 +1,4 @@
-import { Sparkles, Globe, Search, Target, FileText, Brain, TrendingUp, BarChart3, Users, MessageSquare, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Globe, Search, Target, FileText, Brain, TrendingUp, BarChart3, Users, MessageSquare, CheckCircle2, AlertCircle, Loader2, Signal, Zap, ArrowRight, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -253,74 +253,166 @@ export function WizardAIPanel({
           </>
         )}
 
-        {/* Step 2: Readiness Score + Benchmarks */}
+        {/* Step 2: Analysis Confidence Panel (Matching Reference Design) */}
         {currentStep === 2 && (
           <>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Readiness Score</CardTitle>
+            {/* Analysis Confidence */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Signal className="h-3 w-3" />
+                  Analysis Confidence
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                {readinessScore ? (
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <span className={cn('text-4xl font-bold', getScoreColor(readinessScore.overall_score))}>
-                        {readinessScore.overall_score}
+              <CardContent className="space-y-4">
+                {/* Circular Score */}
+                <div className="flex flex-col items-center justify-center py-2">
+                  <div className="relative w-24 h-24">
+                    <svg className="w-24 h-24 -rotate-90">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        strokeWidth="8"
+                        stroke="hsl(var(--muted))"
+                        fill="none"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        strokeWidth="8"
+                        stroke="hsl(var(--primary))"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${((readinessScore?.overall_score || 0) / 100) * 251.2} 251.2`}
+                        className="transition-all duration-500"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={cn('text-2xl font-bold', getScoreColor(readinessScore?.overall_score || 0))}>
+                        {isProcessing ? '...' : `${readinessScore?.overall_score || 0}%`}
                       </span>
-                      <span className="text-lg text-muted-foreground">/100</span>
-                      <p className={cn('text-sm font-medium mt-1', getScoreColor(readinessScore.overall_score))}>
-                        {getScoreLabel(readinessScore.overall_score)}
-                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        {getScoreLabel(readinessScore?.overall_score || 0)}
+                      </span>
                     </div>
-                    
-                    <Separator />
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      {Object.entries(readinessScore.category_scores).map(([key, value]) => (
-                        <div key={key} className="text-center p-2 bg-accent/30 rounded-lg">
-                          <p className="text-lg font-semibold">{value}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{key}</p>
-                        </div>
-                      ))}
-                    </div>
+                  </div>
+                </div>
 
-                    {readinessScore.benchmarks.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Benchmarks</p>
-                        <div className="space-y-1">
-                          {readinessScore.benchmarks.slice(0, 3).map((b, i) => (
-                            <p key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                              <span className="text-primary">•</span>
-                              {b}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {/* Metadata */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Sources Analyzed</span>
+                    <span className="font-medium">4 URLs</span>
                   </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Score will appear after analysis</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Signals Extracted</span>
+                    <span className="font-medium">12 Signals</span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Grounding</span>
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs bg-primary/10 text-primary border-primary/30"
+                    >
+                      Active
+                    </Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Analysis Focus
+            {/* AI Analyst Brief */}
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-primary uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3" />
+                  AI Analyst Brief
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  Strong founder-market fit with ex-Adobe pedigree. Clear product positioning in growing GenAI creative ops space. Competitive landscape is dense but differentiation via enterprise integrations is defensible.
+                </p>
+                
+                <Separator className="bg-primary/10" />
+                
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                    Primary Strengths
+                  </span>
+                  <p className="text-xs text-foreground/80">
+                    Deep domain expertise + proven enterprise execution
+                  </p>
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Primary Risks
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    High competitor density in DAM/creative space
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recommended Actions */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="h-3 w-3" />
+                  Recommended Actions
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {currentGuidance.items.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                    <span className="text-sm text-muted-foreground">{item.text}</span>
+                {[
+                  { text: 'Validate Founder Details', section: 'Confirm dates & roles from LinkedIn', completed: false },
+                  { text: 'Confirm Competitors', section: 'Are these the right rivals?', completed: false },
+                  { text: 'Review Pricing', section: 'Check if Freemium is accurate', completed: false },
+                ].map((rec, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      'flex items-start gap-2 p-2 rounded-md transition-colors cursor-pointer hover:bg-accent/50',
+                      rec.completed && 'opacity-60'
+                    )}
+                  >
+                    <div className={cn(
+                      'w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5',
+                      rec.completed 
+                        ? 'bg-primary border-primary' 
+                        : 'border-muted-foreground/30'
+                    )}>
+                      {rec.completed && <Check className="h-3 w-3 text-primary-foreground" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={cn(
+                        'text-sm font-medium',
+                        rec.completed && 'line-through'
+                      )}>{rec.text}</p>
+                      <p className="text-xs text-muted-foreground">{rec.section}</p>
+                    </div>
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            {/* Ready to Proceed */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="py-4 space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium text-sm">Ready to proceed?</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Review the insights above. You can edit any field by hovering and clicking the AI enhance icon. All changes are saved automatically.
+                </p>
+                <div className="flex items-center gap-1 text-xs text-primary mt-2">
+                  <ArrowRight className="h-3 w-3" />
+                  <span>Next: Smart Interview to refine details</span>
+                </div>
               </CardContent>
             </Card>
           </>
