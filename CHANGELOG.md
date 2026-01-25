@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.6.6] - 2026-01-25
+
+### Refactored
+- **Onboarding Hooks Modularization**
+  - Split `useOnboardingAgent.ts` into 6 focused files in `src/hooks/onboarding/`
+  - Created `types.ts` - Shared type definitions for all onboarding hooks
+  - Created `invokeAgent.ts` - Secure edge function caller with JWT attachment
+  - Created `useEnrichment.ts` - URL, context, and founder enrichment
+  - Created `useInterview.ts` - Questions and answer processing
+  - Created `useScoring.ts` - Readiness, investor score, and completion
+  - Updated `useWizardSession.ts` to use shared types
+
+- **OnboardingWizard Page Modularization**
+  - Extracted step handlers into `src/pages/onboarding/` module
+  - Created `constants.ts` - Wizard steps and descriptions
+  - Created `useStep1Handlers.ts` - Enrichment operations
+  - Created `useStep3Handlers.ts` - Interview operations with optimistic UI
+  - Created `useStep4Handlers.ts` - Scoring and completion
+  - Created `useWizardNavigation.ts` - Step transitions and validation
+  - Reduced `OnboardingWizard.tsx` from 878 to ~380 lines
+
+### Verified
+- All 7 existing tests pass
+- No breaking changes to public APIs
+- Backwards compatibility maintained via re-exports
+
+---
+
 ## [0.6.5] - 2026-01-23
 
 ### Fixed
