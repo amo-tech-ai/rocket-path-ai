@@ -5,9 +5,10 @@ import { motion } from 'framer-motion';
 interface LeanCanvasGridProps {
   data: LeanCanvasData;
   onUpdate: (key: keyof LeanCanvasData, items: string[]) => void;
+  startupId?: string;
 }
 
-export function LeanCanvasGrid({ data, onUpdate }: LeanCanvasGridProps) {
+export function LeanCanvasGrid({ data, onUpdate, startupId }: LeanCanvasGridProps) {
   return (
     <div className="space-y-4">
       {/* Top Row: 5 columns */}
@@ -25,12 +26,15 @@ export function LeanCanvasGrid({ data, onUpdate }: LeanCanvasGridProps) {
           >
             <CanvasBox
               title={box.title}
+              boxKey={box.key}
               description={box.description}
               placeholder={box.placeholder}
               items={data[box.key]?.items || []}
               validation={data[box.key]?.validation}
               validationMessage={data[box.key]?.validationMessage}
               onUpdate={(items) => onUpdate(box.key, items)}
+              startupId={startupId}
+              canvasData={data}
             />
           </motion.div>
         ))}
@@ -53,12 +57,15 @@ export function LeanCanvasGrid({ data, onUpdate }: LeanCanvasGridProps) {
           >
             <CanvasBox
               title={box.title}
+              boxKey={box.key}
               description={box.description}
               placeholder={box.placeholder}
               items={data[box.key]?.items || []}
               validation={data[box.key]?.validation}
               validationMessage={data[box.key]?.validationMessage}
               onUpdate={(items) => onUpdate(box.key, items)}
+              startupId={startupId}
+              canvasData={data}
             />
           </motion.div>
         ))}
@@ -80,12 +87,15 @@ export function LeanCanvasGrid({ data, onUpdate }: LeanCanvasGridProps) {
           >
             <CanvasBox
               title={box.title}
+              boxKey={box.key}
               description={box.description}
               placeholder={box.placeholder}
               items={data[box.key]?.items || []}
               validation={data[box.key]?.validation}
               validationMessage={data[box.key]?.validationMessage}
               onUpdate={(items) => onUpdate(box.key, items)}
+              startupId={startupId}
+              canvasData={data}
             />
           </motion.div>
         ))}

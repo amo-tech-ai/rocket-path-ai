@@ -280,6 +280,7 @@ const LeanCanvas = () => {
             <LeanCanvasGrid
               data={canvasData}
               onUpdate={handleBoxUpdate}
+              startupId={startup?.id}
             />
           </div>
         )}
