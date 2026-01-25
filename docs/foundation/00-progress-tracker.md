@@ -1,9 +1,24 @@
 # Foundation Progress Tracker
 
 **Last Updated:** 2026-01-25  
-**Status:** ✅ Production Ready - Verified Against Supabase  
+**Status:** ✅ PRODUCTION READY  
 **Edge Function:** `onboarding-agent` (11 actions)  
 **AI Model:** `gemini-3-pro-preview` (verified ✅)
+
+---
+
+## Quick Links
+
+| Document | Purpose |
+|----------|---------|
+| [07-onboarding-prompt.md](./07-onboarding-prompt.md) | Implementation prompts |
+| [08-frontend-backend-wiring.md](./08-frontend-backend-wiring.md) | API integration patterns |
+| [09-diagrams.md](./09-diagrams.md) | System architecture diagrams |
+| [10-onboarding-wireframes.md](./10-onboarding-wireframes.md) | UI wireframes |
+| [11-production-audit.md](./11-production-audit.md) | Production audit results |
+| [12-user-journey.md](./12-user-journey.md) | User journey & outcomes |
+| [13-production-checklist.md](./13-production-checklist.md) | Deployment checklist |
+| [Gemini Docs](../gemini/00-index.md) | AI API reference |
 
 ---
 
