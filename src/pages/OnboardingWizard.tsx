@@ -1,4 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+/**
+ * OnboardingWizard Page
+ * 
+ * 4-step wizard for founder onboarding:
+ * 1. Context & Enrichment - Add links and basic info
+ * 2. AI Analysis - Review Gemini-extracted insights
+ * 3. Smart Interviewer - Answer dynamic questions
+ * 4. Review & Score - Finalize profile and get investor score
+ * 
+ * Refactored to use modular hooks for each step.
+ * @see src/pages/onboarding/ for step handlers and navigation
+ */
+
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,9 +22,10 @@ import OnboardingIntro, { hasSeenIntro } from '@/components/onboarding/Onboardin
 import AIProgressTransition from '@/components/onboarding/AIProgressTransition';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import useWizardSession, { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/useWizardSession';
+import useWizardSession from '@/hooks/useWizardSession';
 import useOnboardingAgent from '@/hooks/useOnboardingAgent';
 import { Step1ValidationErrors, validateStep1 } from '@/lib/step1Schema';
+import type { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/onboarding/types';
 
 // Step components
 import Step1Context from '@/components/onboarding/step1/Step1Context';
@@ -19,17 +33,18 @@ import Step2Analysis from '@/components/onboarding/step2/Step2Analysis';
 import Step3Interview, { Question, AdvisorPersona } from '@/components/onboarding/step3/Step3Interview';
 import Step4Review from '@/components/onboarding/step4/Step4Review';
 
-const WIZARD_STEPS = [
-  { number: 1, title: 'Context & Enrichment', description: 'Add your links and info' },
-  { number: 2, title: 'AI Analysis', description: 'Review AI findings' },
-  { number: 3, title: 'Smart Interviewer', description: 'Answer questions' },
-  { number: 4, title: 'Review & Score', description: 'Finalize your profile' },
-];
+// Modular utilities
+import { WIZARD_STEPS, STEP_DESCRIPTIONS } from './onboarding/constants';
+import { useStep1Handlers } from './onboarding/useStep1Handlers';
+import { useStep3Handlers } from './onboarding/useStep3Handlers';
+import { useStep4Handlers } from './onboarding/useStep4Handlers';
+import { useWizardNavigation } from './onboarding/useWizardNavigation';
 
 export default function OnboardingWizard() {
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  // Session management
   const {
     session,
     isLoading,
@@ -41,8 +56,7 @@ export default function OnboardingWizard() {
     setCurrentStep,
   } = useWizardSession();
   
-  const [isNavigating, setIsNavigating] = useState(false);
-  
+  // AI Agent operations
   const {
     enrichUrl,
     enrichContext,
@@ -65,6 +79,11 @@ export default function OnboardingWizard() {
     isProcessing,
   } = useOnboardingAgent();
 
+  // =========================================================================
+  // State Management
+  // =========================================================================
+  
+  // Form data
   const [formData, setFormData] = useState<WizardFormData>({});
   const [extractions, setExtractions] = useState<Record<string, unknown>>({});
   const [urlExtractionDone, setUrlExtractionDone] = useState(false);
@@ -85,22 +104,116 @@ export default function OnboardingWizard() {
   const [investorScore, setInvestorScore] = useState<InvestorScore | null>(null);
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
   
-  // Step 1 validation state
+  // Step 1 validation
   const [step1Valid, setStep1Valid] = useState(false);
   const [step1Errors, setStep1Errors] = useState<Step1ValidationErrors>({});
-  const [showStep1Validation, setShowStep1Validation] = useState(false);
   
-  // Intro state - show only on first visit
+  // Intro state
   const [showIntro, setShowIntro] = useState(() => !hasSeenIntro());
+
+  const currentStep = session?.current_step || 1;
+
+  // =========================================================================
+  // Callbacks
+  // =========================================================================
   
-  // AI Progress transition state (Step 1 → Step 2)
-  const [showAIProgress, setShowAIProgress] = useState(false);
-  const [pendingStep2Transition, setPendingStep2Transition] = useState(false);
+  const updateFormData = useCallback((updates: Partial<WizardFormData>) => {
+    const newData = { ...formData, ...updates };
+    setFormData(newData);
+    saveFormData(newData);
+  }, [formData, saveFormData]);
 
-  // FIX 3: Ref for stable answers access in loadQuestions
-  const answersRef = useRef<InterviewAnswer[]>([]);
-  answersRef.current = answers;
+  const handleStep1ValidationChange = useCallback((isValid: boolean, errors: Step1ValidationErrors) => {
+    console.log('[Wizard] Step 1 validation received:', { isValid, errorCount: Object.keys(errors).length });
+    setStep1Valid(isValid);
+    setStep1Errors(errors);
+  }, []);
 
+  const handleCalculateReadiness = useCallback(async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await calculateReadiness({ session_id: session.id });
+      if (result.readiness_score) {
+        setReadinessScore(result.readiness_score);
+        updateFormData({ readiness_score: result.readiness_score });
+      }
+    } catch (error) {
+      console.error('Readiness calculation error:', error);
+    }
+  }, [session?.id, calculateReadiness, updateFormData]);
+
+  const handleEnhanceField = useCallback(async (fieldName: string) => {
+    setIsEnhancing(prev => ({ ...prev, [fieldName]: true }));
+    setTimeout(() => {
+      setIsEnhancing(prev => ({ ...prev, [fieldName]: false }));
+    }, 1000);
+  }, []);
+
+  // =========================================================================
+  // Step Handlers (Modular Hooks)
+  // =========================================================================
+  
+  const step1Handlers = useStep1Handlers({
+    sessionId: session?.id,
+    formData,
+    updateFormData,
+    setExtractions: (fn) => setExtractions(prev => fn(prev)),
+    setUrlExtractionDone,
+    setUrlExtractionError,
+    enrichUrl,
+    enrichContext,
+    enrichFounder,
+  });
+
+  const step3Handlers = useStep3Handlers({
+    sessionId: session?.id,
+    answers,
+    signals,
+    currentQuestionIndex,
+    setAnswers,
+    setSignals,
+    setCurrentQuestionIndex,
+    setQuestions,
+    setAdvisor,
+    updateFormData,
+    getQuestions,
+    processAnswer,
+  });
+
+  const step4Handlers = useStep4Handlers({
+    sessionId: session?.id,
+    setInvestorScore,
+    setAiSummary,
+    updateFormData,
+    calculateScore,
+    generateSummary,
+    completeWizard,
+    navigate,
+  });
+
+  const navigation = useWizardNavigation({
+    currentStep,
+    step1Valid,
+    questions,
+    answers,
+    currentQuestionIndex,
+    readinessScore,
+    formData,
+    sessionId: session?.id,
+    ensureSession,
+    flushSave,
+    setCurrentStep,
+    handleCalculateReadiness,
+    loadQuestions: step3Handlers.loadQuestions,
+    handleCalculateScore: step4Handlers.handleCalculateScore,
+    handleGenerateSummary: step4Handlers.handleGenerateSummary,
+  });
+
+  // =========================================================================
+  // Effects
+  // =========================================================================
+  
   // Redirect if wizard is already complete
   useEffect(() => {
     if (isWizardComplete) {
@@ -108,7 +221,7 @@ export default function OnboardingWizard() {
     }
   }, [isWizardComplete, navigate]);
 
-  // Sync form data from session - FIX 7: Restore question progress
+  // Sync form data from session
   useEffect(() => {
     if (session?.form_data) {
       setFormData(session.form_data);
@@ -118,7 +231,6 @@ export default function OnboardingWizard() {
       if (session.form_data.interview_answers) {
         setAnswers(session.form_data.interview_answers);
       }
-      // FIX 7: Restore question index from persisted value, fallback to answers length
       if (session.form_data.current_question_index !== undefined) {
         setCurrentQuestionIndex(session.form_data.current_question_index);
       } else if (session.form_data.interview_answers) {
@@ -140,461 +252,32 @@ export default function OnboardingWizard() {
     }
   }, [session]);
 
-  const currentStep = session?.current_step || 1;
-
-  const updateFormData = (updates: Partial<WizardFormData>) => {
-    const newData = { ...formData, ...updates };
-    setFormData(newData);
-    saveFormData(newData);
-  };
-
-  const completedSteps = (): number[] => {
-    const completed: number[] = [];
-    if (formData.company_name || formData.website_url || formData.description) {
-      completed.push(1);
-    }
-    if (readinessScore) {
-      completed.push(2);
-    }
-    if (answers.length > 0) {
-      completed.push(3);
-    }
-    if (investorScore) {
-      completed.push(4);
-    }
-    return completed;
-  };
-
-  // Validation callback for Step 1 - memoized for stability
-  const handleStep1ValidationChange = useCallback((isValid: boolean, errors: Step1ValidationErrors) => {
-    console.log('[Wizard] Step 1 validation received:', { isValid, errorCount: Object.keys(errors).length, errors });
-    setStep1Valid(isValid);
-    setStep1Errors(errors);
-  }, []);
-
-  // Debug: Log step1Valid changes
-  useEffect(() => {
-    console.log('[Wizard] step1Valid state updated:', step1Valid, 'errorCount:', Object.keys(step1Errors).length);
-  }, [step1Valid, step1Errors]);
-
-  const canProceed = (): boolean => {
-    const result = (() => {
-      switch (currentStep) {
-        case 1:
-          return step1Valid;
-        case 2:
-          // Don't require readiness score - user can proceed without it
-          return true;
-        case 3:
-          // FIX C: Require questions to be loaded before proceeding
-          if (questions.length === 0) return false;
-          return currentQuestionIndex >= questions.length || answers.length >= 3;
-        case 4:
-          return true;
-        default:
-          return false;
-      }
-    })();
-    console.log('[Wizard] canProceed:', result, 'step:', currentStep, 'step1Valid:', step1Valid, 'questions:', questions.length);
-    return result;
-  };
-
-  // Step 1 handlers
-  const handleEnrichUrl = async () => {
-    if (!session?.id || !formData.website_url) return;
-    
-    setUrlExtractionError(undefined);
-    try {
-      const result = await enrichUrl({
-        session_id: session.id,
-        url: formData.website_url,
-      });
-      if (result.extractions) {
-        setExtractions(result.extractions);
-        setUrlExtractionDone(true);
-        // Auto-fill form fields
-        if (result.extractions.company_name && !formData.company_name) {
-          updateFormData({ 
-            company_name: result.extractions.company_name,
-            name: result.extractions.company_name,
-          });
-        }
-        if (result.extractions.industry) {
-          updateFormData({ industry: result.extractions.industry });
-        }
-        if (result.extractions.description && !formData.description) {
-          updateFormData({ description: result.extractions.description });
-        }
-      }
-    } catch (error: any) {
-      setUrlExtractionError(error?.message || 'Failed to extract data');
-    }
-  };
-
-  const handleEnrichContext = async () => {
-    if (!session?.id || !formData.description) return;
-    
-    try {
-      const result = await enrichContext({
-        session_id: session.id,
-        description: formData.description,
-        target_market: formData.target_market,
-      });
-      if (result.extractions) {
-        setExtractions(prev => ({ ...prev, ...result.extractions }));
-      }
-    } catch (error) {
-      console.error('Context enrichment error:', error);
-    }
-  };
-
-  const handleEnrichFounder = async (founderId: string, linkedinUrl: string) => {
-    if (!session?.id) return;
-    
-    try {
-      const result = await enrichFounder({
-        session_id: session.id,
-        linkedin_url: linkedinUrl,
-      });
-      if (result.success) {
-        // Update founder with enriched data
-        const founders = formData.founders || [];
-        updateFormData({
-          founders: founders.map(f => 
-            f.id === founderId ? { ...f, enriched: true } : f
-          ),
-        });
-      }
-    } catch (error) {
-      console.error('Founder enrichment error:', error);
-    }
-  };
-
-  // Step 2 handlers
-  const handleCalculateReadiness = async () => {
-    if (!session?.id) return;
-    
-    try {
-      const result = await calculateReadiness({ session_id: session.id });
-      if (result.readiness_score) {
-        setReadinessScore(result.readiness_score);
-        updateFormData({ readiness_score: result.readiness_score });
-      }
-    } catch (error) {
-      console.error('Readiness calculation error:', error);
-    }
-  };
-
-  const handleEnhanceField = async (fieldName: string) => {
-    setIsEnhancing(prev => ({ ...prev, [fieldName]: true }));
-    // Placeholder for field enhancement
-    setTimeout(() => {
-      setIsEnhancing(prev => ({ ...prev, [fieldName]: false }));
-    }, 1000);
-  };
-
-  // Step 3 handlers - FIX 3: Use ref for stable answers access
-  const loadQuestions = useCallback(async () => {
-    if (!session?.id) {
-      console.warn('[Wizard] loadQuestions: No session ID');
-      return;
-    }
-    
-    // FIX 3: Read current answers from ref instead of closure
-    const currentAnswers = answersRef.current;
-    
-    console.log('[Wizard] Loading questions for session:', session.id);
-    try {
-      const result = await getQuestions({ 
-        session_id: session.id,
-        answered_question_ids: currentAnswers.map(a => a.question_id),
-      });
-      console.log('[Wizard] Questions loaded:', result);
-      
-      // Map API questions to UI Question shape (in case of mismatch)
-      if (result.questions && Array.isArray(result.questions)) {
-        const mappedQuestions: Question[] = result.questions.map((q: any) => ({
-          id: q.id,
-          text: q.text || q.question, // Handle both shapes
-          type: q.type || 'multiple_choice',
-          topic: q.topic || q.category || 'general',
-          why_matters: q.why_matters || 'Helps tailor the next steps to your situation.',
-          options: (q.options ?? []).map((o: any) => ({
-            id: o.id,
-            text: o.text,
-            emoji: o.emoji,
-          })),
-        }));
-        setQuestions(mappedQuestions);
-        console.log('[Wizard] Mapped questions:', mappedQuestions.length);
-      }
-      if (result.advisor) {
-        setAdvisor(result.advisor);
-      }
-    } catch (error) {
-      console.error('[Wizard] Get questions error:', error);
-      toast({
-        title: 'Failed to load questions',
-        description: 'Please try again.',
-        variant: 'destructive',
-      });
-    }
-  }, [session?.id, getQuestions, toast]);
-  
-  // FIX 4: Load questions when Step 3 starts with session check
+  // Load questions when Step 3 starts
   useEffect(() => {
     if (currentStep === 3 && session?.id && questions.length === 0 && !isGettingQuestions) {
       console.log('[Wizard] Step 3 mounted, loading questions...');
-      loadQuestions().catch(console.error);
+      step3Handlers.loadQuestions().catch(console.error);
     }
-  }, [currentStep, session?.id, questions.length, isGettingQuestions, loadQuestions]);
+  }, [currentStep, session?.id, questions.length, isGettingQuestions, step3Handlers.loadQuestions]);
 
-  // Step 4: Auto-load score and summary when entering
+  // Auto-load score and summary when entering Step 4
   useEffect(() => {
     if (currentStep === 4 && session?.id) {
       console.log('[Wizard] Step 4 mounted, loading score and summary...');
       if (!investorScore && !isCalculatingScore) {
-        handleCalculateScore().catch(console.error);
+        step4Handlers.handleCalculateScore().catch(console.error);
       }
       if (!aiSummary && !isGeneratingSummary) {
-        handleGenerateSummary().catch(console.error);
+        step4Handlers.handleGenerateSummary().catch(console.error);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, session?.id]);
 
-  // FIX 1, 2, 6: handleAnswer with session guard, error toast, and optimistic updates
-  const handleAnswer = async (questionId: string, answerId: string, answerText?: string) => {
-    // FIX 1: Session guard with user feedback
-    if (!session?.id) {
-      toast({
-        title: 'Session expired',
-        description: 'Please refresh the page to continue.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // FIX 6: Create answer object immediately (optimistic)
-    const newAnswer: InterviewAnswer = {
-      question_id: questionId,
-      answer_id: answerId,
-      answer_text: answerText,
-      timestamp: new Date().toISOString(),
-    };
-    
-    // FIX 6: Optimistic local state update
-    const previousAnswers = [...answers];
-    const newAnswers = [...answers, newAnswer];
-    const newQuestionIndex = currentQuestionIndex + 1;
-    
-    setAnswers(newAnswers);
-    setCurrentQuestionIndex(newQuestionIndex);
-    
-    // FIX 7: Persist question progress immediately
-    updateFormData({ 
-      interview_answers: newAnswers,
-      current_question_index: newQuestionIndex,
-    });
-    
-    try {
-      // Call API after optimistic update
-      const result = await processAnswer({
-        session_id: session.id,
-        question_id: questionId,
-        answer_id: answerId,
-        answer_text: answerText,
-      });
-      
-      // Merge signals from API response
-      if (result.signals) {
-        const newSignals = [...new Set([...signals, ...result.signals])];
-        setSignals(newSignals);
-        updateFormData({ signals: newSignals });
-      }
-      
-      if (result.extracted_traction) {
-        updateFormData({ extracted_traction: result.extracted_traction });
-      }
-      if (result.extracted_funding) {
-        updateFormData({ extracted_funding: result.extracted_funding });
-      }
-    } catch (error) {
-      // FIX 6: Rollback on failure
-      console.error('Process answer error:', error);
-      setAnswers(previousAnswers);
-      setCurrentQuestionIndex(currentQuestionIndex);
-      updateFormData({ 
-        interview_answers: previousAnswers,
-        current_question_index: currentQuestionIndex,
-      });
-      
-      // FIX 2: Error toast on API failure
-      toast({
-        title: 'Failed to save answer',
-        description: 'Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSkipQuestion = () => {
-    // Just move to next question without recording answer
-    setCurrentQuestionIndex(currentQuestionIndex + 1);
-  };
-
-  const handleInterviewComplete = async () => {
-    // Flush any pending saves before transitioning
-    await flushSave(formData);
-    setCurrentStep(4);
-    // Score/summary will auto-load via Step 4 mount effect
-  };
-
-  // Step 4 handlers
-  const handleCalculateScore = async () => {
-    if (!session?.id) return;
-    
-    try {
-      const result = await calculateScore({ session_id: session.id });
-      if (result.investor_score) {
-        setInvestorScore(result.investor_score);
-        updateFormData({ investor_score: result.investor_score });
-      }
-    } catch (error) {
-      console.error('Calculate score error:', error);
-    }
-  };
-
-  const handleGenerateSummary = async () => {
-    if (!session?.id) return;
-    
-    try {
-      const result = await generateSummary({ session_id: session.id });
-      if (result.summary) {
-        setAiSummary(result.summary);
-        updateFormData({ ai_summary: result.summary });
-      }
-    } catch (error) {
-      console.error('Generate summary error:', error);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!session?.id) return;
-
-    try {
-      const result = await completeWizard({ session_id: session.id });
-      if (result.success) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (error) {
-      console.error('Complete wizard error:', error);
-    }
-  };
-
-  // Navigation handlers
-  const handleNext = async () => {
-    console.log('[Wizard] handleNext called:', { currentStep, step1Valid, sessionId: session?.id, isNavigating });
-    
-    // Prevent double-clicks
-    if (isNavigating) {
-      console.log('[Wizard] Navigation already in progress, ignoring');
-      return;
-    }
-    
-    // Validate Step 1 before proceeding
-    if (currentStep === 1) {
-      if (!step1Valid) {
-        console.warn('[Wizard] Step 1 validation failed, blocking navigation');
-        setShowStep1Validation(true);
-        toast({
-          title: 'Missing required fields',
-          description: 'Please fill in all required fields before continuing.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      setIsNavigating(true);
-      
-      try {
-        // CRITICAL: Ensure session exists before proceeding
-        console.log('[Wizard] Ensuring session exists...');
-        const sessionId = await ensureSession();
-        console.log('[Wizard] Session confirmed:', sessionId);
-        
-        // Flush save form data before advancing (don't debounce)
-        console.log('[Wizard] Flushing form data...');
-        await flushSave(formData);
-        
-        // Show AI progress animation
-        setShowAIProgress(true);
-        setPendingStep2Transition(true);
-        setShowStep1Validation(false);
-        
-        // Run readiness calculation in background
-        if (!readinessScore) {
-          handleCalculateReadiness().catch(console.error);
-        }
-      } catch (error) {
-        console.error('[Wizard] Navigation error:', error);
-        setShowAIProgress(false);
-        setPendingStep2Transition(false);
-        toast({
-          title: 'Session error',
-          description: 'Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsNavigating(false);
-      }
-      return;
-    }
-
-    // Steps 2, 3, 4 navigation
-    if (currentStep < 4) {
-      const sessionId = session?.id;
-      if (!sessionId) {
-        console.error('[Wizard] Cannot advance: no session ID');
-        toast({
-          title: 'Session error',
-          description: 'Please refresh and try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const nextStep = currentStep + 1;
-      console.log('[Wizard] ✅ Advancing to step:', nextStep);
-      
-      // Move to next step immediately (optimistic)
-      setCurrentStep(nextStep);
-      setShowStep1Validation(false);
-      
-      // Run step-specific actions AFTER moving (non-blocking)
-      if (currentStep === 2) {
-        // Load questions when entering step 3 (async, don't await)
-        if (questions.length === 0) {
-          loadQuestions().catch(console.error);
-        }
-      }
-      
-      if (currentStep === 3) {
-        // Calculate score when entering step 4 (async, don't await)
-        if (!investorScore) {
-          handleCalculateScore().catch(console.error);
-          handleGenerateSummary().catch(console.error);
-        }
-      }
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
+  // =========================================================================
+  // Render Helpers
+  // =========================================================================
+  
   const handleSaveLater = () => {
     toast({
       title: 'Progress saved',
@@ -603,12 +286,15 @@ export default function OnboardingWizard() {
     navigate('/');
   };
 
-  const handleStepChange = (step: number) => {
-    if (step <= currentStep) {
-      setCurrentStep(step);
-    }
+  const handleInterviewComplete = async () => {
+    await flushSave(formData);
+    setCurrentStep(4);
   };
 
+  // =========================================================================
+  // Loading & Transition States
+  // =========================================================================
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -631,28 +317,25 @@ export default function OnboardingWizard() {
   }
 
   // Show AI progress transition (Step 1 → Step 2)
-  if (showAIProgress && pendingStep2Transition) {
+  if (navigation.showAIProgress && navigation.pendingStep2Transition) {
     return (
       <AIProgressTransition
-        onComplete={async () => {
-          setShowAIProgress(false);
-          setPendingStep2Transition(false);
-          // Now actually transition to Step 2
-          const nextStep = 2;
-          console.log('[Wizard] ✅ AI Progress complete, advancing to step:', nextStep);
-          await setCurrentStep(nextStep);
-        }}
+        onComplete={navigation.handleAIProgressComplete}
         isAnalysisReady={!!readinessScore}
       />
     );
   }
 
+  // =========================================================================
+  // Main Render
+  // =========================================================================
+  
   return (
     <WizardLayout
       currentStep={currentStep}
-      completedSteps={completedSteps()}
-      steps={WIZARD_STEPS}
-      onStepChange={handleStepChange}
+      completedSteps={navigation.completedSteps()}
+      steps={WIZARD_STEPS as any}
+      onStepChange={navigation.handleStepChange}
       onSaveLater={handleSaveLater}
       isSaving={isSaving}
       aiPanel={
@@ -675,7 +358,7 @@ export default function OnboardingWizard() {
             {WIZARD_STEPS.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 <button
-                  onClick={() => handleStepChange(step.number)}
+                  onClick={() => navigation.handleStepChange(step.number)}
                   disabled={step.number > currentStep}
                   className="flex flex-col items-center gap-1 disabled:opacity-50"
                 >
@@ -724,10 +407,7 @@ export default function OnboardingWizard() {
             {WIZARD_STEPS[currentStep - 1]?.title}
           </h1>
           <p className="text-muted-foreground">
-            {currentStep === 1 && 'Add your links and Gemini 3 will build your profile.'}
-            {currentStep === 2 && 'Review what AI discovered about your startup.'}
-            {currentStep === 3 && 'Answer a few questions to refine your profile.'}
-            {currentStep === 4 && 'Review your complete profile and score.'}
+            {STEP_DESCRIPTIONS[currentStep as keyof typeof STEP_DESCRIPTIONS]}
           </p>
         </div>
 
@@ -744,15 +424,15 @@ export default function OnboardingWizard() {
               <Step1Context
                 data={formData}
                 updateData={updateFormData}
-                onEnrichUrl={handleEnrichUrl}
-                onEnrichContext={handleEnrichContext}
-                onEnrichFounder={handleEnrichFounder}
+                onEnrichUrl={step1Handlers.handleEnrichUrl}
+                onEnrichContext={step1Handlers.handleEnrichContext}
+                onEnrichFounder={step1Handlers.handleEnrichFounder}
                 isEnrichingUrl={isEnrichingUrl}
                 isEnrichingContext={isEnrichingContext}
                 isEnrichingFounder={isEnrichingFounder}
                 urlExtractionDone={urlExtractionDone}
                 urlExtractionError={urlExtractionError}
-                showValidation={showStep1Validation}
+                showValidation={navigation.showStep1Validation}
                 onValidationChange={handleStep1ValidationChange}
               />
             )}
@@ -763,14 +443,13 @@ export default function OnboardingWizard() {
                 readinessScore={readinessScore}
                 onRecalculate={handleCalculateReadiness}
                 onEnhanceField={handleEnhanceField}
-                onEnhanceFounder={handleEnrichFounder}
+                onEnhanceFounder={step1Handlers.handleEnrichFounder}
                 isCalculating={isCalculatingReadiness}
                 isEnhancing={isEnhancing}
                 isEnrichingFounder={isEnrichingFounder}
               />
             )}
             {currentStep === 3 && (
-              // FIX B: Gate rendering - don't show Step3Interview until questions are loaded
               questions.length === 0 ? (
                 <div className="text-center py-16 space-y-4">
                   <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
@@ -778,7 +457,7 @@ export default function OnboardingWizard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => loadQuestions()}
+                    onClick={() => step3Handlers.loadQuestions()}
                     disabled={isGettingQuestions}
                     className="mt-4"
                   >
@@ -792,8 +471,8 @@ export default function OnboardingWizard() {
                   answers={answers}
                   signals={signals}
                   advisor={advisor}
-                  onAnswer={handleAnswer}
-                  onSkip={handleSkipQuestion}
+                  onAnswer={step3Handlers.handleAnswer}
+                  onSkip={step3Handlers.handleSkipQuestion}
                   onComplete={handleInterviewComplete}
                   isProcessing={isProcessingAnswer}
                   currentQuestionIndex={currentQuestionIndex}
@@ -807,9 +486,9 @@ export default function OnboardingWizard() {
                 onUpdate={updateFormData}
                 investorScore={investorScore}
                 aiSummary={aiSummary}
-                onRecalculateScore={handleCalculateScore}
-                onRegenerateSummary={handleGenerateSummary}
-                onComplete={handleComplete}
+                onRecalculateScore={step4Handlers.handleCalculateScore}
+                onRegenerateSummary={step4Handlers.handleGenerateSummary}
+                onComplete={step4Handlers.handleComplete}
                 isCalculatingScore={isCalculatingScore}
                 isGeneratingSummary={isGeneratingSummary}
                 isCompleting={isCompletingWizard}
@@ -823,7 +502,7 @@ export default function OnboardingWizard() {
           <div className="flex items-center justify-between mt-8 pt-6 border-t">
             <Button
               variant="outline"
-              onClick={handleBack}
+              onClick={navigation.handleBack}
               disabled={currentStep === 1}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -835,7 +514,7 @@ export default function OnboardingWizard() {
               {currentStep === 1 && formData.website_url && !urlExtractionDone && (
                 <Button
                   variant="outline"
-                  onClick={handleEnrichUrl}
+                  onClick={step1Handlers.handleEnrichUrl}
                   disabled={isEnrichingUrl}
                 >
                   {isEnrichingUrl ? (
@@ -852,10 +531,10 @@ export default function OnboardingWizard() {
                 </Button>
               )}
 
-              {/* Main Continue/Next button - ALWAYS CLICKABLE on Step 1 */}
+              {/* Main Continue/Next button */}
               <Button
-                onClick={handleNext}
-                disabled={currentStep === 1 ? isProcessing : (!canProceed() || isProcessing)}
+                onClick={navigation.handleNext}
+                disabled={currentStep === 1 ? isProcessing : (!navigation.canProceed() || isProcessing)}
               >
                 {isProcessing ? (
                   <>
