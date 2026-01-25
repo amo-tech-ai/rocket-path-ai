@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.1] - 2025-01-25
+
+### Added
+- Complete AI agent documentation system in `docs/agents/`
+- Agent tracker with implementation status (`00-agent-tracker.md`)
+- Claude SDK & Messages API reference (`01-claude-sdk-reference.md`)
+- Screen-to-agent mapping with frontend-backend wiring (`02-screen-agent-mapping.md`)
+- Individual agent prompts for all 10 agent types:
+  - `01-orchestrator.md` - Multi-step workflow coordination
+  - `02-planner.md` - Task generation and prioritization
+  - `03-analyst.md` - Risk analysis and insights
+  - `04-ops-automation.md` - Automated notifications
+  - `05-content-comms.md` - Email and content generation
+  - `06-retriever.md` - RAG knowledge search
+  - `07-extractor.md` - URL and profile extraction
+  - `08-optimizer.md` - Schedule optimization
+  - `09-scorer.md` - Investor and deal scoring
+  - `10-controller.md` - Action validation and safety
+
 ## [0.7.0] - 2026-01-25
 
 ### Fixed
