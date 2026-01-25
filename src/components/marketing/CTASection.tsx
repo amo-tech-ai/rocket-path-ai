@@ -44,8 +44,8 @@ const CTASection = () => {
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <Button size="lg" className="px-12 py-6 text-base" asChild>
-              <Link to="/dashboard">
-                Create Your Profile
+              <Link to="/login">
+                Start Your Profile
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Link>
             </Button>

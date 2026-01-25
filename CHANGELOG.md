@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.8] - 2026-01-25
+
+### Added
+- **LinkedIn OIDC Authentication**: Added `signInWithLinkedIn()` method using `linkedin_oidc` provider (replaces deprecated `linkedin`)
+- **Social Login Page**: Login.tsx now displays both Google and LinkedIn OAuth buttons
+- **Auth Reference Docs**: Created `docs/auth/00-social-auth-setup.md` with architecture diagrams and setup guide
+
+### Changed
+- **Onboarding Redirect Flow**: OAuth callbacks now redirect to `/onboarding` instead of `/dashboard`
+- **Smart Routing**: Login page checks `profile.onboarding_completed` to route new users to onboarding, returning users to dashboard
+- **CTA Buttons Updated**: "Start Your Profile" buttons throughout marketing pages now link to `/login` instead of `/dashboard`
+
+### Files Modified
+- `src/hooks/useAuth.tsx` - Added `signInWithLinkedIn` method and updated context interface
+- `src/pages/Login.tsx` - Added LinkedIn button with proper OIDC provider
+- `src/components/marketing/HeroSection.tsx` - CTA routes to `/login`
+- `src/components/marketing/CTASection.tsx` - CTA routes to `/login`
+- `src/components/features/FeaturesCTA.tsx` - CTA routes to `/login`
+- `src/components/layout/Header.tsx` - "Start Your Profile" button text
+
+---
+
 ## [0.6.7] - 2026-01-25
 
 ### Added

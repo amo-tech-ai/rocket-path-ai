@@ -137,7 +137,7 @@ const Header = () => {
                   <Link to="/login">Log in</Link>
                 </Button>
                 <Button variant="hero" size="sm" asChild>
-                  <Link to="/login">Start Free</Link>
+                  <Link to="/login">Start Your Profile</Link>
                 </Button>
               </>
             )}

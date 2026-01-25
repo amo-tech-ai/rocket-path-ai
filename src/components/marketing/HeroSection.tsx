@@ -49,7 +49,7 @@ const HeroSection = () => {
               className="flex flex-col sm:flex-row items-start gap-4"
             >
               <Button size="lg" className="px-8" asChild>
-                <Link to="/dashboard">
+                <Link to="/login">
                   Start Your Profile
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>

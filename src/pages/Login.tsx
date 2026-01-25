@@ -6,22 +6,35 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 const Login = () => {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, profile, loading, signInWithGoogle, signInWithLinkedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get the intended destination from state, or default to dashboard
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+  // Get the intended destination from state, or check onboarding status
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
   useEffect(() => {
     if (user && !loading) {
-      navigate(from, { replace: true });
+      // If user has completed onboarding, go to dashboard; otherwise go to onboarding
+      if (profile?.onboarding_completed) {
+        navigate(from || '/dashboard', { replace: true });
+      } else {
+        navigate('/onboarding', { replace: true });
+      }
     }
-  }, [user, loading, navigate, from]);
+  }, [user, profile, loading, navigate, from]);
 
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
+    } catch (error) {
+      console.error('Sign in error:', error);
+    }
+  };
+
+  const handleLinkedInSignIn = async () => {
+    try {
+      await signInWithLinkedIn();
     } catch (error) {
       console.error('Sign in error:', error);
     }
@@ -64,15 +77,15 @@ const Login = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Welcome to StartupAI</h1>
+              <h1 className="text-2xl font-semibold text-foreground">Start Your Profile</h1>
               <p className="text-muted-foreground mt-2">
-                Sign in to access your AI-powered operating system
+                Sign in to begin your AI-powered startup journey
               </p>
             </div>
           </div>
 
           {/* Sign In Options */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Button
               variant="outline"
               size="lg"
@@ -99,6 +112,28 @@ const Login = () => {
               </svg>
               Continue with Google
             </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full h-12 gap-3 text-base font-medium"
+              onClick={handleLinkedInSignIn}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              </svg>
+              Continue with LinkedIn
+            </Button>
+          </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Secure authentication</span>
+            </div>
           </div>
 
           {/* Terms */}

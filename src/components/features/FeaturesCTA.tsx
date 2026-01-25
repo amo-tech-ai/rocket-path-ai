@@ -35,7 +35,7 @@ const FeaturesCTA = () => {
             asChild
           >
             <Link to="/login">
-              Start your profile
+              Start Your Profile
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
