@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import WizardLayout from '@/components/onboarding/WizardLayout';
 import WizardAIPanel from '@/components/onboarding/WizardAIPanel';
+import OnboardingIntro, { hasSeenIntro } from '@/components/onboarding/OnboardingIntro';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import useWizardSession, { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/useWizardSession';
@@ -87,6 +88,9 @@ export default function OnboardingWizard() {
   const [step1Valid, setStep1Valid] = useState(false);
   const [step1Errors, setStep1Errors] = useState<Step1ValidationErrors>({});
   const [showStep1Validation, setShowStep1Validation] = useState(false);
+  
+  // Intro state - show only on first visit
+  const [showIntro, setShowIntro] = useState(() => !hasSeenIntro());
   
   // FIX 3: Ref for stable answers access in loadQuestions
   const answersRef = useRef<InterviewAnswer[]>([]);
@@ -607,6 +611,16 @@ export default function OnboardingWizard() {
           <p className="text-muted-foreground">Loading your setup...</p>
         </div>
       </div>
+    );
+  }
+
+  // Show intro on first visit (Step 1 only)
+  if (showIntro && currentStep === 1) {
+    return (
+      <OnboardingIntro
+        onComplete={() => setShowIntro(false)}
+        onSkip={() => setShowIntro(false)}
+      />
     );
   }
 
