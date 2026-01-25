@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Linkedin, Link2, Plus, AlertCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { WizardFormData, Founder } from '@/hooks/useWizardSession';
 import { validateStep1, getMissingFields, Step1ValidationErrors } from '@/lib/step1Schema';
+
+// Sub-components
+import ValidationSummary from './ValidationSummary';
+import CompanyNameInput from './CompanyNameInput';
 import DescriptionInput from './DescriptionInput';
+import TargetMarketInput from './TargetMarketInput';
 import URLInput from './URLInput';
+import LinkedInInput from './LinkedInInput';
+import AdditionalURLsInput from './AdditionalURLsInput';
 import AIDetectedFields from './AIDetectedFields';
 import FounderCards from './FounderCard';
-import TargetMarketInput from './TargetMarketInput';
 
 interface Step1ContextProps {
   data: WizardFormData;
@@ -41,7 +42,6 @@ export function Step1Context({
   showValidation = false,
   onValidationChange,
 }: Step1ContextProps) {
-  const [additionalUrl, setAdditionalUrl] = useState('');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Validation - use company_name as single source of truth
@@ -67,7 +67,7 @@ export function Step1Context({
     return result;
   }, [data.company_name, data.description, data.target_market, data.stage, data.business_model, data.industry, data.website_url, data.linkedin_url]);
 
-  // Notify parent of validation changes - direct callback, no stringify/parse
+  // Notify parent of validation changes
   useEffect(() => {
     console.log('[Step1Context] Notifying parent of validation:', validation.isValid, validation.errors);
     onValidationChange?.(validation.isValid, validation.errors);
@@ -80,12 +80,9 @@ export function Step1Context({
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
-  const handleAddUrl = () => {
-    if (additionalUrl.trim()) {
-      const urls = data.additional_urls || [];
-      updateData({ additional_urls: [...urls, additionalUrl.trim()] });
-      setAdditionalUrl('');
-    }
+  const handleAddUrl = (url: string) => {
+    const urls = data.additional_urls || [];
+    updateData({ additional_urls: [...urls, url] });
   };
 
   const handleRemoveUrl = (index: number) => {
@@ -127,34 +124,21 @@ export function Step1Context({
   return (
     <div className="space-y-8">
       {/* Validation Summary */}
-      {showErrors && !validation.isValid && missingFields.length > 0 && (
-        <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <span className="font-medium">Missing required fields: </span>
-            {missingFields.join(', ')}
-          </AlertDescription>
-        </Alert>
-      )}
+      <ValidationSummary 
+        missingFields={missingFields}
+        showErrors={showErrors}
+        isValid={validation.isValid}
+      />
 
-      {/* Company Name - single source of truth: company_name */}
-      <div className="space-y-2">
-        <Label htmlFor="company_name" className="flex items-center gap-1">
-          Company Name
-          <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="company_name"
-          placeholder="e.g. ACME Corp"
-          value={data.company_name || ''}
-          onChange={(e) => updateData({ company_name: e.target.value })}
-          onBlur={() => handleBlur('company_name')}
-          className={showErrors && validation.errors.company_name ? 'border-destructive' : ''}
-        />
-        {showErrors && touched.company_name && validation.errors.company_name && (
-          <p className="text-xs text-destructive">{validation.errors.company_name}</p>
-        )}
-      </div>
+      {/* Company Name */}
+      <CompanyNameInput
+        value={data.company_name || ''}
+        onChange={(value) => updateData({ company_name: value })}
+        onBlur={() => handleBlur('company_name')}
+        error={validation.errors.company_name}
+        showError={showErrors}
+        touched={touched.company_name || false}
+      />
 
       {/* Description */}
       <DescriptionInput
@@ -168,7 +152,7 @@ export function Step1Context({
         error={showErrors && touched.description ? validation.errors.description : undefined}
       />
 
-      {/* Target Market - NEW REQUIRED FIELD */}
+      {/* Target Market */}
       <TargetMarketInput
         value={data.target_market || ''}
         onChange={(value) => {
@@ -193,59 +177,18 @@ export function Step1Context({
       />
 
       {/* LinkedIn URL */}
-      <div className="space-y-2">
-        <Label htmlFor="linkedin_url">LinkedIn URL</Label>
-        <div className="relative">
-          <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="linkedin_url"
-            placeholder="https://linkedin.com/company/..."
-            value={data.linkedin_url || ''}
-            onChange={(e) => updateData({ linkedin_url: e.target.value })}
-            onBlur={() => handleBlur('linkedin_url')}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      <LinkedInInput
+        value={data.linkedin_url || ''}
+        onChange={(value) => updateData({ linkedin_url: value })}
+        onBlur={() => handleBlur('linkedin_url')}
+      />
 
       {/* Additional URLs */}
-      <div className="space-y-2">
-        <Label>Additional URLs (optional)</Label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Blog, press release, docs..."
-              value={additionalUrl}
-              onChange={(e) => setAdditionalUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
-              className="pl-10"
-            />
-          </div>
-          <Button variant="outline" onClick={handleAddUrl} disabled={!additionalUrl.trim()}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add
-          </Button>
-        </div>
-        {data.additional_urls && data.additional_urls.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {data.additional_urls.map((url, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-sm"
-              >
-                <span className="truncate max-w-[200px]">{url}</span>
-                <button
-                  onClick={() => handleRemoveUrl(index)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <AdditionalURLsInput
+        urls={data.additional_urls || []}
+        onAdd={handleAddUrl}
+        onRemove={handleRemoveUrl}
+      />
 
       <div className="border-t border-border pt-6" />
 
