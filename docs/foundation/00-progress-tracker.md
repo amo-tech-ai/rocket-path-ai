@@ -18,7 +18,31 @@
 | [11-production-audit.md](./11-production-audit.md) | Production audit results |
 | [12-user-journey.md](./12-user-journey.md) | User journey & outcomes |
 | [13-production-checklist.md](./13-production-checklist.md) | Deployment checklist |
+| [14-system-audit.md](./14-system-audit.md) | Full system audit |
 | [Gemini Docs](../gemini/00-index.md) | AI API reference |
+
+---
+
+## System Overview
+
+```mermaid
+graph LR
+    subgraph "4-Step Wizard"
+        S1[Context] --> S2[Analysis]
+        S2 --> S3[Interview]
+        S3 --> S4[Review]
+    end
+    
+    subgraph "AI Engine"
+        G3[gemini-3-pro-preview]
+    end
+    
+    S1 -->|enrich_url| G3
+    S2 -->|calculate_readiness| G3
+    S4 -->|calculate_score| G3
+    S4 -->|generate_summary| G3
+    S4 -->|complete_wizard| DB[(Supabase)]
+```
 
 ---
 
