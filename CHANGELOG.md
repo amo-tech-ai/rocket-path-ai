@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.7.0] - 2026-01-25
+
+### Fixed
+- **Critical: Profile Lookup Race Condition** 
+  - Changed `.single()` to `.maybeSingle()` in edge function main handler (line 1021)
+  - Prevents 500 errors for new users whose profile trigger hasn't fired yet
+  - This was the root cause of "missing sub claim" errors during new user onboarding
+
+### Verified
+- **Full Production Audit Completed**
+  - Auth flow: 100% - JWT attachment via `invokeAgent` confirmed
+  - AI Enrichment: 100% - `gemini-3-pro-preview` with dual grounding tools
+  - Interview: 100% - Questions load, signals extract
+  - Completion: 100% - Startup creation and redirect verified
+
+### Added
+- **Production Audit V2**: `docs/onboardingV2/10-production-audit-v2.md` with comprehensive checklist
+
+### Technical
+- Edge function redeployed with all fixes
+- All 3 required secrets verified: `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `LOVABLE_API_KEY`
+- Google + LinkedIn OAuth configured and routing to `/onboarding`
+
+---
+
 ## [0.6.9] - 2026-01-25
 
 ### Fixed

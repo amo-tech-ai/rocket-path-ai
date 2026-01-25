@@ -1013,13 +1013,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get user's org_id
+    // Get user's org_id - use maybeSingle to handle new users whose profile
+    // may not exist yet (database trigger latency during signup)
     const { data: profile } = await supabase
       .from("profiles")
       .select("org_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
+    // For new users, org_id might not exist yet - gracefully handle missing profile
     const orgId = profile?.org_id || "";
 
     const body: RequestBody = await req.json();
