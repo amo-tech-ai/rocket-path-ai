@@ -201,7 +201,7 @@ Only include fields you can confidently extract. If you cannot access the URL or
 
   try {
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,7 +245,7 @@ Only include fields you can confidently extract. If you cannot access the URL or
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "enrich_url",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: duration,
       status: "success",
     });
@@ -266,7 +266,7 @@ Only include fields you can confidently extract. If you cannot access the URL or
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "enrich_url",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: Date.now() - startTime,
       status: "error",
       error_message: String(error),
@@ -311,7 +311,7 @@ Extract the following information. Return ONLY valid JSON:
 
   try {
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -345,7 +345,7 @@ Extract the following information. Return ONLY valid JSON:
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "enrich_context",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: duration,
       status: "success",
     });
@@ -423,7 +423,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
 
   try {
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -457,7 +457,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "calculate_readiness",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: duration,
       status: "success",
     });
@@ -695,7 +695,7 @@ Evaluate like an investor would. Return ONLY valid JSON:
 
   try {
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -729,7 +729,7 @@ Evaluate like an investor would. Return ONLY valid JSON:
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "calculate_score",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: duration,
       status: "success",
     });
@@ -780,7 +780,7 @@ Return ONLY valid JSON:
 
   try {
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -814,7 +814,7 @@ Return ONLY valid JSON:
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "generate_summary",
-      model: "gemini-2.0-flash",
+      model: "gemini-3-pro-preview",
       duration_ms: duration,
       status: "success",
     });
