@@ -3452,7 +3452,9 @@ export type Database = {
       }
       wizard_sessions: {
         Row: {
+          ai_enrichments: Json | null
           ai_extractions: Json | null
+          ai_summary: Json | null
           completed_at: string | null
           created_at: string | null
           current_step: number | null
@@ -3462,20 +3464,25 @@ export type Database = {
           extracted_funding: Json | null
           extracted_traction: Json | null
           form_data: Json | null
+          grounding_metadata: Json | null
           id: string
           industry_pack_id: string | null
           interview_answers: Json | null
           interview_progress: number | null
+          investor_score: number | null
           last_activity_at: string | null
           profile_strength: number | null
           signals: string[] | null
           started_at: string | null
           startup_id: string | null
           status: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
+          ai_enrichments?: Json | null
           ai_extractions?: Json | null
+          ai_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
           current_step?: number | null
@@ -3485,20 +3492,25 @@ export type Database = {
           extracted_funding?: Json | null
           extracted_traction?: Json | null
           form_data?: Json | null
+          grounding_metadata?: Json | null
           id?: string
           industry_pack_id?: string | null
           interview_answers?: Json | null
           interview_progress?: number | null
+          investor_score?: number | null
           last_activity_at?: string | null
           profile_strength?: number | null
           signals?: string[] | null
           started_at?: string | null
           startup_id?: string | null
           status?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
+          ai_enrichments?: Json | null
           ai_extractions?: Json | null
+          ai_summary?: Json | null
           completed_at?: string | null
           created_at?: string | null
           current_step?: number | null
@@ -3508,16 +3520,19 @@ export type Database = {
           extracted_funding?: Json | null
           extracted_traction?: Json | null
           form_data?: Json | null
+          grounding_metadata?: Json | null
           id?: string
           industry_pack_id?: string | null
           interview_answers?: Json | null
           interview_progress?: number | null
+          investor_score?: number | null
           last_activity_at?: string | null
           profile_strength?: number | null
           signals?: string[] | null
           started_at?: string | null
           startup_id?: string | null
           status?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -3549,6 +3564,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_wizard_atomic: {
+        Args: {
+          p_session_id: string
+          p_startup_data: Json
+          p_tasks_data: Json
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3579,6 +3603,18 @@ export type Database = {
         Returns: string
       }
       org_role: { Args: never; Returns: string }
+      process_answer_atomic: {
+        Args: {
+          p_extracted_funding: Json
+          p_extracted_traction: Json
+          p_form_data: Json
+          p_interview_answers: Json
+          p_session_id: string
+          p_signals: string[]
+          p_user_id: string
+        }
+        Returns: Json
+      }
       slide_in_org: { Args: { slide_deck_id: string }; Returns: boolean }
       startup_in_org: { Args: { check_startup_id: string }; Returns: boolean }
       user_org_id: { Args: never; Returns: string }
