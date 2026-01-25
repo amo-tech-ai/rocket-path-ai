@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.7] - 2026-01-25
+
+### Added
+- **Per-Section AI Suggestions**: Added `BoxSuggestionPopover` component for inline AI suggestions per canvas box
+  - Sparkle button appears on hover in each box header
+  - Generates 3-4 context-aware suggestions based on startup profile
+  - One-click apply with "Generate more" option
+
+### Enhanced
+- **CanvasBox Component**: Now accepts `boxKey`, `startupId`, and `canvasData` props for AI integration
+- **LeanCanvasGrid**: Passes startup context to enable per-section suggestions
+
+### Production Ready
+- **Lean Canvas Editor**: 100% complete with all acceptance criteria met:
+  - ✅ All 9 sections editable in-place
+  - ✅ Autosave with 2-second debounce + visual indicator
+  - ✅ AI suggestions per section (new)
+  - ✅ AI pre-fill from profile + hypothesis validation
+  - ✅ Export to PDF and PNG with branding
+  - ✅ Version display and manual save
+
+---
+
 ## [0.6.6] - 2026-01-25
 
 ### Refactored

@@ -4,26 +4,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BoxSuggestionPopover } from './BoxSuggestionPopover';
+import { LeanCanvasData } from '@/hooks/useLeanCanvas';
 
 interface CanvasBoxProps {
   title: string;
+  boxKey: keyof LeanCanvasData;
   description: string;
   placeholder: string;
   items: string[];
   validation?: 'valid' | 'warning' | 'error';
   validationMessage?: string;
   onUpdate: (items: string[]) => void;
+  startupId?: string;
+  canvasData?: LeanCanvasData;
   className?: string;
 }
 
 export function CanvasBox({
   title,
+  boxKey,
   description,
   placeholder,
   items,
   validation,
   validationMessage,
   onUpdate,
+  startupId,
+  canvasData,
   className,
 }: CanvasBoxProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -74,7 +82,7 @@ export function CanvasBox({
       )}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-2 group">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-sm">{title}</h3>
@@ -86,14 +94,26 @@ export function CanvasBox({
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 flex-shrink-0"
-          onClick={() => setIsEditing(!isEditing)}
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {startupId && canvasData && (
+            <BoxSuggestionPopover
+              boxKey={boxKey}
+              boxTitle={title}
+              currentItems={items}
+              startupId={startupId}
+              canvasData={canvasData}
+              onApplySuggestion={(item) => onUpdate([...items, item])}
+            />
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 flex-shrink-0"
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
