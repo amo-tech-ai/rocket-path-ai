@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronRight, SkipForward, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { AnimatePresence } from 'framer-motion';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import { InterviewAnswer } from '@/hooks/useWizardSession';
-import { cn } from '@/lib/utils';
+
+// Sub-components
+import InterviewLoadingSkeleton from './InterviewLoadingSkeleton';
+import InterviewComplete from './InterviewComplete';
+import TopicBadges from './TopicBadges';
+import QuestionCard from './QuestionCard';
+import InterviewNavigation from './InterviewNavigation';
+import SignalsPanel from './SignalsPanel';
 
 export interface Question {
   id: string;
@@ -41,21 +40,6 @@ interface Step3InterviewProps {
   onSetCurrentIndex: (index: number) => void;
 }
 
-const SIGNAL_LABELS: Record<string, { label: string; color: string }> = {
-  b2b_saas: { label: 'B2B SaaS', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  has_revenue: { label: 'Has Revenue', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-  pre_revenue: { label: 'Pre-Revenue', color: 'bg-muted text-muted-foreground' },
-  raising_seed: { label: 'Raising Seed', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
-  technical_founder: { label: 'Technical Team', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  early_traction: { label: 'Early Traction', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
-  product_market_fit: { label: 'PMF Signals', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
-};
-
-const TOPICS = ['Business Model', 'Market', 'Traction', 'Team', 'Funding'];
-
-// Normalize topic strings for comparison (handles "Business Model" vs "business_model" vs "businessmodel")
-const normalizeTopic = (s: string): string => s.trim().toLowerCase().replace(/[\s_-]+/g, '');
-
 export function Step3Interview({
   sessionId,
   questions,
@@ -72,7 +56,7 @@ export function Step3Interview({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
   
-  // Guard: If questions failed to load or are empty, show loading state instead of "complete"
+  // Guard: If questions failed to load or are empty, show loading state
   const hasQuestions = questions && questions.length > 0;
   const currentQuestion = hasQuestions ? questions[currentQuestionIndex] : null;
   const isComplete = hasQuestions && currentQuestionIndex >= questions.length;
@@ -102,80 +86,23 @@ export function Step3Interview({
     onSkip();
   };
 
-  // FIX 8: Loading skeleton that matches question card layout
+  const handleToggleMulti = (optionId: string) => {
+    if (selectedMulti.includes(optionId)) {
+      setSelectedMulti(selectedMulti.filter(id => id !== optionId));
+    } else {
+      setSelectedMulti([...selectedMulti, optionId]);
+    }
+  };
+
+  // Loading state
   if (!hasQuestions) {
-    return (
-      <div className="space-y-6">
-        {/* Progress skeleton */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-12" />
-          </div>
-          <Skeleton className="h-2 w-full" />
-        </div>
-        
-        {/* Topics skeleton */}
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-6 w-20 rounded-full" />
-          ))}
-        </div>
-        
-        {/* Question card skeleton */}
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-3/4" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-14 w-full rounded-lg" />
-            <Skeleton className="h-14 w-full rounded-lg" />
-            <Skeleton className="h-14 w-full rounded-lg" />
-            <Skeleton className="h-14 w-full rounded-lg" />
-            <Skeleton className="h-4 w-2/3 mt-4" />
-          </CardContent>
-        </Card>
-        
-        {/* Navigation skeleton */}
-        <div className="flex items-center justify-between pt-4">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-28" />
-        </div>
-        
-        {/* Loading indicator */}
-        <div className="flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Loading interview questions...</span>
-        </div>
-      </div>
-    );
+    return <InterviewLoadingSkeleton />;
   }
 
+  // Complete state
   if (isComplete) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-          <Check className="h-8 w-8 text-primary" />
-        </div>
-        <h2 className="text-2xl font-semibold mb-2">Interview Complete!</h2>
-        <p className="text-muted-foreground mb-6">
-          You've answered all questions. Let's review your profile.
-        </p>
-        <Button onClick={onComplete} size="lg">
-          Continue to Review
-          <ChevronRight className="h-4 w-4 ml-2" />
-        </Button>
-      </div>
-    );
+    return <InterviewComplete onComplete={onComplete} />;
   }
-
-  // Build set of covered topics with normalized comparison
-  const topicsCoveredSet = new Set(
-    answers
-      .map(a => questions.find(q => q.id === a.question_id)?.topic)
-      .filter(Boolean)
-      .map(t => normalizeTopic(t as string))
-  );
 
   return (
     <div className="space-y-6">
@@ -191,159 +118,33 @@ export function Step3Interview({
       </div>
 
       {/* Topics Covered */}
-      <div className="flex flex-wrap gap-2">
-        {TOPICS.map((topic) => {
-          const isCovered = topicsCoveredSet.has(normalizeTopic(topic));
-          return (
-            <Badge
-              key={topic}
-              variant={isCovered ? 'default' : 'outline'}
-              className={cn(
-                'text-xs',
-                isCovered && 'bg-primary text-primary-foreground'
-              )}
-            >
-              {isCovered && <Check className="h-3 w-3 mr-1" />}
-              {topic}
-            </Badge>
-          );
-        })}
-      </div>
+      <TopicBadges questions={questions} answers={answers} />
 
       {/* Question Card */}
       <AnimatePresence mode="wait">
         {currentQuestion && (
-          <motion.div
-            key={currentQuestion.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg leading-relaxed">
-                  {currentQuestion.text}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {currentQuestion.type === 'multiple_choice' && currentQuestion.options && (
-                  <RadioGroup
-                    value={selectedAnswer || ''}
-                    onValueChange={setSelectedAnswer}
-                    className="space-y-3"
-                  >
-                    {currentQuestion.options.map((option) => (
-                      <div
-                        key={option.id}
-                        className={cn(
-                          'flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer',
-                          selectedAnswer === option.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:bg-accent/50'
-                        )}
-                        onClick={() => setSelectedAnswer(option.id)}
-                      >
-                        <RadioGroupItem value={option.id} id={option.id} />
-                        <Label htmlFor={option.id} className="flex-1 cursor-pointer">
-                          {option.emoji && <span className="mr-2">{option.emoji}</span>}
-                          {option.text}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-
-                {currentQuestion.type === 'multi_select' && currentQuestion.options && (
-                  <div className="space-y-3">
-                    {currentQuestion.options.map((option) => (
-                      <div
-                        key={option.id}
-                        className={cn(
-                          'flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer',
-                          selectedMulti.includes(option.id)
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:bg-accent/50'
-                        )}
-                        onClick={() => {
-                          if (selectedMulti.includes(option.id)) {
-                            setSelectedMulti(selectedMulti.filter(id => id !== option.id));
-                          } else {
-                            setSelectedMulti([...selectedMulti, option.id]);
-                          }
-                        }}
-                      >
-                        <Checkbox
-                          checked={selectedMulti.includes(option.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedMulti([...selectedMulti, option.id]);
-                            } else {
-                              setSelectedMulti(selectedMulti.filter(id => id !== option.id));
-                            }
-                          }}
-                        />
-                        <Label className="flex-1 cursor-pointer">{option.text}</Label>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <p className="text-xs text-muted-foreground">
-                  Answer honestly — accuracy improves your score more than optimism.
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <QuestionCard
+            question={currentQuestion}
+            selectedAnswer={selectedAnswer}
+            selectedMulti={selectedMulti}
+            onSelectAnswer={setSelectedAnswer}
+            onToggleMulti={handleToggleMulti}
+          />
         )}
       </AnimatePresence>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-4">
-        <Button variant="ghost" onClick={handleSkip}>
-          <SkipForward className="h-4 w-4 mr-2" />
-          Skip Question
-        </Button>
-        {/* FIX 5: Disable Continue when no currentQuestion */}
-        <Button
-          onClick={handleContinue}
-          disabled={
-            isProcessing ||
-            !currentQuestion ||
-            (currentQuestion?.type === 'multiple_choice' && !selectedAnswer) ||
-            (currentQuestion?.type === 'multi_select' && selectedMulti.length === 0)
-          }
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              Continue
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </>
-          )}
-        </Button>
-      </div>
+      <InterviewNavigation
+        currentQuestion={currentQuestion}
+        selectedAnswer={selectedAnswer}
+        selectedMulti={selectedMulti}
+        isProcessing={isProcessing}
+        onContinue={handleContinue}
+        onSkip={handleSkip}
+      />
 
       {/* Signals Detected */}
-      {signals.length > 0 && (
-        <div className="pt-4 border-t">
-          <p className="text-xs font-medium text-muted-foreground mb-2">SIGNALS DETECTED</p>
-          <div className="flex flex-wrap gap-2">
-            {signals.map((signal) => {
-              const info = SIGNAL_LABELS[signal] || { label: signal, color: 'bg-muted text-muted-foreground' };
-              return (
-                <Badge key={signal} className={cn('text-xs', info.color)}>
-                  {info.label}
-                </Badge>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <SignalsPanel signals={signals} />
     </div>
   );
 }
