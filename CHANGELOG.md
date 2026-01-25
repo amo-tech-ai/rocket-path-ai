@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.9] - 2026-01-25
+
+### Fixed
+- **Critical Auth Fix**: All `useWizardSession` edge function calls now use `invokeAgent` helper to explicitly attach JWT
+  - Resolves "missing sub claim" errors that prevented onboarding from working
+  - Session creation and updates are now properly authenticated
+
+### Enhanced
+- **URL Enrichment with Google Search Grounding**: `enrich_url` action now uses both:
+  - **URL Context**: Reads website content directly for extraction
+  - **Google Search**: Discovers competitors and market trends
+- **Graceful Org Handling**: `complete_wizard` no longer fails for new users without org_id
+
+### Added
+- **Gemini Reference Doc**: `docs/gemini/09-onboarding-agent-grounding.md` with architecture diagrams and implementation patterns
+
+### Technical Details
+- Edge function uses `gemini-3-pro-preview` with dual tools: `urlContext` + `google_search`
+- Frontend uses centralized `invokeAgent` helper in `src/hooks/onboarding/invokeAgent.ts`
+- All AI logging gracefully handles missing org_id
+
+---
+
 ## [0.6.8] - 2026-01-25
 
 ### Added

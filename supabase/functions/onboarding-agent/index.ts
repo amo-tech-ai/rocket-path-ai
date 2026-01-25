@@ -159,7 +159,7 @@ async function updateSession(
   return { success: true };
 }
 
-// Enrich startup data from URL using Gemini
+// Enrich startup data from URL using Gemini with URL context AND Google Search grounding
 async function enrichUrl(
   supabase: SupabaseClient,
   sessionId: string,
@@ -167,7 +167,7 @@ async function enrichUrl(
   userId: string,
   orgId: string
 ) {
-  console.log("Enriching URL:", url);
+  console.log("Enriching URL with grounding:", url);
   const startTime = Date.now();
 
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -175,10 +175,12 @@ async function enrichUrl(
     throw new Error("GEMINI_API_KEY not configured");
   }
 
-  // Use Gemini with URL context
+  // Use Gemini with URL context AND Google Search grounding for competitor discovery
   const prompt = `Analyze this website URL and extract structured startup information.
   
 URL: ${url}
+
+IMPORTANT: Use Google Search to find competitor companies and market trends for this startup.
 
 Extract the following information from the website content. Return ONLY valid JSON with these fields:
 {
@@ -190,7 +192,8 @@ Extract the following information from the website content. Return ONLY valid JS
   "stage": "string - Idea, Pre-seed, Seed, Series A, Series B+ (infer from team size, funding, etc.)",
   "target_market": "string - who are the customers (be specific about segment, geography)",
   "key_features": ["string array - main product features"],
-  "competitors": ["string array - likely competitors"],
+  "competitors": ["string array - likely competitors found via web search"],
+  "market_trends": ["string array - relevant market trends from search"],
   "pricing_model": "string - freemium, subscription, one-time, etc.",
   "unique_value_proposition": "string - what makes them unique",
   "confidence": "number 0-1 - how confident you are in the extraction"
@@ -213,10 +216,15 @@ Only include fields you can confidently extract. If you cannot access the URL or
             responseMimeType: "application/json",
           },
           tools: [
+            // URL Context - reads the website content directly
             {
               urlContext: {
                 urls: [url],
               },
+            },
+            // Google Search grounding - discovers competitors and market trends
+            {
+              google_search: {},
             },
           ],
         }),
@@ -239,16 +247,18 @@ Only include fields you can confidently extract. If you cannot access the URL or
     const extractions = JSON.parse(responseText);
     const duration = Date.now() - startTime;
 
-    // Log the AI run
-    await logAiRun(supabase, {
-      user_id: userId,
-      org_id: orgId,
-      agent_name: "ProfileExtractor",
-      action: "enrich_url",
-      model: "gemini-3-pro-preview",
-      duration_ms: duration,
-      status: "success",
-    });
+    // Log the AI run (handle missing org gracefully)
+    if (orgId) {
+      await logAiRun(supabase, {
+        user_id: userId,
+        org_id: orgId,
+        agent_name: "ProfileExtractor",
+        action: "enrich_url",
+        model: "gemini-3-pro-preview",
+        duration_ms: duration,
+        status: "success",
+      });
+    }
 
     // Update session with extractions
     await supabase
@@ -256,21 +266,23 @@ Only include fields you can confidently extract. If you cannot access the URL or
       .update({ ai_extractions: extractions })
       .eq("id", sessionId);
 
-    console.log("URL enrichment complete:", extractions);
+    console.log("URL enrichment complete with grounding:", extractions);
     return { success: true, extractions, source: "url" };
   } catch (error) {
     console.error("URL enrichment error:", error);
     
-    await logAiRun(supabase, {
-      user_id: userId,
-      org_id: orgId,
-      agent_name: "ProfileExtractor",
-      action: "enrich_url",
-      model: "gemini-3-pro-preview",
-      duration_ms: Date.now() - startTime,
-      status: "error",
-      error_message: String(error),
-    });
+    if (orgId) {
+      await logAiRun(supabase, {
+        user_id: userId,
+        org_id: orgId,
+        agent_name: "ProfileExtractor",
+        action: "enrich_url",
+        model: "gemini-3-pro-preview",
+        duration_ms: Date.now() - startTime,
+        status: "error",
+        error_message: String(error),
+      });
+    }
 
     throw error;
   }
@@ -845,16 +857,15 @@ async function completeWizard(
     throw new Error("Session not found");
   }
 
-  // Get user's org_id
+  // Get user's org_id (handle missing org gracefully for new users)
   const { data: profile } = await supabase
     .from("profiles")
     .select("org_id")
     .eq("id", userId)
-    .single();
+    .maybeSingle();
 
-  if (!profile?.org_id) {
-    throw new Error("User org not found");
-  }
+  // For new users, org_id might not exist yet - use user's id as fallback org reference
+  const userOrgId = profile?.org_id;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formData = (session.form_data || {}) as any;
@@ -865,8 +876,8 @@ async function completeWizard(
   const industryValue = formData.industry || extractions.industry;
   const industryArray = Array.isArray(industryValue) ? industryValue : (industryValue ? [industryValue] : null);
 
-  const startupData = {
-    org_id: profile.org_id,
+  // Use org_id if available, otherwise skip org requirement for new users
+  const startupData: Record<string, unknown> = {
     name: formData.name || formData.company_name || extractions.company_name || "My Startup",
     description: formData.description || extractions.description,
     tagline: formData.tagline || extractions.tagline,
@@ -885,6 +896,11 @@ async function completeWizard(
     is_raising: (session.extracted_funding as any)?.is_raising || false,
     profile_strength: session.profile_strength,
   };
+
+  // Add org_id if available
+  if (userOrgId) {
+    startupData.org_id = userOrgId;
+  }
 
   // Create startup
   const { data: startup, error: startupError } = await supabase
