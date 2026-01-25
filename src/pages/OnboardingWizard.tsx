@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import WizardLayout from '@/components/onboarding/WizardLayout';
 import WizardAIPanel from '@/components/onboarding/WizardAIPanel';
 import OnboardingIntro, { hasSeenIntro } from '@/components/onboarding/OnboardingIntro';
+import AIProgressTransition from '@/components/onboarding/AIProgressTransition';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import useWizardSession, { WizardFormData, ReadinessScore, InvestorScore, AISummary, InterviewAnswer } from '@/hooks/useWizardSession';
@@ -92,6 +93,10 @@ export default function OnboardingWizard() {
   // Intro state - show only on first visit
   const [showIntro, setShowIntro] = useState(() => !hasSeenIntro());
   
+  // AI Progress transition state (Step 1 → Step 2)
+  const [showAIProgress, setShowAIProgress] = useState(false);
+  const [pendingStep2Transition, setPendingStep2Transition] = useState(false);
+
   // FIX 3: Ref for stable answers access in loadQuestions
   const answersRef = useRef<InterviewAnswer[]>([]);
   answersRef.current = answers;
@@ -522,18 +527,19 @@ export default function OnboardingWizard() {
         console.log('[Wizard] Flushing form data...');
         await flushSave(formData);
         
-        // Move to next step
-        const nextStep = 2;
-        console.log('[Wizard] ✅ Advancing to step:', nextStep);
-        await setCurrentStep(nextStep);
+        // Show AI progress animation
+        setShowAIProgress(true);
+        setPendingStep2Transition(true);
         setShowStep1Validation(false);
         
-        // Run readiness calculation (async, don't await)
+        // Run readiness calculation in background
         if (!readinessScore) {
           handleCalculateReadiness().catch(console.error);
         }
       } catch (error) {
         console.error('[Wizard] Navigation error:', error);
+        setShowAIProgress(false);
+        setPendingStep2Transition(false);
         toast({
           title: 'Session error',
           description: 'Please try again.',
@@ -620,6 +626,23 @@ export default function OnboardingWizard() {
       <OnboardingIntro
         onComplete={() => setShowIntro(false)}
         onSkip={() => setShowIntro(false)}
+      />
+    );
+  }
+
+  // Show AI progress transition (Step 1 → Step 2)
+  if (showAIProgress && pendingStep2Transition) {
+    return (
+      <AIProgressTransition
+        onComplete={async () => {
+          setShowAIProgress(false);
+          setPendingStep2Transition(false);
+          // Now actually transition to Step 2
+          const nextStep = 2;
+          console.log('[Wizard] ✅ AI Progress complete, advancing to step:', nextStep);
+          await setCurrentStep(nextStep);
+        }}
+        isAnalysisReady={!!readinessScore}
       />
     );
   }
