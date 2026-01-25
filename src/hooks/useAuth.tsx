@@ -26,6 +26,7 @@ interface AuthContextType {
   userRole: UserRole | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithLinkedIn: () => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isModerator: boolean;
@@ -110,12 +111,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/dashboard',
+        redirectTo: window.location.origin + '/onboarding',
       },
     });
     
     if (error) {
       console.error('Error signing in with Google:', error);
+      throw error;
+    }
+  };
+
+  const signInWithLinkedIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'linkedin_oidc',
+      options: {
+        redirectTo: window.location.origin + '/onboarding',
+      },
+    });
+    
+    if (error) {
+      console.error('Error signing in with LinkedIn:', error);
       throw error;
     }
   };
@@ -144,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userRole,
         loading,
         signInWithGoogle,
+        signInWithLinkedIn,
         signOut,
         isAdmin,
         isModerator,
