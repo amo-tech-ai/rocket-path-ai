@@ -4,7 +4,11 @@
  * Manages wizard session lifecycle: create, read, update, persist.
  * Uses the shared types from the onboarding module.
  * 
+ * CRITICAL: All edge function calls use invokeAgent helper to ensure
+ * JWT is explicitly attached, preventing "missing sub claim" auth errors.
+ * 
  * @see src/hooks/onboarding/types.ts for type definitions
+ * @see src/hooks/onboarding/invokeAgent.ts for secure edge function calls
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { invokeAgent } from './onboarding/invokeAgent';
 import type { WizardSession, WizardFormData } from './onboarding/types';
 
 // Re-export types for backwards compatibility
@@ -83,28 +88,25 @@ export function useWizardSession() {
   });
 
   // Create session with retry and proper waiting
+  // Uses invokeAgent helper to ensure JWT is explicitly attached
   const createSessionInternal = async (): Promise<string> => {
     if (!user?.id) throw new Error('User not authenticated');
 
-    console.log('[WizardSession] Creating session...');
+    console.log('[WizardSession] Creating session with JWT auth...');
     setIsCreatingSession(true);
 
     try {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'create_session',
-          user_id: user.id,
-        },
+      // Use invokeAgent to ensure JWT is explicitly attached (prevents "missing sub claim")
+      const response = await invokeAgent<{ session_id?: string; id?: string }>({
+        action: 'create_session',
       });
 
-      if (response.error) throw response.error;
-      
-      const sessionId = response.data?.session_id || response.data?.id;
+      const sessionId = response?.session_id || response?.id;
       if (!sessionId) {
         throw new Error('No session ID returned from server');
       }
 
-      console.log('[WizardSession] Session created:', sessionId);
+      console.log('[WizardSession] Session created with auth:', sessionId);
       
       // Invalidate and refetch to get the real DB row
       await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
@@ -186,7 +188,7 @@ export function useWizardSession() {
     },
   });
 
-  // Update session
+  // Update session - uses invokeAgent for proper JWT auth
   const updateSessionMutation = useMutation({
     mutationFn: async ({
       sessionId,
@@ -195,16 +197,14 @@ export function useWizardSession() {
       sessionId: string;
       updates: Partial<Pick<WizardSession, 'current_step' | 'form_data'>>;
     }) => {
-      const response = await supabase.functions.invoke('onboarding-agent', {
-        body: {
-          action: 'update_session',
-          session_id: sessionId,
-          ...updates,
-        },
+      // Use invokeAgent to ensure JWT is explicitly attached
+      const response = await invokeAgent<{ success: boolean }>({
+        action: 'update_session',
+        session_id: sessionId,
+        ...updates,
       });
 
-      if (response.error) throw response.error;
-      return response.data;
+      return response;
     },
     onSuccess: () => {
       setIsSaving(false);
