@@ -25,6 +25,8 @@ import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import EventWizard from "./pages/EventWizard";
 import OnboardingWizard from "./pages/OnboardingWizard";
+import PublicEventsDirectory from "./pages/PublicEventsDirectory";
+import PublicEventDetail from "./pages/PublicEventDetail";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/features" element={<Features />} />
+            <Route path="/events" element={<PublicEventsDirectory />} />
+            <Route path="/events/:eventId" element={<PublicEventDetail />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/dashboard"

@@ -1355,7 +1355,21 @@ export type Database = {
             foreignKeyName: "event_assets_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_assets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_assets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hosted_events"
             referencedColumns: ["id"]
           },
           {
@@ -1512,7 +1526,74 @@ export type Database = {
             foreignKeyName: "event_attendees_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hosted_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_speakers: {
+        Row: {
+          appearance_type: string | null
+          appearance_year: number | null
+          created_at: string
+          event_id: string | null
+          id: string
+          is_confirmed: boolean | null
+          source_url: string | null
+          speaker_company: string | null
+          speaker_linkedin: string | null
+          speaker_name: string
+          speaker_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          appearance_type?: string | null
+          appearance_year?: number | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          is_confirmed?: boolean | null
+          source_url?: string | null
+          speaker_company?: string | null
+          speaker_linkedin?: string | null
+          speaker_name: string
+          speaker_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appearance_type?: string | null
+          appearance_year?: number | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          is_confirmed?: boolean | null
+          source_url?: string | null
+          speaker_company?: string | null
+          speaker_linkedin?: string | null
+          speaker_name?: string
+          speaker_title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_speakers_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "industry_events"
             referencedColumns: ["id"]
           },
         ]
@@ -1679,7 +1760,21 @@ export type Database = {
             foreignKeyName: "event_venues_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_venues_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_venues_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hosted_events"
             referencedColumns: ["id"]
           },
         ]
@@ -1967,6 +2062,129 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      industry_events: {
+        Row: {
+          audience_types: string[] | null
+          categories: Database["public"]["Enums"]["event_category"][] | null
+          cfp_url: string | null
+          created_at: string
+          dates_confirmed: boolean | null
+          description: string | null
+          end_date: string | null
+          event_date: string | null
+          expected_attendance: number | null
+          format: Database["public"]["Enums"]["event_format"] | null
+          full_name: string | null
+          id: string
+          linkedin_url: string | null
+          location_city: string | null
+          location_country: string | null
+          media_pass_available:
+            | Database["public"]["Enums"]["media_pass_status"]
+            | null
+          metadata: Json | null
+          name: string
+          notable_speakers: string[] | null
+          registration_url: string | null
+          slug: string | null
+          startup_relevance: number | null
+          tags: string[] | null
+          ticket_cost_max: number | null
+          ticket_cost_min: number | null
+          ticket_cost_tier:
+            | Database["public"]["Enums"]["ticket_cost_tier"]
+            | null
+          timezone: string | null
+          topics: string[] | null
+          twitter_handle: string | null
+          typical_month: string | null
+          updated_at: string
+          venue: string | null
+          website_url: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          audience_types?: string[] | null
+          categories?: Database["public"]["Enums"]["event_category"][] | null
+          cfp_url?: string | null
+          created_at?: string
+          dates_confirmed?: boolean | null
+          description?: string | null
+          end_date?: string | null
+          event_date?: string | null
+          expected_attendance?: number | null
+          format?: Database["public"]["Enums"]["event_format"] | null
+          full_name?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location_city?: string | null
+          location_country?: string | null
+          media_pass_available?:
+            | Database["public"]["Enums"]["media_pass_status"]
+            | null
+          metadata?: Json | null
+          name: string
+          notable_speakers?: string[] | null
+          registration_url?: string | null
+          slug?: string | null
+          startup_relevance?: number | null
+          tags?: string[] | null
+          ticket_cost_max?: number | null
+          ticket_cost_min?: number | null
+          ticket_cost_tier?:
+            | Database["public"]["Enums"]["ticket_cost_tier"]
+            | null
+          timezone?: string | null
+          topics?: string[] | null
+          twitter_handle?: string | null
+          typical_month?: string | null
+          updated_at?: string
+          venue?: string | null
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          audience_types?: string[] | null
+          categories?: Database["public"]["Enums"]["event_category"][] | null
+          cfp_url?: string | null
+          created_at?: string
+          dates_confirmed?: boolean | null
+          description?: string | null
+          end_date?: string | null
+          event_date?: string | null
+          expected_attendance?: number | null
+          format?: Database["public"]["Enums"]["event_format"] | null
+          full_name?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location_city?: string | null
+          location_country?: string | null
+          media_pass_available?:
+            | Database["public"]["Enums"]["media_pass_status"]
+            | null
+          metadata?: Json | null
+          name?: string
+          notable_speakers?: string[] | null
+          registration_url?: string | null
+          slug?: string | null
+          startup_relevance?: number | null
+          tags?: string[] | null
+          ticket_cost_max?: number | null
+          ticket_cost_min?: number | null
+          ticket_cost_tier?:
+            | Database["public"]["Enums"]["ticket_cost_tier"]
+            | null
+          timezone?: string | null
+          topics?: string[] | null
+          twitter_handle?: string | null
+          typical_month?: string | null
+          updated_at?: string
+          venue?: string | null
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Relationships: []
       }
       industry_packs: {
         Row: {
@@ -2318,7 +2536,21 @@ export type Database = {
             foreignKeyName: "event_messages_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hosted_events"
             referencedColumns: ["id"]
           },
         ]
@@ -3013,7 +3245,21 @@ export type Database = {
             foreignKeyName: "event_sponsors_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_sponsors_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_sponsors_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "hosted_events"
             referencedColumns: ["id"]
           },
         ]
@@ -3378,6 +3624,47 @@ export type Database = {
           },
         ]
       }
+      user_event_tracking: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          notes: string | null
+          reminder_date: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          notes?: string | null
+          reminder_date?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          notes?: string | null
+          reminder_date?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_event_tracking_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "industry_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -3452,6 +3739,7 @@ export type Database = {
       }
       wizard_sessions: {
         Row: {
+          abandoned_at: string | null
           ai_enrichments: Json | null
           ai_extractions: Json | null
           ai_summary: Json | null
@@ -3480,6 +3768,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          abandoned_at?: string | null
           ai_enrichments?: Json | null
           ai_extractions?: Json | null
           ai_summary?: Json | null
@@ -3508,6 +3797,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          abandoned_at?: string | null
           ai_enrichments?: Json | null
           ai_extractions?: Json | null
           ai_summary?: Json | null
@@ -3561,7 +3851,285 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      calendar_events: {
+        Row: {
+          all_day: boolean | null
+          attendees: Json | null
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          event_type: Database["public"]["Enums"]["event_type"] | null
+          id: string | null
+          location: string | null
+          metadata: Json | null
+          recurrence_rule: string | null
+          related_contact_id: string | null
+          related_deal_id: string | null
+          related_project_id: string | null
+          reminder_minutes: number | null
+          start_date: string | null
+          startup_id: string | null
+          status: Database["public"]["Enums"]["event_status"] | null
+          title: string | null
+          updated_at: string | null
+          virtual_meeting_url: string | null
+        }
+        Insert: {
+          all_day?: boolean | null
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"] | null
+          id?: string | null
+          location?: string | null
+          metadata?: Json | null
+          recurrence_rule?: string | null
+          related_contact_id?: string | null
+          related_deal_id?: string | null
+          related_project_id?: string | null
+          reminder_minutes?: number | null
+          start_date?: string | null
+          startup_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          virtual_meeting_url?: string | null
+        }
+        Update: {
+          all_day?: boolean | null
+          attendees?: Json | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"] | null
+          id?: string | null
+          location?: string | null
+          metadata?: Json | null
+          recurrence_rule?: string | null
+          related_contact_id?: string | null
+          related_deal_id?: string | null
+          related_project_id?: string | null
+          reminder_minutes?: number | null
+          start_date?: string | null
+          startup_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          virtual_meeting_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_related_contact_id_fkey"
+            columns: ["related_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_related_deal_id_fkey"
+            columns: ["related_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_related_project_id_fkey"
+            columns: ["related_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events_directory: {
+        Row: {
+          budget: number | null
+          cancelled_at: string | null
+          capacity: number | null
+          categories: Database["public"]["Enums"]["event_category"][] | null
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          display_location: string | null
+          display_name: string | null
+          end_date: string | null
+          event_scope: Database["public"]["Enums"]["event_scope"] | null
+          event_source: string | null
+          event_type: Database["public"]["Enums"]["event_type"] | null
+          external_url: string | null
+          id: string | null
+          industry: string | null
+          is_public: boolean | null
+          location: string | null
+          name: string | null
+          organizer_logo_url: string | null
+          organizer_name: string | null
+          published_at: string | null
+          registration_url: string | null
+          related_contact_id: string | null
+          related_deal_id: string | null
+          slug: string | null
+          start_date: string | null
+          startup_id: string | null
+          startup_relevance: number | null
+          status: Database["public"]["Enums"]["event_status"] | null
+          tags: string[] | null
+          target_audience: string[] | null
+          ticket_cost_max: number | null
+          ticket_cost_min: number | null
+          ticket_cost_tier: string | null
+          ticket_price: number | null
+          topics: string[] | null
+          updated_at: string | null
+          virtual_meeting_url: string | null
+        }
+        Relationships: []
+      }
+      hosted_events: {
+        Row: {
+          agenda: Json | null
+          budget: number | null
+          cancelled_at: string | null
+          capacity: number | null
+          cover_image_url: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          event_type: Database["public"]["Enums"]["event_type"] | null
+          health_score: number | null
+          id: string | null
+          industry: string | null
+          is_public: boolean | null
+          location: string | null
+          location_type:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
+          name: string | null
+          organizer_logo_url: string | null
+          organizer_name: string | null
+          published_at: string | null
+          registration_deadline: string | null
+          registration_url: string | null
+          requires_approval: boolean | null
+          slug: string | null
+          sponsors_confirmed: number | null
+          sponsors_target: number | null
+          start_date: string | null
+          startup_id: string | null
+          status: Database["public"]["Enums"]["event_status"] | null
+          tags: string[] | null
+          target_audience: string[] | null
+          tasks_completed: number | null
+          tasks_total: number | null
+          ticket_price: number | null
+          timezone: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agenda?: Json | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"] | null
+          health_score?: number | null
+          id?: string | null
+          industry?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          location_type?:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
+          name?: string | null
+          organizer_logo_url?: string | null
+          organizer_name?: string | null
+          published_at?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
+          start_date?: string | null
+          startup_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"] | null
+          tags?: string[] | null
+          target_audience?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agenda?: Json | null
+          budget?: number | null
+          cancelled_at?: string | null
+          capacity?: number | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"] | null
+          health_score?: number | null
+          id?: string | null
+          industry?: string | null
+          is_public?: boolean | null
+          location?: string | null
+          location_type?:
+            | Database["public"]["Enums"]["event_location_type"]
+            | null
+          name?: string | null
+          organizer_logo_url?: string | null
+          organizer_name?: string | null
+          published_at?: string | null
+          registration_deadline?: string | null
+          registration_url?: string | null
+          requires_approval?: boolean | null
+          slug?: string | null
+          sponsors_confirmed?: number | null
+          sponsors_target?: number | null
+          start_date?: string | null
+          startup_id?: string | null
+          status?: Database["public"]["Enums"]["event_status"] | null
+          tags?: string[] | null
+          target_audience?: string[] | null
+          tasks_completed?: number | null
+          tasks_total?: number | null
+          ticket_price?: number | null
+          timezone?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       complete_wizard_atomic: {
@@ -3712,6 +4280,15 @@ export type Database = {
         | "sponsor_logo_pack"
         | "photo"
         | "other"
+      event_category:
+        | "research"
+        | "industry"
+        | "startup_vc"
+        | "trade_show"
+        | "enterprise"
+        | "government_policy"
+        | "developer"
+      event_format: "in_person" | "virtual" | "hybrid"
       event_location_type: "in_person" | "virtual" | "hybrid"
       event_scope: "internal" | "hosted" | "external"
       event_status:
@@ -3744,6 +4321,15 @@ export type Database = {
         | "pitch"
         | "funding_round"
         | "other"
+        | "demo_day"
+        | "pitch_night"
+        | "networking"
+        | "workshop"
+        | "conference"
+        | "meetup"
+        | "webinar"
+        | "hackathon"
+      media_pass_status: "yes" | "no" | "unclear"
       message_channel: "whatsapp" | "sms" | "email" | "in_app"
       message_direction: "inbound" | "outbound"
       message_status:
@@ -3839,6 +4425,7 @@ export type Database = {
         | "healthtech"
         | "general"
         | "custom"
+      ticket_cost_tier: "free" | "low" | "medium" | "high" | "premium"
       venue_status:
         | "researching"
         | "shortlisted"
@@ -4073,6 +4660,16 @@ export const Constants = {
         "photo",
         "other",
       ],
+      event_category: [
+        "research",
+        "industry",
+        "startup_vc",
+        "trade_show",
+        "enterprise",
+        "government_policy",
+        "developer",
+      ],
+      event_format: ["in_person", "virtual", "hybrid"],
       event_location_type: ["in_person", "virtual", "hybrid"],
       event_scope: ["internal", "hosted", "external"],
       event_status: [
@@ -4107,7 +4704,16 @@ export const Constants = {
         "pitch",
         "funding_round",
         "other",
+        "demo_day",
+        "pitch_night",
+        "networking",
+        "workshop",
+        "conference",
+        "meetup",
+        "webinar",
+        "hackathon",
       ],
+      media_pass_status: ["yes", "no", "unclear"],
       message_channel: ["whatsapp", "sms", "email", "in_app"],
       message_direction: ["inbound", "outbound"],
       message_status: [
@@ -4213,6 +4819,7 @@ export const Constants = {
         "general",
         "custom",
       ],
+      ticket_cost_tier: ["free", "low", "medium", "high", "premium"],
       venue_status: [
         "researching",
         "shortlisted",
