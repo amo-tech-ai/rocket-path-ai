@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.7.3] - 2026-01-26
+
+### Added
+- **Public Events Directory** (`/events`) - New public-facing events discovery page
+  - Hero section with search functionality
+  - Event source filter tabs (All / Hosted / Industry)
+  - Grid and list view toggle
+  - Filter by date range, event type, ticket cost tier
+  - Stats cards showing total, upcoming, hosted, and industry events
+  - Event cards with source badges, type labels, and contextual info
+  - Click-through to event detail (hosted) or external website (industry)
+  
+- **Public Event Detail Page** (`/events/:eventId`) - Individual event pages
+  - Full event information with hero section
+  - Registration/external website CTAs
+  - Share functionality
+  - Topics and tags display
+  - Event-specific details (capacity, ticket price for hosted; relevance, cost tier for industry)
+
+- **New Components:**
+  - `src/components/public-events/PublicEventCard.tsx`
+  - `src/components/public-events/EventsHero.tsx`
+  - `src/components/public-events/EventsFilterBar.tsx`
+  
+- **New Hooks:**
+  - `src/hooks/usePublicEvents.ts` - Query `events_directory` unified view
+
+### Technical
+- Uses `events_directory` view combining hosted events and industry events
+- 25 events seeded (5 hosted + 20 industry)
+- Unauthenticated routes for public access
+- Responsive design with mobile-first approach
+
 ## [0.7.1] - 2025-01-25
 
 ### Added

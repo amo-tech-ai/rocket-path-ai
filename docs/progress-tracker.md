@@ -1,8 +1,8 @@
 # StartupAI Progress Tracker
 
-> **Last Updated:** 2025-01-25  
-> **Version:** 0.7.2  
-> **Overall Progress:** 85%
+> **Last Updated:** 2026-01-26  
+> **Version:** 0.7.3  
+> **Overall Progress:** 87%
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
 > **Supabase:** Connected (43 tables, 168 RLS policies)
 > **Modules Reference:** [docs/agents/modules/00-modules-index.md](./agents/modules/00-modules-index.md)
@@ -42,7 +42,8 @@
 | AI Agents & Chat | 🟡 In Progress | 60% | ⚠️ | UI not connected |
 | Edge Functions | 🟢 Completed | 95% | ✅ | `run_analysis` missing |
 | **Onboarding Wizard** | 🟡 In Progress | **85%** | ⚠️ | **3 Critical Issues** |
-| Events Module | 🟢 Completed | 85% | ✅ | None |
+| Events Module | 🟢 Completed | 95% | ✅ | None |
+| **Public Events Directory** | 🟢 **NEW** | 100% | ✅ | None |
 
 ---
 
