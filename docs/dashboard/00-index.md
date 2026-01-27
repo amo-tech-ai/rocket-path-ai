@@ -1,184 +1,174 @@
-# Dashboard Modules — Master Index & Progress Tracker
+# Dashboard System — Master Index & Progress Tracker
 
-> **Version:** 1.0 | **Date:** January 27, 2026  
-> **Status:** 🟡 In Progress  
-> **Overall Progress:** 35%
-
----
-
-## Executive Summary
-
-| Module | Status | Progress | Priority | Notes |
-|--------|--------|----------|----------|-------|
-| **Lean Canvas** | 🟡 Core MVP | 35% | P0 | AI pre-fill + validation working |
-| Main Dashboard | 🟢 Complete | 100% | P0 | Metrics + guidance done |
-| Tasks Kanban | 🟢 Complete | 100% | P0 | CRUD + drag-drop done |
-| Projects | 🟢 Complete | 100% | P0 | Full CRUD working |
-| Investors CRM | 🟢 Complete | 100% | P1 | Pipeline + tracking done |
-| Documents | 🟢 Complete | 100% | P1 | Upload + AI generation |
-| Events | 🟢 Complete | 100% | P2 | Directory + wizard done |
-| Pitch Decks | 🟢 Complete | 100% | P0 | Wizard + editor done |
+> **Version:** 2.0 | **Date:** January 27, 2026  
+> **Status:** 🟡 Active Implementation  
+> **Overall Progress:** 45%
 
 ---
 
-## Lean Canvas Enhancement Roadmap
+## Quick Navigation
 
-Based on comprehensive design specifications, the Lean Canvas module has a 12-step enhancement plan across 4 phases.
-
-### Phase 1: Smart Onboarding (Steps 1-4)
-
-| Step | Feature | Status | Priority | Description |
-|------|---------|--------|----------|-------------|
-| LC-01 | Profile Mapper | 🔴 Not Started | P0 | Auto-map startup profile to 9 boxes |
-| LC-02 | Gap Questions | 🔴 Not Started | P0 | Targeted questions for empty boxes |
-| LC-03 | Enhanced Generation | 🔴 Not Started | P0 | Profile + answers + confidence |
-| LC-04 | Confidence UI | 🔴 Not Started | P0 | Visual badges on boxes |
-
-### Phase 2: Validation & History (Steps 5-7)
-
-| Step | Feature | Status | Priority | Description |
-|------|---------|--------|----------|-------------|
-| LC-05 | Enhanced Validator | 🔴 Not Started | P1 | Risk levels + experiments |
-| LC-06 | Version History | 🔴 Not Started | P1 | Snapshots + restore |
-| LC-07 | Profile Sync | 🔴 Not Started | P2 | Detect profile changes |
-
-### Phase 3: Intelligence (Steps 8-11)
-
-| Step | Feature | Status | Priority | Description |
-|------|---------|--------|----------|-------------|
-| LC-08 | Canvas → Pitch Deck | 🔴 Not Started | P1 | Map to 10-slide deck |
-| LC-09 | Competitor Canvas | 🔴 Not Started | P2 | Side-by-side comparison |
-| LC-10 | Industry Benchmarks | 🔴 Not Started | P2 | Real-time benchmarks |
-| LC-11 | Pivot Suggestions | 🔴 Not Started | P3 | AI-powered pivots |
-
-### Phase 4: Collaboration (Step 12)
-
-| Step | Feature | Status | Priority | Description |
-|------|---------|--------|----------|-------------|
-| LC-12 | Team Collaboration | 🔴 Not Started | P3 | Real-time editing |
+| # | File | Topic | Priority |
+|---|------|-------|----------|
+| **Foundation Prompts (00-09)** | | |
+| 00 | `00-index.md` | This index + progress tracker | — |
+| 00a | `00-progress-plan.md` | Module progress & implementation order | — |
+| 01 | `01-wireframes.md` | ASCII wireframes for all 27 screens | P0 |
+| 02 | `01-lean-canvas.md` | Lean Canvas architecture (existing) | P0 |
+| 03 | `03-data-strategy.md` | 48 tables, ERDs, RLS, indexes | P0 |
+| 03.1 | `03.1-smart-ai-system.md` | Auto-Claude adaptation (10 screens) | P1 |
+| 04 | `04-navigation-routing.md` | Routes, nav sidebar, breadcrumbs | P0 |
+| 05 | `05-authentication.md` | OAuth, roles, RLS helpers | P0 |
+| 06 | `06-ai-architecture.md` | AI routing, models, prompts, costs | P0 |
+| 07 | `07-state-realtime.md` | React Query, autosave, realtime | P1 |
+| 08 | `08-edge-functions.md` | 14 functions, 100+ actions | P0 |
+| **Module Prompts (10-17)** | | |
+| 10 | `10-lean-canvas.md` | Lean Canvas (2 screens) | P0 |
+| 11 | `11-main-dashboard.md` | Main Dashboard (1 screen) | P0 |
+| 12 | `12-crm.md` | CRM (3 screens) | P0 |
+| 13 | `13-documents.md` | Documents (3 screens) | P1 |
+| 14 | `14-investors.md` | Investors (3 screens) | P1 |
+| 15 | `15-projects.md` | Projects (3 screens) | P1 |
+| 16 | `16-ai-chat.md` | AI Chat (2 screens) | P2 |
+| 17 | `17-settings.md` | Settings (4 tabs) | P2 |
+| **Reference** | | |
+| 100 | `100-dashboard-system.md` | Complete system plan (source of truth) | — |
 
 ---
 
-## Documentation Files
+## Module Progress Summary
 
-| File | Module | Status | Purpose |
-|------|--------|--------|---------|
-| **00-index.md** | — | ✅ | Master index & tracker |
-| **01-lean-canvas.md** | Lean Canvas | ✅ | Architecture + roadmap |
-| 02-main-dashboard.md | Dashboard | — | Widget specs |
-| 03-tasks-kanban.md | Tasks | — | Kanban architecture |
-| 04-pitch-decks.md | Pitch Decks | → See `/docs/pitch-decks/` | |
-
----
-
-## Current Implementation Status
-
-### ✅ Working Features (Lean Canvas)
-
-1. **9-Box Grid** — Responsive layout with Framer Motion animations
-2. **Editable Boxes** — Add/remove bullet items with validation indicators
-3. **AI Pre-fill** — Generate content from startup profile via `ai-chat` edge function
-4. **AI Validation** — Analyze hypotheses for weak assumptions
-5. **Per-box AI Suggestions** — Sparkle button with BoxSuggestionPopover
-6. **Autosave** — 2-second debounced save with status indicator
-7. **Export** — PDF and PNG via `jspdf` + `html2canvas`
-
-### 🔴 Missing Features (Lean Canvas)
-
-1. **Dedicated Edge Function** — Currently uses generic `ai-chat`, needs `lean-canvas-agent`
-2. **Profile Mapping** — Automatic mapping from startup profile
-3. **Gap Questions** — Targeted questionnaire for empty boxes
-4. **Confidence Scores** — Visual indicators on AI-generated content
-5. **Enhanced Validation** — Risk levels, experiments, sorted results
-6. **Version History** — Snapshots and restore functionality
-7. **Profile Sync** — Detect and apply profile changes
-8. **Pitch Deck Integration** — Canvas → deck mapping
-9. **Competitor Comparison** — Side-by-side analysis
-10. **Industry Benchmarks** — Contextual benchmark tooltips
-11. **Pivot Suggestions** — AI-recommended business model changes
-12. **Real-time Collaboration** — Supabase Realtime + Presence
+| # | Module | Screens | Backend | AI Wired | Frontend | Overall | Status |
+|---|--------|---------|---------|----------|----------|---------|--------|
+| 1 | **Onboarding** | 4-step wizard | ✅ 95% | ✅ 100% | ✅ 95% | **95%** | ✅ Done |
+| 2 | **Events** | 3 screens | ✅ 100% | 🟡 20% | ✅ 100% | **100%** | ✅ Done |
+| 3 | **Pitch Deck** | 3 screens | 🟡 80% | 🟡 80% | 🟡 40% | **55%** | 🔵 Active |
+| 4 | **Lean Canvas** | 2 screens | ✅ 90% | ✅ 90% | 🟡 60% | **70%** | 🔵 Active |
+| 5 | **Main Dashboard** | 1 screen | 🔴 0% | 🔴 0% | 🟡 30% | **15%** | ⬜ Next |
+| 6 | **CRM** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | ⬜ Next |
+| 7 | **Documents** | 3 screens | ✅ 100% | 🔴 0% | 🔴 0% | **40%** | ⬜ Planned |
+| 8 | **Investors** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | ⬜ Planned |
+| 9 | **Projects** | 3 screens | 🔴 0% | 🔴 0% | 🟡 50% | **25%** | ⬜ Planned |
+| 10 | **AI Chat** | 2 screens | ✅ 100% | 🟡 40% | 🔴 0% | **30%** | ⬜ Planned |
+| 11 | **Settings** | 4 tabs | N/A | N/A | 🟡 60% | **60%** | ⬜ Planned |
+| 12 | **Smart AI** | 10 screens | 🔴 0% | 🔴 0% | 🔴 0% | **0%** | ⬜ Future |
 
 ---
 
-## File Structure
+## Implementation Order (Recommended)
+
+| Priority | Module | Prompt File | Why This Order | Depends On |
+|----------|--------|-------------|----------------|------------|
+| ~~1~~ | ~~Onboarding~~ | — | ✅ Complete | — |
+| ~~2~~ | ~~Events~~ | — | ✅ Complete | — |
+| **3** | **Pitch Deck** | `pitch-decks/` | Flagship feature, backend 80% ready | Onboarding data |
+| **4** | **Lean Canvas** | `10-lean-canvas.md` | 70% done, bridge to pitch deck | Onboarding data |
+| **5** | **Main Dashboard** | `11-main-dashboard.md` | Daily landing page, needs module data | Pitch + Canvas |
+| **6** | **CRM** | `12-crm.md` | Backend 100%, needs AI wiring | — |
+| **7** | **Documents** | `13-documents.md` | Backend 100%, needs upload + AI | Cloudinary |
+| **8** | **Investors** | `14-investors.md` | Backend 100%, needs discovery UI | CRM patterns |
+| **9** | **Projects** | `15-projects.md` | Needs task-agent edge function | — |
+| **10** | **AI Chat** | `16-ai-chat.md` | Backend 100%, no dedicated pages | — |
+| **11** | **Settings** | `17-settings.md` | Polish, non-blocking | — |
+| **12** | **Smart AI** | `03.1-smart-ai-system.md` | Advanced autonomous layer | All modules |
+
+---
+
+## Edge Functions Status
+
+| # | Function | Actions | Backend | AI Wired | Prompt |
+|---|----------|---------|---------|----------|--------|
+| 1 | `onboarding-agent` | 12 | ✅ | ✅ 95% | — |
+| 2 | `lean-canvas-agent` | 11 | ✅ | 🟡 60% | `10-lean-canvas.md` |
+| 3 | `pitch-deck-agent` | 17 | ✅ | 🟡 50% | `pitch-decks/` |
+| 4 | `crm-agent` | 15 | ✅ | 🔴 0% | `12-crm.md` |
+| 5 | `investor-agent` | 12 | ✅ | 🔴 0% | `14-investors.md` |
+| 6 | `documents-agent` | 6 | ✅ | 🔴 0% | `13-documents.md` |
+| 7 | `event-agent` | 8 | ✅ | 🟡 70% | — |
+| 8 | `chatbot-agent` | 22 | ✅ | 🔴 0% | `16-ai-chat.md` |
+| 9 | `ai-chat` | 5+ | ✅ | 🟡 30% | `16-ai-chat.md` |
+| 10 | `task-agent` | — | ❌ Missing | — | `15-projects.md` |
+| 11 | `dashboard-metrics` | — | ❌ Missing | — | `11-main-dashboard.md` |
+
+---
+
+## Prompt Files to Create
+
+The following module prompts need to be created (10-17):
+
+| File | Module | Screens | Status | Template |
+|------|--------|---------|--------|----------|
+| `10-lean-canvas.md` | Lean Canvas | Canvas Editor, AI Panel | ✅ Exists | — |
+| `11-main-dashboard.md` | Main Dashboard | Command Center | ⬜ Needed | See `100-dashboard-system.md` Section 1 |
+| `12-crm.md` | CRM | Contacts, Pipeline, Detail | ⬜ Needed | See `100-dashboard-system.md` Section 2 |
+| `13-documents.md` | Documents | Library, Detail, Generator | ⬜ Needed | See `100-dashboard-system.md` Section 5 |
+| `14-investors.md` | Investors | Discovery, Pipeline, Detail | ⬜ Needed | See `100-dashboard-system.md` Section 3 |
+| `15-projects.md` | Projects | List, Detail, Tasks Board | ⬜ Needed | See `100-dashboard-system.md` Section 4 |
+| `16-ai-chat.md` | AI Chat | Chat, History | ⬜ Needed | See `100-dashboard-system.md` Section 9 |
+| `17-settings.md` | Settings | 4 tabs | ⬜ Needed | See `100-dashboard-system.md` Section 10 |
+
+---
+
+## 3-Panel Layout (All Screens)
 
 ```
-src/
-├── pages/
-│   └── LeanCanvas.tsx              ✅ Complete
-├── components/leancanvas/
-│   ├── AutosaveIndicator.tsx       ✅ Complete
-│   ├── BoxSuggestionPopover.tsx    ✅ Complete
-│   ├── CanvasAIPanel.tsx           ✅ Core done, needs enhancement
-│   ├── CanvasBox.tsx               ✅ Complete
-│   ├── LeanCanvasGrid.tsx          ✅ Complete
-│   ├── GapQuestionsFlow.tsx        🔴 Not created
-│   ├── VersionHistoryPanel.tsx     🔴 Not created
-│   ├── ProfileSyncBanner.tsx       🔴 Not created
-│   ├── CompetitorComparison.tsx    🔴 Not created
-│   ├── PivotSuggestions.tsx        🔴 Not created
-│   └── PresenceIndicator.tsx       🔴 Not created
-├── hooks/
-│   ├── useLeanCanvas.ts            ✅ Complete
-│   └── useCanvasAutosave.ts        ✅ Complete
-└── lib/
-    └── canvasExport.ts             ✅ Complete
-    
-supabase/functions/
-└── lean-canvas-agent/              🔴 Not created
-    ├── index.ts
-    └── actions/
-        ├── mapping.ts
-        ├── generation.ts
-        ├── validation.ts
-        ├── versions.ts
-        ├── benchmarks.ts
-        └── pivots.ts
+┌─────────────────┬──────────────────────────────────────────────┬─────────────────┐
+│  LEFT (w-64)    │  MAIN (flex-1, max-w-1200)                   │  RIGHT (w-80)   │
+│  Fixed          │  Scrollable                                  │  Collapsible    │
+│                 │                                              │                 │
+│  Logo           │  Page content                                │  AI Intelligence│
+│  Nav items      │  Grids, lists, forms                         │  Stats, insights│
+│  Progress       │  Kanban boards                               │  Suggestions    │
+│  Settings       │  Editors                                     │  Chat panel     │
+└─────────────────┴──────────────────────────────────────────────┴─────────────────┘
 ```
 
 ---
 
-## Database Dependencies
+## Visual Identity
 
-### Existing Tables (✅ Already Deployed)
-
-| Table | Purpose | Status |
-|-------|---------|--------|
-| `documents` | Canvas storage with `type='lean_canvas'` | ✅ Has `content_json`, `metadata` columns |
-| `document_versions` | Version history storage | ✅ Deployed with trigger + RLS |
-| `startups` | Profile data for mapping | ✅ Has all required fields |
-| `industry_packs` | Industry benchmarks | ✅ 5 packs (fintech, healthcare, marketplace, saas, generic) |
-
-### No New Migrations Needed
-
-The prompt confirms:
-- `documents.metadata` JSONB column exists
-- `document_versions` table exists with auto-increment trigger
-- Industry packs are populated
+| Element | Value |
+|---------|-------|
+| Tone | Quiet luxury SaaS (Stripe meets Linear) |
+| Primary accent | Deep Emerald / Sage green (`bg-sage`, `bg-sage-light`) |
+| Secondary accent | Warm orange (`bg-warm`) for highlights only |
+| Neutrals | Stone, Sand, Off-White surfaces |
+| Typography | Playfair Display (headings) + Inter (body) |
+| Spacing | Generous white space, no cramped layouts |
+| AI presence | Calm nudges, never urgent or shouting |
 
 ---
 
-## Priority Next Steps
+## Next Steps (Priority Order)
 
-| Priority | Task | Effort | Impact |
-|----------|------|--------|--------|
-| P0 | Create `lean-canvas-agent` edge function | 4h | Enables all AI features |
-| P0 | Implement LC-01: Profile Mapper | 2h | First-run experience |
-| P0 | Implement LC-02: Gap Questions | 2h | Data collection |
-| P0 | Implement LC-03: Enhanced Generation | 2h | Better AI output |
-| P0 | Implement LC-04: Confidence UI | 1h | Visual feedback |
-| P1 | Implement LC-05: Enhanced Validator | 2h | Actionable insights |
-| P1 | Implement LC-06: Version History | 3h | Safety net |
+### P0 — This Week
+1. **Complete Pitch Deck Editor** — Slide editing UI, signal strength, export
+2. **Lean Canvas Frontend Polish** — Profile mapping banner, confidence badges
+3. **Wire CRM AI Actions** — Enrich, score, analyze to frontend hooks
+
+### P1 — Next Week
+4. **Main Dashboard KPIs** — Wire real data to metric cards
+5. **Documents AI Generation** — Template selection, context preview
+6. **Investors Discovery UI** — Search filters, fit score display
+
+### P2 — Following Weeks
+7. **Projects Task Agent** — New edge function for task generation
+8. **AI Chat Pages** — Dedicated chat interface, history view
+9. **Settings Completion** — All 4 tabs functional
+
+### P3 — Future
+10. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
 
 ---
 
 ## Changelog
 
-| Date | Change | Status |
-|------|--------|--------|
-| 2026-01-27 | Created master index | ✅ |
-| 2026-01-27 | Documented current Lean Canvas state | ✅ |
-| 2026-01-27 | Added 12-step enhancement roadmap | ✅ |
+| Date | Change | Version |
+|------|--------|---------|
+| 2026-01-27 | Created comprehensive dashboard docs system | 2.0 |
+| 2026-01-27 | Added all foundation prompts (00-08) | 2.0 |
+| 2026-01-27 | Added 100-dashboard-system.md as source of truth | 2.0 |
+| 2026-01-27 | Updated lean-canvas-agent with 11 actions | 1.5 |
 
 ---
 

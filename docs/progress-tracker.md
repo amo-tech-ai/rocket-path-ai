@@ -1,13 +1,13 @@
 # StartupAI Progress Tracker
 
 > **Last Updated:** 2026-01-27  
-> **Version:** 0.7.5  
-> **Overall Progress:** 89%
+> **Version:** 0.7.6  
+> **Overall Progress:** 45% (recalibrated with full dashboard scope)
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
-> **Supabase:** Connected (43 tables, 168 RLS policies)
+> **Supabase:** Connected (48 tables, 168 RLS policies)
+> **Dashboard System:** [docs/dashboard/00-index.md](./dashboard/00-index.md) ← **18 prompt files**
 > **Modules Reference:** [docs/agents/modules/00-modules-index.md](./agents/modules/00-modules-index.md)
 > **Agents Reference:** [docs/agents/00-agent-tracker.md](./agents/00-agent-tracker.md)
-> **Dashboard Modules:** [docs/dashboard/00-index.md](./dashboard/00-index.md)
 > **Roadmap:** [docs/roadmap.md](./roadmap.md)
 
 ---
