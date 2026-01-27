@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { DocumentsAIPanel } from '@/components/documents/DocumentsAIPanel';
 import { DocumentCard } from '@/components/documents/DocumentCard';
 import { DocumentDialog } from '@/components/documents/DocumentDialog';
+import { DocumentDetailSheet } from '@/components/documents/DocumentDetailSheet';
 import { 
   useDocuments, 
   useCreateDocument, 
@@ -59,6 +60,8 @@ const Documents = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
 
   const isLoading = startupLoading || documentsLoading;
 
@@ -128,8 +131,8 @@ const Documents = () => {
   };
 
   const handleOpenDocument = (doc: Document) => {
-    // For now, open edit dialog. Later: navigate to document editor
-    openEditDialog(doc);
+    setSelectedDocument(doc);
+    setDetailSheetOpen(true);
   };
 
   // Empty state
@@ -296,6 +299,25 @@ const Documents = () => {
         onSubmit={editingDocument ? handleUpdateDocument : handleCreateDocument}
         document={editingDocument}
         isLoading={createDocument.isPending || updateDocument.isPending}
+      />
+
+      {/* Document Detail Sheet */}
+      <DocumentDetailSheet
+        document={selectedDocument}
+        startupId={startup?.id}
+        open={detailSheetOpen}
+        onOpenChange={(open) => {
+          setDetailSheetOpen(open);
+          if (!open) setSelectedDocument(null);
+        }}
+        onEdit={() => {
+          if (selectedDocument) openEditDialog(selectedDocument);
+          setDetailSheetOpen(false);
+        }}
+        onDelete={() => {
+          if (selectedDocument) openDeleteConfirm(selectedDocument);
+          setDetailSheetOpen(false);
+        }}
       />
 
       {/* Delete Confirmation */}

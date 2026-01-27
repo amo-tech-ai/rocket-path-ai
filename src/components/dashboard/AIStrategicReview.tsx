@@ -1,59 +1,79 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Sparkles, 
   Lightbulb, 
   TrendingUp, 
   AlertTriangle,
-  ArrowRight
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-
-interface Insight {
-  type: 'opportunity' | 'engagement' | 'risk';
-  title: string;
-  description: string;
-  action?: string;
-}
+import { useDailyInsights, useWeeklySummary, type Insight } from '@/hooks/useInsights';
 
 interface AIStrategicReviewProps {
-  insights?: Insight[];
+  startupId?: string;
   onGenerateReport?: () => void;
 }
 
 const defaultInsights: Insight[] = [
   {
-    type: 'opportunity',
-    title: 'Opportunity Detected',
-    description: "25% growth in 'AI Tools' interest. Update your Market slide data.",
-  },
-  {
-    type: 'engagement',
-    title: 'High Engagement',
-    description: "Your 'Solution' slide has 40% higher retention. Add a CTA.",
+    category: 'opportunity',
+    title: 'Getting Started',
+    description: "Click 'Generate Insights' to get AI-powered recommendations based on your startup data.",
+    priority: 'medium',
+    actionable: true,
   },
 ];
 
 export function AIStrategicReview({ 
-  insights = defaultInsights,
+  startupId,
   onGenerateReport 
 }: AIStrategicReviewProps) {
-  const navigate = useNavigate();
+  const [insights, setInsights] = useState<Insight[]>(defaultInsights);
+  const [summary, setSummary] = useState<string | null>(null);
+  
+  const dailyInsights = useDailyInsights();
+  const weeklySummary = useWeeklySummary();
 
-  const getInsightIcon = (type: string) => {
-    switch (type) {
+  const handleGenerateInsights = async () => {
+    if (!startupId) return;
+    
+    const result = await dailyInsights.mutateAsync({ startupId });
+    if (result.success && result.insights) {
+      setInsights(result.insights);
+      setSummary(result.summary || null);
+    }
+  };
+
+  const handleGenerateWeekly = async () => {
+    if (!startupId) return;
+    
+    const result = await weeklySummary.mutateAsync({ startupId });
+    if (result.success) {
+      onGenerateReport?.();
+    }
+  };
+
+  const isLoading = dailyInsights.isPending;
+  const isGeneratingWeekly = weeklySummary.isPending;
+
+  const getInsightIcon = (category: string) => {
+    switch (category) {
       case 'opportunity': return Lightbulb;
-      case 'engagement': return TrendingUp;
+      case 'action': return TrendingUp;
       case 'risk': return AlertTriangle;
+      case 'milestone': return TrendingUp;
       default: return Lightbulb;
     }
   };
 
-  const getInsightColor = (type: string) => {
-    switch (type) {
+  const getInsightColor = (category: string) => {
+    switch (category) {
       case 'opportunity': return 'text-primary';
-      case 'engagement': return 'text-primary';
-      case 'risk': return 'text-yellow-500';
+      case 'action': return 'text-sage';
+      case 'risk': return 'text-warm-foreground';
+      case 'milestone': return 'text-primary';
       default: return 'text-primary';
     }
   };
@@ -66,16 +86,37 @@ export function AIStrategicReview({
       className="rounded-2xl p-5 text-white"
       style={{ background: 'hsl(var(--ai-background))' }}
     >
-      <div className="flex items-center gap-2 mb-5">
-        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-primary" />
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-primary" />
+          </div>
+          <h3 className="font-semibold">AI Strategic Review</h3>
         </div>
-        <h3 className="font-semibold">AI Strategic Review</h3>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+          onClick={handleGenerateInsights}
+          disabled={isLoading || !startupId}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+        </Button>
       </div>
+
+      {summary && (
+        <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
+          <p className="text-sm text-white/80">{summary}</p>
+        </div>
+      )}
 
       <div className="space-y-4 mb-5">
         {insights.map((insight, index) => {
-          const Icon = getInsightIcon(insight.type);
+          const Icon = getInsightIcon(insight.category);
           return (
             <motion.div
               key={index}
@@ -85,25 +126,50 @@ export function AIStrategicReview({
               className="p-3 rounded-xl bg-white/5 border border-white/10"
             >
               <div className="flex items-start gap-2 mb-2">
-                <Icon className={`w-4 h-4 ${getInsightColor(insight.type)} flex-shrink-0 mt-0.5`} />
+                <Icon className={`w-4 h-4 ${getInsightColor(insight.category)} flex-shrink-0 mt-0.5`} />
                 <span className="text-sm font-medium text-white">{insight.title}</span>
               </div>
               <p className="text-xs text-white/70 leading-relaxed pl-6">
                 {insight.description}
               </p>
+              {insight.suggested_action && (
+                <p className="text-xs text-primary mt-2 pl-6">
+                  → {insight.suggested_action}
+                </p>
+              )}
             </motion.div>
           );
         })}
       </div>
 
-      <Button 
-        variant="outline"
-        size="sm"
-        className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-        onClick={onGenerateReport}
-      >
-        Generate Full Report
-      </Button>
+      <div className="space-y-2">
+        <Button 
+          variant="outline"
+          size="sm"
+          className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+          onClick={handleGenerateInsights}
+          disabled={isLoading || !startupId}
+        >
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4 mr-2" />
+          )}
+          Generate Insights
+        </Button>
+        <Button 
+          variant="ghost"
+          size="sm"
+          className="w-full text-white/70 hover:text-white hover:bg-white/10"
+          onClick={handleGenerateWeekly}
+          disabled={isGeneratingWeekly || !startupId}
+        >
+          {isGeneratingWeekly ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : null}
+          Generate Weekly Report
+        </Button>
+      </div>
     </motion.div>
   );
 }
