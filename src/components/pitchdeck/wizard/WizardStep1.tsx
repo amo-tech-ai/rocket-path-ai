@@ -1,15 +1,15 @@
 /**
- * Wizard Step 1: Startup Info
- * Company name, website, pitch, industry, stage
+ * Wizard Step 1: Enhanced Startup Info
+ * Company description, industry research, AI-assisted problem input, Lean Canvas
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Globe, Sparkles, Lock } from 'lucide-react';
+import { Building2, Globe, Lock, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -17,15 +17,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { INDUSTRIES, FUNDING_STAGES, type Step1Data } from '@/lib/pitchDeckSchema';
+import { INDUSTRIES, FUNDING_STAGES, type Step1Data, type LeanCanvasData as LeanCanvasSchemaData } from '@/lib/pitchDeckSchema';
 import { cn } from '@/lib/utils';
+import { useStep1AI } from '@/hooks/useStep1AI';
+import {
+  CompanyDescriptionInput,
+  ProblemInput,
+  AISuggestionsPanel,
+  LeanCanvasSection,
+  type AISuggestion,
+  type LeanCanvasData,
+  type CanvasFieldSuggestion,
+} from './step1';
 
 interface WizardStep1Props {
   initialData?: Partial<Step1Data>;
   isLocked?: boolean;
   onContinue: (data: Step1Data) => void;
   isSaving?: boolean;
+  deckId?: string | null;
+  startupId?: string | null;
 }
 
 const SUB_CATEGORIES: Record<string, string[]> = {
@@ -44,49 +55,157 @@ const SUB_CATEGORIES: Record<string, string[]> = {
   other: ['Other'],
 };
 
+interface UploadedFile {
+  name: string;
+  type: string;
+  size: number;
+  content?: string;
+}
+
 export function WizardStep1({
   initialData,
   isLocked = false,
   onContinue,
   isSaving = false,
+  deckId,
+  startupId,
 }: WizardStep1Props) {
   const [formData, setFormData] = useState<Partial<Step1Data>>({
     company_name: '',
     website_url: '',
+    company_description: '',
     tagline: '',
     industry: '',
     sub_category: '',
     stage: 'seed',
+    problem: '',
+    lean_canvas: {},
     ...initialData,
   });
 
-  const [charCount, setCharCount] = useState(formData.tagline?.length || 0);
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(
+    initialData?.uploaded_file 
+      ? {
+          name: initialData.uploaded_file.name || '',
+          type: initialData.uploaded_file.type || '',
+          size: initialData.uploaded_file.size || 0,
+          content: initialData.uploaded_file.content,
+        }
+      : null
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [activeAIField, setActiveAIField] = useState<'industry' | 'problem' | 'canvas' | null>(null);
+
+  // AI Hook
+  const {
+    isResearchingIndustry,
+    industryInsights,
+    researchIndustry,
+    problemSuggestions,
+    isLoadingProblemSuggestions,
+    generateProblemSuggestions,
+    canvasSuggestions,
+    loadingCanvasField,
+    generateCanvasSuggestions,
+  } = useStep1AI({ deckId, startupId });
 
   useEffect(() => {
     if (initialData) {
       setFormData(prev => ({ ...prev, ...initialData }));
-      setCharCount(initialData.tagline?.length || 0);
+      if (initialData.uploaded_file?.name) {
+        setUploadedFile({
+          name: initialData.uploaded_file.name,
+          type: initialData.uploaded_file.type || '',
+          size: initialData.uploaded_file.size || 0,
+          content: initialData.uploaded_file.content,
+        });
+      }
     }
   }, [initialData]);
 
-  const handleChange = (field: keyof Step1Data, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (field === 'tagline') {
-      setCharCount(value.length);
+  // Trigger industry research when industry changes
+  useEffect(() => {
+    if (formData.industry && formData.industry !== 'other') {
+      researchIndustry(formData.industry, formData.sub_category);
+      setActiveAIField('industry');
     }
-    // Clear error when user types
+  }, [formData.industry, formData.sub_category, researchIndustry]);
+
+  const handleChange = useCallback((field: keyof Step1Data, value: string | object) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
-  };
+  }, [errors]);
 
-  const handleIndustryChange = (value: string) => {
+  const handleIndustryChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, industry: value, sub_category: '' }));
     if (errors.industry) {
       setErrors(prev => ({ ...prev, industry: '' }));
     }
-  };
+  }, [errors.industry]);
+
+  const handleFileUpload = useCallback((file: UploadedFile) => {
+    setUploadedFile(file);
+    setFormData(prev => ({ ...prev, uploaded_file: file }));
+  }, []);
+
+  const handleRemoveFile = useCallback(() => {
+    setUploadedFile(null);
+    setFormData(prev => ({ ...prev, uploaded_file: undefined }));
+  }, []);
+
+  const handleAnalyzeDescription = useCallback(() => {
+    if (formData.industry && formData.company_description) {
+      generateProblemSuggestions(
+        formData.industry,
+        formData.company_description,
+        formData.sub_category
+      );
+      setActiveAIField('problem');
+    }
+  }, [formData.industry, formData.company_description, formData.sub_category, generateProblemSuggestions]);
+
+  const handleRequestProblemSuggestions = useCallback(() => {
+    if (formData.industry) {
+      generateProblemSuggestions(
+        formData.industry,
+        formData.company_description || '',
+        formData.sub_category
+      );
+      setActiveAIField('problem');
+    }
+  }, [formData.industry, formData.company_description, formData.sub_category, generateProblemSuggestions]);
+
+  const handleAddProblemSuggestion = useCallback((suggestion: AISuggestion) => {
+    const currentProblem = formData.problem || '';
+    const separator = currentProblem.trim() ? '\n\n' : '';
+    handleChange('problem', currentProblem + separator + suggestion.text);
+  }, [formData.problem, handleChange]);
+
+  // Lean Canvas handlers
+  const handleCanvasChange = useCallback((field: keyof LeanCanvasData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      lean_canvas: {
+        ...(prev.lean_canvas || {}),
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const handleRequestCanvasSuggestions = useCallback((field: keyof LeanCanvasData) => {
+    if (formData.industry && formData.company_description) {
+      generateCanvasSuggestions(field, formData.industry, formData.company_description);
+      setActiveAIField('canvas');
+    }
+  }, [formData.industry, formData.company_description, generateCanvasSuggestions]);
+
+  const handleAddCanvasSuggestion = useCallback((field: keyof LeanCanvasData, suggestion: CanvasFieldSuggestion) => {
+    const currentValue = (formData.lean_canvas as LeanCanvasData)?.[field] || '';
+    const separator = currentValue.trim() ? '\n' : '';
+    handleCanvasChange(field, currentValue + separator + suggestion.title);
+  }, [formData.lean_canvas, handleCanvasChange]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -107,7 +226,12 @@ export function WizardStep1({
 
   const handleContinue = () => {
     if (validate()) {
-      onContinue(formData as Step1Data);
+      // Store industry insights in the form data
+      const dataToSave: Step1Data = {
+        ...formData,
+        industry_insights: industryInsights ? (industryInsights as unknown as Record<string, unknown>) : undefined,
+      } as Step1Data;
+      onContinue(dataToSave);
     }
   };
 
@@ -118,11 +242,19 @@ export function WizardStep1({
       {/* Header */}
       <div>
         <h2 className="text-2xl font-display font-semibold text-foreground">
-          Startup Information
+          Startup Foundation
         </h2>
         <p className="text-muted-foreground mt-1">
-          Tell us about your company
+          Tell us about your company — AI will help you articulate your story
         </p>
+      </div>
+
+      {/* Smart Interview Mode Indicator */}
+      <div className="flex items-center gap-2 p-3 rounded-lg bg-sage/10 border border-sage/20">
+        <Sparkles className="w-4 h-4 text-sage" />
+        <span className="text-sm text-foreground">
+          <strong>Smart Interview Mode</strong> — AI analyzes your inputs and suggests improvements
+        </span>
       </div>
 
       {/* Form */}
@@ -132,9 +264,7 @@ export function WizardStep1({
           <Label htmlFor="company_name" className="flex items-center gap-2">
             Company Name
             <span className="text-destructive">*</span>
-            {isLocked && (
-              <Lock className="w-3 h-3 text-muted-foreground" />
-            )}
+            {isLocked && <Lock className="w-3 h-3 text-muted-foreground" />}
           </Label>
           <div className="relative">
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -154,9 +284,7 @@ export function WizardStep1({
 
         {/* Website URL */}
         <div className="space-y-2">
-          <Label htmlFor="website_url" className="flex items-center gap-2">
-            Website URL
-          </Label>
+          <Label htmlFor="website_url">Website URL</Label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -176,39 +304,16 @@ export function WizardStep1({
           )}
         </div>
 
-        {/* One-Line Pitch */}
-        <div className="space-y-2">
-          <Label htmlFor="tagline" className="flex items-center gap-2">
-            One-line Pitch
-            <span className="text-destructive">*</span>
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Who it's for + what problem you solve + why it's better
-          </p>
-          <Textarea
-            id="tagline"
-            value={formData.tagline || ''}
-            onChange={(e) => handleChange('tagline', e.target.value)}
-            placeholder="FashionOS is an AI-powered operating system for fashion brands and events that turns complex planning, content creation..."
-            maxLength={120}
-            rows={3}
-            className={cn(
-              'resize-none',
-              charCount > 100 && 'border-sage focus-visible:ring-sage'
-            )}
-          />
-          <div className="flex justify-between">
-            <p className="text-xs text-muted-foreground">
-              Keep it concise and specific
-            </p>
-            <p className={cn(
-              'text-xs',
-              charCount > 100 ? 'text-sage' : 'text-muted-foreground'
-            )}>
-              {charCount}/120
-            </p>
-          </div>
-        </div>
+        {/* Company Description (replaces One-Line Pitch) */}
+        <CompanyDescriptionInput
+          value={formData.company_description || ''}
+          onChange={(value) => handleChange('company_description', value)}
+          onFileUpload={handleFileUpload}
+          uploadedFile={uploadedFile}
+          onRemoveFile={handleRemoveFile}
+          onAnalyze={handleAnalyzeDescription}
+          isAnalyzing={isLoadingProblemSuggestions}
+        />
 
         {/* Industry */}
         <div className="space-y-2">
@@ -230,6 +335,12 @@ export function WizardStep1({
           </Select>
           {errors.industry && (
             <p className="text-xs text-destructive">{errors.industry}</p>
+          )}
+          {isResearchingIndustry && (
+            <p className="text-xs text-sage flex items-center gap-1">
+              <span className="animate-spin rounded-full h-3 w-3 border border-sage border-t-transparent" />
+              AI is researching your industry...
+            </p>
           )}
         </div>
 
@@ -269,7 +380,7 @@ export function WizardStep1({
           </motion.div>
         )}
 
-        {/* Stage */}
+        {/* Funding Stage */}
         <div className="space-y-2">
           <Label>Funding Stage</Label>
           <Select
@@ -289,24 +400,28 @@ export function WizardStep1({
           </Select>
         </div>
 
-        {/* AI-Generated Investor Summary */}
-        {formData.industry && formData.tagline && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 rounded-lg bg-muted/50 border border-border"
-          >
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              Investor Summary
-            </p>
-            <p className="text-sm text-foreground">
-              {INDUSTRIES.find(i => i.value === formData.industry)?.label}
-              {formData.sub_category && ` (${formData.sub_category.replace(/_/g, ' ')})`}
-              {' company: '}
-              {formData.tagline}
-            </p>
-          </motion.div>
-        )}
+        {/* Problem Field (Enhanced) */}
+        <div className="pt-4 border-t border-border">
+          <ProblemInput
+            value={formData.problem || ''}
+            onChange={(value) => handleChange('problem', value)}
+            onRequestSuggestions={handleRequestProblemSuggestions}
+            isLoadingSuggestions={isLoadingProblemSuggestions}
+            error={errors.problem}
+          />
+        </div>
+
+        {/* Lean Canvas Section */}
+        <div className="pt-4 border-t border-border">
+          <LeanCanvasSection
+            data={(formData.lean_canvas || {}) as LeanCanvasData}
+            onChange={handleCanvasChange}
+            onRequestSuggestions={handleRequestCanvasSuggestions}
+            fieldSuggestions={canvasSuggestions}
+            loadingField={loadingCanvasField}
+            onAddSuggestion={handleAddCanvasSuggestion}
+          />
+        </div>
       </div>
 
       {/* Navigation */}

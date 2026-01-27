@@ -1192,6 +1192,10 @@ export type Database = {
           content_json: Json | null
           created_at: string | null
           created_by: string | null
+          file_path: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
           id: string
           metadata: Json | null
           startup_id: string
@@ -1208,6 +1212,10 @@ export type Database = {
           content_json?: Json | null
           created_at?: string | null
           created_by?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           metadata?: Json | null
           startup_id: string
@@ -1224,6 +1232,10 @@ export type Database = {
           content_json?: Json | null
           created_at?: string | null
           created_by?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
           id?: string
           metadata?: Json | null
           startup_id?: string
