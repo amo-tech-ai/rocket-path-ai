@@ -60,7 +60,7 @@ interface OutreachResult {
   tips: string[];
 }
 
-interface PipelineAnalysis {
+export interface PipelineAnalysis {
   success: boolean;
   total_investors: number;
   by_status: Record<string, number>;
@@ -117,7 +117,7 @@ interface CompareResult {
   parallel_strategy: string;
 }
 
-interface FundraisingReport {
+export interface FundraisingReport {
   success: boolean;
   startup_name: string;
   generated_at: string;

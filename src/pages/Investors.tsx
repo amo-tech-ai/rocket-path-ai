@@ -70,7 +70,16 @@ const Investors = () => {
   // Empty state
   if (!isLoading && investors.length === 0) {
     return (
-      <DashboardLayout aiPanel={<InvestorsAIPanel investorsCount={0} interestedCount={0} meetingCount={0} />}>
+      <DashboardLayout aiPanel={
+        <InvestorsAIPanel 
+          investorsCount={0} 
+          interestedCount={0} 
+          meetingCount={0}
+          startupId={startup?.id}
+          targetRaise={startup?.raise_amount}
+          currentRaised={0}
+        />
+      }>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -103,7 +112,16 @@ const Investors = () => {
   }
 
   return (
-    <DashboardLayout aiPanel={<InvestorsAIPanel investorsCount={investors.length} interestedCount={investors.filter(i => i.status === 'due_diligence' || i.status === 'term_sheet').length} meetingCount={investors.filter(i => i.status === 'meeting_scheduled').length} />}>
+    <DashboardLayout aiPanel={
+      <InvestorsAIPanel 
+        investorsCount={investors.length} 
+        interestedCount={investors.filter(i => i.status === 'due_diligence' || i.status === 'term_sheet').length} 
+        meetingCount={investors.filter(i => i.status === 'meeting_scheduled').length}
+        startupId={startup?.id}
+        targetRaise={startup?.raise_amount}
+        currentRaised={0}
+      />
+    }>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
