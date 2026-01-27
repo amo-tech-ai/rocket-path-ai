@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { 
   Brain, 
   FileText, 
@@ -13,17 +15,75 @@ import {
   MessageSquare,
   Wand2,
   ArrowRight,
-  CheckCircle2
+  CheckCircle2,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { 
+  useGenerateDocument, 
+  useSearchDocuments, 
+  type DocumentTemplate,
+  type SearchResult 
+} from "@/hooks/useDocumentsAgent";
 
 interface DocumentsAIPanelProps {
   documentsCount: number;
   draftCount: number;
   publishedCount: number;
+  startupId?: string;
+  onDocumentGenerated?: () => void;
 }
 
-export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }: DocumentsAIPanelProps) {
+const TEMPLATES: { id: DocumentTemplate; label: string; description: string }[] = [
+  { id: 'executive_summary', label: 'Executive Summary', description: 'One-page company overview' },
+  { id: 'one_pager', label: 'One Pager', description: 'Quick investor snapshot' },
+  { id: 'investment_memo', label: 'Investment Memo', description: 'Detailed investment analysis' },
+  { id: 'pitch_script', label: 'Pitch Script', description: 'Verbal presentation guide' },
+];
+
+export function DocumentsAIPanel({ 
+  documentsCount, 
+  draftCount, 
+  publishedCount,
+  startupId,
+  onDocumentGenerated 
+}: DocumentsAIPanelProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
+  
+  const generateDocument = useGenerateDocument();
+  const searchDocuments = useSearchDocuments();
+
+  const handleGenerateDocument = async (template: DocumentTemplate) => {
+    if (!startupId) return;
+    
+    const result = await generateDocument.mutateAsync({
+      startupId,
+      template,
+    });
+    
+    if (result.success) {
+      onDocumentGenerated?.();
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!startupId || !searchQuery.trim()) return;
+    
+    const result = await searchDocuments.mutateAsync({
+      startupId,
+      query: searchQuery,
+    });
+    
+    if (result.success) {
+      setSearchResults(result);
+    }
+  };
+
+  const isGenerating = generateDocument.isPending;
+  const isSearching = searchDocuments.isPending;
+
   return (
     <ScrollArea className="h-full">
       <div className="p-4 space-y-4">
@@ -45,9 +105,19 @@ export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }:
                   ? "Create documents to get AI-powered content assistance."
                   : `Managing ${documentsCount} documents with AI assistance.`}
               </p>
-              <Button size="sm" className="w-full" variant="sage">
-                <Wand2 className="w-4 h-4 mr-2" />
-                Generate with AI
+              <Button 
+                size="sm" 
+                className="w-full" 
+                variant="sage"
+                onClick={() => handleGenerateDocument('executive_summary')}
+                disabled={isGenerating || !startupId}
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4 mr-2" />
+                )}
+                Generate Executive Summary
               </Button>
             </CardContent>
           </Card>
@@ -87,7 +157,7 @@ export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }:
           </Card>
         </motion.div>
 
-        {/* Smart Search */}
+        {/* Semantic Search */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -104,13 +174,47 @@ export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }:
               <p className="text-xs text-muted-foreground">
                 Search by meaning, not just keywords. Find content across all your documents.
               </p>
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-sage/10 border border-sage/20">
-                <MessageSquare className="w-4 h-4 text-sage mt-0.5 flex-shrink-0" />
-                <div className="text-xs">
-                  <p className="font-medium text-sage">Ask Questions</p>
-                  <p className="text-muted-foreground">"What's our go-to-market strategy?"</p>
-                </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ask a question..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="text-xs"
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
+              
+              {/* Search Results */}
+              {searchResults?.success && searchResults.results && searchResults.results.length > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-xs font-medium">{searchResults.total_count} results found</p>
+                  {searchResults.results.slice(0, 3).map((result, i) => (
+                    <div key={i} className="p-2 rounded-lg bg-muted/50 text-xs">
+                      <p className="font-medium">{result.title}</p>
+                      <p className="text-muted-foreground line-clamp-2">{result.snippet}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {searchResults?.success && searchResults.results?.length === 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                  <AlertCircle className="w-4 h-4" />
+                  No results found
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -133,18 +237,19 @@ export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }:
                 Generate professional documents based on your startup profile:
               </p>
               <div className="space-y-1">
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8">
-                  <Sparkles className="w-3 h-3 mr-2" />
-                  Pitch Deck
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8">
-                  <Sparkles className="w-3 h-3 mr-2" />
-                  Executive Summary
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8">
-                  <Sparkles className="w-3 h-3 mr-2" />
-                  Investment Memo
-                </Button>
+                {TEMPLATES.map((template) => (
+                  <Button 
+                    key={template.id}
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-start text-xs h-8"
+                    onClick={() => handleGenerateDocument(template.id)}
+                    disabled={isGenerating || !startupId}
+                  >
+                    <Sparkles className="w-3 h-3 mr-2" />
+                    {template.label}
+                  </Button>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -183,7 +288,7 @@ export function DocumentsAIPanel({ documentsCount, draftCount, publishedCount }:
                   </div>
                 </div>
               </div>
-              <Button variant="outline" size="sm" className="w-full text-xs mt-2">
+              <Button variant="outline" size="sm" className="w-full text-xs mt-2" disabled={documentsCount === 0}>
                 Analyze My Documents
                 <ArrowRight className="w-3 h-3 ml-2" />
               </Button>

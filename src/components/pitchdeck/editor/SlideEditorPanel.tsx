@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { ExportModal } from './ExportModal';
 import type { Slide, SlideContent } from '@/hooks/usePitchDeckEditor';
 
 interface SlideEditorPanelProps {
@@ -28,6 +29,8 @@ interface SlideEditorPanelProps {
   currentSlide: Slide | null;
   currentSlideIndex: number;
   saveStatus: 'saved' | 'saving' | 'error';
+  deckId: string;
+  deckTitle: string;
   onPrevSlide: () => void;
   onNextSlide: () => void;
   onUpdateContent: (slideId: string, updates: Partial<SlideContent>) => void;
@@ -38,11 +41,14 @@ export function SlideEditorPanel({
   currentSlide,
   currentSlideIndex,
   saveStatus,
+  deckId,
+  deckTitle,
   onPrevSlide,
   onNextSlide,
   onUpdateContent,
 }: SlideEditorPanelProps) {
   const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
@@ -75,7 +81,7 @@ export function SlideEditorPanel({
         <div className="flex items-center gap-2">
           <SaveStatusIndicator status={saveStatus} />
           
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -107,6 +113,15 @@ export function SlideEditorPanel({
           </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        deckId={deckId}
+        deckTitle={deckTitle}
+        slides={slides}
+      />
     </main>
   );
 }

@@ -119,6 +119,8 @@ export default function PitchDeckEditor() {
         currentSlide={currentSlide}
         currentSlideIndex={currentSlideIndex}
         saveStatus={saveStatus}
+        deckId={deckId!}
+        deckTitle={deck.title}
         onPrevSlide={prevSlide}
         onNextSlide={nextSlide}
         onUpdateContent={updateSlideContent}
