@@ -1,8 +1,8 @@
 # StartupAI Dashboard System — Progress Plan
 
-> **Updated:** 2026-01-27 | **Version:** 2.1 | **Status:** Active
+> **Updated:** 2026-01-27 | **Version:** 2.2 | **Status:** Active
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 48% complete
+> **Overall Progress:** 52% complete
 
 ---
 
@@ -13,11 +13,11 @@
 | 1 | **Onboarding** | 4-step wizard | ✅ 95% | ✅ 100% | ✅ 95% | **95%** | Done | — |
 | 2 | **Cloudinary** | — (infra) | ✅ 100% | N/A | ✅ 100% | **100%** | Done | — |
 | 3 | **Events** | 3 screens | ✅ 100% | 🟡 20% | ✅ 100% | **100%** | Done | — |
-| 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 60% | **75%** | Active | `01-lean-canvas.md` |
-| 5 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 80% | 🟡 50% | **65%** | Active | `pitch-decks/` |
+| 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 75% | **85%** | Active | `01-lean-canvas.md` |
+| 5 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 80% | 🟡 70% | **75%** | Active | `pitch-decks/` |
 | 6 | **Main Dashboard** | 1 screen | 🟡 50% | 🔴 0% | 🟡 30% | **25%** | Next | `11-main-dashboard.md` |
-| 7 | **CRM** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | Next | `12-crm.md` |
-| 8 | **Documents** | 3 screens | ✅ 100% | 🔴 0% | 🔴 0% | **40%** | Next | `13-documents.md` |
+| 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | 🟡 30% | **70%** | Active | `12-crm.md` |
+| 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | 🔴 0% | **60%** | Active | `13-documents.md` |
 | 9 | **Investors** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | Next | `14-investors.md` |
 | 10 | **Projects** | 3 screens | 🔴 0% | 🔴 0% | 🟡 50% | **25%** | Planned | `15-projects.md` |
 | 11 | **AI Chat** | 2 screens | ✅ 100% | 🟡 40% | 🔴 0% | **30%** | Planned | `16-ai-chat.md` |
@@ -32,11 +32,11 @@
 | **1** | ~~Onboarding~~ | ✅ Complete | — |
 | **2** | ~~Cloudinary~~ | ✅ Complete | — |
 | **3** | ~~Events~~ | ✅ Complete | — |
-| **4** | **Pitch Deck** (wizard + editor) | Flagship feature, Step 1 AI complete, 17 actions | Onboarding data |
-| **5** | **Lean Canvas** (polish) | 75% done, 11 actions deployed, needs frontend polish | Onboarding data |
-| **6** | **Main Dashboard** | Daily landing page, shows all module data | Pitch deck + lean canvas data |
-| **7** | **CRM** (build agent) | Backend 100%, needs `crm-agent` edge function | — |
-| **8** | **Documents** (build agent) | Backend 100%, needs `documents-agent` edge function | Cloudinary (done) |
+| **4** | **Pitch Deck** (wizard + editor) | Flagship feature, Step 1 AI complete, export ready | Onboarding data |
+| **5** | **Lean Canvas** (polish) | 85% done, 11 actions deployed, confidence badges added | Onboarding data |
+| **6** | **CRM** (wire frontend) | Backend + hooks complete, needs UI wiring | — |
+| **7** | **Documents** (wire frontend) | Backend + hooks complete, needs UI wiring | Cloudinary (done) |
+| **8** | **Main Dashboard** | Daily landing page, shows all module data | Pitch deck + lean canvas data |
 | **9** | **Investors** (build agent) | Backend 100%, needs `investor-agent` edge function | CRM patterns |
 | **10** | **Projects** (build task-agent) | Needs new `task-agent` edge function | — |
 | **11** | **AI Chat** (build pages) | Backend 100%, no dedicated pages yet | — |
@@ -44,11 +44,11 @@
 
 ### Rationale
 
-1. **Pitch Deck first** — highest user demand, Step 1 AI-guided complete with 17 actions
-2. **Lean Canvas next** — already 75%, 11 actions deployed, bridges into pitch deck via data cascade
-3. **Main Dashboard after data modules** — needs real data from pitch deck + lean canvas to show meaningful KPIs
-4. **CRM + Documents + Investors** — DB tables exist, need edge function creation and frontend polish
-5. **Projects + Chat + Settings** — lower priority, can ship after core fundraising flow works
+1. **Pitch Deck first** — highest user demand, export functionality now complete
+2. **Lean Canvas next** — 85% complete, confidence badges and profile mapping added
+3. **CRM + Documents immediately** — frontend hooks complete, just need UI wiring
+4. **Main Dashboard after data modules** — needs real data from pitch deck + lean canvas to show meaningful KPIs
+5. **Investors + Projects + Chat + Settings** — lower priority, can ship after core fundraising flow works
 
 ---
 
@@ -56,14 +56,14 @@
 
 ### ✅ DEPLOYED (in supabase/functions/)
 
-| Function | Actions | Status | Frontend Wiring | Prompt |
-|----------|---------|--------|-----------------|--------|
-| `onboarding-agent` | 12 | ✅ Deployed | ✅ 95% | — |
-| `lean-canvas-agent` | 11 | ✅ Deployed | 🟡 60% | `01-lean-canvas.md` |
-| `pitch-deck-agent` | 17 | ✅ Deployed | 🟡 50% | See pitch-deck prompts |
-| `ai-chat` | 5+ | ✅ Deployed | 🟡 30% | `16-ai-chat.md` |
-| `crm-agent` | 8 | ✅ Deployed | 🔴 0% | `12-crm.md` |
-| `documents-agent` | 6 | ✅ Deployed | 🔴 0% | `13-documents.md` |
+| Function | Actions | Status | Frontend Hooks | Frontend Wiring | Prompt |
+|----------|---------|--------|----------------|-----------------|--------|
+| `onboarding-agent` | 12 | ✅ Deployed | ✅ useOnboardingAgent | ✅ 95% | — |
+| `lean-canvas-agent` | 11 | ✅ Deployed | ✅ useLeanCanvasAgent | 🟡 75% | `01-lean-canvas.md` |
+| `pitch-deck-agent` | 17 | ✅ Deployed | ✅ usePitchDeckEditor | 🟡 70% | See pitch-deck prompts |
+| `ai-chat` | 5+ | ✅ Deployed | ✅ useAIChat | 🟡 30% | `16-ai-chat.md` |
+| `crm-agent` | 8 | ✅ Deployed | ✅ useCRMAgent | 🔴 0% | `12-crm.md` |
+| `documents-agent` | 6 | ✅ Deployed | ✅ useDocumentsAgent | 🔴 0% | `13-documents.md` |
 
 ### ❌ NOT DEPLOYED (need to create)
 
@@ -148,32 +148,57 @@ Each module has a dedicated prompt file (no code) describing screens, 3-panel la
 
 ---
 
+## Frontend Hooks Status
+
+All deployed edge functions now have corresponding frontend hooks:
+
+| Hook | File | Actions | Status |
+|------|------|---------|--------|
+| `useCRMAgent` | `src/hooks/useCRMAgent.ts` | 8 (enrich, score, pipeline, email, duplicates, summarize, follow-ups) | ✅ Created |
+| `useDocumentsAgent` | `src/hooks/useDocumentsAgent.ts` | 6 (generate, analyze, improve, search, summarize, compare) | ✅ Created |
+| `useLeanCanvasAgent` | `src/hooks/useLeanCanvasAgent.ts` | 11 (map, prefill, suggest, validate, benchmarks, versions) | ✅ Created |
+
+---
+
+## New Components Status
+
+| Component | File | Purpose | Status |
+|-----------|------|---------|--------|
+| `ExportModal` | `src/components/pitchdeck/editor/ExportModal.tsx` | PDF/PPTX/Link export | ✅ Created |
+| `ProfileMappingBanner` | `src/components/leancanvas/ProfileMappingBanner.tsx` | Coverage indicators + prefill | ✅ Created |
+| `ConfidenceBadge` | `src/components/leancanvas/ConfidenceBadge.tsx` | AI confidence indicators | ✅ Created |
+
+---
+
 ## Next Steps (Priority Order)
 
 ### P0 — This Week
 
-1. **Complete Pitch Deck Editor** — Slide editing UI, signal strength display, export (Steps 2-5 wizard complete)
-2. **Lean Canvas Frontend Polish** — Profile mapping banner, confidence badges, version history panel
-3. **Update supabase/config.toml** — Add lean-canvas-agent entry
+1. ✅ ~~Complete Pitch Deck Export~~ — PDF/PPTX/Link modal created
+2. ✅ ~~Lean Canvas Confidence Badges~~ — ProfileMappingBanner + ConfidenceBadge created
+3. ✅ ~~Create useCRMAgent hook~~ — 8 actions wired
+4. ✅ ~~Create useDocumentsAgent hook~~ — 6 actions wired
+5. **Wire CRM UI** — Connect useCRMAgent to ContactDetail, PipelineView components
+6. **Wire Documents UI** — Connect useDocumentsAgent to DocumentLibrary, DocumentDetail
 
 ### P1 — Next Week
 
-4. **Create `crm-agent` edge function** — 15 actions (enrich, score, pipeline, email)
-5. **Create `documents-agent` edge function** — 6 actions (generate, analyze, search)
-6. **Main Dashboard KPIs** — Wire real data to metric cards
+7. **Integrate ExportModal** — Add to SlideEditorPanel header
+8. **Integrate ProfileMappingBanner** — Add to LeanCanvasEditor page
+9. **Main Dashboard KPIs** — Wire real data to metric cards
+10. **Create `investor-agent` edge function** — 12 actions (discover, fit score, outreach)
 
 ### P2 — Following Weeks
 
-7. **Create `investor-agent` edge function** — 12 actions (discover, fit score, outreach)
-8. **Create `insights-generator` edge function** — Daily AI insights for dashboard
-9. **AI Chat Pages** — Dedicated chat interface, history view
-10. **Projects Task Agent** — New edge function for task generation
+11. **Create `insights-generator` edge function** — Daily AI insights for dashboard
+12. **AI Chat Pages** — Dedicated chat interface, history view
+13. **Projects Task Agent** — New edge function for task generation
 
 ### P3 — Future
 
-11. **Create `stage-analyzer` edge function** — Auto-detect startup stage
-12. **Settings Completion** — All 4 tabs functional
-13. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
+14. **Create `stage-analyzer` edge function** — Auto-detect startup stage
+15. **Settings Completion** — All 4 tabs functional
+16. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
 
 ---
 
@@ -187,12 +212,20 @@ The strategy in `100-dashboard-system.md` is **correct and comprehensive**. Key 
 - Visual identity defined (quiet luxury SaaS, Playfair Display + Inter, sage/warm palette)
 - Agent workflows mapped to edge function actions with specific triggers
 
-**Key gaps identified:**
-1. 6 edge functions documented but not yet created (crm, investor, documents, event, chatbot, task)
-2. 2 new edge functions needed for dashboard (insights-generator, stage-analyzer)
-3. `lean-canvas-agent` deployed but missing from `supabase/config.toml`
+**Completed this session:**
+1. ✅ Created `useCRMAgent` hook (8 actions)
+2. ✅ Created `useDocumentsAgent` hook (6 actions)
+3. ✅ Created `useLeanCanvasAgent` hook (11 actions)
+4. ✅ Created `ExportModal` component (PDF/PPTX/Link)
+5. ✅ Created `ProfileMappingBanner` component (coverage indicators)
+6. ✅ Created `ConfidenceBadge` component (AI confidence display)
 
-Implementation should follow the order above, prioritizing Pitch Deck and Lean Canvas completion before dashboard.
+**Key gaps remaining:**
+1. Wire CRM hooks to UI components
+2. Wire Documents hooks to UI components
+3. Integrate ExportModal into SlideEditorPanel
+4. Integrate ProfileMappingBanner into LeanCanvasEditor
+5. Create remaining edge functions (investor, insights, stage)
 
 ---
 
