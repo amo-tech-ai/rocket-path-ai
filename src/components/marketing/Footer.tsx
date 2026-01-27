@@ -6,22 +6,21 @@ import { Input } from "@/components/ui/input";
 const Footer = () => {
   const navigation = {
     product: [
-      { name: "Features", href: "#" },
-      { name: "Pricing", href: "#" },
-      { name: "Roadmap", href: "#" },
-      { name: "Changelog", href: "#" },
+      { name: "Features", href: "/features" },
+      { name: "How it Works", href: "/how-it-works" },
+      { name: "Events", href: "/events" },
     ],
-    company: [
-      { name: "About", href: "#" },
-      { name: "Blog", href: "#" },
-      { name: "Careers", href: "#" },
-      { name: "Press", href: "#" },
+    research: [
+      { name: "AI Adoption", href: "/blog/ai-adoption-by-industry" },
+      { name: "AI Jobs", href: "/blog/ai-jobs-future-of-work" },
+      { name: "AI in E-commerce", href: "/blog/ai-in-ecommerce" },
+      { name: "AI Startups", href: "/blog/ai-startup-products" },
+      { name: "AI Hubs", href: "/blog/ai-investment-hubs" },
     ],
     resources: [
-      { name: "Help Center", href: "#" },
+      { name: "All Research", href: "/blog" },
       { name: "Documentation", href: "#" },
-      { name: "API", href: "#" },
-      { name: "Community", href: "#" },
+      { name: "Help Center", href: "#" },
     ],
     legal: [
       { name: "Privacy Policy", href: "#" },
@@ -67,12 +66,12 @@ const Footer = () => {
             <ul className="space-y-3">
               {navigation.product.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
                     className="text-sm text-white/50 hover:text-sage transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -80,17 +79,17 @@ const Footer = () => {
 
           <div>
             <h3 className="text-sm font-medium text-white/80 uppercase tracking-wider mb-4">
-              Company
+              Research
             </h3>
             <ul className="space-y-3">
-              {navigation.company.map((item) => (
+              {navigation.research.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
                     className="text-sm text-white/50 hover:text-sage transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -103,12 +102,12 @@ const Footer = () => {
             <ul className="space-y-3">
               {navigation.resources.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
                     className="text-sm text-white/50 hover:text-sage transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

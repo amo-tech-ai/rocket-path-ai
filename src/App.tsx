@@ -27,6 +27,8 @@ import EventWizard from "./pages/EventWizard";
 import OnboardingWizard from "./pages/OnboardingWizard";
 import PublicEventsDirectory from "./pages/PublicEventsDirectory";
 import PublicEventDetail from "./pages/PublicEventDetail";
+import BlogIndex from "./pages/BlogIndex";
+import BlogPost from "./pages/BlogPost";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/features" element={<Features />} />
+            <Route path="/blog" element={<BlogIndex />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/events" element={<PublicEventsDirectory />} />
             <Route path="/events/:eventId" element={<PublicEventDetail />} />
             <Route path="/login" element={<Login />} />
