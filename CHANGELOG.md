@@ -1,24 +1,26 @@
 # Changelog
 
-## [0.8.0] - 2026-01-27
+## [0.8.1] - 2026-01-27
 
 ### Added
-- **InvestorsAIPanel AI Wiring** — Connected 3 useInvestorAgent hooks:
-  - `useDiscoverInvestors` - Find matching investors based on startup profile
-  - `useAnalyzePipeline` - Get pipeline health score, bottlenecks, and recommendations
-  - `useGenerateReport` - Generate weekly fundraising status report
-  
-- **Pipeline Analysis Display** — Shows health score, bottlenecks, wins, and actionable recommendations
-- **Fundraising Report Display** — Executive summary and weekly priorities
+- **ProfileMappingBanner Integration** — Lean Canvas now shows:
+  - Coverage indicators per canvas box (HIGH/MODERATE/LOW)
+  - Auto-mapping on page load
+  - AI Prefill button to generate content from startup profile
+  - Refresh button to re-analyze coverage
+
+- **InvestorDetailSheet AI Wiring** — New tabbed interface with:
+  - **Fit Analysis** — AI-powered investor fit score with strengths/concerns
+  - **Meeting Prep** — Key talking points, expected questions with suggested answers, questions to ask
+  - **Outreach Generation** — AI-drafted emails with subject lines, supports cold/warm/follow-up variants
 
 ### Changed
-- InvestorsAIPanel now accepts `startupId` prop for AI operations
-- Exported `PipelineAnalysis` and `FundraisingReport` types from useInvestorAgent hook
-- Investors page passes startup context to AI panel
-- Progress tracker updated to 68% overall completion
-- Investors module now at 90% (UI fully wired)
-- CRM module now at 90% (AI panel complete)
-- Documents module now at 80% (AI panel complete)
+- Lean Canvas module now at 98% completion
+- Investors module now at 98% completion  
+- Overall progress updated to 72%
+- Exported FitAnalysis, MeetingPrep, OutreachResult types from useInvestorAgent
+
+## [0.8.0] - 2026-01-27
 
 ## [0.7.9] - 2026-01-27
 

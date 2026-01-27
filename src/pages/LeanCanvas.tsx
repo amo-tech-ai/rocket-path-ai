@@ -3,8 +3,10 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LeanCanvasGrid } from '@/components/leancanvas/LeanCanvasGrid';
 import { CanvasAIPanel } from '@/components/leancanvas/CanvasAIPanel';
 import { AutosaveIndicator } from '@/components/leancanvas/AutosaveIndicator';
+import { ProfileMappingBanner } from '@/components/leancanvas/ProfileMappingBanner';
 import { useLeanCanvas, useSaveLeanCanvas, LeanCanvasData, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
 import { useCanvasAutosave } from '@/hooks/useCanvasAutosave';
+import { useMapProfile, usePrefillCanvas, type BoxKey, type CoverageLevel } from '@/hooks/useLeanCanvasAgent';
 import { exportToPDF, exportToPNG } from '@/lib/canvasExport';
 import { useStartup } from '@/hooks/useDashboardData';
 import { 
@@ -32,10 +34,16 @@ const LeanCanvas = () => {
   const { data: savedCanvas, isLoading: canvasLoading } = useLeanCanvas(startup?.id);
   const saveCanvas = useSaveLeanCanvas();
   
+  // Profile mapping hooks
+  const mapProfile = useMapProfile();
+  const prefillCanvas = usePrefillCanvas();
+  
   const [canvasData, setCanvasData] = useState<LeanCanvasData>(
     savedCanvas?.data || EMPTY_CANVAS
   );
   const [isExporting, setIsExporting] = useState(false);
+  const [coverage, setCoverage] = useState<Record<BoxKey, CoverageLevel> | null>(null);
+  const [lowCoverageBoxes, setLowCoverageBoxes] = useState<BoxKey[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Sync with saved data when it loads
@@ -44,6 +52,13 @@ const LeanCanvas = () => {
       setCanvasData(savedCanvas.data);
     }
   }, [savedCanvas?.data]);
+
+  // Auto-map profile on first load
+  useEffect(() => {
+    if (startup?.id && !coverage && !mapProfile.isPending) {
+      handleMapProfile();
+    }
+  }, [startup?.id]);
 
   const isLoading = startupLoading || canvasLoading;
 
@@ -83,6 +98,43 @@ const LeanCanvas = () => {
       toast.success('Canvas saved');
     } catch {
       toast.error('Failed to save canvas');
+    }
+  };
+
+  const handleMapProfile = async () => {
+    if (!startup?.id) return;
+    
+    const result = await mapProfile.mutateAsync({ startupId: startup.id });
+    if (result.success) {
+      setCoverage(result.coverage || null);
+      setLowCoverageBoxes(result.lowCoverageBoxes || []);
+    }
+  };
+
+  const handlePrefill = async () => {
+    if (!startup?.id) return;
+    
+    const result = await prefillCanvas.mutateAsync({ startupId: startup.id });
+    if (result.success && result.canvas) {
+      // Merge AI suggestions with existing canvas
+      setCanvasData(prev => {
+        const updated = { ...prev };
+        for (const [key, value] of Object.entries(result.canvas!)) {
+          if (value?.items?.length > 0) {
+            const existing = prev[key as keyof LeanCanvasData]?.items || [];
+            const newItems = (value.items as string[]).filter((item: string) => !existing.includes(item));
+            updated[key as keyof LeanCanvasData] = {
+              ...prev[key as keyof LeanCanvasData],
+              items: [...existing, ...newItems].slice(0, 8)
+            };
+          }
+        }
+        return updated;
+      });
+      autosave.markDirty();
+      
+      // Re-map profile to update coverage
+      handleMapProfile();
     }
   };
 
@@ -255,6 +307,17 @@ const LeanCanvas = () => {
             </Button>
           </div>
         </motion.div>
+
+        {/* Profile Mapping Banner */}
+        {!isLoading && startup?.id && (
+          <ProfileMappingBanner
+            coverage={coverage}
+            lowCoverageBoxes={lowCoverageBoxes}
+            isLoading={mapProfile.isPending || prefillCanvas.isPending}
+            onPrefill={handlePrefill}
+            onMapProfile={handleMapProfile}
+          />
+        )}
 
         {/* Canvas Grid */}
         {isLoading ? (
