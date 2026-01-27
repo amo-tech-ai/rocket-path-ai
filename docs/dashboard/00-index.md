@@ -1,8 +1,8 @@
 # Dashboard System — Master Index & Progress Tracker
 
-> **Version:** 2.0 | **Date:** January 27, 2026  
+> **Version:** 2.1 | **Date:** January 27, 2026  
 > **Status:** 🟡 Active Implementation  
-> **Overall Progress:** 45%
+> **Overall Progress:** 48%
 
 ---
 
@@ -13,8 +13,8 @@
 | **Foundation Prompts (00-09)** | | |
 | 00 | `00-index.md` | This index + progress tracker | — |
 | 00a | `00-progress-plan.md` | Module progress & implementation order | — |
-| 01 | `01-wireframes.md` | ASCII wireframes for all 27 screens | P0 |
-| 02 | `01-lean-canvas.md` | Lean Canvas architecture (existing) | P0 |
+| 01a | `01-wireframes.md` | ASCII wireframes for all 27 screens | P0 |
+| 01b | `01-lean-canvas.md` | Lean Canvas edge function architecture | P0 |
 | 03 | `03-data-strategy.md` | 48 tables, ERDs, RLS, indexes | P0 |
 | 03.1 | `03.1-smart-ai-system.md` | Auto-Claude adaptation (10 screens) | P1 |
 | 04 | `04-navigation-routing.md` | Routes, nav sidebar, breadcrumbs | P0 |
@@ -22,8 +22,8 @@
 | 06 | `06-ai-architecture.md` | AI routing, models, prompts, costs | P0 |
 | 07 | `07-state-realtime.md` | React Query, autosave, realtime | P1 |
 | 08 | `08-edge-functions.md` | 14 functions, 100+ actions | P0 |
+| 09 | `09-testing-qa.md` | Test strategy, QA checklists, benchmarks | P1 |
 | **Module Prompts (10-17)** | | |
-| 10 | `10-lean-canvas.md` | Lean Canvas (2 screens) | P0 |
 | 11 | `11-main-dashboard.md` | Main Dashboard (1 screen) | P0 |
 | 12 | `12-crm.md` | CRM (3 screens) | P0 |
 | 13 | `13-documents.md` | Documents (3 screens) | P1 |
@@ -33,6 +33,9 @@
 | 17 | `17-settings.md` | Settings (4 tabs) | P2 |
 | **Reference** | | |
 | 100 | `100-dashboard-system.md` | Complete system plan (source of truth) | — |
+| **Task Files** | | |
+| T02 | `tasks/02-create-insights-generator.md` | Daily AI Insights edge function | P1 |
+| T04 | `tasks/04-create-stage-analyzer.md` | Stage Analyzer edge function | P2 |
 
 ---
 
@@ -42,9 +45,9 @@
 |---|--------|---------|---------|----------|----------|---------|--------|
 | 1 | **Onboarding** | 4-step wizard | ✅ 95% | ✅ 100% | ✅ 95% | **95%** | ✅ Done |
 | 2 | **Events** | 3 screens | ✅ 100% | 🟡 20% | ✅ 100% | **100%** | ✅ Done |
-| 3 | **Pitch Deck** | 3 screens | 🟡 80% | 🟡 80% | 🟡 40% | **55%** | 🔵 Active |
-| 4 | **Lean Canvas** | 2 screens | ✅ 90% | ✅ 90% | 🟡 60% | **70%** | 🔵 Active |
-| 5 | **Main Dashboard** | 1 screen | 🔴 0% | 🔴 0% | 🟡 30% | **15%** | ⬜ Next |
+| 3 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 80% | 🟡 50% | **65%** | 🔵 Active |
+| 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 60% | **75%** | 🔵 Active |
+| 5 | **Main Dashboard** | 1 screen | 🟡 50% | 🔴 0% | 🟡 30% | **25%** | ⬜ Next |
 | 6 | **CRM** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | ⬜ Next |
 | 7 | **Documents** | 3 screens | ✅ 100% | 🔴 0% | 🔴 0% | **40%** | ⬜ Planned |
 | 8 | **Investors** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | ⬜ Planned |
@@ -55,57 +58,48 @@
 
 ---
 
+## Edge Functions — Actual Deployment Status
+
+### ✅ DEPLOYED (verified in supabase/functions/)
+
+| Function | Actions | Config Entry | Frontend Wiring |
+|----------|---------|--------------|-----------------|
+| `onboarding-agent` | 12 | ✅ Yes | ✅ 95% |
+| `lean-canvas-agent` | 11 | 🔴 Missing | 🟡 60% |
+| `pitch-deck-agent` | 17 | ✅ Yes | 🟡 50% |
+| `ai-chat` | 5+ | ✅ Yes | 🟡 30% |
+
+### ❌ NOT DEPLOYED (documented but need creation)
+
+| Function | Actions | Purpose | Blocks |
+|----------|---------|---------|--------|
+| `crm-agent` | 15 | Contact enrichment, deal scoring | CRM module |
+| `investor-agent` | 12 | Investor discovery, fit scoring | Investors module |
+| `documents-agent` | 6 | Document generation, analysis | Documents module |
+| `event-agent` | 8 | Event management | Events AI features |
+| `chatbot-agent` | 22 | Advanced chat | AI Chat module |
+| `task-agent` | — | Task generation | Projects module |
+| `insights-generator` | 3 | Daily AI insights | Main Dashboard |
+| `stage-analyzer` | 3 | Stage detection | Main Dashboard |
+
+---
+
 ## Implementation Order (Recommended)
 
 | Priority | Module | Prompt File | Why This Order | Depends On |
 |----------|--------|-------------|----------------|------------|
 | ~~1~~ | ~~Onboarding~~ | — | ✅ Complete | — |
 | ~~2~~ | ~~Events~~ | — | ✅ Complete | — |
-| **3** | **Pitch Deck** | `pitch-decks/` | Flagship feature, backend 80% ready | Onboarding data |
-| **4** | **Lean Canvas** | `10-lean-canvas.md` | 70% done, bridge to pitch deck | Onboarding data |
+| **3** | **Pitch Deck** | `pitch-decks/` | Flagship feature, 17 actions deployed | Onboarding data |
+| **4** | **Lean Canvas** | `01-lean-canvas.md` | 75% done, 11 actions deployed | Onboarding data |
 | **5** | **Main Dashboard** | `11-main-dashboard.md` | Daily landing page, needs module data | Pitch + Canvas |
-| **6** | **CRM** | `12-crm.md` | Backend 100%, needs AI wiring | — |
-| **7** | **Documents** | `13-documents.md` | Backend 100%, needs upload + AI | Cloudinary |
-| **8** | **Investors** | `14-investors.md` | Backend 100%, needs discovery UI | CRM patterns |
-| **9** | **Projects** | `15-projects.md` | Needs task-agent edge function | — |
+| **6** | **CRM** | `12-crm.md` | Backend 100%, needs `crm-agent` | — |
+| **7** | **Documents** | `13-documents.md` | Backend 100%, needs `documents-agent` | Cloudinary |
+| **8** | **Investors** | `14-investors.md` | Backend 100%, needs `investor-agent` | CRM patterns |
+| **9** | **Projects** | `15-projects.md` | Needs new `task-agent` edge function | — |
 | **10** | **AI Chat** | `16-ai-chat.md` | Backend 100%, no dedicated pages | — |
 | **11** | **Settings** | `17-settings.md` | Polish, non-blocking | — |
 | **12** | **Smart AI** | `03.1-smart-ai-system.md` | Advanced autonomous layer | All modules |
-
----
-
-## Edge Functions Status
-
-| # | Function | Actions | Backend | AI Wired | Prompt |
-|---|----------|---------|---------|----------|--------|
-| 1 | `onboarding-agent` | 12 | ✅ | ✅ 95% | — |
-| 2 | `lean-canvas-agent` | 11 | ✅ | 🟡 60% | `10-lean-canvas.md` |
-| 3 | `pitch-deck-agent` | 17 | ✅ | 🟡 50% | `pitch-decks/` |
-| 4 | `crm-agent` | 15 | ✅ | 🔴 0% | `12-crm.md` |
-| 5 | `investor-agent` | 12 | ✅ | 🔴 0% | `14-investors.md` |
-| 6 | `documents-agent` | 6 | ✅ | 🔴 0% | `13-documents.md` |
-| 7 | `event-agent` | 8 | ✅ | 🟡 70% | — |
-| 8 | `chatbot-agent` | 22 | ✅ | 🔴 0% | `16-ai-chat.md` |
-| 9 | `ai-chat` | 5+ | ✅ | 🟡 30% | `16-ai-chat.md` |
-| 10 | `task-agent` | — | ❌ Missing | — | `15-projects.md` |
-| 11 | `dashboard-metrics` | — | ❌ Missing | — | `11-main-dashboard.md` |
-
----
-
-## Prompt Files to Create
-
-The following module prompts need to be created (10-17):
-
-| File | Module | Screens | Status | Template |
-|------|--------|---------|--------|----------|
-| `10-lean-canvas.md` | Lean Canvas | Canvas Editor, AI Panel | ✅ Exists | — |
-| `11-main-dashboard.md` | Main Dashboard | Command Center | ⬜ Needed | See `100-dashboard-system.md` Section 1 |
-| `12-crm.md` | CRM | Contacts, Pipeline, Detail | ⬜ Needed | See `100-dashboard-system.md` Section 2 |
-| `13-documents.md` | Documents | Library, Detail, Generator | ⬜ Needed | See `100-dashboard-system.md` Section 5 |
-| `14-investors.md` | Investors | Discovery, Pipeline, Detail | ⬜ Needed | See `100-dashboard-system.md` Section 3 |
-| `15-projects.md` | Projects | List, Detail, Tasks Board | ⬜ Needed | See `100-dashboard-system.md` Section 4 |
-| `16-ai-chat.md` | AI Chat | Chat, History | ⬜ Needed | See `100-dashboard-system.md` Section 9 |
-| `17-settings.md` | Settings | 4 tabs | ⬜ Needed | See `100-dashboard-system.md` Section 10 |
 
 ---
 
@@ -144,17 +138,17 @@ The following module prompts need to be created (10-17):
 ### P0 — This Week
 1. **Complete Pitch Deck Editor** — Slide editing UI, signal strength, export
 2. **Lean Canvas Frontend Polish** — Profile mapping banner, confidence badges
-3. **Wire CRM AI Actions** — Enrich, score, analyze to frontend hooks
+3. **Fix supabase/config.toml** — Add lean-canvas-agent entry
 
 ### P1 — Next Week
-4. **Main Dashboard KPIs** — Wire real data to metric cards
-5. **Documents AI Generation** — Template selection, context preview
-6. **Investors Discovery UI** — Search filters, fit score display
+4. **Create `crm-agent` edge function** — 15 actions
+5. **Create `documents-agent` edge function** — 6 actions
+6. **Main Dashboard KPIs** — Wire real data to metric cards
 
 ### P2 — Following Weeks
-7. **Projects Task Agent** — New edge function for task generation
-8. **AI Chat Pages** — Dedicated chat interface, history view
-9. **Settings Completion** — All 4 tabs functional
+7. **Create `investor-agent` edge function** — 12 actions
+8. **Create `insights-generator` edge function** — Daily AI insights
+9. **AI Chat Pages** — Dedicated chat interface, history view
 
 ### P3 — Future
 10. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
@@ -165,8 +159,9 @@ The following module prompts need to be created (10-17):
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-27 | Verified edge functions, updated all status, added task files | 2.1 |
 | 2026-01-27 | Created comprehensive dashboard docs system | 2.0 |
-| 2026-01-27 | Added all foundation prompts (00-08) | 2.0 |
+| 2026-01-27 | Added all foundation prompts (00-09) | 2.0 |
 | 2026-01-27 | Added 100-dashboard-system.md as source of truth | 2.0 |
 | 2026-01-27 | Updated lean-canvas-agent with 11 actions | 1.5 |
 
