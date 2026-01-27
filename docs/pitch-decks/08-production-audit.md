@@ -159,13 +159,28 @@ const mockSuggestions: AISuggestion[] = [
 
 ---
 
+## 🟢 NEW FEATURES (This Session)
+
+### Google Search Grounding ✅
+- `market_research` action - TAM/SAM/SOM, growth rates, trends
+- `competitor_analysis` action - Competitor funding, positioning
+
+### Image Generation ✅
+- `generate_slide_image` - AI visuals per slide type
+- `generate_deck_images` - Batch generation for key slides
+- `regenerate_slide_image` - Custom prompt regeneration
+
+**Model:** `google/gemini-3-pro-image-preview`
+
+---
+
 ## 🔴 NOT STARTED
 
 | Feature | Priority | Effort | Notes |
 |---------|----------|--------|-------|
+| PDF Export | P2 | 4h | Use jspdf |
 | PPTX Export | P3 | 6h | Needs pptxgenjs |
 | Shareable Links | P3 | 4h | Public URL with expiry |
-| Image Generation | P3 | 4h | Gemini image model |
 
 ---
 

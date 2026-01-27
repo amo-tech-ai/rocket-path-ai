@@ -350,6 +350,107 @@ export function usePitchDeckEditor({ deckId }: UsePitchDeckEditorOptions) {
   }, []);
 
   // ============================================================================
+  // Image Generation
+  // ============================================================================
+
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+  const generateSlideImage = useCallback(async (customPrompt?: string) => {
+    if (!currentSlide || !deck) return;
+
+    try {
+      setIsGeneratingImage(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const response = await supabase.functions.invoke('pitch-deck-agent', {
+        body: {
+          action: customPrompt ? 'regenerate_slide_image' : 'generate_slide_image',
+          slide_id: currentSlide.id,
+          slide_type: currentSlide.slide_type,
+          slide_title: currentSlide.title,
+          custom_prompt: customPrompt,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      if (response.data?.success && response.data?.image_url) {
+        // Update local state with new image
+        setSlides(prev => prev.map(s => 
+          s.id === currentSlide.id 
+            ? { ...s, image_url: response.data.image_url, content: { ...s.content, background_image: response.data.image_url } }
+            : s
+        ));
+        toast.success('Image generated successfully');
+      } else {
+        toast.error(response.data?.error || 'Failed to generate image');
+      }
+
+      setIsGeneratingImage(false);
+    } catch (error) {
+      console.error('Failed to generate image:', error);
+      toast.error('Failed to generate image');
+      setIsGeneratingImage(false);
+    }
+  }, [currentSlide, deck]);
+
+  // ============================================================================
+  // Market Research
+  // ============================================================================
+
+  const [marketResearch, setMarketResearch] = useState<{
+    market_size?: { tam?: string; sam?: string; som?: string };
+    growth_rate?: { value?: string; period?: string };
+    key_trends?: string[];
+  } | null>(null);
+  const [isResearching, setIsResearching] = useState(false);
+
+  const fetchMarketResearch = useCallback(async (industry: string, companyContext: string) => {
+    if (!deck) return;
+
+    try {
+      setIsResearching(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const response = await supabase.functions.invoke('pitch-deck-agent', {
+        body: {
+          action: 'market_research',
+          deck_id: deck.id,
+          industry,
+          company_context: companyContext,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) throw response.error;
+
+      if (response.data?.success) {
+        setMarketResearch({
+          market_size: response.data.market_size,
+          growth_rate: response.data.growth_rate,
+          key_trends: response.data.key_trends,
+        });
+        toast.success('Market research completed');
+      }
+
+      setIsResearching(false);
+    } catch (error) {
+      console.error('Failed to fetch market research:', error);
+      toast.error('Failed to fetch market research');
+      setIsResearching(false);
+    }
+  }, [deck]);
+
+  // ============================================================================
   // Deck Actions
   // ============================================================================
 
@@ -419,12 +520,21 @@ export function usePitchDeckEditor({ deckId }: UsePitchDeckEditorOptions) {
     isSaving,
     saveStatus,
 
-    // AI
+    // AI Suggestions
     aiSuggestions,
     slideAnalysis,
     isLoadingSuggestions,
     fetchAISuggestions,
     applySuggestion,
     dismissSuggestion,
+
+    // Image Generation
+    isGeneratingImage,
+    generateSlideImage,
+
+    // Market Research
+    marketResearch,
+    isResearching,
+    fetchMarketResearch,
   };
 }

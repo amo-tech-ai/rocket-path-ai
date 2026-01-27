@@ -13,6 +13,11 @@ import {
   getDeck,
   getSignalStrength,
   analyzeSlide,
+  conductMarketResearch,
+  analyzeCompetitors,
+  generateSlideVisual,
+  generateDeckVisuals,
+  regenerateSlideImage,
 } from "./actions/index.ts";
 
 const corsHeaders = {
@@ -29,15 +34,22 @@ type SupabaseClient = any;
 interface RequestBody {
   action: string;
   deck_id?: string;
+  slide_id?: string;
   step?: number;
   step_data?: Record<string, unknown>;
   step1_data?: Record<string, unknown>;
   step2_data?: Record<string, unknown>;
   template?: string;
-  slide_id?: string;
   content?: Record<string, unknown>;
   slide_type?: string;
   slide_content?: Record<string, unknown>;
+  industry?: string;
+  company_context?: string;
+  company_name?: string;
+  differentiator?: string;
+  slide_title?: string;
+  brand_colors?: { primary?: string; secondary?: string };
+  custom_prompt?: string;
 }
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -75,6 +87,7 @@ Deno.serve(async (req) => {
     let result;
 
     switch (action) {
+      // ===== Wizard Actions =====
       case "save_wizard_step":
         result = await saveWizardStep(
           supabase,
@@ -87,16 +100,13 @@ Deno.serve(async (req) => {
         break;
 
       case "resume_wizard":
-        if (!body.deck_id) {
-          throw new Error("deck_id is required");
-        }
+        if (!body.deck_id) throw new Error("deck_id is required");
         result = await resumeWizard(supabase, user.id, body.deck_id);
         break;
 
+      // ===== Generation Actions =====
       case "generate_interview_questions":
-        if (!body.deck_id) {
-          throw new Error("deck_id is required");
-        }
+        if (!body.deck_id) throw new Error("deck_id is required");
         result = await generateInterviewQuestions(
           supabase,
           user.id,
@@ -107,9 +117,7 @@ Deno.serve(async (req) => {
         break;
 
       case "generate_deck":
-        if (!body.deck_id) {
-          throw new Error("deck_id is required");
-        }
+        if (!body.deck_id) throw new Error("deck_id is required");
         result = await generateDeck(
           supabase,
           user.id,
@@ -118,10 +126,9 @@ Deno.serve(async (req) => {
         );
         break;
 
+      // ===== Slide Actions =====
       case "update_slide":
-        if (!body.slide_id) {
-          throw new Error("slide_id is required");
-        }
+        if (!body.slide_id) throw new Error("slide_id is required");
         result = await updateSlide(
           supabase,
           user.id,
@@ -131,29 +138,84 @@ Deno.serve(async (req) => {
         break;
 
       case "get_deck":
-        if (!body.deck_id) {
-          throw new Error("deck_id is required");
-        }
+        if (!body.deck_id) throw new Error("deck_id is required");
         result = await getDeck(supabase, user.id, body.deck_id);
         break;
 
       case "get_signal_strength":
-        if (!body.deck_id) {
-          throw new Error("deck_id is required");
-        }
+        if (!body.deck_id) throw new Error("deck_id is required");
         result = await getSignalStrength(supabase, user.id, body.deck_id);
         break;
 
       case "analyze_slide":
-        if (!body.slide_id) {
-          throw new Error("slide_id is required");
-        }
+        if (!body.slide_id) throw new Error("slide_id is required");
         result = await analyzeSlide(
           supabase,
           user.id,
           body.slide_id,
           body.slide_type || "unknown",
           body.slide_content || {}
+        );
+        break;
+
+      // ===== Research Actions (Google Search Grounding) =====
+      case "market_research":
+        if (!body.deck_id) throw new Error("deck_id is required");
+        if (!body.industry) throw new Error("industry is required");
+        result = await conductMarketResearch(
+          supabase,
+          user.id,
+          body.deck_id,
+          body.industry,
+          body.company_context || ""
+        );
+        break;
+
+      case "competitor_analysis":
+        if (!body.deck_id) throw new Error("deck_id is required");
+        if (!body.industry) throw new Error("industry is required");
+        result = await analyzeCompetitors(
+          supabase,
+          user.id,
+          body.deck_id,
+          body.industry,
+          body.company_name || "",
+          body.differentiator || ""
+        );
+        break;
+
+      // ===== Image Generation Actions =====
+      case "generate_slide_image":
+        if (!body.slide_id) throw new Error("slide_id is required");
+        result = await generateSlideVisual(
+          supabase,
+          user.id,
+          body.slide_id,
+          body.slide_type || "title",
+          body.slide_title || "",
+          body.company_context,
+          body.brand_colors
+        );
+        break;
+
+      case "generate_deck_images":
+        if (!body.deck_id) throw new Error("deck_id is required");
+        result = await generateDeckVisuals(
+          supabase,
+          user.id,
+          body.deck_id,
+          body.company_context || "",
+          body.brand_colors
+        );
+        break;
+
+      case "regenerate_slide_image":
+        if (!body.slide_id) throw new Error("slide_id is required");
+        result = await regenerateSlideImage(
+          supabase,
+          user.id,
+          body.slide_id,
+          body.custom_prompt
         );
         break;
 
