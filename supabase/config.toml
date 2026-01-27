@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.documents-agent]
 verify_jwt = false
+
+[functions.investor-agent]
+verify_jwt = false

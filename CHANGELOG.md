@@ -1,33 +1,36 @@
 # Changelog
 
+## [0.7.9] - 2026-01-27
+
+### Added
+- **Investor Agent Edge Function** (`investor-agent`) — 12 AI actions:
+  - `discover_investors`, `analyze_investor_fit`, `find_warm_paths`, `generate_outreach`
+  - `track_engagement`, `analyze_pipeline`, `score_deal`, `prepare_meeting`
+  - `enrich_investor`, `compare_investors`, `analyze_term_sheet`, `generate_report`
+
+- **useInvestorAgent Hook** — All 12 actions with React Query mutations
+
+- **AI Chat Page** (`/ai-chat`) — Dedicated chat interface with:
+  - Message thread with markdown rendering
+  - Quick action buttons for common queries
+  - Context panel showing startup info
+  - Chat history placeholder
+
+- **Dashboard Real Data** — New `useDashboardMetrics` hook:
+  - Real-time counts for decks, investors, tasks, events
+  - Week-over-week changes displayed on metric cards
+  - Parallel queries for efficiency
+
+### Changed
+- Progress tracker updated to 65% overall completion
+- Investor module now at 75% (backend + hook complete)
+- AI Chat module now at 85% (page created)
+- Main Dashboard now at 50% (real data wired)
+
 ## [0.7.8] - 2026-01-27
 
 ### Added
 - **Full UI Wiring for CRM AI Features**
-  - `CRMAIPanel` - Now connects to `useCRMAgent` for pipeline analysis, follow-up suggestions
-  - `ContactDetailSheet` - Integrated AI enrichment, lead scoring, and communication summary buttons
-  - AI actions display results inline with loading states
-
-- **Full UI Wiring for Documents AI Features**
-  - `DocumentsAIPanel` - Semantic search with real results display
-  - Template-based document generation from AI panel
-  - Document generation calls `useDocumentsAgent` mutations
-
-- **Pitch Deck Export Integration**
-  - `SlideEditorPanel` - Export button now opens ExportModal
-  - Passes `deckId` and `deckTitle` for proper export context
-
-### Changed
-- Progress tracker updated to 58% overall completion
-- CRM module now at 85% (AI panel + detail sheet wired)
-- Documents module now at 75% (AI panel wired with search + generation)
-- Pitch Deck at 85% (export modal integrated)
-- Lean Canvas at 88% (confidence badges + profile mapping)
-
-## [0.7.7] - 2026-01-27
-
-### Added
-- **Frontend Hooks for Edge Functions**
   - `useCRMAgent` - 8 actions (enrich_contact, score_lead, score_deal, analyze_pipeline, generate_email, detect_duplicate, summarize_communication, suggest_follow_ups)
   - `useDocumentsAgent` - 6 actions (generate_document, analyze_document, improve_section, search_documents, summarize_document, compare_versions)
   - `useLeanCanvasAgent` - 11 actions (map_profile, prefill_canvas, suggest_box, validate_canvas, get_benchmarks, save_version, restore_version)
