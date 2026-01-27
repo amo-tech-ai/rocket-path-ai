@@ -2,7 +2,37 @@
 
 > **Audit Date:** January 27, 2026  
 > **Auditor:** AI Systems Architect  
-> **Status:** 🟢 **Production Ready** (100%)
+> **Status:** 🟢 **Production Ready** (v1.1 - Step 1 Enhanced)
+
+---
+
+## Latest Updates (v1.1) - Step 1 AI-Guided Enhancement
+
+### New Components
+| Component | File | Purpose |
+|-----------|------|---------|
+| `CompanyDescriptionInput` | `step1/CompanyDescriptionInput.tsx` | Extended description (1000 words) + file upload |
+| `ProblemInput` | `step1/ProblemInput.tsx` | Enhanced problem field with AI suggestions |
+| `AISuggestionsPanel` | `step1/AISuggestionsPanel.tsx` | Industry insights + clickable suggestions |
+| `SmartInterviewDrafts` | `step1/SmartInterviewDrafts.tsx` | AI-generated draft answers |
+| `LeanCanvasSection` | `step1/LeanCanvasSection.tsx` | Mini canvas with AI-assisted fields |
+
+### New Edge Function Actions (4)
+| Action | Purpose | Model |
+|--------|---------|-------|
+| `research_industry` | Google Search grounding for industry intelligence | Gemini 3 Pro |
+| `suggest_problems` | AI-generated problem statements | Gemini 3 Flash |
+| `suggest_canvas_field` | Lean Canvas field suggestions | Gemini 3 Flash |
+| `generate_interview_drafts` | Smart Interview draft answers | Gemini 3 Flash |
+
+### Schema Updates
+- `company_description` — Replaces tagline (up to 1000 words)
+- `problem` — Enhanced problem field (up to 2000 chars)
+- `lean_canvas` — Embedded canvas data structure
+- `uploaded_file` — File upload metadata
+
+### Hook Addition
+- `useStep1AI` — Manages all Step 1 AI operations
 
 ---
 
@@ -11,12 +41,12 @@
 | Category | Status | Progress | Critical Issues |
 |----------|--------|----------|-----------------|
 | **Database Schema** | ✅ Complete | 100% | None |
-| **Edge Functions** | ✅ Complete | 100% | None |
-| **Wizard UI (4 Steps)** | ✅ Complete | 100% | None |
+| **Edge Functions** | ✅ Complete | 100% | 17 actions deployed |
+| **Wizard UI (4 Steps)** | ✅ Complete | 100% | Step 1 enhanced |
 | **Deck Editor UI** | ✅ Complete | 100% | None |
 | **Dashboard UI** | ✅ Complete | 100% | None |
 | **AI Integration** | ✅ Complete | 100% | Live Gemini connected |
-| **Gemini 3 Models** | ✅ Complete | 100% | Pro + Flash working |
+| **Gemini 3 Models** | ✅ Complete | 100% | Pro + Flash + Image |
 | **Routes & Navigation** | ✅ Complete | 100% | None |
 | **Code Quality** | ✅ Complete | 100% | DRY - centralized AI utils |
 | **Export PDF** | 🔴 Not Started | 0% | P2 Priority |

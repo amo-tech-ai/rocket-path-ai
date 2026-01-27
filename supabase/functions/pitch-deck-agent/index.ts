@@ -18,6 +18,10 @@ import {
   generateSlideVisual,
   generateDeckVisuals,
   regenerateSlideImage,
+  researchIndustry,
+  suggestProblems,
+  suggestCanvasField,
+  generateInterviewDrafts,
 } from "./actions/index.ts";
 
 const corsHeaders = {
@@ -44,12 +48,16 @@ interface RequestBody {
   slide_type?: string;
   slide_content?: Record<string, unknown>;
   industry?: string;
+  sub_category?: string;
   company_context?: string;
+  company_description?: string;
   company_name?: string;
   differentiator?: string;
   slide_title?: string;
   brand_colors?: { primary?: string; secondary?: string };
   custom_prompt?: string;
+  field?: string;
+  problem?: string;
 }
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -216,6 +224,51 @@ Deno.serve(async (req) => {
           user.id,
           body.slide_id,
           body.custom_prompt
+        );
+        break;
+
+      // ===== Step 1 AI Actions =====
+      case "research_industry":
+        if (!body.industry) throw new Error("industry is required");
+        result = await researchIndustry(
+          supabase,
+          user.id,
+          body.industry,
+          body.sub_category
+        );
+        break;
+
+      case "suggest_problems":
+        if (!body.industry) throw new Error("industry is required");
+        result = await suggestProblems(
+          supabase,
+          user.id,
+          body.industry,
+          body.sub_category,
+          body.company_description || ""
+        );
+        break;
+
+      case "suggest_canvas_field":
+        if (!body.field) throw new Error("field is required");
+        if (!body.industry) throw new Error("industry is required");
+        result = await suggestCanvasField(
+          supabase,
+          user.id,
+          body.field,
+          body.industry,
+          body.company_description || ""
+        );
+        break;
+
+      case "generate_interview_drafts":
+        if (!body.industry) throw new Error("industry is required");
+        result = await generateInterviewDrafts(
+          supabase,
+          user.id,
+          body.industry,
+          body.company_description || "",
+          body.problem || ""
         );
         break;
 

@@ -303,3 +303,28 @@ export async function generateDeckImages(
   console.log(`[generateDeckImages] Generated ${imageMap.size} images for deck`);
   return imageMap;
 }
+
+// ============================================================================
+// JSON Extraction Utility
+// ============================================================================
+
+export function extractJSON<T>(text: string | undefined): T | null {
+  if (!text) return null;
+  
+  try {
+    // Try to find JSON in the response
+    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
+                      text.match(/```\s*([\s\S]*?)\s*```/) ||
+                      text.match(/\{[\s\S]*\}/) ||
+                      text.match(/\[[\s\S]*\]/);
+    
+    if (jsonMatch) {
+      const jsonStr = jsonMatch[1] || jsonMatch[0];
+      return JSON.parse(jsonStr.trim());
+    }
+    return null;
+  } catch {
+    console.error("[extractJSON] Failed to parse JSON from response");
+    return null;
+  }
+}

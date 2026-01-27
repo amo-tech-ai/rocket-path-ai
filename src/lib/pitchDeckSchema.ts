@@ -44,20 +44,52 @@ export const TONES = [
 ] as const;
 
 // ============================================================================
-// Step 1: Startup Info Schema
+// Step 1: Startup Info Schema (Enhanced)
 // ============================================================================
+
+export const leanCanvasSchema = z.object({
+  problem: z.string().optional(),
+  solution: z.string().optional(),
+  uniqueValueProp: z.string().optional(),
+  unfairAdvantage: z.string().optional(),
+  customerSegments: z.string().optional(),
+  keyMetrics: z.string().optional(),
+  channels: z.string().optional(),
+  costStructure: z.string().optional(),
+  revenueStreams: z.string().optional(),
+});
+
+export const uploadedFileSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  size: z.number(),
+  content: z.string().optional(),
+});
 
 export const step1Schema = z.object({
   company_name: z.string().min(1, 'Company name is required'),
   website_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
+  // Changed from tagline to company_description (up to 1000 words)
+  company_description: z.string().max(10000, 'Description too long').optional(),
+  // Keep tagline for backward compatibility
   tagline: z.string().max(120, 'Pitch must be under 120 characters').optional(),
   industry: z.string().min(1, 'Industry is required'),
   sub_category: z.string().optional(),
   stage: z.enum(['pre_seed', 'seed', 'series_a', 'series_b']).optional(),
+  // Problem field (enhanced, longer)
+  problem: z.string().max(2000, 'Problem statement too long').optional(),
+  // Uploaded file reference
+  uploaded_file: uploadedFileSchema.optional(),
+  // Lean Canvas data
+  lean_canvas: leanCanvasSchema.optional(),
+  // AI-generated insights
   ai_investor_summary: z.string().optional(),
+  industry_insights: z.record(z.unknown()).optional(),
 });
 
 export type Step1Data = z.infer<typeof step1Schema>;
+export type LeanCanvasData = z.infer<typeof leanCanvasSchema>;
+export type UploadedFile = z.infer<typeof uploadedFileSchema>;
 
 // ============================================================================
 // Step 2: Market & Traction Schema

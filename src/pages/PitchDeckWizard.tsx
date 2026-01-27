@@ -16,7 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PitchDeckWizard() {
-  const { deckId } = useParams<{ deckId?: string }>();
+  const { deckId: urlDeckId } = useParams<{ deckId?: string }>();
   const navigate = useNavigate();
 
   const {
@@ -28,6 +28,8 @@ export default function PitchDeckWizard() {
     signalStrength,
     interviewQuestions,
     researchContext,
+    deckId,
+    startupId,
     nextStep,
     prevStep,
     goToStep,
@@ -36,7 +38,7 @@ export default function PitchDeckWizard() {
     getStep1Data,
     getStep2Data,
     getStep3Data,
-  } = usePitchDeckWizard({ deckId });
+  } = usePitchDeckWizard({ deckId: urlDeckId });
 
   // Generate interview questions when reaching step 3
   useEffect(() => {
@@ -143,6 +145,8 @@ export default function PitchDeckWizard() {
           initialData={getStep1Data()}
           onContinue={(data) => nextStep(data)}
           isSaving={isSaving}
+          deckId={deckId}
+          startupId={startupId}
         />
       )}
 
