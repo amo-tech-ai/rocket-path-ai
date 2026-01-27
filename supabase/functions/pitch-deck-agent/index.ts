@@ -22,6 +22,8 @@ interface RequestBody {
   template?: string;
   slide_id?: string;
   content?: Record<string, unknown>;
+  slide_type?: string;
+  slide_content?: Record<string, unknown>;
 }
 
 interface SlideContent {
@@ -830,6 +832,125 @@ async function getSignalStrength(
 }
 
 // ============================================================================
+// Action: analyze_slide (AI suggestions for slide improvement)
+// ============================================================================
+
+async function analyzeSlide(
+  supabase: SupabaseClient,
+  userId: string,
+  slideId: string,
+  slideType: string,
+  slideContent: Record<string, unknown>
+) {
+  console.log(`[analyze_slide] Slide: ${slideId}, Type: ${slideType}`);
+
+  const systemPrompt = `You are an expert pitch deck reviewer who has analyzed thousands of successful fundraising decks.
+Analyze this slide and provide specific, actionable suggestions for improvement.
+
+Return ONLY valid JSON in this exact format:
+{
+  "analysis": {
+    "clarity": 1-10,
+    "impact": 1-10,
+    "tone": 1-10,
+    "overall": 1-10,
+    "feedback": "Brief overall assessment"
+  },
+  "suggestions": [
+    {
+      "type": "clarity|impact|metric|problem|industry|tone",
+      "suggestion": "Specific actionable suggestion",
+      "reasoning": "Why this matters for investors"
+    }
+  ]
+}
+
+Rules:
+- Provide 2-4 suggestions maximum
+- Be specific, not generic
+- Focus on investor psychology
+- Quantify where possible`;
+
+  const userPrompt = `Analyze this ${slideType} slide:
+
+Title: ${slideContent.title || 'Untitled'}
+Subtitle: ${slideContent.subtitle || ''}
+Content: ${JSON.stringify(slideContent.bullets || slideContent.body || slideContent, null, 2)}
+
+Provide specific improvement suggestions.`;
+
+  const aiResponse = await callGemini(
+    "google/gemini-3-flash-preview",
+    systemPrompt,
+    userPrompt
+  );
+
+  let analysis = {
+    clarity: 7,
+    impact: 6,
+    tone: 7,
+    overall: 7,
+    feedback: "Good foundation. Consider adding more specific metrics.",
+  };
+
+  let suggestions: Array<{
+    id: string;
+    type: string;
+    suggestion: string;
+    reasoning: string;
+  }> = [];
+
+  if (aiResponse.content) {
+    try {
+      const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.analysis) {
+          analysis = parsed.analysis;
+        }
+        if (parsed.suggestions) {
+          suggestions = parsed.suggestions.map((s: Record<string, unknown>, idx: number) => ({
+            id: `sug_${Date.now()}_${idx}`,
+            type: s.type as string,
+            suggestion: s.suggestion as string,
+            reasoning: s.reasoning as string,
+          }));
+        }
+        console.log(`[analyze_slide] AI generated ${suggestions.length} suggestions`);
+      }
+    } catch (parseError) {
+      console.error("[analyze_slide] JSON parse error:", parseError);
+    }
+  }
+
+  // Fallback suggestions if AI fails
+  if (suggestions.length === 0) {
+    suggestions = [
+      {
+        id: `sug_${Date.now()}_0`,
+        type: "clarity",
+        suggestion: "Consider simplifying the main message to one sentence.",
+        reasoning: "Investors spend ~10 seconds per slide. Clarity wins.",
+      },
+      {
+        id: `sug_${Date.now()}_1`,
+        type: "impact",
+        suggestion: "Add a specific metric to quantify your claim.",
+        reasoning: "Numbers make statements memorable and credible.",
+      },
+    ];
+  }
+
+  return {
+    success: true,
+    slide_id: slideId,
+    analysis,
+    suggestions,
+    ai_generated: aiResponse.content !== null,
+  };
+}
+
+// ============================================================================
 // Main Handler
 // ============================================================================
 
@@ -927,6 +1048,19 @@ Deno.serve(async (req) => {
           throw new Error("deck_id is required");
         }
         result = await getSignalStrength(supabase, user.id, body.deck_id);
+        break;
+
+      case "analyze_slide":
+        if (!body.slide_id) {
+          throw new Error("slide_id is required");
+        }
+        result = await analyzeSlide(
+          supabase,
+          user.id,
+          body.slide_id,
+          body.slide_type || "unknown",
+          body.slide_content || {}
+        );
         break;
 
       default:
