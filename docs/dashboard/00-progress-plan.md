@@ -1,8 +1,8 @@
 # StartupAI Dashboard System — Progress Plan
 
-> **Updated:** 2026-01-27 | **Version:** 2.4 | **Status:** Active
+> **Updated:** 2026-01-27 | **Version:** 2.5 | **Status:** Active
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 65% complete
+> **Overall Progress:** 68% complete
 
 ---
 
@@ -16,9 +16,9 @@
 | 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 80% | **88%** | Active | `01-lean-canvas.md` |
 | 5 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 85% | 🟡 80% | **85%** | Active | `pitch-decks/` |
 | 6 | **Main Dashboard** | 1 screen | ✅ 80% | 🔴 0% | ✅ 70% | **50%** | Active | `11-main-dashboard.md` |
-| 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | 🟡 70% | **85%** | Active | `12-crm.md` |
-| 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | 🟡 50% | **75%** | Active | `13-documents.md` |
-| 9 | **Investors** | 3 screens | ✅ 100% | ✅ 100% | 🟡 50% | **75%** | Active | `14-investors.md` |
+| 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | ✅ 80% | **90%** | Active | `12-crm.md` |
+| 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | 🟡 60% | **80%** | Active | `13-documents.md` |
+| 9 | **Investors** | 3 screens | ✅ 100% | ✅ 100% | ✅ 80% | **90%** | Active | `14-investors.md` |
 | 10 | **Projects** | 3 screens | 🔴 0% | 🔴 0% | 🟡 50% | **25%** | Planned | `15-projects.md` |
 | 11 | **AI Chat** | 2 screens | ✅ 100% | ✅ 80% | ✅ 80% | **85%** | Active | `16-ai-chat.md` |
 | 12 | **Settings** | 4 tabs | N/A | N/A | 🟡 60% | **60%** | Planned | `17-settings.md` |
@@ -34,10 +34,10 @@
 | **3** | ~~Events~~ | ✅ Complete | — |
 | **4** | **Pitch Deck** (wizard + editor) | Flagship feature, Step 1 AI complete, export ready | Onboarding data |
 | **5** | **Lean Canvas** (polish) | 85% done, 11 actions deployed, confidence badges added | Onboarding data |
-| **6** | **CRM** (wire frontend) | Backend + hooks complete, needs UI wiring | — |
-| **7** | **Documents** (wire frontend) | Backend + hooks complete, needs UI wiring | Cloudinary (done) |
+| **6** | ~~**CRM**~~ | ✅ Backend + hooks + AI panel complete | — |
+| **7** | ~~**Documents**~~ | ✅ Backend + hooks + AI panel complete | Cloudinary (done) |
 | **8** | ~~**Main Dashboard**~~ | ✅ Real data wired, metrics + changes | Pitch deck + lean canvas data |
-| **9** | ~~**Investors**~~ | ✅ Backend + hook complete (12 actions) | CRM patterns |
+| **9** | ~~**Investors**~~ | ✅ Backend + hooks + AI panel complete (12 actions) | CRM patterns |
 | **10** | ~~**AI Chat**~~ | ✅ Dedicated page created at `/ai-chat` | — |
 | **11** | **Projects** (build task-agent) | Needs new `task-agent` edge function | — |
 | **12** | **Settings** (complete tabs) | Polish, non-blocking | — |
@@ -54,9 +54,9 @@
 | `lean-canvas-agent` | 11 | ✅ Deployed | ✅ useLeanCanvasAgent | 🟡 75% | `01-lean-canvas.md` |
 | `pitch-deck-agent` | 17 | ✅ Deployed | ✅ usePitchDeckEditor | 🟡 70% | See pitch-deck prompts |
 | `ai-chat` | 5+ | ✅ Deployed | ✅ useAIChat | ✅ 80% | `16-ai-chat.md` |
-| `crm-agent` | 8 | ✅ Deployed | ✅ useCRMAgent | 🟡 50% | `12-crm.md` |
-| `documents-agent` | 6 | ✅ Deployed | ✅ useDocumentsAgent | 🟡 30% | `13-documents.md` |
-| `investor-agent` | 12 | ✅ Deployed | ✅ useInvestorAgent | 🟡 30% | `14-investors.md` |
+| `crm-agent` | 8 | ✅ Deployed | ✅ useCRMAgent | ✅ 80% | `12-crm.md` |
+| `documents-agent` | 6 | ✅ Deployed | ✅ useDocumentsAgent | ✅ 60% | `13-documents.md` |
+| `investor-agent` | 12 | ✅ Deployed | ✅ useInvestorAgent | ✅ 80% | `14-investors.md` |
 
 ### ❌ NOT DEPLOYED (need to create)
 
@@ -133,15 +133,12 @@ All deployed edge functions now have corresponding frontend hooks:
 
 ---
 
-## Completed This Session (v2.4)
+## Completed This Session (v2.5)
 
-1. ✅ **Created `investor-agent` edge function** — 12 actions for fundraising
-2. ✅ **Created `useInvestorAgent` hook** — All 12 actions wired
-3. ✅ **Created `useDashboardMetrics` hook** — Real-time counts + changes
-4. ✅ **Wired Dashboard to real data** — Decks, investors, tasks, events from database
-5. ✅ **Created AI Chat page** — `/ai-chat` route with full chat interface
-6. ✅ **Updated `supabase/config.toml`** — Added investor-agent
-7. ✅ **Updated App.tsx** — Added /ai-chat route
+1. ✅ **Wired InvestorsAIPanel** — Connected useInvestorAgent hooks (discover, analyze pipeline, generate report)
+2. ✅ **Passed startupId to InvestorsAIPanel** — From Investors.tsx page
+3. ✅ **Exported PipelineAnalysis and FundraisingReport types** — For use in UI components
+4. ✅ **Added AI loading states and results display** — Pipeline analysis, health scores, recommendations
 
 ---
 
@@ -152,27 +149,26 @@ All deployed edge functions now have corresponding frontend hooks:
 1. ✅ ~~Create investor-agent edge function~~ — 12 actions deployed
 2. ✅ ~~Wire Dashboard to real data~~ — useDashboardMetrics hook
 3. ✅ ~~Create AI Chat page~~ — /ai-chat route
-4. **Wire InvestorsAIPanel** — Connect useInvestorAgent hooks to UI
-5. **Wire CRM UI** — Connect useCRMAgent to ContactDetail, PipelineView components
-6. **Wire Documents UI** — Connect useDocumentsAgent to DocumentLibrary, DocumentDetail
+4. ✅ ~~Wire InvestorsAIPanel~~ — Connected useInvestorAgent hooks to UI
+5. **Integrate ExportModal** — Add to SlideEditorPanel header (already in component, needs button in editor)
+6. **Integrate ProfileMappingBanner** — Add to LeanCanvasEditor page
 
 ### P1 — Next Week
 
-7. **Integrate ExportModal** — Add to SlideEditorPanel header
-8. **Integrate ProfileMappingBanner** — Add to LeanCanvasEditor page
-9. **Create `insights-generator` edge function** — Daily AI insights for dashboard
-10. **Create `task-agent` edge function** — Project task generation
+7. **Create `insights-generator` edge function** — Daily AI insights for dashboard
+8. **Create `task-agent` edge function** — Project task generation
+9. **Wire InvestorDetailSheet with AI** — Fit analysis, meeting prep, outreach generation
 
 ### P2 — Following Weeks
 
-11. **Chat history persistence** — Save/load sessions from database
-12. **Projects Task Agent** — New edge function for task generation
-13. **Create `stage-analyzer` edge function** — Auto-detect startup stage
+10. **Chat history persistence** — Save/load sessions from database
+11. **Projects Task Agent** — New edge function for task generation
+12. **Create `stage-analyzer` edge function** — Auto-detect startup stage
 
 ### P3 — Future
 
-14. **Settings Completion** — All 4 tabs functional
-15. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
+13. **Settings Completion** — All 4 tabs functional
+14. **Smart AI System** — Agent orchestration, spec pipeline, QA loops
 
 ---
 
@@ -186,6 +182,7 @@ All deployed edge functions now have corresponding frontend hooks:
 |------|--------|-------|
 | Edge Functions | ✅ 7/7 deployed | All have CORS, auth, error handling |
 | Frontend Hooks | ✅ 7/7 created | All use React Query + toast notifications |
+| AI Panel Wiring | ✅ 4/4 complete | CRM, Documents, Investors, Dashboard |
 | Routes | ✅ All protected | ProtectedRoute wrapper on all dashboard routes |
 | Database | ✅ RLS enabled | All tables have row-level security |
 | API Keys | ✅ Configured | GEMINI_API_KEY, ANTHROPIC_API_KEY in secrets |
@@ -197,6 +194,7 @@ All deployed edge functions now have corresponding frontend hooks:
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-27 | Wired InvestorsAIPanel with useInvestorAgent hooks (discover, pipeline, report) | 2.5 |
 | 2026-01-27 | Created investor-agent (12 actions), AI Chat page, real dashboard data | 2.4 |
 | 2026-01-27 | Wired CRM + Documents AI panels, integrated ExportModal | 2.3 |
 | 2026-01-27 | Created useCRMAgent, useDocumentsAgent, useLeanCanvasAgent hooks | 2.2 |
