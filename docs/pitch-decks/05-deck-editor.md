@@ -1,392 +1,213 @@
-# Pitch Deck System — Deck Editor
+# Prompt 05 — Deck Editor Screen
 
-> **Level:** Post-MVP | **Purpose:** 3-panel deck editor for editing and enhancing generated decks  
-> **Category:** Frontend | **Subcategory:** Pages  
-> **Phase:** 2 | **Priority:** P1  
-> **No Code:** Design requirements, screen specifications, and user interactions only
-
----
-
-## Editor Overview
-
-### Three-Panel Layout
-
-- **Left Panel (240px):** Context — Slide outline, navigation, deck metadata
-- **Main Panel (Flexible):** Work — Slide editor, content editing, preview
-- **Right Panel (360px):** Intelligence — AI suggestions, slide analysis, copilot
-
-### Editor Features
-
-1. **Slide Management** — Outline, reorder, add, delete
-2. **Content Editing** — Rich text, bullets, formatting
-3. **AI Copilot** — 6 agent suggestions per slide
-4. **Slide Analysis** — Quality scores (clarity, impact, tone)
-5. **Image Management** — Upload, AI generation, replace
-6. **Export** — PDF, PPTX, shareable link
+> **Phase:** Post-MVP | **Category:** Frontend | **Priority:** P1
+> **Depends on:** 03-mvp.md (wizard), 04-edge-functions.md (pitch-deck-agent)
+> **No code in this prompt — design intent, screen specs, and AI behavior only**
 
 ---
 
-## Left Panel: Context
+## Screen Purpose
 
-### Slide Outline
-
-**Display:**
-- List of all slides in deck
-- Slide number, title, type
-- Current slide highlighted
-- Drag-to-reorder enabled
-
-**Interactions:**
-- Click slide: Navigate to that slide
-- Drag slide: Reorder slides (updates `slide_number` in database)
-- Right-click: Context menu (duplicate, delete, insert)
-
-**Visual States:**
-- **Current Slide:** Highlighted background, bold text
-- **Has AI Suggestions:** Indicator badge
-- **Incomplete:** Warning icon (missing title or content)
-- **Has Image:** Thumbnail preview
-
-### Deck Metadata
-
-**Display:**
-- Deck title (editable)
-- Template type
-- Slide count
-- Last modified timestamp
-- Signal strength score
-
-**Actions:**
-- Edit title: Inline editing
-- Change template: Modal selector (future)
-- View analytics: Navigate to analytics screen (future)
+The Deck Editor is where founders refine AI-generated pitch decks. Uses 3-panel layout with AI intelligence on the right panel providing real-time suggestions, analysis, and copilot actions per slide.
 
 ---
 
-## Main Panel: Work
+## 3-Panel Layout
 
-### Slide Editor
+### Left Panel (240px) — Slide Navigation
 
-**Layout:**
-- Full-width editor area
-- Slide preview at top (read-only)
-- Content editor below
+**What it shows:**
+- Slide outline list: slide number, title, type icon
+- Current slide highlighted with active state
+- Drag-to-reorder handle on each slide
+- Badge indicators: has AI suggestions (sparkle), incomplete (warning), has image (thumbnail)
+- Deck metadata at bottom: title (editable inline), template, slide count, signal strength score, last modified
 
-**Content Editor:**
-- **Title Field:** Text input, required
-- **Content Field:** Rich text editor (markdown or WYSIWYG)
-- **Bullet Points:** List editor (add, remove, reorder)
-- **Speaker Notes:** Textarea (optional, collapsible)
+**What the user can do:**
+- Click any slide to navigate to it
+- Drag slides to reorder (updates slide_number in database)
+- Right-click for context menu: duplicate slide, delete slide, insert new slide above/below
+- Edit deck title inline
 
-**Formatting Options:**
-- Bold, italic, underline
-- Headings (H1, H2, H3)
-- Lists (ordered, unordered)
-- Links
-- Text alignment
-
-**Auto-save:**
-- Debounced save (500ms delay)
-- Save indicator (saving, saved, error)
-- Queue failed saves in localStorage
-
-### Image Management
-
-**Image Display:**
-- Image preview area above content
-- Replace button
-- Remove button
-- AI Generate button
-
-**Image Upload:**
-- Drag-and-drop zone
-- File picker button
-- Supported formats: JPG, PNG, WebP
-- Max size: 5MB
-- Upload to Supabase Storage
-
-**AI Image Generation:**
-- Button: "Generate Image with AI"
-- Input: Image prompt (pre-filled from `content.image_prompt`)
-- Model: Gemini 3 Pro Image Preview
-- Loading state during generation
-- Preview generated image
-- Apply or regenerate
-
-### Slide Navigation
-
-**Controls:**
-- Previous button (disabled on first slide)
-- Next button (disabled on last slide)
-- Slide counter: "Slide 3 of 12"
-- Jump to slide: Dropdown or input
-
-**Keyboard Shortcuts:**
-- Arrow Left: Previous slide
-- Arrow Right: Next slide
-- Home: First slide
-- End: Last slide
+**Responsive behavior:**
+- Tablet: collapses to icon rail (slide numbers only), expands on hover
+- Mobile: hidden, accessible via hamburger menu as drawer overlay
 
 ---
 
-## Right Panel: Intelligence
+### Main Panel (Flexible) — Slide Editor
 
-### AI Copilot
+**What it shows:**
+- Slide preview at top (read-only rendered view of the current slide as it would appear in presentation)
+- Content editor below the preview:
+  - Title field (text input, required)
+  - Content field (rich text — bold, italic, headings, lists, links, alignment)
+  - Bullet points editor (add, remove, reorder individual bullets)
+  - Speaker notes (collapsible textarea, optional)
+- Image area above content:
+  - Current image preview (if exists)
+  - Three buttons: Upload Image, Generate with AI, Remove
+- Save indicator: "Saving...", "Saved", "Error — retry"
+- Slide navigation: Previous / Next buttons, "Slide 3 of 12" counter
 
-**Display:**
-- One suggestion per agent (6 total)
-- Agent name and icon
-- Suggestion text
-- Reasoning explanation
-- Apply button
+**What the user can do:**
+- Edit any content field — auto-saves after 500ms debounce
+- Upload image via drag-and-drop or file picker (JPG, PNG, WebP, max 5MB)
+- Click "Generate with AI" to open image generation modal:
+  - Pre-filled prompt from slide content
+  - User can edit prompt
+  - Shows loading state during Gemini image generation
+  - Preview result, then Apply or Regenerate
+- Navigate slides with Previous/Next buttons or keyboard arrows (Left/Right, Home/End)
 
-**Agents:**
-1. **Clarity Agent** — Improves slide clarity
-2. **Impact Agent** — Strengthens impact statements
-3. **Metric Agent** — Suggests relevant metrics
-4. **Problem Agent** — Strengthens problem statement
-5. **Industry Agent** — Industry-specific improvements
-6. **Tone Agent** — Adjusts tone for audience
+**Responsive behavior:**
+- Always full width of remaining space
+- Mobile: full screen, slide preview smaller
 
-**Interactions:**
-- Click "Apply": Apply suggestion to slide content
-- Click "Dismiss": Hide suggestion
-- Click "View All": Expand to see all suggestions
+---
 
-**Data Storage:**
-- Suggestions stored in `content.ai_suggestions[]` JSONB array
-- Each suggestion has: id, type, suggestion, reasoning, applied, applied_at, created_at
+### Right Panel (360px) — AI Intelligence
 
-### Slide Analysis
+This is the key differentiator. The right panel is context-aware — it changes what it shows based on what the user is doing.
 
-**Display:**
-- Quality scores (0-10 scale):
-  - **Clarity:** How clear and understandable
-  - **Impact:** How compelling and memorable
-  - **Tone:** How appropriate for audience
+**Panel Sections (stacked vertically, scrollable):**
+
+#### Section 1: Slide Analysis (always visible)
+
+Quality scores for the current slide on a 0-10 scale:
+- **Clarity** — How clear and understandable is this slide?
+- **Impact** — How compelling and memorable?
+- **Tone** — How appropriate for the target audience?
 - Overall score (average of three)
-- Feedback text with specific recommendations
+- Each score shown as a colored progress bar: red (<5), yellow (5-7), green (>7)
+- Expandable feedback text with specific recommendations
 
-**Calculation:**
-- Runs automatically on slide content change
-- Uses Gemini 3 Pro Preview for analysis
-- Cached for 5 minutes (recalculate on content change)
+Analysis recalculates automatically when slide content changes (debounced, cached 5 minutes). Uses Gemini Flash for speed.
 
-**Visual:**
-- Progress bars for each score
-- Color-coded (red < 5, yellow 5-7, green > 7)
-- Expandable feedback section
+#### Section 2: AI Copilot Suggestions (context-aware)
 
-### Quick Actions
+Shows AI-generated suggestions specific to the current slide. Up to 6 suggestions, one per agent type:
 
-**Actions:**
-- **Improve Clarity:** Trigger clarity agent
-- **Add Metric:** Trigger metric agent
-- **Strengthen Problem:** Trigger problem agent
-- **Generate Image:** Open image generation modal
-- **Analyze Slide:** Recalculate analysis scores
+| Agent | What It Suggests | When It Appears |
+|-------|-----------------|-----------------|
+| **Clarity Agent** | Rewrite unclear sentences, simplify jargon | Always |
+| **Impact Agent** | Strengthen weak statements, add power phrases | Always |
+| **Metric Agent** | Add relevant numbers, benchmarks from industry pack | When slide lacks metrics |
+| **Problem Agent** | Sharpen problem statement, add urgency | Problem/solution slides |
+| **Industry Agent** | Industry-specific improvements using terminology from industry pack | When industry pack exists |
+| **Tone Agent** | Adjust formality, investor-appropriate language | Always |
+
+Each suggestion card shows:
+- Agent name and icon
+- The suggestion text (what to change)
+- Why it matters (reasoning for investors)
+- "Apply" button — applies the suggestion to slide content automatically
+- "Dismiss" button — hides this suggestion
+
+Applied suggestions are tracked in the slide's `content.ai_suggestions[]` JSONB array with: id, type, suggestion, reasoning, applied status, applied_at timestamp.
+
+#### Section 3: Quick Actions (bottom of panel)
+
+Action buttons for common tasks:
+- "Improve This Slide" — triggers all agents to regenerate suggestions
+- "Add a Metric" — opens metric agent focused suggestion
+- "Generate Image" — opens image generation modal
+- "View Speaker Notes Tips" — shows tips for presenting this slide type
+
+**Responsive behavior:**
+- Tablet: right panel becomes a slide-in drawer (toggle button in header)
+- Mobile: right panel becomes a bottom sheet (swipe up to reveal)
 
 ---
 
-## User Interactions
+## AI Behavior Rules
 
-### Editing Flow
+### When suggestions load:
+- On first load of a slide, fetch suggestions from Gemini Flash
+- Cache suggestions per slide (invalidate when content changes)
+- Show skeleton loading state while fetching
+- If Gemini fails, show "Suggestions unavailable — click to retry"
 
-1. User opens deck editor
-2. Left panel shows slide outline
-3. Main panel shows first slide
-4. User edits content
-5. Auto-save triggers after 500ms
-6. Right panel shows AI suggestions
-7. User applies suggestion
-8. Content updates, auto-save triggers
-9. User navigates to next slide
-10. Repeat for all slides
+### When user applies a suggestion:
+- Update slide content immediately (optimistic)
+- Mark suggestion as applied in database
+- Remove from active suggestions list
+- Recalculate slide analysis scores
+- Auto-save triggers
 
-### Slide Reordering
+### When user edits content manually:
+- Invalidate cached suggestions after 3 seconds of no typing
+- Recalculate analysis scores after 5 seconds of no typing
+- Do NOT interrupt the user while they're actively typing
 
+### Industry pack integration:
+- If the deck has an industry pack, the Industry Agent uses benchmarks, terminology, and competitive intel from the pack
+- The Metric Agent uses industry benchmarks to suggest relevant numbers
+- The Tone Agent adjusts recommendations based on the industry's investor psychology
+
+---
+
+## Data Flow
+
+### Opening the editor:
+1. Call pitch-deck-agent `get_deck` action → returns deck + all slides sorted by slide_number
+2. Display slide outline in left panel
+3. Load first slide in main panel
+4. Fetch AI suggestions for first slide from right panel
+
+### Saving a slide:
+1. User edits content
+2. 500ms debounce
+3. Call pitch-deck-agent `update_slide` action with merged content JSONB
+4. Show "Saved" indicator
+5. On failure: queue in localStorage, show "Error — retry" with retry button
+
+### Reordering slides:
 1. User drags slide in outline
-2. Visual feedback shows new position
-3. User drops slide
-4. Update `slide_number` for all affected slides
-5. Save changes to database
-6. Refresh slide outline
-
-### AI Suggestion Flow
-
-1. User views slide
-2. Right panel loads AI suggestions
-3. User reads suggestion and reasoning
-4. User clicks "Apply"
-5. Content updates with suggestion
-6. Suggestion marked as applied in `content.ai_suggestions[]`
-7. Auto-save triggers
-8. Suggestion removed from active suggestions list
-
-### Image Generation Flow
-
-1. User clicks "Generate Image with AI"
-2. Modal opens with prompt input
-3. Prompt pre-filled from `content.image_prompt`
-4. User edits prompt (optional)
-5. User clicks "Generate"
-6. Loading state shows progress
-7. Generated image displays in preview
-8. User clicks "Apply" or "Regenerate"
-9. Image saved to slide, `content.image_url` updated
-10. Auto-save triggers
+2. Calculate new slide_number values for affected slides
+3. Batch update via Supabase
+4. Optimistic UI update (reorder immediately, rollback on failure)
 
 ---
 
-## Data Operations
-
-### Load Deck
-
-**Process:**
-1. Fetch deck with `metadata` JSONB
-2. Fetch all slides with `content` JSONB
-3. Sort slides by `slide_number`
-4. Display in slide outline
-5. Load first slide in editor
-
-### Save Slide
-
-**Process:**
-1. Debounce user input (500ms)
-2. Read current `content` JSONB
-3. Merge edited content
-4. Update `pitch_deck_slides.content` JSONB
-5. Update `updated_at` timestamp
-6. Queue failed saves in localStorage
-
-### Reorder Slides
-
-**Process:**
-1. Calculate new `slide_number` for each slide
-2. Batch update all affected slides
-3. Update `slide_number` in database
-4. Refresh slide outline
-
-### Apply AI Suggestion
-
-**Process:**
-1. Read current `content` JSONB
-2. Apply suggestion to content
-3. Mark suggestion as applied in `content.ai_suggestions[]`
-4. Set `applied_at` timestamp
-5. Save updated `content` JSONB
-6. Refresh editor display
-
----
-
-## Export Functionality
+## Export (accessed from deck editor header)
 
 ### Export Modal
 
-**Display:**
-- Format selector: PDF, PPTX, Shareable Link
-- Options:
-  - Include speaker notes (checkbox)
-  - Include slide numbers (checkbox)
-  - Quality: Standard, High, Print (dropdown)
-- Export button
+Options:
+- **PDF** — Generate PDF from slides, download
+- **PPTX** — Generate PowerPoint, download
+- **Shareable Link** — Generate public URL with expiration (1 day, 7 days, 30 days, never)
 
-### Export Process
-
-**PDF Export:**
-1. User selects PDF format
-2. User selects options
-3. Click "Export"
-4. Generate PDF from slides
-5. Upload to Supabase Storage
-6. Return download URL
-7. Trigger browser download
-
-**PPTX Export:**
-1. User selects PPTX format
-2. User selects options
-3. Click "Export"
-4. Generate PowerPoint file from slides
-5. Upload to Supabase Storage
-6. Return download URL
-7. Trigger browser download
-
-**Shareable Link:**
-1. User selects Shareable Link format
-2. User sets expiration (1 day, 7 days, 30 days, never)
-3. Click "Generate Link"
-4. Create share record in `metadata.shares[]` JSONB
-5. Generate public URL
-6. Copy link to clipboard
-7. Display link with copy button
-
----
-
-## Responsive Design
-
-### Desktop (1024px+)
-
-- Full 3-panel layout
-- Left: 240px fixed
-- Main: Flexible width
-- Right: 360px fixed
-
-### Tablet (768-1023px)
-
-- Left panel: Collapses to icon rail
-- Main panel: Full width
-- Right panel: Drawer (slide in from right)
-
-### Mobile (<768px)
-
-- Bottom tab navigation
-- Main panel: Full screen
-- Left panel: Hidden (access via menu)
-- Right panel: Bottom sheet (slide up from bottom)
+Each export includes options:
+- Include speaker notes (checkbox)
+- Include slide numbers (checkbox)
+- Quality: Standard / High / Print
 
 ---
 
 ## Performance Targets
 
-- **Load Deck:** < 500ms
-- **Save Slide:** < 300ms (debounced)
-- **Load AI Suggestions:** < 2s
-- **Apply Suggestion:** < 500ms
-- **Generate Image:** < 10s
-- **Analyze Slide:** < 3s
-- **Export PDF:** < 5s
-- **Export PPTX:** < 8s
+| Action | Target |
+|--------|--------|
+| Load deck + slides | < 500ms |
+| Save slide (debounced) | < 300ms |
+| Load AI suggestions | < 2s |
+| Apply suggestion | < 500ms |
+| Generate image | < 10s |
+| Analyze slide scores | < 3s |
+| Export PDF | < 5s |
 
 ---
 
 ## Success Criteria
 
-### Editor Completion Criteria
-
-- [ ] 3-panel layout implemented
-- [ ] Slide outline with drag-to-reorder
-- [ ] Rich text editor for content
-- [ ] Auto-save works (debounced)
-- [ ] AI Copilot shows 6 suggestions
-- [ ] Slide analysis calculates scores
-- [ ] Image upload and AI generation
-- [ ] Export to PDF and PPTX
-- [ ] Shareable link generation
-- [ ] Responsive design (desktop, tablet, mobile)
-
-### User Acceptance Criteria
-
-- User can edit all slide content
-- User can reorder slides
-- User can apply AI suggestions
-- User can generate images
-- User can export deck
-- User can share deck via link
-- All changes auto-save
-- Editor works on mobile devices
-
----
-
-**Deck Editor Level:** Defines complete deck editing experience with 3-panel layout, AI copilot, and export functionality.
-
-**Next:** See `06-dashboard.md` for Dashboard implementation, `07-ai-integration.md` for AI integration details.
+- 3-panel layout renders correctly on desktop, tablet, mobile
+- User can edit all slide content with auto-save
+- User can reorder slides via drag-and-drop
+- AI copilot shows relevant suggestions per slide
+- User can apply suggestions with one click
+- Slide analysis scores update on content changes
+- Image upload and AI generation work
+- Export to PDF/PPTX/link works
+- Keyboard navigation (arrow keys) works between slides

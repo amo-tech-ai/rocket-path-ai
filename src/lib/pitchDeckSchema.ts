@@ -84,9 +84,10 @@ export const interviewQuestionSchema = z.object({
   question: z.string(),
   response: z.string().optional(),
   category: z.enum(['market', 'traction', 'competition', 'team', 'financials', 'product']),
-  source: z.enum(['industry', 'gap_analysis', 'url_context', 'search']),
+  source: z.enum(['industry', 'gap_analysis', 'url_context', 'search', 'ai_generated', 'fallback']),
   slide_mapping: z.string().optional(),
   skipped: z.boolean().default(false),
+  why_important: z.string().optional(),
 });
 
 export const step3Schema = z.object({
@@ -96,9 +97,13 @@ export const step3Schema = z.object({
     url_extracted_data: z.record(z.unknown()).optional(),
     competitor_mentions: z.array(z.string()).optional(),
     market_data: z.record(z.unknown()).optional(),
+    funding_landscape: z.string().optional(),
+    key_metrics_needed: z.array(z.string()).optional(),
   }).optional(),
   questions_answered: z.number().default(0),
   questions_total: z.number().default(0),
+  answers: z.record(z.string()).optional(),
+  extracted_signals: z.array(z.string()).optional(),
 });
 
 export type Step3Data = z.infer<typeof step3Schema>;

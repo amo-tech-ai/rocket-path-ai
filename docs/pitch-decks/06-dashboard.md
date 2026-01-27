@@ -1,327 +1,207 @@
-# Pitch Deck System — Dashboard
+# Prompt 06 — Pitch Deck Dashboard Screen
 
-> **Level:** Post-MVP | **Purpose:** Deck listing, filtering, and management dashboard  
-> **Category:** Frontend | **Subcategory:** Pages  
-> **Phase:** 2 | **Priority:** P1  
-> **No Code:** Design requirements, screen specifications, and user interactions only
-
----
-
-## Dashboard Overview
-
-### Layout
-
-- **Header:** Title, search bar, create button
-- **Filters:** Status, template, date range
-- **Deck Grid:** Card-based layout with deck previews
-- **Empty State:** Message and CTA when no decks exist
-
-### Features
-
-1. **Deck Listing** — All user's decks with metadata
-2. **Filtering** — By status, template, date
-3. **Sorting** — By date, name, status, signal strength
-4. **Search** — Full-text search across deck titles
-5. **Resume Draft** — Continue incomplete wizards
-6. **Quick Actions** — Edit, duplicate, delete, export
+> **Phase:** Post-MVP | **Category:** Frontend | **Priority:** P1
+> **Depends on:** 03-mvp.md (wizard), 05-deck-editor.md (editor)
+> **No code in this prompt — design intent, screen specs, and AI behavior only**
 
 ---
 
-## Header Section
+## Screen Purpose
 
-### Title
+The Pitch Deck Dashboard is the landing page for the pitch deck module. It shows all decks, lets users create new ones, resume drafts, and provides AI-powered insights about their decks portfolio.
 
-- **Text:** "Pitch Decks"
-- **Subtitle:** Count of total decks (e.g., "12 decks")
-
-### Search Bar
-
-- **Placeholder:** "Search decks by title..."
-- **Functionality:** Real-time search as user types
-- **Scope:** Search deck titles only
-- **Clear Button:** Appears when search has value
-
-### Create Button
-
-- **Label:** "Create New Deck"
-- **Icon:** Plus icon
-- **Action:** Navigate to Wizard Step 1
-- **Style:** Primary button, prominent
+Uses the standard DashboardLayout with the AI intelligence right panel showing portfolio-level insights rather than slide-level suggestions.
 
 ---
 
-## Filter Section
+## 3-Panel Layout
 
-### Status Filter
+### Left Panel (240px) — Navigation & Filters
 
-**Options:**
-- **All** (default)
-- **Drafts** — Incomplete wizards
-- **In Progress** — Generation in progress
-- **Review** — Generation complete, ready for editing
-- **Final** — Marked as final by user
-- **Archived** — Archived decks
+**What it shows:**
+- Module navigation: links to Wizard, Editor, Templates
+- Filter section:
+  - Status filter: All, Drafts, Generating, Review, Final, Archived (with count badges)
+  - Template filter: All, YC, Sequoia, Series A, Custom
+  - Date range: All Time, Last 7 Days, Last 30 Days, Last 90 Days, Custom
+- Sort selector: Recently Edited (default), Recently Created, Name A-Z, Signal Strength High-Low
+- Quick stats at bottom:
+  - Total decks count
+  - Average signal strength
+  - Decks in review
 
-**Display:**
-- Tabs or dropdown selector
-- Count badge on each option (e.g., "Drafts (3)")
+**What the user can do:**
+- Click any filter to narrow the deck grid
+- Change sort order
+- Filters combine (status AND template AND date)
+- Clear all filters button
 
-### Template Filter
-
-**Options:**
-- **All** (default)
-- **YC** — Y Combinator template
-- **Sequoia** — Sequoia template
-- **Custom** — Custom template
-- **Series A** — Series A template
-
-**Display:**
-- Dropdown or chip selector
-- Visual template icons
-
-### Date Range Filter
-
-**Options:**
-- **All Time** (default)
-- **Last 7 Days**
-- **Last 30 Days**
-- **Last 90 Days**
-- **Custom Range** — Date picker
-
-**Display:**
-- Dropdown selector
-- Custom range opens date picker modal
+**Responsive behavior:**
+- Tablet: collapses to icon rail, filters move to horizontal bar above grid
+- Mobile: hidden, filters accessible via filter icon → bottom sheet
 
 ---
 
-## Deck Grid
+### Main Panel (Flexible) — Deck Grid
 
-### Deck Card Layout
+**Header area:**
+- Title: "Pitch Decks" with subtitle showing deck count ("12 decks")
+- Search bar: "Search decks by title..." with real-time filtering
+- Create button: "Create New Deck" (primary, prominent) → navigates to Wizard Step 1
 
-**Card Components:**
-- **Thumbnail:** First slide preview or template icon
-- **Title:** Deck title (truncated if long)
-- **Status Badge:** Draft, In Progress, Review, Final, Archived
-- **Metadata:**
-  - Template type
+**Deck grid:**
+- Card-based layout (3 columns desktop, 2 tablet, 1 mobile)
+- Each card shows:
+  - Thumbnail: first slide preview or template icon placeholder
+  - Title (truncated if long)
+  - Status badge: Draft (gray), Generating (blue pulse), Review (yellow), Final (green), Archived (muted)
+  - Template type label
   - Slide count
+  - Signal strength mini-bar (colored: red/yellow/green)
   - Last modified date
-  - Signal strength score (if available)
-- **Quick Actions:** Edit, Duplicate, Delete, More menu
+  - Quick actions: Edit, Duplicate, Export, Archive, Delete (via three-dot menu)
 
-**Card States:**
-- **Default:** Normal display
-- **Hover:** Slight elevation, show quick actions
-- **Selected:** Border highlight (for bulk actions, future)
+**Card click behavior:**
+- Draft with wizard_data → Resume Wizard at last completed step
+- Generating → Show generation progress (cannot edit)
+- Review or Final with slides → Open Deck Editor
+- Archived → Open in read-only mode
 
-### Empty State
+**Draft cards special treatment:**
+- "Resume" badge overlay
+- Progress indicator: "Step 2 of 4"
+- Slightly different card style (dashed border or muted background)
 
-**Display:**
-- **Icon:** Empty state illustration
-- **Title:** "No decks yet"
-- **Message:** "Create your first pitch deck to get started"
-- **CTA Button:** "Create New Deck"
+**Empty state:**
+- Illustration of a pitch deck
+- Title: "No pitch decks yet"
+- Subtitle: "Create your first AI-powered pitch deck"
+- CTA button: "Create New Deck"
 
----
-
-## Sorting Options
-
-### Sort Dropdown
-
-**Options:**
-- **Recently Edited** (default)
-- **Recently Created**
-- **Name (A-Z)**
-- **Name (Z-A)**
-- **Status**
-- **Signal Strength (High to Low)**
-- **Signal Strength (Low to High)**
-
-**Display:**
-- Dropdown in header or filter section
-- Current sort indicator
+**Pagination:**
+- 20 decks per page
+- Previous/Next buttons
+- "Showing 1-20 of 45 decks"
+- Maintains filters and sort when paginating
 
 ---
 
-## Deck Card Interactions
+### Right Panel (360px) — AI Portfolio Intelligence
 
-### Click Card
+This panel shows portfolio-level insights rather than slide-level suggestions. It's the AI dashboard for the user's pitch deck collection.
 
-**Action:** Navigate to Deck Editor (if deck has slides) or Resume Wizard (if draft)
+**Panel Sections (stacked vertically, scrollable):**
 
-**Logic:**
-- If `status` is "draft" or "in_progress" and has `metadata.wizard_data`: Resume Wizard
-- If `status` is "review" or "final" and has slides: Open Deck Editor
-- Otherwise: Show error message
+#### Section 1: Portfolio Summary (always visible)
 
-### Quick Actions Menu
+Overview stats with visual indicators:
+- **Total Decks:** count with trend arrow (vs last month)
+- **Average Signal Strength:** score with colored indicator
+- **Strongest Deck:** name + score (link to open)
+- **Weakest Deck:** name + score (link to open with improvement suggestions)
+- **Decks Needing Attention:** count of decks with signal < 50%
 
-**Actions:**
-- **Edit:** Navigate to Deck Editor
-- **Duplicate:** Create copy of deck
-- **Export:** Open export modal (PDF/PPTX/Link)
-- **Archive:** Move to archived status
-- **Delete:** Delete deck (with confirmation)
-- **Rename:** Inline edit title
+#### Section 2: AI Recommendations (context-aware)
 
-**Display:**
-- Three-dot menu icon on card
-- Dropdown menu on click
-- Confirmation dialog for destructive actions
+Personalized recommendations based on the user's deck portfolio:
 
----
+| Recommendation Type | When It Appears | What It Suggests |
+|-------------------|-----------------|------------------|
+| **Complete Your Draft** | User has incomplete wizard | "Your SaaS deck is 75% ready — finish Step 3 to generate" |
+| **Improve Signal** | Deck has low signal strength | "Add traction metrics to boost your Fintech deck from 42% to 65%" |
+| **Try Another Template** | User only has one template | "Your seed-stage startup might benefit from the YC template" |
+| **Update Stale Deck** | Deck not edited in 30+ days | "Your Series A deck hasn't been updated since Dec — refresh metrics?" |
+| **Add Industry Context** | Deck missing industry pack | "Connect your Healthcare pack for industry-specific benchmarks" |
 
-## Resume Draft Flow
+Each recommendation shows:
+- Icon + short title
+- Description with specific action
+- Action button: "Resume", "Improve", "Try", "Update"
+- Dismiss button
 
-### Draft Detection
+#### Section 3: Recent Activity (bottom)
 
-**Criteria:**
-- `status` is "draft" or "in_progress"
-- `metadata.wizard_data` exists
-- Last step completed < 5
+Timeline of recent deck activity:
+- "Generated SaaS Pitch Deck — 2 hours ago"
+- "Applied 3 AI suggestions to Fintech Deck — yesterday"
+- "Exported Series A Deck as PDF — 3 days ago"
+- "Started new wizard for Healthcare — 5 days ago"
 
-### Resume UI
+Shows last 5-10 activities. Each entry is clickable (navigates to relevant deck).
 
-**Display:**
-- "Resume" badge on card
-- Progress indicator: "Step X of 5"
-- Last modified timestamp
-
-**Action:**
-- Click card or "Resume" button
-- Navigate to Wizard Step X+1
-- Load wizard data from `metadata.wizard_data`
+**Responsive behavior:**
+- Tablet: right panel becomes a collapsible section below the grid
+- Mobile: hidden, accessible via "AI Insights" floating action button → bottom sheet
 
 ---
 
-## Data Operations
+## AI Behavior Rules
 
-### Load Decks
+### Portfolio intelligence:
+- Recalculate portfolio stats on dashboard load
+- AI recommendations refresh every time the dashboard loads (cached 15 minutes)
+- Uses Gemini Flash for fast recommendation generation
+- Recommendations are personalized based on: deck statuses, signal scores, last edit dates, industry packs used
 
-**Process:**
-1. Fetch all `pitch_decks` for user
-2. Filter by status (if filter applied)
-3. Filter by template (if filter applied)
-4. Filter by date range (if filter applied)
-5. Search by title (if search query)
-6. Sort by selected option
-7. Return paginated results (20 per page)
+### When user creates a new deck:
+- Right panel updates "Total Decks" count
+- If user has no decks, right panel shows onboarding guidance instead of portfolio stats
 
-**Query:**
-- Use Supabase query with filters
-- Apply RLS policies automatically
-- Include `metadata` JSONB for wizard data check
+### When user returns to dashboard after editing:
+- Right panel updates signal strength if it changed
+- May show new recommendation: "Great progress! Your deck improved from 55% to 72%"
 
-### Delete Deck
+---
 
-**Process:**
-1. Show confirmation dialog
-2. Delete all `pitch_deck_slides` for deck
-3. Delete `pitch_decks` row
-4. Refresh deck list
-5. Show success message
+## Quick Actions Detail
 
 ### Duplicate Deck
+1. Confirmation: "Duplicate 'SaaS Pitch Deck'?"
+2. Creates copy of deck + all slides
+3. New title: "{Original Title} (Copy)"
+4. Status: "draft"
+5. Navigate to new deck in editor
 
-**Process:**
-1. Read deck with metadata
-2. Read all slides
-3. Create new deck with copied metadata
-4. Create new slides with copied content
-5. Set new deck title: "{Original Title} (Copy)"
-6. Refresh deck list
-7. Navigate to new deck editor
+### Delete Deck
+1. Confirmation dialog: "Delete 'SaaS Pitch Deck'? This will remove all slides and cannot be undone."
+2. Deletes deck + all slides
+3. Refresh grid
+4. Success toast
 
 ### Archive Deck
+1. Update status to "archived"
+2. Card moves to archived filter
+3. Success toast with "Undo" option (5 seconds)
 
-**Process:**
-1. Update deck `status` to "archived"
-2. Refresh deck list
-3. Show success message
-
----
-
-## Pagination
-
-### Display
-
-- **Page Size:** 20 decks per page
-- **Navigation:** Previous/Next buttons
-- **Page Numbers:** Show current page and total pages
-- **Info:** "Showing 1-20 of 45 decks"
-
-### Behavior
-
-- Load next page on scroll (infinite scroll, optional)
-- Or click page number to jump
-- Maintain filters and sort when paginating
+### Export (from card menu)
+1. Opens export modal (same as in deck editor)
+2. PDF, PPTX, or Shareable Link options
 
 ---
 
 ## Performance Targets
 
-- **Load Dashboard:** < 500ms
-- **Load Decks:** < 800ms (20 decks)
-- **Filter/Sort:** < 300ms
-- **Search:** < 200ms (debounced)
-- **Delete Deck:** < 500ms
-- **Duplicate Deck:** < 1s
-
----
-
-## Responsive Design
-
-### Desktop (1024px+)
-
-- **Grid:** 3 columns
-- **Card Size:** Large with full metadata
-- **Filters:** Horizontal tabs/dropdowns
-
-### Tablet (768-1023px)
-
-- **Grid:** 2 columns
-- **Card Size:** Medium with essential metadata
-- **Filters:** Collapsible section
-
-### Mobile (<768px)
-
-- **Grid:** 1 column
-- **Card Size:** Compact with minimal metadata
-- **Filters:** Bottom sheet or modal
-- **Search:** Full-width in header
+| Action | Target |
+|--------|--------|
+| Load dashboard | < 500ms |
+| Load deck grid (20 cards) | < 800ms |
+| Filter/sort | < 300ms |
+| Search (debounced) | < 200ms |
+| Delete deck | < 500ms |
+| Duplicate deck | < 1s |
+| Load AI recommendations | < 2s |
 
 ---
 
 ## Success Criteria
 
-### Dashboard Completion Criteria
-
-- [ ] Deck listing displays all user decks
-- [ ] Filtering by status works
-- [ ] Filtering by template works
-- [ ] Filtering by date range works
-- [ ] Search by title works
-- [ ] Sorting options work
-- [ ] Resume draft functionality works
-- [ ] Quick actions menu works
-- [ ] Delete deck with confirmation works
-- [ ] Duplicate deck works
-- [ ] Archive deck works
-- [ ] Pagination works
-- [ ] Responsive design works
-
-### User Acceptance Criteria
-
-- User can see all their decks
-- User can filter decks easily
-- User can search for specific decks
-- User can resume incomplete wizards
-- User can manage decks (edit, delete, duplicate)
-- Dashboard loads quickly
-- Dashboard works on mobile devices
-
----
-
-**Dashboard Level:** Defines deck management interface with filtering, sorting, search, and quick actions.
-
-**Next:** See `07-ai-integration.md` for AI integration details, `08-testing.md` for testing strategy.
+- Dashboard shows all user decks with correct metadata
+- All filters work (status, template, date) and combine correctly
+- Search finds decks by title in real-time
+- Draft decks show resume flow with correct wizard step
+- Quick actions (edit, duplicate, delete, archive, export) all work
+- Right panel shows portfolio-level AI insights
+- AI recommendations are relevant and actionable
+- Empty state guides new users to create first deck
+- Responsive design works on desktop, tablet, mobile
+- Pagination works with filters maintained
