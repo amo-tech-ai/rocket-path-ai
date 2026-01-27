@@ -23,7 +23,7 @@ interface DiscoverResult {
   criteria_used: Record<string, unknown>;
 }
 
-interface FitAnalysis {
+export interface FitAnalysis {
   success: boolean;
   overall_score: number;
   breakdown: Record<string, { score: number; reasoning: string }>;
@@ -49,7 +49,7 @@ interface WarmPathsResult {
   best_entry_point: string;
 }
 
-interface OutreachResult {
+export interface OutreachResult {
   success: boolean;
   outreach_type: string;
   subject_lines: string[];
@@ -84,7 +84,7 @@ interface DealScore {
   recommended_next_action: string;
 }
 
-interface MeetingPrep {
+export interface MeetingPrep {
   success: boolean;
   investor_name: string;
   key_talking_points: string[];

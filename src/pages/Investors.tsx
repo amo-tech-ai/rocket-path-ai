@@ -254,6 +254,7 @@ const Investors = () => {
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
         onEdit={handleEditInvestor}
+        startupId={startup?.id}
       />
     </DashboardLayout>
   );
