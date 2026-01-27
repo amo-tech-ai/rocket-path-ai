@@ -30,6 +30,8 @@ import PublicEventDetail from "./pages/PublicEventDetail";
 import BlogIndex from "./pages/BlogIndex";
 import BlogPost from "./pages/BlogPost";
 import PitchDeckWizard from "./pages/PitchDeckWizard";
+import PitchDecksDashboard from "./pages/PitchDecksDashboard";
+import PitchDeckEditor from "./pages/PitchDeckEditor";
 
 const queryClient = new QueryClient();
 
@@ -170,6 +172,14 @@ const App = () => (
               }
             />
             <Route
+              path="/app/pitch-decks"
+              element={
+                <ProtectedRoute>
+                  <PitchDecksDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/app/pitch-deck/new"
               element={
                 <ProtectedRoute>
@@ -182,6 +192,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PitchDeckWizard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/pitch-deck/:deckId/edit"
+              element={
+                <ProtectedRoute>
+                  <PitchDeckEditor />
                 </ProtectedRoute>
               }
             />
