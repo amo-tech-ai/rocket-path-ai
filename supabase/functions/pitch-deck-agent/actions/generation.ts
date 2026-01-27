@@ -2,6 +2,8 @@
  * Deck Generation Actions: generate_deck
  */
 
+import { callGemini } from "../ai-utils.ts";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
 
@@ -10,40 +12,6 @@ interface SlideContent {
   title: string;
   content: Record<string, unknown>;
   speaker_notes?: string;
-}
-
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-async function callGemini(
-  model: "google/gemini-3-pro-preview" | "google/gemini-3-flash-preview",
-  systemPrompt: string,
-  userPrompt: string
-): Promise<{ content?: string }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) return { content: undefined };
-
-  try {
-    const response = await fetch(LOVABLE_AI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) return { content: undefined };
-    const data = await response.json();
-    return { content: data.choices?.[0]?.message?.content || undefined };
-  } catch {
-    return { content: undefined };
-  }
 }
 
 export async function generateDeck(
