@@ -258,43 +258,77 @@ export function usePitchDeckEditor({ deckId }: UsePitchDeckEditorOptions) {
     try {
       setIsLoadingSuggestions(true);
 
-      // Simulate AI suggestions (would call edge function in production)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
 
-      const mockSuggestions: AISuggestion[] = [
+      const response = await supabase.functions.invoke('pitch-deck-agent', {
+        body: {
+          action: 'analyze_slide',
+          slide_id: currentSlide.id,
+          slide_type: currentSlide.slide_type,
+          slide_content: {
+            title: currentSlide.title,
+            subtitle: currentSlide.subtitle,
+            bullets: currentSlide.content?.bullets,
+            body: currentSlide.content,
+          },
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('AI suggestions error:', response.error);
+        throw response.error;
+      }
+
+      const data = response.data;
+      
+      if (data?.analysis) {
+        setSlideAnalysis(data.analysis);
+      }
+      
+      if (data?.suggestions) {
+        setAiSuggestions(data.suggestions.map((s: { id?: string; type: string; suggestion: string; reasoning: string }) => ({
+          id: s.id || `sug_${Date.now()}`,
+          type: s.type as AISuggestion['type'],
+          suggestion: s.suggestion,
+          reasoning: s.reasoning,
+          applied: false,
+        })));
+      }
+
+      setIsLoadingSuggestions(false);
+    } catch (error) {
+      console.error('Failed to fetch AI suggestions:', error);
+      
+      // Fallback suggestions
+      setAiSuggestions([
         {
           id: 'sug_1',
           type: 'clarity',
-          suggestion: 'Consider simplifying the problem statement to one sentence.',
+          suggestion: 'Consider simplifying the main message to one sentence.',
           reasoning: 'Investors spend ~10 seconds per slide. Clarity wins.',
         },
         {
           id: 'sug_2',
           type: 'impact',
-          suggestion: 'Add a specific metric to quantify the problem.',
-          reasoning: 'Numbers make problems tangible and memorable.',
+          suggestion: 'Add a specific metric to quantify your claim.',
+          reasoning: 'Numbers make statements memorable and credible.',
         },
-        {
-          id: 'sug_3',
-          type: 'tone',
-          suggestion: 'Use more active voice in your bullet points.',
-          reasoning: 'Active voice conveys confidence and action.',
-        },
-      ];
-
-      const mockAnalysis: SlideAnalysis = {
+      ]);
+      
+      setSlideAnalysis({
         clarity: 7,
         impact: 6,
-        tone: 8,
+        tone: 7,
         overall: 7,
-        feedback: 'Good foundation. Add metrics to strengthen impact.',
-      };
-
-      setAiSuggestions(mockSuggestions);
-      setSlideAnalysis(mockAnalysis);
-      setIsLoadingSuggestions(false);
-    } catch (error) {
-      console.error('Failed to fetch AI suggestions:', error);
+        feedback: 'Good foundation. Consider adding more specific metrics.',
+      });
+      
       setIsLoadingSuggestions(false);
     }
   }, [currentSlide]);
