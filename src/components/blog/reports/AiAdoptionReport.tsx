@@ -1,13 +1,15 @@
 import { 
-  ReportHero, 
   ReportSection, 
   SectionTitle, 
   InsightCard, 
   DataTable, 
   PullQuote,
-  StatGrid,
   FeatureCard,
-  SourcesSection 
+  SourcesSection,
+  HeroKpiGrid,
+  ProgressComparison,
+  NumberedPillars,
+  EnhancedDataTable
 } from "@/components/blog";
 import { 
   Building2, 
@@ -18,24 +20,53 @@ import {
   Truck, 
   Zap, 
   Megaphone,
-  GraduationCap,
-  Briefcase
+  Target,
+  TrendingUp
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const AiAdoptionReport = () => {
   return (
     <article>
-      {/* Hero Section */}
-      <ReportHero
-        title="AI Adoption by Industry — 2025"
-        subtitle="Where AI is working, what it's used for, and what outcomes are measurable."
-        chips={["10 industries", "adoption + outcomes", "measured vs estimated"]}
-        kpis={[
-          { value: "88%", label: "Technology & SaaS org-wide AI use", type: "measured" },
-          { value: "€190M", label: "Manufacturing savings (measured case)", type: "measured" },
-          { value: "+15%", label: "Retail AI leaders outperform peers (revenue)", type: "measured" }
-        ]}
-      />
+      {/* Enhanced Hero Section */}
+      <ReportSection className="pb-0">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          {/* Left: Title */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+              Variant 2.1 — Executive Briefing
+            </p>
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground leading-tight mb-6">
+              The 2025 AI{" "}
+              <span className="italic text-primary">Adoption Index</span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-xl mb-8">
+              A definitive analysis of generative and predictive AI integration across 
+              global enterprises, prepared for leadership teams.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground text-sm font-medium"
+            >
+              Explore Full Data
+            </motion.button>
+          </motion.div>
+
+          {/* Right: KPI Grid */}
+          <HeroKpiGrid
+            kpis={[
+              { value: "42.8%", label: "Global Average Adoption", trend: "+12.4% YoY", trendType: "positive" },
+              { value: "+28%", label: "Productivity Lift" },
+              { value: "3.2×", label: "Value Gap (ROI)", sublabel: "Leaders vs. Laggards" }
+            ]}
+          />
+        </div>
+      </ReportSection>
 
       {/* Executive Summary */}
       <ReportSection>
