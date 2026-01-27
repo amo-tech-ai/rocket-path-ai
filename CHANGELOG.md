@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.7] - 2026-01-27
+
+### Added
+- **Frontend Hooks for Edge Functions**
+  - `useCRMAgent` - 8 actions (enrich_contact, score_lead, score_deal, analyze_pipeline, generate_email, detect_duplicate, summarize_communication, suggest_follow_ups)
+  - `useDocumentsAgent` - 6 actions (generate_document, analyze_document, improve_section, search_documents, summarize_document, compare_versions)
+  - `useLeanCanvasAgent` - 11 actions (map_profile, prefill_canvas, suggest_box, validate_canvas, get_benchmarks, save_version, restore_version)
+
+- **Pitch Deck Export System**
+  - `ExportModal` component with PDF, PPTX, and shareable link options
+  - PDF export with jsPDF (speaker notes, slide numbers, quality settings)
+  - Link generation with expiration options (1/7/30 days, never)
+
+- **Lean Canvas Enhancements**
+  - `ProfileMappingBanner` - Shows coverage status per box with AI prefill button
+  - `ConfidenceBadge` - Displays HIGH/MEDIUM/LOW confidence for AI-generated content
+  - `ConfidenceIndicator` - Inline dots for item-level confidence
+
+### Changed
+- Progress tracker updated to 52% overall completion
+- CRM and Documents modules now at 70% and 60% (hooks complete)
+- Lean Canvas at 85% (confidence badges added)
+- Pitch Deck at 75% (export functionality added)
+
 ## [0.7.6] - 2026-01-27
 
 ### Added
