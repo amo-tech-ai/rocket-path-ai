@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = "https://yvyesmiczbjqwbqtlidy.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eWVzbWljemJqcXdicXRsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTA1OTcsImV4cCI6MjA4NDAyNjU5N30.eSN491MztXvWR03q4v-Zfc0zrG06mrIxdSRe_FFZDu4";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -23,12 +24,79 @@ interface RequestBody {
   content?: Record<string, unknown>;
 }
 
+interface SlideContent {
+  slide_type: string;
+  title: string;
+  content: Record<string, unknown>;
+  speaker_notes?: string;
+}
+
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
   });
+}
+
+// ============================================================================
+// AI Helper: Call Lovable AI Gateway
+// ============================================================================
+
+async function callGemini(
+  model: "google/gemini-3-pro-preview" | "google/gemini-3-flash-preview",
+  systemPrompt: string,
+  userPrompt: string,
+  tools?: unknown[]
+): Promise<{ content?: string; toolCall?: unknown }> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  
+  if (!LOVABLE_API_KEY) {
+    console.warn("[callGemini] LOVABLE_API_KEY not set, using fallback");
+    return { content: undefined };
+  }
+
+  const body: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  };
+
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = "auto";
+  }
+
+  try {
+    const response = await fetch(LOVABLE_AI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[callGemini] API error ${response.status}: ${errorText}`);
+      return { content: undefined };
+    }
+
+    const data = await response.json();
+    const choice = data.choices?.[0];
+    
+    if (choice?.message?.tool_calls?.[0]) {
+      return { toolCall: choice.message.tool_calls[0] };
+    }
+    
+    return { content: choice?.message?.content || undefined };
+  } catch (error) {
+    console.error("[callGemini] Error:", error);
+    return { content: undefined };
+  }
 }
 
 // ============================================================================
@@ -49,7 +117,6 @@ async function saveWizardStep(
     let deck;
     
     if (deckId) {
-      // Update existing deck
       const { data: existingDeck, error: fetchError } = await supabase
         .from("pitch_decks")
         .select("*")
@@ -59,7 +126,6 @@ async function saveWizardStep(
       if (fetchError) throw fetchError;
       deck = existingDeck;
     } else {
-      // Get user's startup_id
       const { data: profile } = await supabase
         .from("profiles")
         .select("org_id")
@@ -80,7 +146,6 @@ async function saveWizardStep(
         throw new Error("No startup found. Complete onboarding first.");
       }
 
-      // Create new deck
       const { data: newDeck, error: createError } = await supabase
         .from("pitch_decks")
         .insert([{
@@ -99,11 +164,9 @@ async function saveWizardStep(
       deck = newDeck;
     }
 
-    // Build step key
     const stepKeys = ["step1_startup_info", "step2_market_traction", "step3_smart_interview", "step4_review"];
     const stepKey = stepKeys[step - 1];
 
-    // Merge wizard data
     const currentMetadata = (deck.metadata || {}) as Record<string, unknown>;
     const currentWizardData = (currentMetadata.wizard_data || {}) as Record<string, unknown>;
     
@@ -122,7 +185,6 @@ async function saveWizardStep(
       wizard_data: newWizardData,
     };
 
-    // Update deck
     const { error: updateError } = await supabase
       .from("pitch_decks")
       .update({ 
@@ -174,7 +236,7 @@ async function resumeWizard(
 }
 
 // ============================================================================
-// Action: generate_interview_questions
+// Action: generate_interview_questions (P0 - Gemini Flash)
 // ============================================================================
 
 async function generateInterviewQuestions(
@@ -186,67 +248,148 @@ async function generateInterviewQuestions(
 ) {
   console.log(`[generate_interview_questions] Deck: ${deckId}`);
 
-  const industry = (step1Data.industry as string) || "other";
+  const industry = (step1Data.industry as string) || "technology";
+  const stage = (step1Data.stage as string) || "seed";
+  const companyName = (step1Data.company_name as string) || "Startup";
+  const tagline = (step1Data.tagline as string) || "";
+  const problem = (step2Data.problem as string) || "";
+  const solution = (step2Data.core_solution as string) || "";
   const fundingStage = (step2Data.funding_stage as string) || "seed";
 
-  // Industry-specific question packs
-  const questionPacks: Record<string, Array<{ id: string; question: string; category: string; slide_mapping: string }>> = {
-    ai_saas: [
-      { id: "ai_1", question: "What specific AI/ML models power your product and how proprietary are they?", category: "product", slide_mapping: "technology" },
-      { id: "ai_2", question: "How do you handle data privacy and model training with customer data?", category: "product", slide_mapping: "solution" },
-      { id: "ai_3", question: "What's your path to achieving AI defensibility (data moats, proprietary models)?", category: "competition", slide_mapping: "competition" },
-    ],
-    fintech: [
-      { id: "fin_1", question: "What regulatory licenses do you have or need?", category: "product", slide_mapping: "solution" },
-      { id: "fin_2", question: "How do you acquire customers and what's your CAC?", category: "market", slide_mapping: "go_to_market" },
-      { id: "fin_3", question: "What partnerships with banks or financial institutions do you have?", category: "market", slide_mapping: "partnerships" },
-    ],
-    healthcare: [
-      { id: "hc_1", question: "What's your path to FDA approval or regulatory clearance?", category: "product", slide_mapping: "solution" },
-      { id: "hc_2", question: "How do you work with healthcare providers or payers?", category: "market", slide_mapping: "go_to_market" },
-      { id: "hc_3", question: "What clinical evidence supports your solution?", category: "traction", slide_mapping: "traction" },
-    ],
-    default: [
+  // Build AI prompt for dynamic question generation
+  const systemPrompt = `You are an expert venture capital analyst specializing in ${industry} startups at the ${stage} stage.
+Your task is to generate 6-8 highly specific, probing interview questions that will help create a compelling pitch deck.
+
+Focus areas:
+1. Fill knowledge gaps in the provided data
+2. Extract quantitative metrics and proof points
+3. Uncover unique insights about team, market, and traction
+4. Generate questions investors would actually ask
+
+Return ONLY valid JSON in this exact format:
+{
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Your specific question here?",
+      "category": "traction|market|team|product|financials|competition",
+      "slide_mapping": "traction|market|team|solution|business_model|competition|ask",
+      "why_important": "Brief reason this matters for the pitch"
+    }
+  ],
+  "research_context": {
+    "industry_insights": ["key insight 1", "key insight 2"],
+    "funding_landscape": "brief market context",
+    "key_metrics_needed": ["metric 1", "metric 2"]
+  }
+}`;
+
+  const userPrompt = `Generate interview questions for this startup:
+
+Company: ${companyName}
+Industry: ${industry}
+Stage: ${stage}
+Tagline: ${tagline}
+Problem: ${problem}
+Solution: ${solution}
+Funding Stage: ${fundingStage}
+
+Known data gaps to fill:
+- Specific traction metrics (users, revenue, growth rate)
+- Unit economics (CAC, LTV, margins)
+- Team backgrounds and unfair advantages
+- Competitive differentiation with proof
+- Go-to-market strategy details`;
+
+  // Try AI generation with Gemini Flash (fast)
+  const aiResponse = await callGemini(
+    "google/gemini-3-flash-preview",
+    systemPrompt,
+    userPrompt
+  );
+
+  let questions: Array<{ id: string; question: string; category: string; slide_mapping: string; source: string }> = [];
+  let researchContext: Record<string, unknown> = {};
+
+  if (aiResponse.content) {
+    try {
+      // Extract JSON from response
+      const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        questions = (parsed.questions || []).map((q: Record<string, unknown>, idx: number) => ({
+          id: q.id || `q${idx + 1}`,
+          question: q.question as string,
+          category: q.category as string,
+          slide_mapping: q.slide_mapping as string,
+          source: "ai_generated",
+          why_important: q.why_important as string,
+          skipped: false,
+        }));
+        researchContext = parsed.research_context || {};
+        console.log(`[generate_interview_questions] AI generated ${questions.length} questions`);
+      }
+    } catch (parseError) {
+      console.error("[generate_interview_questions] JSON parse error:", parseError);
+    }
+  }
+
+  // Fallback to static questions if AI fails
+  if (questions.length === 0) {
+    console.log("[generate_interview_questions] Using fallback questions");
+    
+    const industryQuestions: Record<string, Array<{ id: string; question: string; category: string; slide_mapping: string }>> = {
+      ai_saas: [
+        { id: "ai_1", question: "What specific AI/ML models power your product and how proprietary are they?", category: "product", slide_mapping: "solution" },
+        { id: "ai_2", question: "How do you handle data privacy and model training with customer data?", category: "product", slide_mapping: "solution" },
+        { id: "ai_3", question: "What's your path to achieving AI defensibility (data moats, proprietary models)?", category: "competition", slide_mapping: "competition" },
+      ],
+      fintech: [
+        { id: "fin_1", question: "What regulatory licenses do you have or need?", category: "product", slide_mapping: "solution" },
+        { id: "fin_2", question: "How do you acquire customers and what's your CAC?", category: "market", slide_mapping: "business_model" },
+        { id: "fin_3", question: "What partnerships with banks or financial institutions do you have?", category: "market", slide_mapping: "traction" },
+      ],
+      healthcare: [
+        { id: "hc_1", question: "What's your path to FDA approval or regulatory clearance?", category: "product", slide_mapping: "solution" },
+        { id: "hc_2", question: "How do you work with healthcare providers or payers?", category: "market", slide_mapping: "market" },
+        { id: "hc_3", question: "What clinical evidence supports your solution?", category: "traction", slide_mapping: "traction" },
+      ],
+    };
+
+    const baseQuestions = [
       { id: "gen_1", question: "What specific metrics demonstrate your product-market fit?", category: "traction", slide_mapping: "traction" },
-      { id: "gen_2", question: "How do you acquire customers today and what's working best?", category: "market", slide_mapping: "go_to_market" },
+      { id: "gen_2", question: "How do you acquire customers today and what's working best?", category: "market", slide_mapping: "business_model" },
       { id: "gen_3", question: "What are your unit economics (CAC, LTV)?", category: "financials", slide_mapping: "business_model" },
       { id: "gen_4", question: "Who are your key competitors and how are you differentiated?", category: "competition", slide_mapping: "competition" },
       { id: "gen_5", question: "What's your team's unfair advantage in this space?", category: "team", slide_mapping: "team" },
       { id: "gen_6", question: "What will you use the funding for over the next 18 months?", category: "financials", slide_mapping: "ask" },
-    ],
-  };
+    ];
 
-  // Get industry-specific questions or default
-  const industryQuestions = questionPacks[industry] || [];
-  const baseQuestions = questionPacks.default;
+    const industrySpecific = industryQuestions[industry] || [];
+    questions = [...industrySpecific, ...baseQuestions].slice(0, 8).map(q => ({
+      ...q,
+      source: "fallback",
+      skipped: false,
+    }));
 
-  // Combine and limit to 6-8 questions
-  const allQuestions = [...industryQuestions, ...baseQuestions].slice(0, 8);
-
-  // Format questions
-  const formattedQuestions = allQuestions.map(q => ({
-    ...q,
-    source: industry !== "other" ? "industry" : "gap_analysis",
-    skipped: false,
-  }));
-
-  // Save research context to deck metadata
-  const researchContext = {
-    industry_insights: [`${industry} industry analysis`],
-    funding_stage: fundingStage,
-    analyzed_at: new Date().toISOString(),
-  };
+    researchContext = {
+      industry_insights: [`${industry} industry analysis`],
+      funding_stage: fundingStage,
+      analyzed_at: new Date().toISOString(),
+    };
+  }
 
   return {
     success: true,
-    questions: formattedQuestions,
+    questions,
     research_context: researchContext,
-    total_questions: formattedQuestions.length,
+    total_questions: questions.length,
+    ai_generated: questions[0]?.source === "ai_generated",
   };
 }
 
 // ============================================================================
-// Action: generate_deck
+// Action: generate_deck (P0 - Gemini 3 Pro)
 // ============================================================================
 
 async function generateDeck(
@@ -269,15 +412,21 @@ async function generateDeck(
   const metadata = (deck.metadata || {}) as Record<string, unknown>;
   const wizardData = (metadata.wizard_data || {}) as Record<string, unknown>;
 
+  // Extract wizard data
+  const step1 = (wizardData.step1_startup_info || {}) as Record<string, unknown>;
+  const step2 = (wizardData.step2_market_traction || {}) as Record<string, unknown>;
+  const step3 = (wizardData.step3_smart_interview || {}) as Record<string, unknown>;
+  const interviewAnswers = (step3.answers || {}) as Record<string, string>;
+
   // Create generation log
   const generationLog = {
     id: crypto.randomUUID(),
     generation_status: "in_progress",
     started_at: new Date().toISOString(),
-    ai_model_used: { model: "gemini-3-pro-preview", thinkingLevel: "high" },
+    ai_model_used: { model: "google/gemini-3-pro-preview", thinkingLevel: "high" },
   };
 
-  // Update deck with generation log
+  // Update deck status to generating
   const updatedMetadata = {
     ...metadata,
     generation_logs: [...((metadata.generation_logs as unknown[]) || []), generationLog],
@@ -291,23 +440,187 @@ async function generateDeck(
     })
     .eq("id", deckId);
 
-  // Generate slides based on wizard data
-  const step1 = (wizardData.step1_startup_info || {}) as Record<string, unknown>;
-  const step2 = (wizardData.step2_market_traction || {}) as Record<string, unknown>;
-  const step3 = (wizardData.step3_smart_interview || {}) as Record<string, unknown>;
+  // Build comprehensive context for AI
+  const companyContext = `
+Company: ${step1.company_name || "Startup"}
+Industry: ${step1.industry || "Technology"}
+Stage: ${step1.stage || "Seed"}
+Tagline: ${step1.tagline || ""}
+Website: ${step1.website_url || ""}
 
-  const slideTemplates = [
-    { slide_type: "title", title: step1.company_name || "Company Name", content: { tagline: step1.tagline || "" } },
-    { slide_type: "problem", title: "The Problem", content: { problem: step2.problem || "" } },
-    { slide_type: "solution", title: "Our Solution", content: { solution: step2.core_solution || "" } },
-    { slide_type: "market", title: "Market Opportunity", content: { market_size: "Large and growing" } },
-    { slide_type: "product", title: "How It Works", content: { features: [] } },
-    { slide_type: "traction", title: "Traction", content: { users: step2.users, revenue: step2.revenue } },
-    { slide_type: "competition", title: "Competition", content: { differentiator: step2.differentiator } },
-    { slide_type: "business_model", title: "Business Model", content: {} },
-    { slide_type: "team", title: "Team", content: {} },
-    { slide_type: "ask", title: "The Ask", content: { funding_stage: step2.funding_stage } },
-  ];
+Problem: ${step2.problem || "Not specified"}
+Solution: ${step2.core_solution || "Not specified"}
+Differentiator: ${step2.differentiator || "Not specified"}
+Target Market: ${step2.target_market || "Not specified"}
+
+Traction:
+- Users: ${step2.users || "Not specified"}
+- Revenue: ${step2.revenue || "Not specified"}
+- Growth: ${step2.growth_rate || "Not specified"}
+
+Funding:
+- Stage: ${step2.funding_stage || "Seed"}
+- Amount Raising: ${step2.raise_amount || "Not specified"}
+- Use of Funds: ${step2.use_of_funds || "Not specified"}
+
+Interview Answers:
+${Object.entries(interviewAnswers).map(([q, a]) => `Q: ${q}\nA: ${a}`).join("\n\n")}
+`;
+
+  const systemPrompt = `You are an expert pitch deck writer who has helped startups raise over $1B in venture capital.
+Create compelling, investor-ready slide content that is specific, quantitative, and memorable.
+
+Template style: ${template === "yc" ? "YC-style: Simple, direct, metrics-focused" : "Standard VC: Professional, comprehensive"}
+
+Return ONLY valid JSON with exactly 10 slides in this format:
+{
+  "slides": [
+    {
+      "slide_type": "title|problem|solution|market|product|traction|competition|business_model|team|ask",
+      "title": "Slide Title",
+      "content": {
+        "headline": "Main message (1 powerful sentence)",
+        "body": "Supporting content with specific details",
+        "bullets": ["Key point 1", "Key point 2", "Key point 3"],
+        "metrics": {"label": "value"} // if applicable
+      },
+      "speaker_notes": "What to say when presenting this slide"
+    }
+  ]
+}
+
+Requirements:
+1. Every claim must be specific and quantifiable where possible
+2. Use the exact numbers from the data provided
+3. Make the problem emotionally compelling
+4. Make the solution clear and differentiated
+5. Include specific metrics in traction slide
+6. Competition slide should position against real or implied competitors
+7. Ask slide should be clear about amount and use of funds`;
+
+  const userPrompt = `Create a complete 10-slide pitch deck for this startup:
+
+${companyContext}
+
+Generate compelling content for each slide that will resonate with investors.`;
+
+  // Try AI generation with Gemini Pro
+  const aiResponse = await callGemini(
+    "google/gemini-3-pro-preview",
+    systemPrompt,
+    userPrompt
+  );
+
+  let slides: SlideContent[] = [];
+
+  if (aiResponse.content) {
+    try {
+      const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        slides = (parsed.slides || []).map((s: Record<string, unknown>) => ({
+          slide_type: s.slide_type as string,
+          title: s.title as string,
+          content: s.content as Record<string, unknown>,
+          speaker_notes: s.speaker_notes as string,
+        }));
+        console.log(`[generate_deck] AI generated ${slides.length} slides`);
+      }
+    } catch (parseError) {
+      console.error("[generate_deck] JSON parse error:", parseError);
+    }
+  }
+
+  // Fallback to template-based slides if AI fails
+  if (slides.length === 0) {
+    console.log("[generate_deck] Using fallback template slides");
+    slides = [
+      { 
+        slide_type: "title", 
+        title: String(step1.company_name || "Company Name"), 
+        content: { 
+          headline: String(step1.tagline || "Transform how the world works"),
+          body: String(step1.industry || "Technology"),
+        } 
+      },
+      { 
+        slide_type: "problem", 
+        title: "The Problem", 
+        content: { 
+          headline: String(step2.problem || "A significant market problem exists"),
+          bullets: ["Pain point 1", "Pain point 2", "Pain point 3"],
+        } 
+      },
+      { 
+        slide_type: "solution", 
+        title: "Our Solution", 
+        content: { 
+          headline: String(step2.core_solution || "Our innovative solution"),
+          body: String(step2.differentiator || "What makes us different"),
+        } 
+      },
+      { 
+        slide_type: "market", 
+        title: "Market Opportunity", 
+        content: { 
+          headline: "Large and growing market",
+          metrics: { "TAM": "$XB", "SAM": "$XB", "SOM": "$XM" },
+        } 
+      },
+      { 
+        slide_type: "product", 
+        title: "How It Works", 
+        content: { 
+          headline: "Simple, powerful, effective",
+          bullets: ["Feature 1", "Feature 2", "Feature 3"],
+        } 
+      },
+      { 
+        slide_type: "traction", 
+        title: "Traction", 
+        content: { 
+          metrics: { 
+            "Users": String(step2.users || "Growing"), 
+            "Revenue": String(step2.revenue || "Early"),
+            "Growth": String(step2.growth_rate || "Month-over-month"),
+          },
+        } 
+      },
+      { 
+        slide_type: "competition", 
+        title: "Competition", 
+        content: { 
+          headline: String(step2.differentiator || "Our unique advantage"),
+          body: "Competitive landscape analysis",
+        } 
+      },
+      { 
+        slide_type: "business_model", 
+        title: "Business Model", 
+        content: { 
+          headline: "How we make money",
+          bullets: ["Revenue stream 1", "Revenue stream 2"],
+        } 
+      },
+      { 
+        slide_type: "team", 
+        title: "Team", 
+        content: { 
+          headline: "World-class team",
+          body: "Combined experience in industry and technology",
+        } 
+      },
+      { 
+        slide_type: "ask", 
+        title: "The Ask", 
+        content: { 
+          headline: `Raising ${step2.raise_amount || "Seed Round"}`,
+          body: String(step2.use_of_funds || "To accelerate growth and expand the team"),
+          funding_stage: String(step2.funding_stage || "Seed"),
+        } 
+      },
+    ];
+  }
 
   // Delete existing slides
   await supabase
@@ -315,17 +628,18 @@ async function generateDeck(
     .delete()
     .eq("deck_id", deckId);
 
-  // Create new slides
-  for (let i = 0; i < slideTemplates.length; i++) {
-    const slideTemplate = slideTemplates[i];
+  // Insert new slides
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
     await supabase
       .from("pitch_deck_slides")
       .insert([{
         deck_id: deckId,
         slide_number: i + 1,
-        slide_type: slideTemplate.slide_type,
-        title: slideTemplate.title,
-        content: slideTemplate.content,
+        slide_type: slide.slide_type,
+        title: slide.title,
+        content: slide.content,
+        speaker_notes: slide.speaker_notes || null,
         is_visible: true,
       }]);
   }
@@ -333,18 +647,22 @@ async function generateDeck(
   // Update generation log to completed
   generationLog.generation_status = "completed";
   (generationLog as Record<string, unknown>).completed_at = new Date().toISOString();
-  (generationLog as Record<string, unknown>).slide_count_generated = slideTemplates.length;
+  (generationLog as Record<string, unknown>).slide_count_generated = slides.length;
+  (generationLog as Record<string, unknown>).ai_generated = slides.length > 0;
 
   const finalMetadata = {
     ...metadata,
-    generation_logs: [...((metadata.generation_logs as unknown[]) || []).filter((l: unknown) => (l as { id: string }).id !== generationLog.id), generationLog],
+    generation_logs: [
+      ...((metadata.generation_logs as unknown[]) || []).filter((l: unknown) => (l as { id: string }).id !== generationLog.id), 
+      generationLog
+    ],
   };
 
   await supabase
     .from("pitch_decks")
     .update({ 
       status: "review",
-      slide_count: slideTemplates.length,
+      slide_count: slides.length,
       metadata: finalMetadata,
     })
     .eq("id", deckId);
@@ -354,9 +672,57 @@ async function generateDeck(
     deck_id: deckId,
     title: deck.title,
     template: template,
-    total_slides: slideTemplates.length,
-    saved_slides: slideTemplates.length,
+    total_slides: slides.length,
+    saved_slides: slides.length,
     generation_log_id: generationLog.id,
+    ai_generated: aiResponse.content !== null,
+  };
+}
+
+// ============================================================================
+// Action: update_slide (P1 - Edit individual slides)
+// ============================================================================
+
+async function updateSlide(
+  supabase: SupabaseClient,
+  userId: string,
+  slideId: string,
+  content: Record<string, unknown>
+) {
+  console.log(`[update_slide] Slide: ${slideId}`);
+
+  // Fetch slide to verify ownership
+  const { data: slide, error: fetchError } = await supabase
+    .from("pitch_deck_slides")
+    .select("*, pitch_decks!inner(startup_id, startups!inner(org_id))")
+    .eq("id", slideId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  // Update slide content
+  const { error: updateError } = await supabase
+    .from("pitch_deck_slides")
+    .update({
+      title: content.title || slide.title,
+      content: content.content || slide.content,
+      speaker_notes: content.speaker_notes || slide.speaker_notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", slideId);
+
+  if (updateError) throw updateError;
+
+  // Update deck's updated_at timestamp
+  await supabase
+    .from("pitch_decks")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", slide.deck_id);
+
+  return {
+    success: true,
+    slide_id: slideId,
+    deck_id: slide.deck_id,
   };
 }
 
@@ -416,7 +782,6 @@ async function getSignalStrength(
   const metadata = (deck.metadata || {}) as Record<string, unknown>;
   const wizardData = (metadata.wizard_data || {}) as Record<string, unknown>;
 
-  // Calculate signal strength
   let score = 0;
   const breakdown = {
     profile: 0,
@@ -535,6 +900,18 @@ Deno.serve(async (req) => {
           user.id,
           body.deck_id,
           body.template || "yc"
+        );
+        break;
+
+      case "update_slide":
+        if (!body.slide_id) {
+          throw new Error("slide_id is required");
+        }
+        result = await updateSlide(
+          supabase,
+          user.id,
+          body.slide_id,
+          body.content || {}
         );
         break;
 
