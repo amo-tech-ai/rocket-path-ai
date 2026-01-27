@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.4] - 2026-01-27
+
+### Added
+- **Blog System**: Complete infographic-style research report system
+  - Blog index page at `/blog` with card grid
+  - 5 research reports with scroll-driven animations
+  - Reusable components: KpiCard, InsightCard, DataTable, FlowDiagram, PullQuote, etc.
+- **Research Reports**:
+  - AI Adoption by Industry — 2025
+  - AI Jobs & Future of Work — 2024–2026
+  - AI in E-commerce
+  - AI Startup Products
+  - Leading AI Investment Hubs
+- **Navigation**: Added Research link to header, updated footer with report links
+- **Documentation**: `docs/website/04-blog-system.md` architecture guide
+
 ## [0.7.3] - 2026-01-26
 
 ### Added

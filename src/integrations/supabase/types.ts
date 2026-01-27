@@ -2068,15 +2068,23 @@ export type Database = {
           audience_types: string[] | null
           categories: Database["public"]["Enums"]["event_category"][] | null
           cfp_url: string | null
+          cloudinary_folder: string | null
+          cloudinary_public_id: string | null
+          cloudinary_version: number | null
           created_at: string
           dates_confirmed: boolean | null
           description: string | null
           end_date: string | null
+          enriched_at: string | null
+          enrichment_metadata: Json | null
+          enrichment_status: string | null
           event_date: string | null
           expected_attendance: number | null
           format: Database["public"]["Enums"]["event_format"] | null
           full_name: string | null
           id: string
+          image_path: string | null
+          image_url: string | null
           linkedin_url: string | null
           location_city: string | null
           location_country: string | null
@@ -2088,6 +2096,7 @@ export type Database = {
           notable_speakers: string[] | null
           registration_url: string | null
           slug: string | null
+          source_domain: string | null
           startup_relevance: number | null
           tags: string[] | null
           ticket_cost_max: number | null
@@ -2108,15 +2117,23 @@ export type Database = {
           audience_types?: string[] | null
           categories?: Database["public"]["Enums"]["event_category"][] | null
           cfp_url?: string | null
+          cloudinary_folder?: string | null
+          cloudinary_public_id?: string | null
+          cloudinary_version?: number | null
           created_at?: string
           dates_confirmed?: boolean | null
           description?: string | null
           end_date?: string | null
+          enriched_at?: string | null
+          enrichment_metadata?: Json | null
+          enrichment_status?: string | null
           event_date?: string | null
           expected_attendance?: number | null
           format?: Database["public"]["Enums"]["event_format"] | null
           full_name?: string | null
           id?: string
+          image_path?: string | null
+          image_url?: string | null
           linkedin_url?: string | null
           location_city?: string | null
           location_country?: string | null
@@ -2128,6 +2145,7 @@ export type Database = {
           notable_speakers?: string[] | null
           registration_url?: string | null
           slug?: string | null
+          source_domain?: string | null
           startup_relevance?: number | null
           tags?: string[] | null
           ticket_cost_max?: number | null
@@ -2148,15 +2166,23 @@ export type Database = {
           audience_types?: string[] | null
           categories?: Database["public"]["Enums"]["event_category"][] | null
           cfp_url?: string | null
+          cloudinary_folder?: string | null
+          cloudinary_public_id?: string | null
+          cloudinary_version?: number | null
           created_at?: string
           dates_confirmed?: boolean | null
           description?: string | null
           end_date?: string | null
+          enriched_at?: string | null
+          enrichment_metadata?: Json | null
+          enrichment_status?: string | null
           event_date?: string | null
           expected_attendance?: number | null
           format?: Database["public"]["Enums"]["event_format"] | null
           full_name?: string | null
           id?: string
+          image_path?: string | null
+          image_url?: string | null
           linkedin_url?: string | null
           location_city?: string | null
           location_country?: string | null
@@ -2168,6 +2194,7 @@ export type Database = {
           notable_speakers?: string[] | null
           registration_url?: string | null
           slug?: string | null
+          source_domain?: string | null
           startup_relevance?: number | null
           tags?: string[] | null
           ticket_cost_max?: number | null
@@ -2607,6 +2634,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      onboarding_questions: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          id: string
+          is_active: boolean
+          options: Json | null
+          text: string
+          topic: string
+          type: Database["public"]["Enums"]["question_type"]
+          updated_at: string
+          why_matters: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          id: string
+          is_active?: boolean
+          options?: Json | null
+          text: string
+          topic: string
+          type?: Database["public"]["Enums"]["question_type"]
+          updated_at?: string
+          why_matters?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          options?: Json | null
+          text?: string
+          topic?: string
+          type?: Database["public"]["Enums"]["question_type"]
+          updated_at?: string
+          why_matters?: string | null
+        }
+        Relationships: []
       }
       org_members: {
         Row: {
@@ -4354,6 +4420,7 @@ export type Database = {
         | "review"
         | "final"
         | "archived"
+      question_type: "multiple_choice" | "multi_select" | "text" | "number"
       rsvp_status:
         | "invited"
         | "pending"
@@ -4741,6 +4808,7 @@ export const Constants = {
         "final",
         "archived",
       ],
+      question_type: ["multiple_choice", "multi_select", "text", "number"],
       rsvp_status: [
         "invited",
         "pending",
