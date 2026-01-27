@@ -1,12 +1,34 @@
 # Changelog
 
+## [0.7.6] - 2026-01-27
+
+### Added
+- **Complete Dashboard Documentation System**: 18 comprehensive prompt files in `docs/dashboard/`
+  - `00-index.md` - Master index with module progress and implementation order
+  - `00-progress-plan.md` - Detailed progress tracking with edge function status
+  - `01-wireframes.md` - ASCII wireframes for all 27 screens (1095 lines)
+  - `03-data-strategy.md` - 48 tables, ERDs, RLS, indexes (958 lines)
+  - `03.1-smart-ai-system.md` - Auto-Claude adaptation with 10 Smart AI screens
+  - `04-navigation-routing.md` - Routes, nav sidebar, breadcrumbs
+  - `05-authentication.md` - OAuth, roles, RLS helpers (330 lines)
+  - `06-ai-architecture.md` - AI routing, models, prompts, costs
+  - `07-state-realtime.md` - React Query, autosave, 17 realtime channels
+  - `08-edge-functions.md` - 14 functions, 100+ actions catalog
+  - `100-dashboard-system.md` - Complete system plan (850 lines, source of truth)
+- **Module Prompts (10-17)**: Detailed specs for each dashboard module
+  - `11-main-dashboard.md` - Command center with KPIs, stage guidance
+  - `12-crm.md` - Contacts, pipeline, 6 AI workflows
+  - `13-documents.md` - Library, AI generation, semantic search
+  - `14-investors.md` - Discovery, pipeline, warm paths
+  - `15-projects.md` - Projects, tasks, AI generation
+  - `16-ai-chat.md` - Chat interface, RAG, 22 chatbot actions
+  - `17-settings.md` - 4 tabs (Profile, Appearance, Notifications, Account)
+
 ## [0.7.5] - 2026-01-27
 
 ### Added
 - **Lean Canvas Enhancement System**: Documentation + edge function for 12-step roadmap
-  - `docs/dashboard/00-index.md` - Master tracker for dashboard modules
-  - `docs/dashboard/01-lean-canvas.md` - Technical spec with architecture and roadmap
-  - `lean-canvas-agent` edge function with 11 actions (map_profile, prefill_canvas, validate_canvas, versions, benchmarks, pivots, etc.)
+  - `lean-canvas-agent` edge function with 11 actions
   - Modular action handlers in `supabase/functions/lean-canvas-agent/actions/`
 
 ## [0.7.4] - 2026-01-27
