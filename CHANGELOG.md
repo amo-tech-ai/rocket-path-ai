@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.5] - 2026-01-27
+
+### Added
+- **Lean Canvas Enhancement System**: Documentation + edge function for 12-step roadmap
+  - `docs/dashboard/00-index.md` - Master tracker for dashboard modules
+  - `docs/dashboard/01-lean-canvas.md` - Technical spec with architecture and roadmap
+  - `lean-canvas-agent` edge function with 11 actions (map_profile, prefill_canvas, validate_canvas, versions, benchmarks, pivots, etc.)
+  - Modular action handlers in `supabase/functions/lean-canvas-agent/actions/`
+
 ## [0.7.4] - 2026-01-27
 
 ### Added
