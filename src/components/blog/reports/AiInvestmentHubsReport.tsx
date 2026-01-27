@@ -1,36 +1,63 @@
 import { 
-  ReportHero, 
   ReportSection, 
   SectionTitle, 
   DataTable,
-  StatGrid,
   FeatureCard,
   HubProfileCard,
   PullQuote,
-  SourcesSection 
+  SourcesSection,
+  HeroKpiGrid,
+  NumberedPillars,
+  DarkCTASection
 } from "@/components/blog";
 import { 
   Users, 
   GraduationCap, 
   Server, 
-  Banknote
+  Banknote,
+  MapPin,
+  Globe,
+  TrendingUp,
+  Building
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const AiInvestmentHubsReport = () => {
   return (
     <article>
-      {/* Hero Section */}
-      <ReportHero
-        title="Global AI Investment Is Highly Concentrated"
-        subtitle="A small number of cities capture the majority of global AI venture capital due to talent, research, and compute infrastructure."
-        chips={["Top 10 hubs", "Regional breakdown", "2025–2026"]}
-        kpis={[
-          { value: "~70%", label: "Global AI VC flows into North America", type: "measured" },
-          { value: "50–80%", label: "Captured by top 3 hubs (proxy-based)", type: "estimated" },
-          { value: "85–90%", label: "Absorbed by top 10 hubs", type: "estimated" },
-          { value: "Talent", label: "+ compute + research = capital follows", type: "measured" }
-        ]}
-      />
+      {/* Enhanced Hero Section */}
+      <ReportSection className="pb-0">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+          {/* Left: Title */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+              2025–2026 Strategic Analysis
+            </p>
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground leading-tight mb-6">
+              Global AI Investment Is{" "}
+              <span className="italic text-primary">Highly Concentrated</span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-xl">
+              A small number of cities capture the majority of global AI venture capital 
+              due to talent, research, and compute infrastructure.
+            </p>
+          </motion.div>
+
+          {/* Right: KPI Grid */}
+          <HeroKpiGrid
+            kpis={[
+              { value: "~70%", label: "Global AI VC", sublabel: "Flows into North America" },
+              { value: "50–80%", label: "Top 3 Hubs", sublabel: "Proxy-based capture" },
+              { value: "85–90%", label: "Top 10 Hubs", sublabel: "Absorb total investment" },
+              { value: "Talent", label: "Primary Driver", sublabel: "+ compute + research" }
+            ]}
+          />
+        </div>
+      </ReportSection>
 
       {/* Why These Cities Win */}
       <ReportSection>
@@ -193,7 +220,7 @@ const AiInvestmentHubsReport = () => {
             "Private mega-rounds skew totals"
           ].map((caveat, i) => (
             <div key={i} className="bg-card rounded-lg border border-border p-4 flex items-start gap-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2 flex-shrink-0" />
               <p className="text-sm text-muted-foreground">{caveat}</p>
             </div>
           ))}
