@@ -1,12 +1,13 @@
 # StartupAI Progress Tracker
 
-> **Last Updated:** 2026-01-26  
-> **Version:** 0.7.3  
-> **Overall Progress:** 87%
+> **Last Updated:** 2026-01-27  
+> **Version:** 0.7.5  
+> **Overall Progress:** 89%
 > **Prompts Reference:** [docs/prompts/README.md](./prompts/README.md)  
 > **Supabase:** Connected (43 tables, 168 RLS policies)
 > **Modules Reference:** [docs/agents/modules/00-modules-index.md](./agents/modules/00-modules-index.md)
 > **Agents Reference:** [docs/agents/00-agent-tracker.md](./agents/00-agent-tracker.md)
+> **Dashboard Modules:** [docs/dashboard/00-index.md](./dashboard/00-index.md)
 > **Roadmap:** [docs/roadmap.md](./roadmap.md)
 
 ---
@@ -34,13 +35,13 @@
 | Investors Module | 🟢 Completed | 95% | ✅ | None |
 | Projects Module | 🟡 In Progress | 60% | ⚠️ | Missing detail page |
 | Documents Module | 🔴 Not Started | 10% | ❌ | No implementation |
-| Lean Canvas | 🟢 Completed | 90% | ✅ | None |
+| Lean Canvas | 🟡 In Progress | 45% | ✅ | Core done, enhancements 0/12 |
 | GTM Strategy | 🔴 Not Started | 0% | ❌ | Not implemented |
 | Discovery Module | 🔴 Not Started | 0% | ❌ | Not implemented |
 | Strategy Module | 🔴 Not Started | 0% | ❌ | Not implemented |
 | Settings Module | 🟡 In Progress | 30% | ⚠️ | Placeholder only |
 | AI Agents & Chat | 🟡 In Progress | 60% | ⚠️ | UI not connected |
-| Edge Functions | 🟢 Completed | 95% | ✅ | `run_analysis` missing |
+| Edge Functions | 🟢 Completed | 95% | ✅ | 14 functions deployed |
 | **Onboarding Wizard** | 🟡 In Progress | **85%** | ⚠️ | **3 Critical Issues** |
 | Events Module | 🟢 Completed | 95% | ✅ | None |
 | **Public Events Directory** | 🟢 **NEW** | 100% | ✅ | None |

@@ -1144,6 +1144,47 @@ export type Database = {
           },
         ]
       }
+      document_versions: {
+        Row: {
+          content_json: Json
+          created_at: string | null
+          created_by: string | null
+          document_id: string
+          id: string
+          label: string | null
+          metadata: Json | null
+          version_number: number
+        }
+        Insert: {
+          content_json: Json
+          created_at?: string | null
+          created_by?: string | null
+          document_id: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          version_number?: number
+        }
+        Update: {
+          content_json?: Json
+          created_at?: string | null
+          created_by?: string | null
+          document_id?: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_generated: boolean | null
@@ -1152,6 +1193,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          metadata: Json | null
           startup_id: string
           status: string | null
           title: string
@@ -1167,6 +1209,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          metadata?: Json | null
           startup_id: string
           status?: string | null
           title: string
@@ -1182,6 +1225,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          metadata?: Json | null
           startup_id?: string
           status?: string | null
           title?: string
