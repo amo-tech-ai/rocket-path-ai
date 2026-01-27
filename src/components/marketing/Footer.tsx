@@ -8,6 +8,7 @@ const Footer = () => {
     product: [
       { name: "Features", href: "/features" },
       { name: "How it Works", href: "/how-it-works" },
+      { name: "Pitch Deck Wizard", href: "/app/pitch-deck/new" },
       { name: "Events", href: "/events" },
     ],
     research: [

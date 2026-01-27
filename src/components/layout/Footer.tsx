@@ -35,6 +35,9 @@ const Footer = () => {
             <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Projects
             </Link>
+            <Link to="/app/pitch-deck/new" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Pitch Deck
+            </Link>
             <Link to="/crm" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               CRM
             </Link>
