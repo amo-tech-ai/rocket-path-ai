@@ -57,7 +57,7 @@ const Dashboard = () => {
           documentCount: metrics?.documentsCount || 0,
         }}
       />
-      <AIStrategicReview />
+      <AIStrategicReview startupId={startup?.id} />
       <EventCard />
       <DashboardCalendar />
     </div>

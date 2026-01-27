@@ -221,6 +221,7 @@ const Tasks = () => {
   const aiPanel = (
     <TasksAIPanel 
       stats={stats} 
+      startupId={startup?.id}
       onGenerateTasks={() => setShowAISuggestions(true)} 
     />
   );

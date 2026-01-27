@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +13,18 @@ import {
   CheckCircle2,
   AlertTriangle,
   Lightbulb,
-  ArrowRight
+  ArrowRight,
+  Loader2,
+  BarChart3,
+  Calendar
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { 
+  usePrioritizeTasks, 
+  useAnalyzeProductivity,
+  useGenerateDailyPlan,
+  type ProductivityResult 
+} from "@/hooks/useTaskAgent";
 
 interface TaskStats {
   pending: number;
@@ -25,15 +35,45 @@ interface TaskStats {
 
 interface TasksAIPanelProps {
   stats: TaskStats;
+  startupId?: string;
   onGenerateTasks?: () => void;
 }
 
-export function TasksAIPanel({ stats, onGenerateTasks }: TasksAIPanelProps) {
+export function TasksAIPanel({ stats, startupId, onGenerateTasks }: TasksAIPanelProps) {
+  const [productivityData, setProductivityData] = useState<ProductivityResult | null>(null);
+  
+  const prioritizeTasks = usePrioritizeTasks();
+  const analyzeProductivity = useAnalyzeProductivity();
+  const generateDailyPlan = useGenerateDailyPlan();
+  
   const completionRate = stats.total > 0 
     ? Math.round((stats.completed / stats.total) * 100) 
     : 0;
 
   const productivityLevel = completionRate > 70 ? 'high' : completionRate > 40 ? 'medium' : 'low';
+
+  const handlePrioritize = async () => {
+    if (!startupId) return;
+    await prioritizeTasks.mutateAsync({ startupId });
+  };
+
+  const handleAnalyzeProductivity = async () => {
+    if (!startupId) return;
+    const result = await analyzeProductivity.mutateAsync({ startupId, days: 30 });
+    if (result.success) {
+      setProductivityData(result);
+    }
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!startupId) return;
+    await generateDailyPlan.mutateAsync({ startupId, availableHours: 8 });
+  };
+
+  const isPrioritizing = prioritizeTasks.isPending;
+  const isAnalyzing = analyzeProductivity.isPending;
+  const isGeneratingPlan = generateDailyPlan.isPending;
+
 
   return (
     <ScrollArea className="h-full">
@@ -162,11 +202,102 @@ export function TasksAIPanel({ stats, onGenerateTasks }: TasksAIPanelProps) {
           </Card>
         </motion.div>
 
-        {/* Task Prioritization */}
+        {/* AI Task Actions */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+        >
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <Target className="w-4 h-4 text-primary" />
+                AI Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start text-xs"
+                onClick={handlePrioritize}
+                disabled={isPrioritizing || !startupId}
+              >
+                {isPrioritizing ? (
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                ) : (
+                  <TrendingUp className="w-3 h-3 mr-2" />
+                )}
+                AI Prioritize Tasks
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start text-xs"
+                onClick={handleAnalyzeProductivity}
+                disabled={isAnalyzing || !startupId}
+              >
+                {isAnalyzing ? (
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                ) : (
+                  <BarChart3 className="w-3 h-3 mr-2" />
+                )}
+                Analyze Productivity
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start text-xs"
+                onClick={handleGeneratePlan}
+                disabled={isGeneratingPlan || !startupId}
+              >
+                {isGeneratingPlan ? (
+                  <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                ) : (
+                  <Calendar className="w-3 h-3 mr-2" />
+                )}
+                Generate Daily Plan
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Productivity Analysis Results */}
+        {productivityData && productivityData.health_score !== undefined && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    Productivity Score
+                  </CardTitle>
+                  <Badge variant={productivityData.health_score >= 80 ? 'default' : 'secondary'}>
+                    {productivityData.health_score}/100
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-xs text-muted-foreground">{productivityData.summary}</p>
+                {productivityData.focus_suggestion && (
+                  <div className="p-2 rounded-lg bg-background/50 text-xs">
+                    <span className="font-medium">Focus: </span>
+                    {productivityData.focus_suggestion}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Task Prioritization */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
         >
           <Card>
             <CardHeader className="pb-2">
