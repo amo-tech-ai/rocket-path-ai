@@ -62,14 +62,14 @@
 | `lean-canvas-agent` | 11 | ✅ Deployed | 🟡 60% | `01-lean-canvas.md` |
 | `pitch-deck-agent` | 17 | ✅ Deployed | 🟡 50% | See pitch-deck prompts |
 | `ai-chat` | 5+ | ✅ Deployed | 🟡 30% | `16-ai-chat.md` |
+| `crm-agent` | 8 | ✅ Deployed | 🔴 0% | `12-crm.md` |
+| `documents-agent` | 6 | ✅ Deployed | 🔴 0% | `13-documents.md` |
 
 ### ❌ NOT DEPLOYED (need to create)
 
 | Function | Actions | Purpose | Prompt | Task File |
 |----------|---------|---------|--------|-----------|
-| `crm-agent` | 15 | Contact enrichment, deal scoring, email generation | `12-crm.md` | — |
 | `investor-agent` | 12 | Investor discovery, fit scoring, outreach | `14-investors.md` | — |
-| `documents-agent` | 6 | Document generation, analysis, search | `13-documents.md` | — |
 | `event-agent` | 8 | Event management, speaker research | — | — |
 | `chatbot-agent` | 22 | Advanced chat features | `16-ai-chat.md` | — |
 | `task-agent` | — | Task generation, prioritization | `15-projects.md` | — |

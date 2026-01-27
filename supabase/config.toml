@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.lean-canvas-agent]
 verify_jwt = false
+
+[functions.crm-agent]
+verify_jwt = false
+
+[functions.documents-agent]
+verify_jwt = false
