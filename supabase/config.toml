@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.pitch-deck-agent]
 verify_jwt = false
+
+[functions.lean-canvas-agent]
+verify_jwt = false
