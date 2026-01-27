@@ -2787,6 +2787,7 @@ export type Database = {
           subtitle: string | null
           title: string | null
           updated_at: string
+          version: number | null
         }
         Insert: {
           background_url?: string | null
@@ -2803,6 +2804,7 @@ export type Database = {
           subtitle?: string | null
           title?: string | null
           updated_at?: string
+          version?: number | null
         }
         Update: {
           background_url?: string | null
@@ -2819,6 +2821,7 @@ export type Database = {
           subtitle?: string | null
           title?: string | null
           updated_at?: string
+          version?: number | null
         }
         Relationships: [
           {
@@ -2839,6 +2842,9 @@ export type Database = {
           id: string
           is_public: boolean | null
           last_edited_by: string | null
+          metadata: Json | null
+          signal_breakdown: Json | null
+          signal_strength: number | null
           slide_count: number | null
           startup_id: string
           status: Database["public"]["Enums"]["pitch_deck_status"]
@@ -2856,6 +2862,9 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           last_edited_by?: string | null
+          metadata?: Json | null
+          signal_breakdown?: Json | null
+          signal_strength?: number | null
           slide_count?: number | null
           startup_id: string
           status?: Database["public"]["Enums"]["pitch_deck_status"]
@@ -2873,6 +2882,9 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           last_edited_by?: string | null
+          metadata?: Json | null
+          signal_breakdown?: Json | null
+          signal_strength?: number | null
           slide_count?: number | null
           startup_id?: string
           status?: Database["public"]["Enums"]["pitch_deck_status"]
@@ -4207,6 +4219,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_pitch_deck_with_slides: { Args: { p_deck_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -4420,6 +4433,7 @@ export type Database = {
         | "review"
         | "final"
         | "archived"
+        | "generating"
       question_type: "multiple_choice" | "multi_select" | "text" | "number"
       rsvp_status:
         | "invited"
@@ -4807,6 +4821,7 @@ export const Constants = {
         "review",
         "final",
         "archived",
+        "generating",
       ],
       question_type: ["multiple_choice", "multi_select", "text", "number"],
       rsvp_status: [

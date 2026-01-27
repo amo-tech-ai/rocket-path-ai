@@ -29,6 +29,7 @@ import PublicEventsDirectory from "./pages/PublicEventsDirectory";
 import PublicEventDetail from "./pages/PublicEventDetail";
 import BlogIndex from "./pages/BlogIndex";
 import BlogPost from "./pages/BlogPost";
+import PitchDeckWizard from "./pages/PitchDeckWizard";
 
 const queryClient = new QueryClient();
 
@@ -165,6 +166,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <OnboardingWizard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/pitch-deck/new"
+              element={
+                <ProtectedRoute>
+                  <PitchDeckWizard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/pitch-deck/:deckId"
+              element={
+                <ProtectedRoute>
+                  <PitchDeckWizard />
                 </ProtectedRoute>
               }
             />
