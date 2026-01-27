@@ -1,8 +1,8 @@
 # StartupAI Dashboard System — Progress Plan
 
-> **Updated:** 2026-01-27 | **Version:** 2.2 | **Status:** Active
+> **Updated:** 2026-01-27 | **Version:** 2.3 | **Status:** Active
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 52% complete
+> **Overall Progress:** 58% complete
 
 ---
 
@@ -13,11 +13,11 @@
 | 1 | **Onboarding** | 4-step wizard | ✅ 95% | ✅ 100% | ✅ 95% | **95%** | Done | — |
 | 2 | **Cloudinary** | — (infra) | ✅ 100% | N/A | ✅ 100% | **100%** | Done | — |
 | 3 | **Events** | 3 screens | ✅ 100% | 🟡 20% | ✅ 100% | **100%** | Done | — |
-| 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 75% | **85%** | Active | `01-lean-canvas.md` |
-| 5 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 80% | 🟡 70% | **75%** | Active | `pitch-decks/` |
+| 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 90% | 🟡 80% | **88%** | Active | `01-lean-canvas.md` |
+| 5 | **Pitch Deck** | 3 screens | ✅ 95% | 🟡 85% | 🟡 80% | **85%** | Active | `pitch-decks/` |
 | 6 | **Main Dashboard** | 1 screen | 🟡 50% | 🔴 0% | 🟡 30% | **25%** | Next | `11-main-dashboard.md` |
-| 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | 🟡 30% | **70%** | Active | `12-crm.md` |
-| 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | 🔴 0% | **60%** | Active | `13-documents.md` |
+| 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | 🟡 70% | **85%** | Active | `12-crm.md` |
+| 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | 🟡 50% | **75%** | Active | `13-documents.md` |
 | 9 | **Investors** | 3 screens | ✅ 100% | 🔴 0% | 🟡 30% | **44%** | Next | `14-investors.md` |
 | 10 | **Projects** | 3 screens | 🔴 0% | 🔴 0% | 🟡 50% | **25%** | Planned | `15-projects.md` |
 | 11 | **AI Chat** | 2 screens | ✅ 100% | 🟡 40% | 🔴 0% | **30%** | Planned | `16-ai-chat.md` |

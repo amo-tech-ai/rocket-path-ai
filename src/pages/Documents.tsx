@@ -135,7 +135,7 @@ const Documents = () => {
   // Empty state
   if (!isLoading && documents.length === 0) {
     return (
-      <DashboardLayout aiPanel={<DocumentsAIPanel documentsCount={0} draftCount={0} publishedCount={0} />}>
+      <DashboardLayout aiPanel={<DocumentsAIPanel documentsCount={0} draftCount={0} publishedCount={0} startupId={startup?.id} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -172,7 +172,7 @@ const Documents = () => {
   }
 
   return (
-    <DashboardLayout aiPanel={<DocumentsAIPanel documentsCount={documents.length} draftCount={documents.filter(d => d.status === 'draft').length} publishedCount={documents.filter(d => d.status === 'approved').length} />}>
+    <DashboardLayout aiPanel={<DocumentsAIPanel documentsCount={documents.length} draftCount={documents.filter(d => d.status === 'draft').length} publishedCount={documents.filter(d => d.status === 'approved').length} startupId={startup?.id} />}>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 

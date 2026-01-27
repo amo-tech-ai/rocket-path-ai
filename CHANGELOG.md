@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.8] - 2026-01-27
+
+### Added
+- **Full UI Wiring for CRM AI Features**
+  - `CRMAIPanel` - Now connects to `useCRMAgent` for pipeline analysis, follow-up suggestions
+  - `ContactDetailSheet` - Integrated AI enrichment, lead scoring, and communication summary buttons
+  - AI actions display results inline with loading states
+
+- **Full UI Wiring for Documents AI Features**
+  - `DocumentsAIPanel` - Semantic search with real results display
+  - Template-based document generation from AI panel
+  - Document generation calls `useDocumentsAgent` mutations
+
+- **Pitch Deck Export Integration**
+  - `SlideEditorPanel` - Export button now opens ExportModal
+  - Passes `deckId` and `deckTitle` for proper export context
+
+### Changed
+- Progress tracker updated to 58% overall completion
+- CRM module now at 85% (AI panel + detail sheet wired)
+- Documents module now at 75% (AI panel wired with search + generation)
+- Pitch Deck at 85% (export modal integrated)
+- Lean Canvas at 88% (confidence badges + profile mapping)
+
 ## [0.7.7] - 2026-01-27
 
 ### Added

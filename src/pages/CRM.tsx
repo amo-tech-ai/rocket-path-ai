@@ -205,7 +205,7 @@ const CRM = () => {
   // Empty state
   if (!isLoading && contacts.length === 0 && deals.length === 0) {
     return (
-      <DashboardLayout aiPanel={<CRMAIPanel contactsCount={0} dealsCount={0} />}>
+      <DashboardLayout aiPanel={<CRMAIPanel contactsCount={0} dealsCount={0} startupId={startup?.id} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -250,7 +250,7 @@ const CRM = () => {
   }
 
   return (
-    <DashboardLayout aiPanel={<CRMAIPanel contactsCount={contacts.length} dealsCount={deals.length} />}>
+    <DashboardLayout aiPanel={<CRMAIPanel contactsCount={contacts.length} dealsCount={deals.length} startupId={startup?.id} />}>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 
@@ -420,6 +420,7 @@ const CRM = () => {
         onEdit={() => selectedContact && openEditContact(selectedContact)}
         onDelete={() => selectedContact && openDeleteConfirm(selectedContact)}
         onAddDeal={openAddDealForContact}
+        startupId={startup?.id}
       />
 
       {/* Delete Confirmation */}
