@@ -32,6 +32,7 @@ import BlogPost from "./pages/BlogPost";
 import PitchDeckWizard from "./pages/PitchDeckWizard";
 import PitchDecksDashboard from "./pages/PitchDecksDashboard";
 import PitchDeckEditor from "./pages/PitchDeckEditor";
+import AIChat from "./pages/AIChat";
 
 const queryClient = new QueryClient();
 
@@ -200,6 +201,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PitchDeckEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ai-chat"
+              element={
+                <ProtectedRoute>
+                  <AIChat />
                 </ProtectedRoute>
               }
             />

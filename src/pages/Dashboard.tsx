@@ -8,9 +8,8 @@ import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
 import { EventCard } from "@/components/dashboard/EventCard";
 import { DashboardCalendar } from "@/components/dashboard/DashboardCalendar";
 import { StageGuidanceCard } from "@/components/dashboard/StageGuidanceCard";
-import { useStartup, useTasks, useDeals } from "@/hooks/useDashboardData";
-import { useInvestors } from "@/hooks/useInvestors";
-import { useDocuments } from "@/hooks/useDocuments";
+import { useStartup, useTasks } from "@/hooks/useDashboardData";
+import { useDashboardMetrics, useMetricChanges } from "@/hooks/useDashboardMetrics";
 import { useAuth } from "@/hooks/useAuth";
 import { StartupStage } from "@/hooks/useStageGuidance";
 import { motion } from "framer-motion";
@@ -23,14 +22,15 @@ const Dashboard = () => {
   const { profile } = useAuth();
   const { data: startup, isLoading: startupLoading } = useStartup();
   const { data: tasks = [] } = useTasks(startup?.id);
-  const { data: deals = [] } = useDeals(startup?.id);
-  const { data: investors = [] } = useInvestors(startup?.id);
-  const { data: documents = [] } = useDocuments(startup?.id);
+  
+  // Real dashboard metrics
+  const { data: metrics } = useDashboardMetrics(startup?.id);
+  const { data: changes } = useMetricChanges(startup?.id);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Founder';
   
   // Calculate startup data for stage guidance
-  const hasLeanCanvas = documents.some(d => d.type === 'lean_canvas');
+  const hasLeanCanvas = (metrics?.documentsCount || 0) > 0;
   const currentStage = (startup?.stage as StartupStage) || 'idea';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -42,7 +42,7 @@ const Dashboard = () => {
     day: 'numeric' 
   }).toUpperCase();
 
-  const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
+  const pendingTasks = metrics?.tasksCount || 0;
 
   // Right panel content
   const rightPanel = (
@@ -52,9 +52,9 @@ const Dashboard = () => {
         startupData={{
           hasLeanCanvas,
           profileStrength: startup?.profile_strength || 0,
-          investorCount: investors.length,
-          taskCompletionRate: pendingTasks > 0 ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0,
-          documentCount: documents.length,
+          investorCount: metrics?.investorsCount || 0,
+          taskCompletionRate: tasks.length > 0 ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0,
+          documentCount: metrics?.documentsCount || 0,
         }}
       />
       <AIStrategicReview />
@@ -109,12 +109,13 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <QuickActions />
 
-        {/* Summary Metrics */}
+        {/* Summary Metrics - Using real data */}
         <SummaryMetrics 
-          decksCount={12}
-          investorsCount={investors.length || 8}
-          tasksCount={pendingTasks || 28}
-          eventsCount={3}
+          decksCount={metrics?.decksCount || 0}
+          investorsCount={metrics?.investorsCount || 0}
+          tasksCount={pendingTasks}
+          eventsCount={metrics?.eventsCount || 0}
+          changes={changes}
         />
 
         {/* Startup Health & Deck Activity */}

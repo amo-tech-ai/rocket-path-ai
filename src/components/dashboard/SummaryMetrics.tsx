@@ -7,7 +7,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { MetricChanges } from '@/hooks/useDashboardMetrics';
 
 interface SummaryMetric {
   icon: typeof Monitor;
@@ -22,13 +22,15 @@ interface SummaryMetricsProps {
   investorsCount: number;
   tasksCount: number;
   eventsCount: number;
+  changes?: MetricChanges;
 }
 
 export function SummaryMetrics({ 
   decksCount, 
   investorsCount, 
   tasksCount, 
-  eventsCount 
+  eventsCount,
+  changes 
 }: SummaryMetricsProps) {
   const navigate = useNavigate();
 
@@ -37,27 +39,29 @@ export function SummaryMetrics({
       icon: Monitor, 
       value: decksCount, 
       label: 'Decks', 
-      change: 2,
-      path: '/documents' 
+      change: changes?.decks,
+      path: '/app/pitch-decks' 
     },
     { 
       icon: Briefcase, 
       value: investorsCount, 
       label: 'Investors', 
-      change: 1,
+      change: changes?.investors,
       path: '/investors' 
     },
     { 
       icon: CheckSquare, 
       value: tasksCount, 
       label: 'Tasks',
+      change: changes?.tasks,
       path: '/tasks' 
     },
     { 
       icon: Calendar, 
       value: eventsCount, 
       label: 'Events',
-      path: '/projects' 
+      change: changes?.events,
+      path: '/app/events' 
     },
   ];
 
