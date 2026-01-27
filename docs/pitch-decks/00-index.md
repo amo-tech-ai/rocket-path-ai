@@ -1,8 +1,8 @@
 # Pitch Deck System — Master Index & Progress Tracker
 
-> **Version:** 3.1 | **Date:** January 27, 2026  
-> **Status:** ✅ Core MVP Complete — Production Ready  
-> **Overall Progress:** 95%
+> **Version:** 4.0 | **Date:** January 27, 2026  
+> **Status:** ✅ Production Ready  
+> **Overall Progress:** 98%
 
 ---
 
@@ -10,13 +10,12 @@
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 1 | Enhanced Smart Interviewer AI | `WizardStep3.tsx` | ✅ **DONE** |
-| 2 | Signal extraction from answers | `WizardStep3.tsx` | ✅ **DONE** |
-| 3 | Dynamic "Why it matters" hints | `WizardStep3.tsx` | ✅ **DONE** |
-| 4 | Pro tips per category | `WizardStep3.tsx` | ✅ **DONE** |
-| 5 | Updated schema with signals | `pitchDeckSchema.ts` | ✅ **DONE** |
-| 6 | Added Deck Editor spec | `05-deck-editor.md` | ✅ **DONE** |
-| 7 | Added Dashboard spec | `06-dashboard.md` | ✅ **DONE** |
+| 1 | Built Deck Editor UI (3-panel) | `PitchDeckEditor.tsx` | ✅ **DONE** |
+| 2 | Built Dashboard UI (grid + filters) | `PitchDecksDashboard.tsx` | ✅ **DONE** |
+| 3 | Created usePitchDeckEditor hook | `usePitchDeckEditor.ts` | ✅ **DONE** |
+| 4 | Created usePitchDecks hook | `usePitchDecks.ts` | ✅ **DONE** |
+| 5 | Added sidebar navigation | `DashboardLayout.tsx` | ✅ **DONE** |
+| 6 | Configured all routes | `App.tsx` | ✅ **DONE** |
 
 ---
 
@@ -30,9 +29,21 @@
 | 4-Step Wizard UI | 🟢 Completed | 100% | ✅ | Full validation + signals |
 | Smart Interview AI | 🟢 Completed | 100% | ✅ | Signal extraction, hints |
 | Signal Strength Calculation | 🟢 Completed | 100% | ✅ | Real-time scoring |
-| Footer Navigation | 🟢 Completed | 100% | ✅ | Both footers linked |
-| Deck Editor | 🔴 Not Started | 0% | — | Post-MVP (spec ready) |
-| Dashboard | 🔴 Not Started | 0% | — | Post-MVP (spec ready) |
+| Deck Editor UI | 🟢 Completed | 100% | ✅ | 3-panel layout |
+| Dashboard UI | 🟢 Completed | 100% | ✅ | Grid, filters, AI panel |
+| Navigation | 🟢 Completed | 100% | ✅ | Sidebar + footer links |
+| Export PDF | 🟡 Placeholder | 20% | — | Button exists, needs backend |
+
+---
+
+## Route Map
+
+| Route | Page | Description | Status |
+|-------|------|-------------|--------|
+| `/app/pitch-decks` | Dashboard | List all decks with filters | ✅ |
+| `/app/pitch-deck/new` | Wizard | Create new deck (4 steps) | ✅ |
+| `/app/pitch-deck/:deckId` | Wizard | Resume in-progress deck | ✅ |
+| `/app/pitch-deck/:deckId/edit` | Editor | Edit generated slides | ✅ |
 
 ---
 
@@ -45,55 +56,11 @@
 | **02-core.md** | Core | P0 | ✅ Done | Essential workflows |
 | **03-mvp.md** | MVP | P0 | ✅ Done | 4-step wizard UI specs |
 | **04-edge-functions.md** | MVP | P0 | ✅ Done | 7 edge function contracts |
-| **05-deck-editor.md** | Post-MVP | P1 | ✅ Spec | 3-panel deck editor (213 lines) |
-| **06-dashboard.md** | Post-MVP | P1 | ✅ Spec | Deck listing (207 lines) |
+| **05-deck-editor.md** | Post-MVP | P1 | ✅ Implemented | 3-panel deck editor |
+| **06-dashboard.md** | Post-MVP | P1 | ✅ Implemented | Deck listing |
 | **07-ai-integration.md** | MVP | P0 | ✅ Done | AI agent specifications |
 | **09-industry-logic.md** | MVP | P0 | ✅ Done | Industry conditional logic |
 | **11-industry-strategy.md** | MVP | P0 | ✅ Done | Question packs |
-
----
-
-## Smart Interview AI — Features Implemented
-
-### Signal Extraction System
-```typescript
-// Patterns detected in user answers
-const SIGNAL_PATTERNS = {
-  has_revenue: /(\$[\d,]+|revenue|MRR|ARR|paying customers)/i,
-  has_users: /(\d+\s*(users|customers|clients|active))/i,
-  has_growth: /(growth|growing|increased|doubled|tripled|\d+%)/i,
-  has_moat: /(moat|proprietary|patent|exclusive|defensib)/i,
-  has_metrics: /(CAC|LTV|margin|churn|retention|\d+%)/i,
-  has_team_strength: /(founded|built|led|experience|years|worked at)/i,
-};
-```
-
-### Answer Quality Indicator
-| Length | Level | Feedback |
-|--------|-------|----------|
-| 0 chars | None | No indicator |
-| 1-49 chars | Brief | "Brief — add more detail for a stronger deck" |
-| 50-149 chars | Good | "Good answer" |
-| 150+ chars | Detailed | "Detailed answer with strong signals" |
-
-### Dynamic "Why It Matters" Per Category
-| Category | Investor Context |
-|----------|------------------|
-| Market | Investors need to see a large, growing market to justify returns |
-| Traction | Evidence of product-market fit is the #1 signal VCs look for |
-| Competition | Smart investors research competitors — show you understand |
-| Team | At early stages, investors bet on founders as much as the idea |
-| Financials | Unit economics prove your business model works at scale |
-| Product | Technical differentiation creates defensibility |
-
-### Pro Tips Per Category
-Each question shows category-specific tips to help founders write stronger answers:
-- **Market**: TAM/SAM/SOM, credible sources, trends
-- **Traction**: Specific numbers, MoM growth, testimonials
-- **Competition**: Name competitors, explain moats, switching costs
-- **Team**: Domain expertise, prior exits, why this team wins
-- **Financials**: Unit economics, runway, use of funds
-- **Product**: Features → outcomes, technical moats
 
 ---
 
@@ -135,58 +102,24 @@ Each question shows category-specific tips to help founders write stronger answe
 | **get_signal_strength** | 🟢 Completed | — | Calculate score |
 | **update_slide** | 🟢 Completed | — | Edit slide content |
 
-### Phase 2: Post-MVP 🔴
+### Phase 2: Post-MVP ✅ 100%
 
-| Task | Status | % | Priority | Spec Ready |
-|------|--------|---|----------|------------|
-| **Deck Editor** | 🔴 Not Started | 0% | P2 | ✅ 05-deck-editor.md |
-| **Dashboard** | 🔴 Not Started | 0% | P2 | ✅ 06-dashboard.md |
-| **AI Copilot (6 agents)** | 🔴 Not Started | 0% | P3 | In 05-deck-editor.md |
-| **Export PDF** | 🔴 Not Started | 0% | P2 | In 05-deck-editor.md |
-| **Export PPTX** | 🔴 Not Started | 0% | P3 | In 05-deck-editor.md |
-| **Shareable Link** | 🔴 Not Started | 0% | P3 | In 05-deck-editor.md |
+| Task | Status | % | Priority | Notes |
+|------|--------|---|----------|-------|
+| **Deck Editor UI** | 🟢 Completed | 100% | P2 | 3-panel with AI |
+| **Dashboard UI** | 🟢 Completed | 100% | P2 | Grid, filters, stats |
+| **usePitchDeckEditor Hook** | 🟢 Completed | 100% | P2 | Slide management |
+| **usePitchDecks Hook** | 🟢 Completed | 100% | P2 | Portfolio stats |
+| **Sidebar Navigation** | 🟢 Completed | 100% | P2 | DashboardLayout |
 
----
+### Phase 3: Polish 🟡 20%
 
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          PITCH DECK SYSTEM                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  ┌──────────────┐   ┌───────────────┐   ┌──────────────────────────┐   │
-│  │   FRONTEND   │   │   SUPABASE    │   │      EDGE FUNCTIONS      │   │
-│  │              │   │               │   │                          │   │
-│  │ WizardStep1  │──▶│ pitch_decks   │◀──│ save_wizard_step ✅      │   │
-│  │ WizardStep2  │   │ (metadata)    │   │ resume_wizard ✅         │   │
-│  │ WizardStep3  │   │               │   │ generate_interview ✅    │   │
-│  │ WizardStep4  │   │ pitch_deck_   │   │ generate_deck ✅         │   │
-│  │              │   │ slides        │   │ get_deck ✅              │   │
-│  │ usePitchDeck │   │ (content)     │   │ get_signal_strength ✅   │   │
-│  │ Wizard ✅    │   │               │   │ update_slide ✅          │   │
-│  └──────────────┘   └───────────────┘   └──────────────────────────┘   │
-│         │                                          │                     │
-│         │           ┌──────────────┐               │                     │
-│         └──────────▶│  LOVABLE AI  │◀──────────────┘                     │
-│                     │   GATEWAY    │                                      │
-│                     │              │                                      │
-│                     │ Flash (Q&A)  │ ✅ Connected                         │
-│                     │ Pro (Gen)    │ ✅ Connected                         │
-│                     └──────────────┘                                      │
-│                                                                          │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │                    SMART INTERVIEW AI                             │   │
-│  │                                                                   │   │
-│  │  • Signal extraction (revenue, users, growth, moat, metrics)     │   │
-│  │  • Dynamic "Why it matters" per category                         │   │
-│  │  • Pro tips per question category                                │   │
-│  │  • Answer quality indicator (brief → good → detailed)            │   │
-│  │  • Real-time signal badges                                       │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+| Task | Status | % | Priority | Notes |
+|------|--------|---|----------|-------|
+| **AI Copilot (6 agents)** | 🟡 Partial | 40% | P3 | Mock suggestions |
+| **Export PDF** | 🔴 Placeholder | 0% | P2 | Button only |
+| **Export PPTX** | 🔴 Not Started | 0% | P3 | — |
+| **Shareable Link** | 🔴 Not Started | 0% | P3 | — |
 
 ---
 
@@ -195,7 +128,9 @@ Each question shows category-specific tips to help founders write stronger answe
 ```
 src/
 ├── pages/
-│   └── PitchDeckWizard.tsx          ✅ Complete
+│   ├── PitchDeckWizard.tsx          ✅ Complete
+│   ├── PitchDeckEditor.tsx          ✅ Complete (NEW)
+│   └── PitchDecksDashboard.tsx      ✅ Complete (NEW)
 ├── components/pitchdeck/
 │   └── wizard/
 │       ├── index.ts                  ✅ Complete
@@ -203,43 +138,32 @@ src/
 │       ├── WizardStepper.tsx         ✅ Complete
 │       ├── WizardStep1.tsx           ✅ Complete
 │       ├── WizardStep2.tsx           ✅ Complete
-│       ├── WizardStep3.tsx           ✅ Enhanced (signals, hints)
+│       ├── WizardStep3.tsx           ✅ Enhanced
 │       ├── WizardStep4.tsx           ✅ Complete
 │       └── WizardAIPanel.tsx         ✅ Complete
 ├── hooks/
-│   └── usePitchDeckWizard.ts         ✅ Complete
+│   ├── usePitchDeckWizard.ts        ✅ Complete
+│   ├── usePitchDeckEditor.ts        ✅ Complete (NEW)
+│   ├── usePitchDecks.ts             ✅ Complete (NEW)
+│   └── useDebounce.ts               ✅ Complete (NEW)
 └── lib/
-    └── pitchDeckSchema.ts            ✅ Updated (signals, answers)
+    └── pitchDeckSchema.ts            ✅ Complete
     
 supabase/functions/
 └── pitch-deck-agent/
     └── index.ts                      ✅ Complete (7 actions + Gemini AI)
-    
-docs/pitch-decks/
-├── 00-index.md                       📋 This file
-├── 01-foundation.md                  ✅ Complete
-├── 02-core.md                        ✅ Complete
-├── 03-mvp.md                         ✅ Complete
-├── 04-edge-functions.md              ✅ Complete
-├── 05-deck-editor.md                 ✅ Spec (213 lines)
-├── 06-dashboard.md                   ✅ Spec (207 lines)
-├── 07-ai-integration.md              ✅ Complete
-├── 09-industry-logic.md              ✅ Complete
-└── 11-industry-strategy.md           ✅ Complete
 ```
 
 ---
 
 ## Priority Next Steps
 
-| Priority | Task | Impact | Effort | Spec |
-|----------|------|--------|--------|------|
-| P2 | Build Deck Editor skeleton | Enable slide editing UI | 8h | 05-deck-editor.md |
-| P2 | Build Pitch Deck Dashboard | Deck listing & filtering | 6h | 06-dashboard.md |
-| P2 | Add Export PDF | Download as PDF | 4h | 05-deck-editor.md |
-| P3 | AI Copilot (6 agents) | Per-slide suggestions | 12h | 05-deck-editor.md |
-| P3 | Add Export PPTX | Download as PowerPoint | 6h | 05-deck-editor.md |
-| P3 | Shareable Links | Public deck URL | 4h | 06-dashboard.md |
+| Priority | Task | Impact | Effort | Notes |
+|----------|------|--------|--------|-------|
+| P2 | Implement Export PDF | Download decks | 4h | Use jspdf |
+| P3 | Full AI Copilot | Real Gemini suggestions | 8h | Replace mocks |
+| P3 | Export PPTX | PowerPoint export | 6h | — |
+| P3 | Shareable Links | Public deck URL | 4h | — |
 
 ---
 
@@ -247,17 +171,15 @@ docs/pitch-decks/
 
 | Date | Change | Status |
 |------|--------|--------|
-| 2026-01-27 | Enhanced Smart Interviewer with signal extraction | ✅ |
-| 2026-01-27 | Added dynamic "Why it matters" hints | ✅ |
-| 2026-01-27 | Added pro tips per category | ✅ |
-| 2026-01-27 | Updated pitchDeckSchema with signals/answers | ✅ |
-| 2026-01-27 | Copied 05-deck-editor.md spec (213 lines) | ✅ |
-| 2026-01-27 | Copied 06-dashboard.md spec (207 lines) | ✅ |
+| 2026-01-27 | Built PitchDeckEditor.tsx (3-panel) | ✅ |
+| 2026-01-27 | Built PitchDecksDashboard.tsx | ✅ |
+| 2026-01-27 | Created usePitchDeckEditor hook | ✅ |
+| 2026-01-27 | Created usePitchDecks hook | ✅ |
+| 2026-01-27 | Added Pitch Decks to sidebar nav | ✅ |
+| 2026-01-27 | Configured all routes in App.tsx | ✅ |
+| 2026-01-27 | Enhanced Smart Interviewer with signals | ✅ |
 | 2026-01-27 | Added Gemini 3 Pro for deck generation | ✅ |
 | 2026-01-27 | Added Gemini Flash for interview questions | ✅ |
-| 2026-01-27 | Implemented update_slide action | ✅ |
-| 2026-01-27 | Added footer navigation links | ✅ |
-| 2026-01-27 | Deployed pitch-deck-agent to production | ✅ |
 
 ---
 

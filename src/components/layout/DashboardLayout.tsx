@@ -13,7 +13,8 @@ import {
   User,
   Building2,
   CalendarDays,
-  Sparkles
+  Sparkles,
+  Presentation
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Onboarding", path: "/onboarding", icon: Sparkles },
+  { label: "Pitch Decks", path: "/app/pitch-decks", icon: Presentation },
   { label: "Projects", path: "/projects", icon: FolderKanban },
   { label: "Tasks", path: "/tasks", icon: CheckSquare },
   { label: "Events", path: "/app/events", icon: CalendarDays },
