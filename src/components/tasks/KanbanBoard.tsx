@@ -43,7 +43,7 @@ export function KanbanBoard({
   };
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
+    <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 min-h-[400px] sm:min-h-[500px] -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide scroll-smooth-ios snap-x snap-mandatory">
       {TASK_STATUSES.map((status, columnIndex) => {
         const columnTasks = tasksByStatus[status.value] || [];
         
@@ -53,7 +53,7 @@ export function KanbanBoard({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: columnIndex * 0.1 }}
-            className="flex-shrink-0 w-80"
+            className="flex-shrink-0 w-72 sm:w-80 snap-center"
             onDrop={(e) => handleDrop(e, status.value)}
             onDragOver={handleDragOver}
           >
