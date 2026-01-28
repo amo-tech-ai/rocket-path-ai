@@ -2,7 +2,7 @@
 
 > **Updated:** 2026-01-28 | **Version:** 4.0 | **Status:** 🟢 Production Ready
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 98% complete
+> **Overall Progress:** 99% complete
 
 ---
 
@@ -15,7 +15,7 @@ All task specifications from `docs/dashboard/tasks/`:
 | DASH-01 | `01-create-metrics-aggregator.md` | Create Dashboard Metrics Aggregator | P1 | ✅ Done | 100% |
 | DASH-02 | `02-create-insights-generator.md` | Create Daily Insights Generator | P1 | ✅ Done | 100% |
 | DASH-03 | `03-complete-analytics-dashboard.md` | Complete Analytics Dashboard | P1 | ✅ Done | 100% |
-| DASH-04 | `04-create-stage-analyzer.md` | Create Stage Analyzer Edge Function | P2 | 🔵 Backlog | 20% |
+| DASH-04 | `04-create-stage-analyzer.md` | Create Stage Analyzer Edge Function | P2 | ✅ Done | 100% |
 | DASH-05 | `05-add-realtime-subscriptions.md` | Add Real-time Dashboard Subscriptions | P2 | ✅ Done | 100% |
 | QA-09 | `09-testing-qa.md` | Testing & QA Strategy | P1 | ✅ Done | 85% |
 | OB-11 | `11-realtime-onboarding-strategy.md` | Realtime Onboarding Strategy | P2 | 🟡 Partial | 40% |
@@ -29,7 +29,7 @@ All task specifications from `docs/dashboard/tasks/`:
 
 | Category | Count | Status | Evidence |
 |----------|-------|--------|----------|
-| Edge Functions | 11/11 | ✅ | `supabase/functions/` verified |
+| Edge Functions | 12/12 | ✅ | `supabase/functions/` verified |
 | Onboarding Actions | 14/14 | ✅ | Audit report OB-00 |
 | Frontend Hooks | 44 total | ✅ | `src/hooks/` + `src/hooks/realtime/` |
 | Realtime Hooks | 10/10 | ✅ | All 10 from spec implemented |
@@ -80,13 +80,15 @@ All task specifications from `docs/dashboard/tasks/`:
 | `event-agent` | 5 | `useEventAgent` | `useEventsRealtime` | ✅ 80% |
 | `ai-chat` | 5+ | `useAIChat` | `useChatRealtime` | ✅ 80% |
 
-**Total: 91+ actions across 11 deployed edge functions**
+**Total: 94+ actions across 12 deployed edge functions**
+
+### ✅ Newly Deployed
+
+| Function | Actions | Hook | Status |
+|----------|---------|------|--------|
+| `stage-analyzer` | 3 | `useStageAnalysis` | ✅ 100% |
 
 ### 🔵 PENDING (backlog)
-
-| Function | Purpose | Priority | Task File |
-|----------|---------|----------|-----------|
-| `stage-analyzer` | Auto-detect startup stage | P2 | DASH-04 |
 | `chatbot-agent` | Advanced conversational features | P3 | — |
 
 ---
@@ -124,14 +126,16 @@ All task specifications from `docs/dashboard/tasks/`:
 | Date range filter works | ✅ | `DateRangeFilter.tsx` |
 | Responsive layout | ✅ | Grid layout |
 
-### DASH-04: Stage Analyzer 🔵 BACKLOG (20%)
+### DASH-04: Stage Analyzer ✅ COMPLETE (100%)
 
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| stage-analyzer edge function | ❌ | Not implemented |
-| Analyzes metrics to determine stage | ❌ | — |
-| StageGuidanceCard shows suggestions | 🟡 | Basic component exists |
-| User can accept/decline stage update | ❌ | — |
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| stage-analyzer edge function deployed | ✅ | `supabase/functions/stage-analyzer/` exists |
+| Analyzes metrics to determine stage | ✅ | `analyze_stage` action implemented |
+| Returns missing requirements for next stage | ✅ | `missing_for_next_stage` in response |
+| StageGuidanceCard shows suggestions | ✅ | Alert with Update Stage button |
+| User can accept/decline stage update | ✅ | Update Stage / Dismiss buttons |
+| Stage history tracked | ✅ | Via activities table |
 
 ### DASH-05: Realtime Subscriptions ✅ COMPLETE
 
@@ -218,9 +222,8 @@ All critical functionality is implemented and verified.
 
 | # | Gap | Impact | Effort | Next Step |
 |---|-----|--------|--------|-----------|
-| 1 | Stage Analyzer (DASH-04) | Auto-stage detection | 5h | Create edge function |
-| 2 | Onboarding live AI stream | UX improvement | 4h | Wire useOnboardingRealtime to UI |
-| 3 | Co-founder onboarding | Multi-user | 6h | Session sharing logic |
+| 1 | Onboarding live AI stream | UX improvement | 4h | Wire useOnboardingRealtime to UI |
+| 2 | Co-founder onboarding | Multi-user | 6h | Session sharing logic |
 
 ### 🔵 Low Priority (P3)
 
@@ -254,7 +257,6 @@ All critical functionality is implemented and verified.
 
 ### 📋 Remaining
 
-- [ ] Stage analyzer edge function (DASH-04)
 - [ ] Pitch deck export polish
 - [ ] Chat history persistence
 - [ ] Onboarding live AI progress UI wiring
@@ -275,6 +277,7 @@ All critical functionality is implemented and verified.
 ✅ lean-canvas-agent/
 ✅ onboarding-agent/
 ✅ pitch-deck-agent/
+✅ stage-analyzer/      ← NEW
 ✅ task-agent/
 ```
 
@@ -319,6 +322,7 @@ All critical functionality is implemented and verified.
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-28 | **DASH-04 Complete**: Stage Analyzer edge function deployed with 3 actions, useStageAnalysis hook, StageGuidanceCard UI wired | 4.1 |
 | 2026-01-28 | **Comprehensive progress audit**: Verified all 10 task files, added file evidence, updated completion % | 4.0 |
 | 2026-01-28 | Implemented full Realtime system: 10 hooks, animation utilities, 7 UI components | 3.4 |
 | 2026-01-28 | Comprehensive onboarding audit, fixed completion flag, added 3 actions | 3.3 |
@@ -331,14 +335,14 @@ All critical functionality is implemented and verified.
 
 | Metric | Value |
 |--------|-------|
-| **Overall Progress** | 98% |
+| **Overall Progress** | 99% |
 | **Status** | 🟢 Production Ready |
 | **Critical Blockers** | None |
-| **Edge Functions** | 11 deployed |
-| **Total AI Actions** | 91+ |
+| **Edge Functions** | 12 deployed |
+| **Total AI Actions** | 94+ |
 | **Realtime Hooks** | 10 implemented |
 | **Last Verified** | January 28, 2026 |
 
 ---
 
-**Next Immediate Step:** Complete DASH-04 (Stage Analyzer) or polish P1 items (Pitch Deck export, Chat history).
+**Next Immediate Step:** Polish P1 items (Pitch Deck export, Chat history) or wire Onboarding live AI progress UI.

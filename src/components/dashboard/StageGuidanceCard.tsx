@@ -1,16 +1,19 @@
-import { Target, ChevronRight, CheckCircle, Circle, Loader2, ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
+import { Target, ChevronRight, CheckCircle, Circle, Loader2, ArrowRight, Sparkles, RefreshCw, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useStageGuidance, StartupStage, Milestone } from '@/hooks/useStageGuidance';
 import { useStageGuidanceAI, StageRecommendation } from '@/hooks/useStageGuidanceAI';
+import { useStageAnalysis, useUpdateStartupStage } from '@/hooks/useStageAnalysis';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StageGuidanceCardProps {
   stage?: StartupStage;
+  startupId?: string;
   startupData?: {
     hasLeanCanvas?: boolean;
     profileStrength?: number;
@@ -99,18 +102,54 @@ function RecommendationItem({ recommendation }: { recommendation: StageRecommend
   );
 }
 
-export function StageGuidanceCard({ stage = 'idea', startupData = {}, onAskAI }: StageGuidanceCardProps) {
+export function StageGuidanceCard({ stage = 'idea', startupId, startupData = {}, onAskAI }: StageGuidanceCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showAIGuidance, setShowAIGuidance] = useState(false);
+  const [showTransitionAlert, setShowTransitionAlert] = useState(true);
+  
   const guidance = useStageGuidance(stage, startupData);
   const { isLoading: aiLoading, error: aiError, guidance: aiGuidance, fetchGuidance } = useStageGuidanceAI();
+  
+  // Stage analysis from edge function
+  const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = useStageAnalysis(startupId);
+  const updateStageMutation = useUpdateStartupStage(startupId);
 
   const { currentStage, progressPercent, completedMilestones, totalMilestones } = guidance;
   const visibleMilestones = expanded ? currentStage.milestones : currentStage.milestones.slice(0, 3);
 
+  // Check if stage transition is available (compare as strings to avoid type mismatch)
+  const hasStageUpdate = analysis?.ready_for_transition && 
+    analysis?.detected_stage !== undefined &&
+    showTransitionAlert;
+
+  // Map between analyzer stages and guidance stages
+  const stageDisplayMap: Record<string, string> = {
+    ideation: 'Ideation',
+    validation: 'Validation',
+    mvp: 'MVP',
+    growth: 'Growth',
+    scale: 'Scale',
+  };
+
   const handleGetAIGuidance = async () => {
     setShowAIGuidance(true);
     await fetchGuidance(stage, currentStage.milestones, startupData);
+  };
+
+  const handleUpdateStage = () => {
+    if (analysis?.detected_stage) {
+      // Map detected stage to StartupStage format
+      const stageMap: Record<string, StartupStage> = {
+        ideation: 'idea',
+        validation: 'pre_seed',
+        mvp: 'seed',
+        growth: 'series_a',
+        scale: 'series_a',
+      };
+      const mappedStage = stageMap[analysis.detected_stage] || 'idea';
+      updateStageMutation.mutate(mappedStage as any);
+      setShowTransitionAlert(false);
+    }
   };
 
   return (
@@ -123,12 +162,23 @@ export function StageGuidanceCard({ stage = 'idea', startupData = {}, onAskAI }:
             </div>
             <div>
               <CardTitle className="text-sm font-medium">Stage Progress</CardTitle>
-              <Badge 
-                variant="outline" 
-                className={cn('mt-1 text-[10px]', stageColors[currentStage.stage])}
-              >
-                {currentStage.label}
-              </Badge>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge 
+                  variant="outline" 
+                  className={cn('text-[10px]', stageColors[currentStage.stage])}
+                >
+                  {currentStage.label}
+                </Badge>
+                {analysisLoading && (
+                  <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                )}
+                {analysis && (
+                  <Badge variant="secondary" className="text-[10px] gap-1">
+                    <TrendingUp className="w-2.5 h-2.5" />
+                    Score: {analysis.score}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
@@ -139,6 +189,71 @@ export function StageGuidanceCard({ stage = 'idea', startupData = {}, onAskAI }:
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Stage Transition Alert */}
+        <AnimatePresence>
+          {hasStageUpdate && analysis && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <Alert className="border-primary/30 bg-primary/5">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <AlertTitle className="text-sm">Stage Update Available</AlertTitle>
+                <AlertDescription className="text-xs">
+                  <p className="mb-2">
+                    Based on your progress (score: {analysis.score}), you may be ready for the <strong>{stageDisplayMap[analysis.detected_stage] || analysis.detected_stage}</strong> stage.
+                  </p>
+                  {analysis.missing_for_next_stage.length > 0 && (
+                    <p className="text-muted-foreground mb-2">
+                      To advance further: {analysis.missing_for_next_stage.slice(0, 2).join(', ')}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <Button 
+                      size="sm" 
+                      onClick={handleUpdateStage}
+                      disabled={updateStageMutation.isPending}
+                      className="text-xs h-7"
+                    >
+                      {updateStageMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      ) : null}
+                      Update Stage
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => setShowTransitionAlert(false)}
+                      className="text-xs h-7"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* AI Recommendations from Stage Analyzer */}
+        {analysis?.recommendations && analysis.recommendations.length > 0 && !showAIGuidance && (
+          <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <AlertCircle className="w-3.5 h-3.5" />
+              AI Recommendations
+            </div>
+            <ul className="space-y-1">
+              {analysis.recommendations.map((rec, i) => (
+                <li key={i} className="text-xs text-foreground flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Progress bar */}
         <div>
           <Progress value={progressPercent} className="h-2" />
@@ -152,6 +267,7 @@ export function StageGuidanceCard({ stage = 'idea', startupData = {}, onAskAI }:
             )}
           </div>
         </div>
+
 
         {/* AI Guidance Section */}
         <AnimatePresence>
