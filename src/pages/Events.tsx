@@ -19,11 +19,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEvents, useEventStats, EventFilters } from '@/hooks/useEvents';
+import { useStartup } from '@/hooks/useDashboardData';
 
 import EventCard from '@/components/events/EventCard';
 import EventsAIPanel from '@/components/events/EventsAIPanel';
+import { EmbeddedChatPanel } from '@/components/chat/EmbeddedChatPanel';
 
 export default function Events() {
+  const { data: startup } = useStartup();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -242,7 +245,24 @@ export default function Events() {
 
         {/* Right Panel - AI Coach */}
         <div className="w-[340px] border-l bg-card/50 hidden xl:block overflow-auto">
-          <EventsAIPanel events={events || []} stats={stats} />
+          <div className="space-y-4 p-4">
+            <EventsAIPanel events={events || []} stats={stats} />
+            <EmbeddedChatPanel
+              context="events"
+              startupId={startup?.id}
+              contextData={{
+                total_events: stats?.total || 0,
+                upcoming: events?.filter(e => new Date(e.start_date) > new Date()).length || 0
+              }}
+              title="Events AI"
+              placeholder="Ask about events..."
+              suggestions={[
+                { label: "Find events", action: "Find relevant startup events in my industry" },
+                { label: "Networking tips", action: "Give me networking tips for investor events" },
+                { label: "Event ROI", action: "Help me evaluate which events are worth attending" }
+              ]}
+            />
+          </div>
         </div>
       </div>
     </DashboardLayout>

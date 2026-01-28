@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ProjectsAIPanel } from '@/components/projects/ProjectsAIPanel';
+import { EmbeddedChatPanel } from '@/components/chat/EmbeddedChatPanel';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
 import { 
@@ -134,7 +135,21 @@ const Projects = () => {
   // Empty state
   if (!isLoading && projects.length === 0) {
     return (
-      <DashboardLayout aiPanel={<ProjectsAIPanel stats={{ total: 0, active: 0, completed: 0, atRisk: 0 }} />}>
+      <DashboardLayout aiPanel={
+        <div className="space-y-4">
+          <ProjectsAIPanel stats={{ total: 0, active: 0, completed: 0, atRisk: 0 }} />
+          <EmbeddedChatPanel
+            context="projects"
+            startupId={startup?.id}
+            title="Project AI"
+            placeholder="Ask about projects..."
+            suggestions={[
+              { label: "Project ideas", action: "Suggest strategic projects for my startup stage" },
+              { label: "Roadmap", action: "Help me create a product roadmap" }
+            ]}
+          />
+        </div>
+      }>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -165,7 +180,27 @@ const Projects = () => {
   }
 
   return (
-    <DashboardLayout aiPanel={<ProjectsAIPanel stats={{ total: projects.length, active: projects.filter(p => p.status === 'active').length, completed: projects.filter(p => p.status === 'completed').length, atRisk: projects.filter(p => p.health === 'at_risk').length }} />}>
+    <DashboardLayout aiPanel={
+      <div className="space-y-4">
+        <ProjectsAIPanel stats={{ total: projects.length, active: projects.filter(p => p.status === 'active').length, completed: projects.filter(p => p.status === 'completed').length, atRisk: projects.filter(p => p.health === 'at_risk').length }} />
+        <EmbeddedChatPanel
+          context="projects"
+          startupId={startup?.id}
+          contextData={{
+            total_projects: projects.length,
+            active: projects.filter(p => p.status === 'active').length,
+            completed: projects.filter(p => p.status === 'completed').length
+          }}
+          title="Project AI"
+          placeholder="Ask about projects..."
+          suggestions={[
+            { label: "Analyze health", action: "Analyze the health of my project portfolio" },
+            { label: "Resources", action: "Help me allocate resources across projects" },
+            { label: "Milestones", action: "Suggest key milestones for my active projects" }
+          ]}
+        />
+      </div>
+    }>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 

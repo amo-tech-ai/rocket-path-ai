@@ -6,6 +6,7 @@ import { TaskDialog } from '@/components/tasks/TaskDialog';
 import { AITaskSuggestions } from '@/components/tasks/AITaskSuggestions';
 import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { TasksAIPanel } from '@/components/tasks/TasksAIPanel';
+import { EmbeddedChatPanel } from '@/components/chat/EmbeddedChatPanel';
 import { 
   useAllTasks, 
   useCreateTask,
@@ -219,11 +220,30 @@ const Tasks = () => {
   }
 
   const aiPanel = (
-    <TasksAIPanel 
-      stats={stats} 
-      startupId={startup?.id}
-      onGenerateTasks={() => setShowAISuggestions(true)} 
-    />
+    <div className="space-y-4">
+      <TasksAIPanel 
+        stats={stats} 
+        startupId={startup?.id}
+        onGenerateTasks={() => setShowAISuggestions(true)} 
+      />
+      <EmbeddedChatPanel
+        context="tasks"
+        startupId={startup?.id}
+        contextData={{ 
+          total_tasks: stats.total,
+          pending: stats.pending,
+          in_progress: stats.inProgress,
+          completed: stats.completed
+        }}
+        title="Task AI"
+        placeholder="Ask about tasks..."
+        suggestions={[
+          { label: "Prioritize tasks", action: "Prioritize my tasks for maximum impact today" },
+          { label: "Daily plan", action: "Create a daily work plan based on my pending tasks" },
+          { label: "Find blockers", action: "Identify any blockers in my current tasks" }
+        ]}
+      />
+    </div>
   );
 
   return (
