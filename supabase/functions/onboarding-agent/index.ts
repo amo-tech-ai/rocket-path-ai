@@ -75,21 +75,84 @@ async function logAiRun(
   }
 }
 
+// Ensure profile exists (handles race condition after OAuth signup)
+// The auth trigger creates profile, but there's latency. This function
+// creates the profile if it doesn't exist yet.
+async function ensureProfileExists(
+  supabase: SupabaseClient,
+  userId: string,
+  userEmail?: string
+): Promise<boolean> {
+  console.log("Ensuring profile exists for user:", userId);
+  
+  // Check if profile already exists
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (existingProfile) {
+    console.log("Profile already exists");
+    return true;
+  }
+
+  // Profile doesn't exist - create it now (handles trigger latency)
+  console.log("Profile missing, creating directly...");
+  
+  const { error: insertError } = await supabase
+    .from("profiles")
+    .insert({
+      id: userId,
+      email: userEmail || "",
+      onboarding_completed: false,
+    })
+    .single();
+
+  if (insertError) {
+    // PGRST116 = not found is OK (race condition with trigger)
+    // 23505 = unique violation means trigger already created it
+    if (insertError.code === "23505") {
+      console.log("Profile was created by trigger (race condition resolved)");
+      return true;
+    }
+    console.error("Failed to create profile:", insertError);
+    return false;
+  }
+
+  console.log("Profile created successfully");
+  
+  // Also ensure user_roles entry exists
+  await supabase
+    .from("user_roles")
+    .insert({ user_id: userId, role: "user" })
+    .single();
+
+  return true;
+}
+
 // Create a new wizard session
 async function createSession(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
+  userEmail?: string
 ) {
   console.log("Creating session for user:", userId);
   
-  // Get user's org_id (use maybeSingle to handle missing profile gracefully)
+  // CRITICAL: Ensure profile exists before creating session
+  // wizard_sessions has FK to profiles, so this must succeed first
+  const profileCreated = await ensureProfileExists(supabase, userId, userEmail);
+  if (!profileCreated) {
+    throw new Error("Could not ensure profile exists for user");
+  }
+  
+  // Get user's org_id (profile now definitely exists)
   const { data: profile } = await supabase
     .from("profiles")
     .select("org_id")
     .eq("id", userId)
     .maybeSingle();
 
-  // Continue even if profile doesn't exist yet (new signup race condition)
   const userOrgId = profile?.org_id || null;
 
   // Check for existing in-progress session
@@ -107,7 +170,7 @@ async function createSession(
     return { session_id: existingSession.id, resumed: true };
   }
 
-  // Create new session
+  // Create new session - profile now definitely exists
   const { data: session, error: sessionError } = await supabase
     .from("wizard_sessions")
     .insert({
@@ -1199,7 +1262,7 @@ Deno.serve(async (req: Request) => {
 
     switch (action) {
       case "create_session":
-        result = await createSession(supabase, user.id);
+        result = await createSession(supabase, user.id, user.email);
         break;
 
       case "update_session":
