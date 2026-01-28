@@ -1,8 +1,22 @@
 # Dashboard System — Master Index & Progress Tracker
 
-> **Version:** 2.7 | **Date:** January 28, 2026  
+> **Version:** 2.8 | **Date:** January 28, 2026  
 > **Status:** 🟢 Production Ready  
-> **Overall Progress:** 95%
+> **Overall Progress:** 97%
+
+---
+
+## 🔍 Latest Audit: Onboarding Wizard (2026-01-28)
+
+**Result: ✅ All 4 steps verified working | 14 edge function actions | Auth flow correct**
+
+### Gaps Fixed:
+1. **CRITICAL**: `profiles.onboarding_completed = true` now set in `complete_wizard`
+2. Added `reset_session` action (archive old, create new)
+3. Added `generate_competitors` action (Google Search grounding)
+4. Added `run_analysis` alias for backwards compatibility
+
+See full report: `tasks/OB-00-onboarding-audit-report.md`
 
 ---
 
@@ -45,20 +59,22 @@
 
 | File | Title | Priority | Status | Effort |
 |------|-------|----------|--------|--------|
+| `tasks/OB-00-onboarding-audit-report.md` | Onboarding Audit Report | P0 | ✅ Done | — |
 | `tasks/01-create-metrics-aggregator.md` | Dashboard Metrics Aggregator | P1 | ✅ Done | 3h |
 | `tasks/03-complete-analytics-dashboard.md` | Analytics Dashboard | P1 | ✅ Done | 4h |
 | `tasks/05-add-realtime-subscriptions.md` | Real-time Subscriptions | P2 | ✅ Done | 3h |
 | `tasks/09-testing-qa.md` | Testing & QA Strategy | P1 | ✅ Done | — |
+| `tasks/11-realtime-onboarding-strategy.md` | Realtime Onboarding Strategy | P2 | 📋 Strategy | — |
 | `tasks/12-realtime-ai-strategy-features.md` | Realtime AI Strategy | P2 | ✅ Done | — |
 | `tasks/98-supabase-realtime.md` | Supabase Realtime Integration | P2 | ✅ Done | — |
 
 ---
 
-## Module Progress Summary (Verified)
+## Module Progress Summary (Verified 2026-01-28)
 
 | # | Module | Screens | Backend | AI Wired | Frontend | Overall | Status |
 |---|--------|---------|---------|----------|----------|---------|--------|
-| 1 | **Onboarding** | 4-step wizard | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
+| 1 | **Onboarding** | 4-step wizard | ✅ 100% | ✅ 100% | ✅ 100% | **100%** | ✅ Audited |
 | 2 | **Cloudinary** | — (infra) | ✅ 100% | N/A | ✅ 100% | **100%** | ✅ Done |
 | 3 | **Events** | 3 screens | ✅ 100% | ✅ 100% | ✅ 100% | **100%** | ✅ Done |
 | 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
@@ -81,7 +97,7 @@
 
 | Function | Actions | Config | Hook | Status |
 |----------|---------|--------|------|--------|
-| `onboarding-agent` | 12 | ✅ | `useOnboardingAgent` | ✅ Deployed |
+| `onboarding-agent` | 14 | ✅ | `useOnboardingAgent` | ✅ Audited |
 | `lean-canvas-agent` | 11 | ✅ | `useLeanCanvasAgent` | ✅ Deployed |
 | `pitch-deck-agent` | 17 | ✅ | `usePitchDeckEditor` | ✅ Deployed |
 | `ai-chat` | 5+ | ✅ | `useAIChat` | ✅ Deployed |
@@ -175,6 +191,7 @@
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-28 | Comprehensive onboarding audit, fixed completion flag, added 3 actions | 2.8 |
 | 2026-01-28 | Completed Phases 1-4, created dashboard-metrics, Analytics page, real-time | 2.7 |
 | 2026-01-28 | Added task files, next steps plan, updated navigation | 2.6 |
 | 2026-01-28 | Verified all implementations, updated accurate status | 2.5 |
@@ -186,4 +203,4 @@
 
 **Last Updated:** January 28, 2026  
 **Maintainer:** AI Systems Architect  
-**Status:** 🟢 Production Ready (95% complete)
+**Status:** 🟢 Production Ready (97% complete)
