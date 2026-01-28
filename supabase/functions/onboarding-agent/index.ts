@@ -311,8 +311,8 @@ Use Google Search to find actual competitor companies. Return ONLY valid JSON:
 
 Find 3-5 real competitors. Only include companies that actually exist.`;
 
-  // Try multiple models with fallback
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  // Try multiple models with fallback - use Gemini 3 models
+  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
   let competitorData = null;
   let usedModel = "";
 
@@ -445,8 +445,8 @@ Extract the following information from the website content. Return ONLY valid JS
 Only include fields you can confidently extract. If you cannot access the URL or extract information, return:
 {"error": "Could not access or parse the website", "confidence": 0}`;
 
-  // Try multiple models with fallback
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  // Try multiple models with fallback - use Gemini 3 models
+  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
   let extractions = null;
   let usedModel = "";
 
@@ -672,8 +672,8 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
   "recommendations": ["string array - top 3 things to improve"]
 }`;
 
-  // Try primary model, fallback to alternative models
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash-preview-05-20"];
+  // Try primary model, fallback to alternative models - use Gemini 3 models
+  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
   let readinessScore = null;
   let usedModel = "";
 
