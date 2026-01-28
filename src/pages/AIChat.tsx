@@ -203,8 +203,8 @@ const AIChat = () => {
   };
 
   return (
-    <DashboardLayout aiPanel={<AIContextPanel startup={startup} />}>
-      <div className="h-[calc(100vh-8rem)] flex flex-col">
+    <DashboardLayout aiPanel={<AIContextPanel startup={startup} />} hideBottomNav>
+      <div className="h-[calc(100vh-8rem)] sm:h-[calc(100vh-8rem)] flex flex-col max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -212,38 +212,38 @@ const AIChat = () => {
           className="flex items-center justify-between mb-4"
         >
           <div>
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <Brain className="w-6 h-6 text-primary" />
+            <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2">
+              <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               AI Chat
             </h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-xs sm:text-sm">
               Your startup advisor, powered by AI
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={clearMessages}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Chat
+            <Button variant="outline" size="sm" onClick={clearMessages} className="text-xs sm:text-sm">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Chat</span>
             </Button>
           </div>
         </motion.div>
 
         {/* Chat Area */}
         <Card className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea ref={scrollRef} className="flex-1 p-4">
+          <ScrollArea ref={scrollRef} className="flex-1 p-3 sm:p-4">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center px-4">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                  <MessageSquare className="w-8 h-8 text-primary" />
+              <div className="h-full flex flex-col items-center justify-center text-center px-2 sm:px-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                  <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold mb-2">Start a Conversation</h2>
-                <p className="text-muted-foreground text-sm mb-6 max-w-md">
+                <h2 className="text-base sm:text-lg font-semibold mb-2">Start a Conversation</h2>
+                <p className="text-muted-foreground text-xs sm:text-sm mb-6 max-w-md">
                   Ask me anything about fundraising, growth strategy, pitch decks, 
                   or get personalized recommendations for your startup.
                 </p>
                 
-                {/* Quick Action Cards */}
-                <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
+                {/* Quick Action Cards - Stack vertically on mobile */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg">
                   {quickActions.map((action, index) => (
                     <motion.button
                       key={action.label}
@@ -251,7 +251,7 @@ const AIChat = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
                       onClick={() => handleQuickAction(action.action)}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left"
+                      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors text-left touch-manipulation active:scale-98"
                     >
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <action.icon className="w-4 h-4 text-primary" />
@@ -298,22 +298,23 @@ const AIChat = () => {
             </div>
           )}
 
-          {/* Input Area */}
-          <div className="p-4 border-t bg-card">
+          {/* Input Area - Fixed at bottom on mobile */}
+          <div className="p-3 sm:p-4 border-t bg-card sticky bottom-0">
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything about your startup..."
+                placeholder="Ask anything..."
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
               />
               <Button 
                 onClick={handleSend} 
                 disabled={!input.trim() || isLoading}
                 size="icon"
+                className="h-11 w-11 sm:h-10 sm:w-10"
               >
                 {isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -322,8 +323,8 @@ const AIChat = () => {
                 )}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              AI responses are generated based on your startup profile and may not be 100% accurate.
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 text-center">
+              AI responses are generated based on your startup profile.
             </p>
           </div>
         </Card>

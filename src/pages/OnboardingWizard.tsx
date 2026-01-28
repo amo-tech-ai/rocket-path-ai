@@ -389,18 +389,18 @@ export default function OnboardingWizard() {
       }
     >
       {/* Header with horizontal step indicator */}
-      <div className="border-b bg-card/30">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-center gap-4 lg:gap-8">
+      <div className="border-b bg-card/30 sticky top-0 z-20">
+        <div className="px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 lg:gap-8">
             {WIZARD_STEPS.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 <button
                   onClick={() => navigation.handleStepChange(step.number)}
                   disabled={step.number > currentStep}
-                  className="flex flex-col items-center gap-1 disabled:opacity-50"
+                  className="flex flex-col items-center gap-1 disabled:opacity-50 touch-manipulation"
                 >
                   <div
-                    className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-semibold transition-colors ${
+                    className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full text-xs font-semibold transition-colors ${
                       step.number < currentStep
                         ? 'bg-primary text-primary-foreground'
                         : step.number === currentStep
@@ -411,7 +411,7 @@ export default function OnboardingWizard() {
                     {step.number}
                   </div>
                   <span
-                    className={`text-[10px] uppercase tracking-wider font-medium hidden sm:block ${
+                    className={`text-[9px] sm:text-[10px] uppercase tracking-wider font-medium hidden xs:block ${
                       step.number === currentStep
                         ? 'text-foreground'
                         : 'text-muted-foreground'
@@ -422,7 +422,7 @@ export default function OnboardingWizard() {
                 </button>
                 {index < WIZARD_STEPS.length - 1 && (
                   <div
-                    className={`w-8 lg:w-16 h-0.5 mx-2 ${
+                    className={`w-6 sm:w-8 lg:w-16 h-0.5 mx-1 sm:mx-2 ${
                       step.number < currentStep ? 'bg-primary' : 'bg-muted'
                     }`}
                   />
@@ -434,16 +434,16 @@ export default function OnboardingWizard() {
       </div>
 
       {/* Step Content */}
-      <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
         {/* Step Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <p className="text-xs font-medium text-primary uppercase tracking-wider mb-2">
             Step {currentStep} of {WIZARD_STEPS.length}
           </p>
-          <h1 className="text-2xl lg:text-3xl font-display font-medium mb-2">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-medium mb-2">
             {WIZARD_STEPS[currentStep - 1]?.title}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {STEP_DESCRIPTIONS[currentStep as keyof typeof STEP_DESCRIPTIONS]}
           </p>
         </div>
