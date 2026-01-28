@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.stage-analyzer]
 verify_jwt = false
+
+[functions.industry-expert-agent]
+verify_jwt = false

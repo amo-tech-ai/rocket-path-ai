@@ -2275,6 +2275,7 @@ export type Database = {
           advisor_system_prompt: string | null
           benchmarks: Json | null
           case_studies: Json | null
+          common_mistakes: Json | null
           competitive_intel: Json | null
           created_at: string | null
           description: string | null
@@ -2283,9 +2284,14 @@ export type Database = {
           icon: string | null
           id: string
           industry: string
+          investor_expectations: Json | null
           is_active: boolean | null
+          market_context: Json | null
           mental_models: Json | null
           playbooks_summary: Json | null
+          question_intro: string | null
+          startup_types: Json | null
+          success_stories: Json | null
           terminology: Json | null
           updated_at: string | null
           version: number | null
@@ -2295,6 +2301,7 @@ export type Database = {
           advisor_system_prompt?: string | null
           benchmarks?: Json | null
           case_studies?: Json | null
+          common_mistakes?: Json | null
           competitive_intel?: Json | null
           created_at?: string | null
           description?: string | null
@@ -2303,9 +2310,14 @@ export type Database = {
           icon?: string | null
           id?: string
           industry: string
+          investor_expectations?: Json | null
           is_active?: boolean | null
+          market_context?: Json | null
           mental_models?: Json | null
           playbooks_summary?: Json | null
+          question_intro?: string | null
+          startup_types?: Json | null
+          success_stories?: Json | null
           terminology?: Json | null
           updated_at?: string | null
           version?: number | null
@@ -2315,6 +2327,7 @@ export type Database = {
           advisor_system_prompt?: string | null
           benchmarks?: Json | null
           case_studies?: Json | null
+          common_mistakes?: Json | null
           competitive_intel?: Json | null
           created_at?: string | null
           description?: string | null
@@ -2323,14 +2336,99 @@ export type Database = {
           icon?: string | null
           id?: string
           industry?: string
+          investor_expectations?: Json | null
           is_active?: boolean | null
+          market_context?: Json | null
           mental_models?: Json | null
           playbooks_summary?: Json | null
+          question_intro?: string | null
+          startup_types?: Json | null
+          success_stories?: Json | null
           terminology?: Json | null
           updated_at?: string | null
           version?: number | null
         }
         Relationships: []
+      }
+      industry_questions: {
+        Row: {
+          ai_coach_prompt: string | null
+          category: string
+          contexts: string[] | null
+          created_at: string
+          display_order: number
+          examples: Json | null
+          id: string
+          input_options: Json | null
+          input_type: string
+          is_active: boolean | null
+          is_required: boolean | null
+          outputs_to: string[] | null
+          pack_id: string
+          quality_criteria: Json | null
+          question: string
+          question_key: string
+          red_flags: Json | null
+          stage_filter: string[] | null
+          thinking_prompt: string | null
+          updated_at: string
+          why_this_matters: string | null
+        }
+        Insert: {
+          ai_coach_prompt?: string | null
+          category: string
+          contexts?: string[] | null
+          created_at?: string
+          display_order?: number
+          examples?: Json | null
+          id?: string
+          input_options?: Json | null
+          input_type?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          outputs_to?: string[] | null
+          pack_id: string
+          quality_criteria?: Json | null
+          question: string
+          question_key: string
+          red_flags?: Json | null
+          stage_filter?: string[] | null
+          thinking_prompt?: string | null
+          updated_at?: string
+          why_this_matters?: string | null
+        }
+        Update: {
+          ai_coach_prompt?: string | null
+          category?: string
+          contexts?: string[] | null
+          created_at?: string
+          display_order?: number
+          examples?: Json | null
+          id?: string
+          input_options?: Json | null
+          input_type?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          outputs_to?: string[] | null
+          pack_id?: string
+          quality_criteria?: Json | null
+          question?: string
+          question_key?: string
+          red_flags?: Json | null
+          stage_filter?: string[] | null
+          thinking_prompt?: string | null
+          updated_at?: string
+          why_this_matters?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "industry_questions_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "industry_packs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integrations: {
         Row: {
@@ -4274,6 +4372,27 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      get_industry_ai_context: { Args: { p_industry: string }; Returns: Json }
+      get_industry_questions: {
+        Args: { p_context?: string; p_industry: string; p_stage?: string }
+        Returns: {
+          ai_coach_prompt: string
+          category: string
+          display_order: number
+          examples: Json
+          id: string
+          input_options: Json
+          input_type: string
+          is_required: boolean
+          outputs_to: string[]
+          quality_criteria: Json
+          question: string
+          question_key: string
+          red_flags: Json
+          thinking_prompt: string
+          why_this_matters: string
+        }[]
       }
       get_pitch_deck_with_slides: { Args: { p_deck_id: string }; Returns: Json }
       get_user_role: {
