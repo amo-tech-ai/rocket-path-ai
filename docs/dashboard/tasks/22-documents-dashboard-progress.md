@@ -1,7 +1,7 @@
 # My Documents Dashboard — Progress Tracker
 
 > **Version:** 1.0 | **Date:** January 28, 2026
-> **Overall Progress:** 75% Complete
+> **Overall Progress:** 90% Complete
 > **Priority:** P1
 > **Route:** `/documents`
 > **Edge Function:** `supabase/functions/documents-agent/index.ts`
@@ -51,6 +51,10 @@ wizard_session_id, created_at, updated_at
 | `analyze` | Deep analysis | Gemini 3 Flash | ✅ |
 | `search` | Semantic search | Gemini 3 Flash | ✅ |
 | `extract` | Extract entities/data | Gemini 3 Flash | ✅ |
+| `create_data_room` | Data room checklist | Gemini 3 Flash | ✅ NEW |
+| `organize_data_room` | Organize docs by category | N/A | ✅ NEW |
+| `generate_investor_update` | Monthly update with auto-fill | Gemini 3 Flash | ✅ NEW |
+| `generate_competitive_analysis` | Industry-context analysis | Gemini 3 Flash | ✅ NEW |
 
 ### Pending Actions
 

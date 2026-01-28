@@ -29,6 +29,10 @@ interface RequestBody {
   query?: string;
   version_a?: string;
   version_b?: string;
+  document_ids?: string[];
+  category?: string;
+  report_month?: string;
+  highlights?: string[];
 }
 
 // ===== Document Templates =====
@@ -542,6 +546,425 @@ Return JSON:
   }
 }
 
+// ===== Data Room Builder =====
+
+async function createDataRoom(
+  supabase: SupabaseClient,
+  userId: string,
+  startupId: string
+): Promise<{ success: boolean; checklist?: Array<{ category: string; documents: string[]; status: string }>; recommendations?: string[]; error?: string }> {
+  console.log(`[documents-agent] createDataRoom for startup ${startupId}`);
+
+  // Get startup info including stage
+  const { data: startup } = await supabase
+    .from("startups")
+    .select("name, stage, industry")
+    .eq("id", startupId)
+    .single();
+
+  // Get existing documents
+  const { data: existingDocs } = await supabase
+    .from("documents")
+    .select("id, title, type, status")
+    .eq("startup_id", startupId);
+
+  const stage = startup?.stage || "pre_seed";
+
+  // Stage-specific data room requirements
+  const dataRoomRequirements: Record<string, { categories: Record<string, string[]> }> = {
+    pre_seed: {
+      categories: {
+        "Company Overview": ["Executive Summary", "One-Pager", "Pitch Deck"],
+        "Business Model": ["Lean Canvas", "Revenue Model"],
+        "Team": ["Founder Bios", "Team Overview"],
+        "Market": ["Market Analysis", "Competitive Landscape"]
+      }
+    },
+    seed: {
+      categories: {
+        "Company Overview": ["Executive Summary", "One-Pager", "Pitch Deck", "Company Fact Sheet"],
+        "Business & Strategy": ["Business Plan", "Lean Canvas", "Go-to-Market Strategy"],
+        "Financials": ["Financial Model", "Cap Table", "Use of Funds"],
+        "Legal": ["Articles of Incorporation", "Shareholder Agreement", "Term Sheet Template"],
+        "Traction": ["Metrics Dashboard", "Customer Case Studies", "Testimonials"]
+      }
+    },
+    series_a: {
+      categories: {
+        "Company Overview": ["Executive Summary", "Pitch Deck", "Company Fact Sheet", "Investment Memo"],
+        "Business & Strategy": ["Business Plan", "Go-to-Market Strategy", "Product Roadmap"],
+        "Financials": ["Financial Model", "Cap Table", "Historical Financials", "Revenue Projections"],
+        "Legal": ["All Corporate Documents", "IP Assignment Agreements", "Material Contracts", "Compliance Docs"],
+        "Traction & Market": ["Monthly Investor Updates", "Customer Case Studies", "Market Analysis", "Competitive Intelligence"],
+        "Team": ["Org Chart", "Key Hire Plan", "Advisor Agreements"]
+      }
+    }
+  };
+
+  const requirements = dataRoomRequirements[stage] || dataRoomRequirements.pre_seed;
+  type DocType = { id: string; title: string; type: string; status: string };
+  const existingDocTypes = new Set((existingDocs as DocType[] || []).map((d: DocType) => d.type));
+
+  const checklist = Object.entries(requirements.categories).map(([category, documents]) => ({
+    category,
+    documents: documents,
+    status: documents.every(doc => 
+      existingDocTypes.has(doc.toLowerCase().replace(/\s+/g, '_'))
+    ) ? 'complete' : 'incomplete'
+  }));
+
+  // Generate AI recommendations
+  const existingTitles = (existingDocs as DocType[] || []).map((d: DocType) => d.title).join(', ') || 'None';
+  const prompt = `For a ${stage.replace('_', ' ')} stage ${startup?.industry || ''} startup, analyze their data room readiness.
+
+EXISTING DOCUMENTS: ${existingTitles}
+REQUIRED CATEGORIES: ${JSON.stringify(Object.keys(requirements.categories))}
+
+Provide 3-5 specific recommendations for completing their investor data room.
+
+Return JSON:
+{
+  "recommendations": ["recommendation 1", "recommendation 2", ...],
+  "priority_document": "Most important missing document",
+  "readiness_score": 0-100
+}`;
+
+  try {
+    const response = await callGemini(prompt, "You are a fundraising advisor helping founders prepare investor data rooms.");
+    const result = extractJSON<{ recommendations: string[]; priority_document: string; readiness_score: number }>(response);
+
+    return {
+      success: true,
+      checklist,
+      recommendations: result?.recommendations || ["Add your pitch deck", "Include financial projections", "Document your team"],
+    };
+  } catch (error) {
+    console.error("[documents-agent] createDataRoom error:", error);
+    return {
+      success: true,
+      checklist,
+      recommendations: ["Complete your pitch deck", "Add team bios", "Include financial model"],
+    };
+  }
+}
+
+async function organizeDataRoom(
+  supabase: SupabaseClient,
+  userId: string,
+  startupId: string,
+  documentIds: string[],
+  category: string
+): Promise<{ success: boolean; organized_count?: number; error?: string }> {
+  console.log(`[documents-agent] organizeDataRoom ${documentIds.length} docs into ${category}`);
+
+  try {
+    // Update document metadata with category
+    const { data, error } = await supabase
+      .from("documents")
+      .update({
+        metadata: { data_room_category: category, organized_at: new Date().toISOString() },
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", documentIds)
+      .eq("startup_id", startupId)
+      .select();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      organized_count: data?.length || 0,
+    };
+  } catch (error) {
+    console.error("[documents-agent] organizeDataRoom error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// ===== Investor Update Generator =====
+
+async function generateInvestorUpdate(
+  supabase: SupabaseClient,
+  userId: string,
+  startupId: string,
+  reportMonth?: string,
+  highlights?: string[]
+): Promise<{ success: boolean; document_id?: string; content?: string; content_json?: Record<string, unknown>; error?: string }> {
+  console.log(`[documents-agent] generateInvestorUpdate for ${startupId}`);
+
+  // Get startup with traction data
+  const { data: startup } = await supabase
+    .from("startups")
+    .select("*")
+    .eq("id", startupId)
+    .single();
+
+  if (!startup) {
+    return { success: false, error: "Startup not found" };
+  }
+
+  // Get recent activities
+  const { data: recentActivities } = await supabase
+    .from("activities")
+    .select("title, description, activity_type, created_at")
+    .eq("startup_id", startupId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  // Get recent deals from CRM
+  const { data: deals } = await supabase
+    .from("deals")
+    .select("name, stage, amount, expected_close")
+    .eq("startup_id", startupId)
+    .eq("is_active", true)
+    .limit(5);
+
+  // Get recent tasks completed
+  const { data: completedTasks } = await supabase
+    .from("tasks")
+    .select("title, completed_at")
+    .eq("startup_id", startupId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(5);
+
+  const month = reportMonth || new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const prompt = `Generate a professional monthly investor update for ${startup.name}.
+
+STARTUP CONTEXT:
+- Name: ${startup.name}
+- Industry: ${startup.industry || 'Tech'}
+- Stage: ${startup.stage || 'Early Stage'}
+- Description: ${startup.description || 'Not provided'}
+
+TRACTION DATA:
+${JSON.stringify(startup.traction_data || {})}
+
+RECENT ACTIVITIES:
+${(recentActivities as Array<{ title: string }>)?.map((a: { title: string }) => `- ${a.title}`).join('\n') || 'No recent activities'}
+
+ACTIVE DEALS/PIPELINE:
+${(deals as Array<{ name: string; stage: string; amount?: number }>)?.map((d: { name: string; stage: string; amount?: number }) => `- ${d.name}: ${d.stage} ($${d.amount || 'TBD'})`).join('\n') || 'No active deals'}
+
+COMPLETED MILESTONES:
+${(completedTasks as Array<{ title: string }>)?.map((t: { title: string }) => `- ${t.title}`).join('\n') || 'No recent completions'}
+
+USER HIGHLIGHTS:
+${highlights?.join('\n') || 'None specified'}
+
+REPORT MONTH: ${month}
+
+Generate a structured investor update with these sections:
+1. TL;DR (3 bullet executive summary)
+2. Key Metrics (with changes if available)
+3. Product Updates
+4. Team Updates  
+5. Fundraising/Pipeline
+6. Challenges & Asks
+7. Next Month Goals
+
+Return JSON:
+{
+  "title": "Investor Update - ${month}",
+  "sections": [
+    { "heading": "Section Name", "content": "Section content..." }
+  ],
+  "key_metrics": [
+    { "name": "Metric", "value": "Value", "change": "+X%" }
+  ],
+  "asks": ["Specific asks from investors"]
+}`;
+
+  try {
+    const response = await callGemini(
+      prompt,
+      "You are an expert at writing concise, data-driven investor updates that keep investors engaged and informed."
+    );
+    
+    const contentJson = extractJSON<{ 
+      title: string; 
+      sections: Array<{ heading: string; content: string }>; 
+      key_metrics: Array<{ name: string; value: string; change?: string }>;
+      asks: string[];
+    }>(response);
+
+    if (!contentJson) {
+      return { success: false, error: "Failed to parse AI response" };
+    }
+
+    // Convert to plain text
+    const plainContent = contentJson.sections
+      .map(s => `## ${s.heading}\n\n${s.content}`)
+      .join('\n\n---\n\n');
+
+    // Create document
+    const { data: document, error } = await supabase
+      .from("documents")
+      .insert({
+        startup_id: startupId,
+        title: contentJson.title,
+        type: "investor_update",
+        content: plainContent,
+        content_json: contentJson,
+        status: "draft",
+        ai_generated: true,
+        created_by: userId,
+        version: 1,
+        metadata: { report_month: month, generated_at: new Date().toISOString() },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log activity
+    await supabase.from("activities").insert({
+      startup_id: startupId,
+      title: `Generated investor update for ${month}`,
+      description: `AI-generated monthly investor update`,
+      activity_type: "document_created",
+      document_id: document.id,
+      is_system_generated: true,
+    });
+
+    return {
+      success: true,
+      document_id: document.id,
+      content: plainContent,
+      content_json: contentJson,
+    };
+  } catch (error) {
+    console.error("[documents-agent] generateInvestorUpdate error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// ===== Competitive Analysis Generator =====
+
+async function generateCompetitiveAnalysis(
+  supabase: SupabaseClient,
+  userId: string,
+  startupId: string
+): Promise<{ success: boolean; document_id?: string; content?: string; competitors?: Array<{ name: string; strengths: string[]; weaknesses: string[] }>; error?: string }> {
+  console.log(`[documents-agent] generateCompetitiveAnalysis for ${startupId}`);
+
+  // Get startup context
+  const { data: startup } = await supabase
+    .from("startups")
+    .select("*")
+    .eq("id", startupId)
+    .single();
+
+  if (!startup) {
+    return { success: false, error: "Startup not found" };
+  }
+
+  // Get industry pack for context
+  const { data: industryPack } = await supabase
+    .from("industry_packs")
+    .select("competitive_intel, key_players, market_context")
+    .eq("industry", startup.industry)
+    .eq("is_active", true)
+    .single();
+
+  const prompt = `Generate a comprehensive competitive analysis for this startup.
+
+STARTUP:
+- Name: ${startup.name}
+- Industry: ${startup.industry || 'Technology'}
+- Description: ${startup.description || 'Not provided'}
+- Value Proposition: ${startup.tagline || 'Not provided'}
+- Business Model: ${startup.business_model || 'Not specified'}
+
+INDUSTRY CONTEXT:
+${industryPack ? `Key Players: ${JSON.stringify(industryPack.key_players || [])}
+Competitive Intel: ${JSON.stringify(industryPack.competitive_intel || {})}
+Market Context: ${JSON.stringify(industryPack.market_context || {})}` : 'No industry pack available'}
+
+Generate a detailed competitive analysis including:
+1. Market Landscape Overview
+2. Direct Competitors (3-5 companies)
+3. Indirect Competitors
+4. Competitive Positioning Matrix
+5. Key Differentiators
+6. Threats & Opportunities
+7. Strategic Recommendations
+
+Return JSON:
+{
+  "title": "Competitive Analysis - ${startup.name}",
+  "sections": [
+    { "heading": "Section Name", "content": "Detailed section content..." }
+  ],
+  "competitors": [
+    { "name": "Competitor Name", "category": "direct/indirect", "strengths": ["str1"], "weaknesses": ["weak1"], "threat_level": "high/medium/low" }
+  ],
+  "positioning": {
+    "unique_advantages": ["advantage1"],
+    "vulnerabilities": ["vulnerability1"],
+    "opportunities": ["opportunity1"]
+  }
+}`;
+
+  try {
+    const response = await callGemini(
+      prompt,
+      "You are a strategic analyst with expertise in competitive intelligence and market positioning for startups."
+    );
+    
+    const contentJson = extractJSON<{ 
+      title: string; 
+      sections: Array<{ heading: string; content: string }>; 
+      competitors: Array<{ name: string; category: string; strengths: string[]; weaknesses: string[]; threat_level: string }>;
+      positioning: { unique_advantages: string[]; vulnerabilities: string[]; opportunities: string[] };
+    }>(response);
+
+    if (!contentJson) {
+      return { success: false, error: "Failed to parse AI response" };
+    }
+
+    // Convert to plain text
+    const plainContent = contentJson.sections
+      .map(s => `## ${s.heading}\n\n${s.content}`)
+      .join('\n\n---\n\n');
+
+    // Create document
+    const { data: document, error } = await supabase
+      .from("documents")
+      .insert({
+        startup_id: startupId,
+        title: contentJson.title,
+        type: "competitive_analysis",
+        content: plainContent,
+        content_json: contentJson,
+        status: "draft",
+        ai_generated: true,
+        created_by: userId,
+        version: 1,
+        metadata: { generated_at: new Date().toISOString() },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      success: true,
+      document_id: document.id,
+      content: plainContent,
+      competitors: contentJson.competitors?.map(c => ({
+        name: c.name,
+        strengths: c.strengths,
+        weaknesses: c.weaknesses,
+      })),
+    };
+  } catch (error) {
+    console.error("[documents-agent] generateCompetitiveAnalysis error:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
 // ===== Main Handler =====
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -607,6 +1030,26 @@ Deno.serve(async (req) => {
       case "compare_versions":
         if (!document_id || !body.version_a || !body.version_b) throw new Error("document_id, version_a, and version_b are required");
         result = await compareVersions(supabase, user.id, document_id, body.version_a, body.version_b);
+        break;
+
+      case "create_data_room":
+        if (!startup_id) throw new Error("startup_id is required");
+        result = await createDataRoom(supabase, user.id, startup_id);
+        break;
+
+      case "organize_data_room":
+        if (!startup_id || !body.document_ids || !body.category) throw new Error("startup_id, document_ids, and category are required");
+        result = await organizeDataRoom(supabase, user.id, startup_id, body.document_ids, body.category);
+        break;
+
+      case "generate_investor_update":
+        if (!startup_id) throw new Error("startup_id is required");
+        result = await generateInvestorUpdate(supabase, user.id, startup_id, body.report_month, body.highlights);
+        break;
+
+      case "generate_competitive_analysis":
+        if (!startup_id) throw new Error("startup_id is required");
+        result = await generateCompetitiveAnalysis(supabase, user.id, startup_id);
         break;
 
       default:

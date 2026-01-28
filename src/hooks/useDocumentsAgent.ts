@@ -17,7 +17,10 @@ export type DocumentTemplate =
   | 'investment_memo'
   | 'pitch_script'
   | 'press_release'
-  | 'business_plan';
+  | 'business_plan'
+  | 'investor_update'
+  | 'competitive_analysis'
+  | 'meeting_notes';
 
 export interface GeneratedDocument {
   success: boolean;
@@ -90,6 +93,42 @@ export interface VersionComparison {
     description: string;
   }[];
   summary?: string;
+  error?: string;
+}
+
+export interface DataRoomResult {
+  success: boolean;
+  checklist?: Array<{
+    category: string;
+    documents: string[];
+    status: string;
+  }>;
+  recommendations?: string[];
+  error?: string;
+}
+
+export interface InvestorUpdateResult {
+  success: boolean;
+  document_id?: string;
+  content?: string;
+  content_json?: {
+    title: string;
+    sections: Array<{ heading: string; content: string }>;
+    key_metrics?: Array<{ name: string; value: string; change?: string }>;
+    asks?: string[];
+  };
+  error?: string;
+}
+
+export interface CompetitiveAnalysisResult {
+  success: boolean;
+  document_id?: string;
+  content?: string;
+  competitors?: Array<{
+    name: string;
+    strengths: string[];
+    weaknesses: string[];
+  }>;
   error?: string;
 }
 
@@ -292,6 +331,122 @@ export function useSummarizeDocument() {
 }
 
 /**
+ * Create a data room checklist with recommendations
+ */
+export function useCreateDataRoom() {
+  return useMutation({
+    mutationFn: async ({ startupId }: { startupId: string }) => {
+      return invokeDocumentsAgent<DataRoomResult>('create_data_room', {
+        startup_id: startupId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Data room checklist generated');
+      } else {
+        toast.error(data.error || 'Failed to create data room');
+      }
+    },
+    onError: (error) => {
+      console.error('Create data room error:', error);
+      toast.error('Failed to create data room checklist');
+    },
+  });
+}
+
+/**
+ * Organize documents into data room categories
+ */
+export function useOrganizeDataRoom() {
+  return useMutation({
+    mutationFn: async ({ 
+      startupId, 
+      documentIds,
+      category
+    }: { 
+      startupId: string; 
+      documentIds: string[];
+      category: string;
+    }) => {
+      return invokeDocumentsAgent<{ success: boolean; organized_count?: number; error?: string }>('organize_data_room', {
+        startup_id: startupId,
+        document_ids: documentIds,
+        category,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Organized ${data.organized_count} documents`);
+      } else {
+        toast.error(data.error || 'Failed to organize documents');
+      }
+    },
+    onError: (error) => {
+      console.error('Organize data room error:', error);
+      toast.error('Failed to organize documents');
+    },
+  });
+}
+
+/**
+ * Generate monthly investor update with auto-fill
+ */
+export function useGenerateInvestorUpdate() {
+  return useMutation({
+    mutationFn: async ({ 
+      startupId, 
+      reportMonth,
+      highlights
+    }: { 
+      startupId: string; 
+      reportMonth?: string;
+      highlights?: string[];
+    }) => {
+      return invokeDocumentsAgent<InvestorUpdateResult>('generate_investor_update', {
+        startup_id: startupId,
+        report_month: reportMonth,
+        highlights,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Investor update generated');
+      } else {
+        toast.error(data.error || 'Failed to generate investor update');
+      }
+    },
+    onError: (error) => {
+      console.error('Generate investor update error:', error);
+      toast.error('Failed to generate investor update');
+    },
+  });
+}
+
+/**
+ * Generate competitive analysis with industry context
+ */
+export function useGenerateCompetitiveAnalysis() {
+  return useMutation({
+    mutationFn: async ({ startupId }: { startupId: string }) => {
+      return invokeDocumentsAgent<CompetitiveAnalysisResult>('generate_competitive_analysis', {
+        startup_id: startupId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success('Competitive analysis generated');
+      } else {
+        toast.error(data.error || 'Failed to generate analysis');
+      }
+    },
+    onError: (error) => {
+      console.error('Generate competitive analysis error:', error);
+      toast.error('Failed to generate competitive analysis');
+    },
+  });
+}
+
+/**
  * Compare two versions of a document
  */
 export function useCompareVersions() {
@@ -340,5 +495,9 @@ export function useDocumentsAgent() {
     searchDocuments: useSearchDocuments(),
     summarizeDocument: useSummarizeDocument(),
     compareVersions: useCompareVersions(),
+    createDataRoom: useCreateDataRoom(),
+    organizeDataRoom: useOrganizeDataRoom(),
+    generateInvestorUpdate: useGenerateInvestorUpdate(),
+    generateCompetitiveAnalysis: useGenerateCompetitiveAnalysis(),
   };
 }
