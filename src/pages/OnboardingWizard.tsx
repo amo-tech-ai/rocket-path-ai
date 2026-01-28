@@ -61,6 +61,7 @@ export default function OnboardingWizard() {
     enrichUrl,
     enrichContext,
     enrichFounder,
+    generateCompetitors,
     calculateReadiness,
     getQuestions,
     processAnswer,
@@ -70,6 +71,7 @@ export default function OnboardingWizard() {
     isEnrichingUrl,
     isEnrichingContext,
     isEnrichingFounder,
+    isGeneratingCompetitors,
     isCalculatingReadiness,
     isGettingQuestions,
     isProcessingAnswer,
@@ -144,11 +146,40 @@ export default function OnboardingWizard() {
   }, [session?.id, calculateReadiness, updateFormData]);
 
   const handleEnhanceField = useCallback(async (fieldName: string) => {
+    if (!session?.id) return;
+    
     setIsEnhancing(prev => ({ ...prev, [fieldName]: true }));
-    setTimeout(() => {
+    try {
+      // For now just simulate enhancement for non-competitor fields
+      // Could add enrich_context calls here for specific fields
+      await new Promise(resolve => setTimeout(resolve, 800));
+    } finally {
       setIsEnhancing(prev => ({ ...prev, [fieldName]: false }));
-    }, 1000);
-  }, []);
+    }
+  }, [session?.id]);
+
+  // Generate competitors with AI Re-scan
+  const handleGenerateCompetitors = useCallback(async () => {
+    if (!session?.id) return;
+    
+    try {
+      const result = await generateCompetitors({ session_id: session.id });
+      if (result.success && result.competitors) {
+        // Update form data with new competitors (extract names)
+        const competitorNames = result.competitors.map(c => c.name);
+        updateFormData({ competitors: competitorNames });
+        
+        // Update extractions with full competitor data
+        setExtractions(prev => ({
+          ...prev,
+          competitors: result.competitors,
+          market_trends: result.market_trends,
+        }));
+      }
+    } catch (error) {
+      console.error('Generate competitors error:', error);
+    }
+  }, [session?.id, generateCompetitors, updateFormData]);
 
   // =========================================================================
   // Step Handlers (Modular Hooks)
@@ -439,14 +470,17 @@ export default function OnboardingWizard() {
             {currentStep === 2 && (
               <Step2Analysis
                 data={formData}
+                extractions={extractions}
                 onUpdate={updateFormData}
                 readinessScore={readinessScore}
                 onRecalculate={handleCalculateReadiness}
                 onEnhanceField={handleEnhanceField}
                 onEnhanceFounder={step1Handlers.handleEnrichFounder}
+                onGenerateCompetitors={handleGenerateCompetitors}
                 isCalculating={isCalculatingReadiness}
                 isEnhancing={isEnhancing}
                 isEnrichingFounder={isEnrichingFounder}
+                isGeneratingCompetitors={isGeneratingCompetitors}
               />
             )}
             {currentStep === 3 && (

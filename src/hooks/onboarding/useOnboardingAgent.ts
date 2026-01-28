@@ -17,9 +17,11 @@ export function useOnboardingAgent() {
     enrichUrl: enrichment.enrichUrl,
     enrichContext: enrichment.enrichContext,
     enrichFounder: enrichment.enrichFounder,
+    generateCompetitors: enrichment.generateCompetitors,
     isEnrichingUrl: enrichment.isEnrichingUrl,
     isEnrichingContext: enrichment.isEnrichingContext,
     isEnrichingFounder: enrichment.isEnrichingFounder,
+    isGeneratingCompetitors: enrichment.isGeneratingCompetitors,
 
     // Interview actions
     getQuestions: interview.getQuestions,
@@ -42,6 +44,7 @@ export function useOnboardingAgent() {
       enrichment.isEnrichingUrl ||
       enrichment.isEnrichingContext ||
       enrichment.isEnrichingFounder ||
+      enrichment.isGeneratingCompetitors ||
       interview.isGettingQuestions ||
       interview.isProcessingAnswer ||
       scoring.isCalculatingReadiness ||

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Sparkles, Globe, Check, Loader2 } from 'lucide-react';
+import { Sparkles, Globe, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { WizardFormData, ReadinessScore } from '@/hooks/useWizardSession';
 import { StartupOverviewCard } from './StartupOverviewCard';
@@ -11,33 +10,41 @@ import { ResearchQueriesCard } from './ResearchQueriesCard';
 
 interface Step2AnalysisProps {
   data: WizardFormData;
+  extractions?: Record<string, unknown>;
   onUpdate: (updates: Partial<WizardFormData>) => void;
   readinessScore: ReadinessScore | null;
   onRecalculate: () => void;
   onEnhanceField: (fieldName: string) => Promise<void>;
   onEnhanceFounder: (founderId: string, linkedinUrl: string) => Promise<void>;
+  onGenerateCompetitors: () => Promise<void>;
   isCalculating: boolean;
   isEnhancing: Record<string, boolean>;
   isEnrichingFounder: boolean;
+  isGeneratingCompetitors: boolean;
 }
 
 export function Step2Analysis({
   data,
+  extractions = {},
   onUpdate,
   readinessScore,
   onRecalculate,
   onEnhanceField,
   onEnhanceFounder,
+  onGenerateCompetitors,
   isCalculating,
   isEnhancing,
   isEnrichingFounder,
+  isGeneratingCompetitors,
 }: Step2AnalysisProps) {
-  const [isRescanning, setIsRescanning] = useState(false);
-
-  const handleRescan = async () => {
-    setIsRescanning(true);
-    await onEnhanceField('competitors');
-    setIsRescanning(false);
+  // Merge form data with AI extractions for display
+  // AI extractions provide key_features, target_audience, competitors if not in form_data
+  const mergedData: WizardFormData = {
+    ...data,
+    key_features: data.key_features?.length ? data.key_features : (extractions.key_features as string[]) || [],
+    target_customers: data.target_customers?.length ? data.target_customers : (extractions.target_audience ? [extractions.target_audience as string] : []),
+    competitors: data.competitors?.length ? data.competitors : (Array.isArray(extractions.competitors) ? (extractions.competitors as Array<{name: string}>).map(c => typeof c === 'string' ? c : c.name) : []),
+    tagline: data.tagline || (extractions.unique_value_proposition as string) || (extractions.tagline as string) || '',
   };
 
   const groundingActive = Boolean(data.website_url);
@@ -92,7 +99,7 @@ export function Step2Analysis({
 
       {/* Section 3: Website Context Insights */}
       <WebsiteInsightsCard
-        data={data}
+        data={mergedData}
         onUpdate={onUpdate}
         onEnhance={onEnhanceField}
         isEnhancing={isEnhancing}
@@ -100,17 +107,17 @@ export function Step2Analysis({
 
       {/* Section 4: Competitor & Market Intelligence */}
       <CompetitorIntelCard
-        data={data}
+        data={mergedData}
         onUpdate={onUpdate}
-        onRescan={handleRescan}
-        isRescanning={isRescanning}
+        onRescan={onGenerateCompetitors}
+        isRescanning={isGeneratingCompetitors}
       />
 
       {/* Section 5: Detected Signals */}
-      <DetectedSignalsCard data={data} />
+      <DetectedSignalsCard data={mergedData} />
 
       {/* Section 6: Research Queries (Collapsible) */}
-      <ResearchQueriesCard data={data} />
+      <ResearchQueriesCard data={mergedData} />
     </div>
   );
 }
