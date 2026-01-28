@@ -1,6 +1,6 @@
 # Dashboard System — Master Index & Progress Tracker
 
-> **Version:** 2.5 | **Date:** January 28, 2026  
+> **Version:** 2.6 | **Date:** January 28, 2026  
 > **Status:** 🟢 Production Ready  
 > **Overall Progress:** 88%
 
@@ -24,6 +24,7 @@
 | 08 | `08-edge-functions.md` | 10 deployed, 100+ actions | P0 |
 | 09 | `09-testing-qa.md` | Test strategy, QA checklists, benchmarks | P1 |
 | **Module Prompts (10-17)** | | |
+| 10 | `10-tasks-screen-design.md` | Tasks screen luxury design | P0 |
 | 11 | `11-main-dashboard.md` | Main Dashboard (1 screen) | P0 |
 | 12 | `12-crm.md` | CRM (3 screens) | P0 |
 | 13 | `13-documents.md` | Documents (3 screens) | P1 |
@@ -34,9 +35,20 @@
 | **Reference** | | |
 | 100 | `100-dashboard-system.md` | Complete system plan (source of truth) | — |
 | EF | `edge-functions.md` | Edge function reference & actions | — |
-| **Task Files** | | |
-| T02 | `tasks/02-create-insights-generator.md` | Daily AI Insights edge function | ✅ Done |
-| T04 | `tasks/04-create-stage-analyzer.md` | Stage Analyzer edge function | P2 |
+| PS | `PRODUCTION-STATUS.md` | Production readiness verification | — |
+
+---
+
+## Task Files — Implementation Backlog
+
+| File | Title | Priority | Status | Effort |
+|------|-------|----------|--------|--------|
+| `tasks/01-create-metrics-aggregator.md` | Dashboard Metrics Aggregator | P1 | 🔵 Ready | 3h |
+| `tasks/03-complete-analytics-dashboard.md` | Analytics Dashboard | P1 | 🔵 Ready | 4h |
+| `tasks/05-add-realtime-subscriptions.md` | Real-time Subscriptions | P2 | 🔵 Ready | 3h |
+| `tasks/09-testing-qa.md` | Testing & QA Strategy | P1 | 📝 Doc | — |
+| `tasks/12-realtime-ai-strategy-features.md` | Realtime AI Strategy | P2 | 📝 Doc | — |
+| `tasks/98-supabase-realtime.md` | Supabase Realtime Integration | P2 | 📝 Doc | — |
 
 ---
 
@@ -81,86 +93,48 @@
 
 | Function | Actions | Purpose | Priority |
 |----------|---------|---------|----------|
+| `dashboard-metrics` | 5 | Aggregated real metrics | P1 |
 | `chatbot-agent` | 22 | Advanced conversational AI | P3 |
 | `stage-analyzer` | 3 | Auto-detect startup milestones | P3 |
 
 ---
 
-## Frontend Implementation (Verified)
+## Next Steps — Sequential Implementation Order
 
-### Pages (29 total in src/pages/)
+### Phase 1: Metrics & Data (P1)
 
-| Page | Route | Status |
-|------|-------|--------|
-| Dashboard | `/dashboard` | ✅ Complete |
-| Tasks | `/tasks` | ✅ Complete |
-| Projects | `/projects` | ✅ Complete |
-| CRM | `/crm` | ✅ Complete |
-| Investors | `/investors` | ✅ Complete |
-| Documents | `/documents` | ✅ Complete |
-| Events | `/events` | ✅ Complete |
-| Lean Canvas | `/lean-canvas` | ✅ Complete |
-| Pitch Deck Editor | `/pitch-deck/:id` | ✅ Complete |
-| AI Chat | `/ai-chat` | ✅ Complete |
-| Settings | `/settings` | ✅ Complete (6 tabs) |
-| Onboarding Wizard | `/onboarding` | ✅ Complete |
+| Step | Task | File | Effort |
+|------|------|------|--------|
+| 1.1 | Create `dashboard-metrics` edge function | `tasks/01-create-metrics-aggregator.md` | 2h |
+| 1.2 | Create `startup_metrics_view` SQL view | Migration | 30m |
+| 1.3 | Update `useDashboardData` hook | `src/hooks/useDashboardData.ts` | 1h |
+| 1.4 | Wire real metrics to `SummaryMetrics.tsx` | Component update | 30m |
 
-### Hooks (34 total in src/hooks/)
+### Phase 2: Analytics Dashboard (P1)
 
-| Hook | Purpose | Status |
-|------|---------|--------|
-| `useOnboardingAgent` | Onboarding AI actions | ✅ |
-| `useLeanCanvasAgent` | Lean Canvas AI actions | ✅ |
-| `usePitchDeckEditor` | Pitch Deck AI actions | ✅ |
-| `useAIChat` | Chat AI actions | ✅ |
-| `useCRMAgent` | CRM AI actions | ✅ |
-| `useDocumentsAgent` | Documents AI actions | ✅ |
-| `useInvestorAgent` | Investor AI actions | ✅ |
-| `useTaskAgent` | Task AI actions | ✅ |
-| `useInsights` | Dashboard insights | ✅ |
-| `useEventAgent` | Event AI actions | ✅ |
-| `useDashboardMetrics` | Real-time KPIs | ✅ |
+| Step | Task | File | Effort |
+|------|------|------|--------|
+| 2.1 | Create Analytics page | `src/pages/Analytics.tsx` | 1h |
+| 2.2 | Create chart components | `src/components/analytics/` | 2h |
+| 2.3 | Add analytics route | `src/App.tsx` | 10m |
+| 2.4 | Wire to dashboard-metrics | `src/hooks/useAnalytics.ts` | 1h |
 
-### Settings Tabs (6 total - Verified)
+### Phase 3: Real-time Subscriptions (P2)
 
-| Tab | Component | Status |
-|-----|-----------|--------|
-| Profile | `ProfileSettings.tsx` | ✅ Complete |
-| Appearance | `AppearanceSettings.tsx` | ✅ Complete |
-| Notifications | `NotificationSettings.tsx` | ✅ Complete |
-| Startup | `StartupSettings.tsx` | ✅ Complete |
-| Team | `TeamSettings.tsx` | ✅ Complete |
-| Account | `AccountSettings.tsx` | ✅ Complete |
+| Step | Task | File | Effort |
+|------|------|------|--------|
+| 3.1 | Create `useRealtimeSubscription` hook | `src/hooks/useRealtimeSubscription.ts` | 1h |
+| 3.2 | Add task subscriptions | `src/hooks/useTasks.ts` | 30m |
+| 3.3 | Add deal subscriptions | `src/hooks/useCRM.ts` | 30m |
+| 3.4 | Add dashboard subscriptions | `src/hooks/useDashboardRealtime.ts` | 1h |
 
----
+### Phase 4: Polish & Testing (P2)
 
-## 3-Panel Layout (All Screens)
-
-```
-┌─────────────────┬──────────────────────────────────────────────┬─────────────────┐
-│  LEFT (w-64)    │  MAIN (flex-1, max-w-1200)                   │  RIGHT (w-80)   │
-│  Fixed          │  Scrollable                                  │  Collapsible    │
-│                 │                                              │                 │
-│  Logo           │  Page content                                │  AI Intelligence│
-│  Nav items      │  Grids, lists, forms                         │  Stats, insights│
-│  Progress       │  Kanban boards                               │  Suggestions    │
-│  Settings       │  Editors                                     │  Chat panel     │
-└─────────────────┴──────────────────────────────────────────────┴─────────────────┘
-```
-
----
-
-## Visual Identity
-
-| Element | Value |
-|---------|-------|
-| Tone | Quiet luxury SaaS (Stripe meets Linear) |
-| Primary accent | Deep Emerald / Sage green (`bg-sage`, `bg-sage-light`) |
-| Secondary accent | Warm orange (`bg-warm`) for highlights only |
-| Neutrals | Stone, Sand, Off-White surfaces |
-| Typography | Playfair Display (headings) + Inter (body) |
-| Spacing | Generous white space, no cramped layouts |
-| AI presence | Calm nudges, never urgent or shouting |
+| Step | Task | File | Effort |
+|------|------|------|--------|
+| 4.1 | Implement QA checklist | `tasks/09-testing-qa.md` | — |
+| 4.2 | Polish Pitch Deck export | `src/pages/PitchDeckEditor.tsx` | 1h |
+| 4.3 | Add chat history persistence | `src/hooks/useAIChat.ts` | 2h |
 
 ---
 
@@ -177,6 +151,7 @@
 | API Keys | ✅ Configured | GEMINI_API_KEY, ANTHROPIC_API_KEY |
 | Error Handling | ✅ Consistent | Try/catch + toast notifications |
 | Settings | ✅ 6/6 tabs | Profile, Appearance, Notifications, Startup, Team, Account |
+| DEV_BYPASS | ✅ Disabled | `DEV_BYPASS_AUTH = false` |
 
 ---
 
@@ -186,29 +161,13 @@
 |-------|----------|--------|
 | None | — | ✅ No blockers |
 
-## High-Risk Issues
-
-| Issue | Severity | Status |
-|-------|----------|--------|
-| DEV_BYPASS in ProtectedRoute | ⚠️ Medium | Remove for production deploy |
-
----
-
-## Remaining Work (P2/P3)
-
-| Task | Priority | Effort |
-|------|----------|--------|
-| Create `chatbot-agent` for advanced chat | P3 | 2h |
-| Create `stage-analyzer` for milestones | P3 | 2h |
-| Polish Pitch Deck export features | P2 | 1h |
-| Add chat history persistence | P2 | 2h |
-
 ---
 
 ## Changelog
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-28 | Added task files, next steps plan, updated navigation | 2.6 |
 | 2026-01-28 | Verified all implementations, updated accurate status | 2.5 |
 | 2026-01-28 | Created event-agent, completed all 6 Settings tabs | 2.4 |
 | 2026-01-28 | Created task-agent, insights-generator, wired TaskDetailSheet | 2.3 |
