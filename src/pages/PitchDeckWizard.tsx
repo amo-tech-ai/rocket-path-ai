@@ -153,6 +153,7 @@ export default function PitchDeckWizard() {
       {currentStep === 2 && (
         <WizardStep2
           initialData={getStep2Data()}
+          step1Data={getStep1Data()}
           onContinue={(data) => nextStep(data)}
           onBack={prevStep}
           isSaving={isSaving}

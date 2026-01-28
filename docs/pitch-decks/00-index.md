@@ -1,8 +1,8 @@
 # Pitch Deck System — Master Index & Progress Tracker
 
-> **Version:** 6.1 | **Date:** January 28, 2026  
-> **Status:** 🟢 **95% Production Ready**  
-> **Overall Progress:** 95%
+> **Version:** 6.2 | **Date:** January 28, 2026  
+> **Status:** 🟢 **97% Production Ready**  
+> **Overall Progress:** 97%
 
 ---
 
@@ -11,9 +11,10 @@
 | Category | Status | Progress | Verified | Notes |
 |----------|--------|----------|----------|-------|
 | Database Schema | 🟢 Complete | 100% | ✅ | Tables + RLS |
-| Edge Function (12 actions) | 🟢 Complete | 100% | ✅ | All actions + realtime |
-| Wizard UI (4 steps) | 🟢 Complete | 100% | ✅ | Full validation |
-| **Generation Progress UI** | 🟢 Complete | 100% | ✅ | **NEW: Animated 5-step** |
+| Edge Function (14 actions) | 🟢 Complete | 100% | ✅ | All actions + realtime |
+| Wizard UI (4 steps) | 🟢 Complete | 100% | ✅ | Full validation + AI |
+| **Step 2 AI Suggestions** | 🟢 Complete | 100% | ✅ | **NEW: Investor copy** |
+| **Generation Progress UI** | 🟢 Complete | 100% | ✅ | Animated 5-step |
 | Editor UI (3-panel) | 🟢 Complete | 95% | ✅ | Minor gaps |
 | Dashboard UI | 🟢 Complete | 90% | ✅ | Templates pending |
 | AI Slide Analysis | 🟢 Complete | 100% | ✅ | Gemini Flash |
@@ -27,12 +28,13 @@
 | Task ID | Name | Status | File |
 |---------|------|--------|------|
 | PD-01 | Wizard (4-Step) | ✅ 100% | [tasks/PD-01-wizard.md](tasks/PD-01-wizard.md) |
-| PD-02 | Deck Generation | 🟡 80% | [tasks/PD-02-generation.md](tasks/PD-02-generation.md) |
+| PD-02 | Deck Generation | ✅ 95% | [tasks/PD-02-generation.md](tasks/PD-02-generation.md) |
 | PD-03 | Editor (3-Panel) | ✅ 95% | [tasks/PD-03-editor.md](tasks/PD-03-editor.md) |
 | PD-04 | Dashboard | ✅ 90% | [tasks/PD-04-dashboard.md](tasks/PD-04-dashboard.md) |
 | PD-05 | Export & Sharing | ✅ 85% | [tasks/PD-05-export.md](tasks/PD-05-export.md) |
 | PD-06 | Image Generation | 🟡 40% | [tasks/PD-06-image-generation.md](tasks/PD-06-image-generation.md) |
 | PD-07 | Data Cycle | ✅ 90% | [tasks/PD-07-data-cycle.md](tasks/PD-07-data-cycle.md) |
+| **PD-08** | **Step 2 AI Suggestions** | ✅ 100% | [tasks/PD-08-suggestions.md](tasks/PD-08-suggestions.md) |
 
 ---
 
@@ -56,7 +58,7 @@
 | `/app/pitch-deck/new` | Wizard (new) | ✅ |
 | `/app/pitch-deck/:deckId` | Wizard (resume) | ✅ |
 | `/app/pitch-deck/:deckId/edit` | Editor | ✅ |
-| `/app/pitch-deck/generating/:deckId` | Generation Progress | 🔴 Missing |
+| `/app/pitch-deck/:deckId/generating` | Generation Progress | ✅ |
 | `/share/:shareId` | Public View | 🔴 Missing |
 | `/app/pitch-deck/:deckId/present` | Presentation Mode | 🔴 Missing |
 
@@ -70,14 +72,14 @@ src/
 │   ├── PitchDeckWizard.tsx          ✅ Complete
 │   ├── PitchDeckEditor.tsx          ✅ Complete
 │   ├── PitchDecksDashboard.tsx      ✅ Complete
-│   ├── PitchDeckGenerating.tsx      🔴 Missing
+│   ├── PitchDeckGenerating.tsx      ✅ Complete
 │   └── PitchDeckPresent.tsx         🔴 Missing
 ├── components/pitchdeck/
 │   ├── wizard/
 │   │   ├── WizardLayout.tsx         ✅ Complete
 │   │   ├── WizardStepper.tsx        ✅ Complete
 │   │   ├── WizardStep1.tsx          ✅ Complete
-│   │   ├── WizardStep2.tsx          ✅ Complete
+│   │   ├── WizardStep2.tsx          ✅ Complete + AI
 │   │   ├── WizardStep3.tsx          ✅ Complete
 │   │   ├── WizardStep4.tsx          ✅ Complete
 │   │   └── WizardAIPanel.tsx        ✅ Complete
