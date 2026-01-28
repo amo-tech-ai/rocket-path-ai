@@ -10,6 +10,7 @@ import TopicBadges from './TopicBadges';
 import QuestionCard from './QuestionCard';
 import InterviewNavigation from './InterviewNavigation';
 import SignalsPanel from './SignalsPanel';
+import CoachingFeedback from './CoachingFeedback';
 
 export interface Question {
   id: string;
@@ -32,12 +33,16 @@ interface Step3InterviewProps {
   answers: InterviewAnswer[];
   signals: string[];
   advisor: AdvisorPersona | null;
-  onAnswer: (questionId: string, answerId: string, answerText?: string) => Promise<void>;
+  onAnswer: (questionId: string, answerId: string, answerText?: string, questionKey?: string) => Promise<void>;
   onSkip: () => void;
   onComplete: () => void;
   isProcessing: boolean;
   currentQuestionIndex: number;
   onSetCurrentIndex: (index: number) => void;
+  // Coaching props
+  coachingFeedback?: string | null;
+  isCoaching?: boolean;
+  onDismissCoaching?: () => void;
 }
 
 export function Step3Interview({
@@ -52,6 +57,9 @@ export function Step3Interview({
   isProcessing,
   currentQuestionIndex,
   onSetCurrentIndex,
+  coachingFeedback,
+  isCoaching = false,
+  onDismissCoaching,
 }: Step3InterviewProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [selectedMulti, setSelectedMulti] = useState<string[]>([]);
@@ -77,7 +85,13 @@ export function Step3Interview({
     
     if (!answerId) return;
     
-    await onAnswer(currentQuestion.id, answerId);
+    // Get answer text for coaching
+    const answerText = currentQuestion.type === 'multi_select'
+      ? selectedMulti.map(id => currentQuestion.options?.find(o => o.id === id)?.text).filter(Boolean).join(', ')
+      : currentQuestion.options?.find(o => o.id === selectedAnswer)?.text;
+    
+    // Pass question ID as questionKey for coaching lookup
+    await onAnswer(currentQuestion.id, answerId, answerText, currentQuestion.id);
     onSetCurrentIndex(currentQuestionIndex + 1);
   };
 
@@ -132,6 +146,14 @@ export function Step3Interview({
           />
         )}
       </AnimatePresence>
+
+      {/* Coaching Feedback */}
+      <CoachingFeedback
+        coaching={coachingFeedback || null}
+        isLoading={isCoaching}
+        onDismiss={onDismissCoaching || (() => {})}
+        questionTopic={currentQuestion?.topic}
+      />
 
       {/* Navigation */}
       <InterviewNavigation

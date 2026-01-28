@@ -1,18 +1,21 @@
 /**
  * Step 3 Handlers Hook
  * Manages interview operations for Smart Interviewer step
+ * Now includes AI coaching integration via industry-expert-agent
  */
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { WizardFormData, InterviewAnswer } from '@/hooks/onboarding/types';
 import { Question } from '@/components/onboarding/step3/Step3Interview';
+import { useCoachAnswer } from '@/hooks/useIndustryExpert';
 
 interface UseStep3HandlersParams {
   sessionId: string | undefined;
   answers: InterviewAnswer[];
   signals: string[];
   currentQuestionIndex: number;
+  industry?: string; // Industry for coaching context
   setAnswers: (answers: InterviewAnswer[]) => void;
   setSignals: (signals: string[]) => void;
   setCurrentQuestionIndex: (index: number) => void;
@@ -28,6 +31,7 @@ export function useStep3Handlers({
   answers,
   signals,
   currentQuestionIndex,
+  industry,
   setAnswers,
   setSignals,
   setCurrentQuestionIndex,
@@ -38,6 +42,13 @@ export function useStep3Handlers({
   processAnswer,
 }: UseStep3HandlersParams) {
   const { toast } = useToast();
+  
+  // Coaching state
+  const [coachingFeedback, setCoachingFeedback] = useState<string | null>(null);
+  const [isCoaching, setIsCoaching] = useState(false);
+  
+  // Coaching mutation from industry-expert-agent
+  const coachAnswerMutation = useCoachAnswer();
   
   // Ref for stable answers access in loadQuestions
   const answersRef = useRef<InterviewAnswer[]>([]);
@@ -89,7 +100,12 @@ export function useStep3Handlers({
     }
   }, [sessionId, getQuestions, setQuestions, setAdvisor, toast]);
 
-  const handleAnswer = useCallback(async (questionId: string, answerId: string, answerText?: string) => {
+  const handleAnswer = useCallback(async (
+    questionId: string, 
+    answerId: string, 
+    answerText?: string,
+    questionKey?: string // For coaching lookup
+  ) => {
     if (!sessionId) {
       toast({
         title: 'Session expired',
@@ -115,6 +131,9 @@ export function useStep3Handlers({
     setAnswers(newAnswers);
     setCurrentQuestionIndex(newQuestionIndex);
     
+    // Clear previous coaching
+    setCoachingFeedback(null);
+    
     // Persist question progress immediately
     updateFormData({ 
       interview_answers: newAnswers,
@@ -122,6 +141,7 @@ export function useStep3Handlers({
     });
     
     try {
+      // Process answer with main agent
       const result = await processAnswer({
         session_id: sessionId,
         question_id: questionId,
@@ -142,6 +162,24 @@ export function useStep3Handlers({
       if (result.extracted_funding) {
         updateFormData({ extracted_funding: result.extracted_funding });
       }
+      
+      // Trigger coaching feedback in background (non-blocking)
+      if (industry && questionKey && answerText) {
+        setIsCoaching(true);
+        coachAnswerMutation.mutateAsync({
+          industry,
+          questionKey,
+          answer: answerText,
+        }).then(coachResult => {
+          if (coachResult.success && coachResult.coaching) {
+            setCoachingFeedback(coachResult.coaching);
+          }
+        }).catch(err => {
+          console.warn('[Wizard] Coaching failed (non-critical):', err);
+        }).finally(() => {
+          setIsCoaching(false);
+        });
+      }
     } catch (error) {
       // Rollback on failure
       console.error('Process answer error:', error);
@@ -158,15 +196,24 @@ export function useStep3Handlers({
         variant: 'destructive',
       });
     }
-  }, [sessionId, answers, signals, currentQuestionIndex, setAnswers, setSignals, setCurrentQuestionIndex, updateFormData, processAnswer, toast]);
+  }, [sessionId, answers, signals, currentQuestionIndex, industry, setAnswers, setSignals, setCurrentQuestionIndex, updateFormData, processAnswer, coachAnswerMutation, toast]);
 
   const handleSkipQuestion = useCallback(() => {
     setCurrentQuestionIndex(currentQuestionIndex + 1);
+    setCoachingFeedback(null); // Clear coaching on skip
   }, [currentQuestionIndex, setCurrentQuestionIndex]);
+
+  const dismissCoaching = useCallback(() => {
+    setCoachingFeedback(null);
+  }, []);
 
   return {
     loadQuestions,
     handleAnswer,
     handleSkipQuestion,
+    // Coaching state
+    coachingFeedback,
+    isCoaching,
+    dismissCoaching,
   };
 }
