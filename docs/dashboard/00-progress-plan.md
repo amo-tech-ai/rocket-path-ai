@@ -1,8 +1,8 @@
 # StartupAI Dashboard System — Progress Plan
 
-> **Updated:** 2026-01-27 | **Version:** 2.7 | **Status:** Active
+> **Updated:** 2026-01-28 | **Version:** 2.8 | **Status:** Active
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 78% complete
+> **Overall Progress:** 85% complete
 
 ---
 
@@ -12,16 +12,16 @@
 |---|--------|---------|---------|----------|----------|---------|-------|--------|
 | 1 | **Onboarding** | 4-step wizard | ✅ 95% | ✅ 100% | ✅ 95% | **95%** | Done | — |
 | 2 | **Cloudinary** | — (infra) | ✅ 100% | N/A | ✅ 100% | **100%** | Done | — |
-| 3 | **Events** | 3 screens | ✅ 100% | 🟡 20% | ✅ 100% | **100%** | Done | — |
+| 3 | **Events** | 3 screens | ✅ 100% | ✅ 100% | ✅ 100% | **100%** | Done | — |
 | 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | Done | `01-lean-canvas.md` |
 | 5 | **Pitch Deck** | 3 screens | ✅ 95% | ✅ 90% | ✅ 85% | **90%** | Active | `pitch-decks/` |
 | 6 | **Main Dashboard** | 1 screen | ✅ 100% | ✅ 100% | ✅ 85% | **95%** | Done | `11-main-dashboard.md` |
 | 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | ✅ 80% | **90%** | Active | `12-crm.md` |
 | 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | ✅ 90% | **95%** | Done | `13-documents.md` |
 | 9 | **Investors** | 3 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | Done | `14-investors.md` |
-| 10 | **Projects** | 3 screens | ✅ 100% | ✅ 100% | ✅ 80% | **90%** | Done | `15-projects.md` |
+| 10 | **Projects** | 3 screens | ✅ 100% | ✅ 100% | ✅ 90% | **95%** | Done | `15-projects.md` |
 | 11 | **AI Chat** | 2 screens | ✅ 100% | ✅ 80% | ✅ 80% | **85%** | Active | `16-ai-chat.md` |
-| 12 | **Settings** | 4 tabs | N/A | N/A | 🟡 60% | **60%** | Planned | `17-settings.md` |
+| 12 | **Settings** | 6 tabs | N/A | N/A | ✅ 100% | **100%** | Done | `17-settings.md` |
 
 ---
 
@@ -31,7 +31,7 @@
 |----------|--------|---------------|------------|
 | **1** | ~~Onboarding~~ | ✅ Complete | — |
 | **2** | ~~Cloudinary~~ | ✅ Complete | — |
-| **3** | ~~Events~~ | ✅ Complete | — |
+| **3** | ~~Events~~ | ✅ Complete — event-agent deployed | — |
 | **4** | ~~**Lean Canvas**~~ | ✅ Complete — ProfileMappingBanner integrated | Onboarding data |
 | **5** | ~~**Pitch Deck**~~ | ✅ Export modal integrated | Onboarding data |
 | **6** | ~~**CRM**~~ | ✅ Backend + hooks + AI panel complete | — |
@@ -39,8 +39,8 @@
 | **8** | ~~**Main Dashboard**~~ | ✅ Real data wired, insights-generator deployed | Pitch deck + lean canvas data |
 | **9** | ~~**Investors**~~ | ✅ Detail sheet with AI wired (fit, prep, outreach) | CRM patterns |
 | **10** | ~~**AI Chat**~~ | ✅ Dedicated page created at `/ai-chat` | — |
-| **11** | ~~**Projects**~~ | ✅ task-agent edge function deployed | — |
-| **12** | **Settings** (complete tabs) | Polish, non-blocking | — |
+| **11** | ~~**Projects**~~ | ✅ task-agent deployed, TaskDetailSheet AI breakdown wired | — |
+| **12** | ~~**Settings**~~ | ✅ Complete — 6 tabs (Profile, Appearance, Notifications, Startup, Team, Account) | — |
 
 ---
 
@@ -57,14 +57,14 @@
 | `crm-agent` | 8 | ✅ Deployed | ✅ useCRMAgent | ✅ 80% | `12-crm.md` |
 | `documents-agent` | 6 | ✅ Deployed | ✅ useDocumentsAgent | ✅ 90% | `13-documents.md` |
 | `investor-agent` | 12 | ✅ Deployed | ✅ useInvestorAgent | ✅ 95% | `14-investors.md` |
-| `task-agent` | 6 | ✅ Deployed | ✅ useTaskAgent | ✅ 90% | `15-projects.md` |
+| `task-agent` | 6 | ✅ Deployed | ✅ useTaskAgent | ✅ 95% | `15-projects.md` |
 | `insights-generator` | 4 | ✅ Deployed | ✅ useInsights | ✅ 90% | `11-main-dashboard.md` |
+| `event-agent` | 5 | ✅ Deployed | ✅ useEventAgent | ✅ 80% | — |
 
 ### ❌ NOT DEPLOYED (need to create)
 
 | Function | Actions | Purpose | Prompt | Task File |
 |----------|---------|---------|--------|-----------|
-| `event-agent` | 8 | Event management, speaker research | — | — |
 | `chatbot-agent` | 22 | Advanced chat features | `16-ai-chat.md` | — |
 | `stage-analyzer` | 3 | Auto-detect startup stage | `11-main-dashboard.md` | `tasks/04-create-stage-analyzer.md` |
 

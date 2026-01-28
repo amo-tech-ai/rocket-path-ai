@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.insights-generator]
 verify_jwt = false
+
+[functions.event-agent]
+verify_jwt = false
