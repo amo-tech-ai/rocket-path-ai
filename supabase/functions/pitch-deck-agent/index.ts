@@ -22,6 +22,8 @@ import {
   suggestProblems,
   suggestCanvasField,
   generateInterviewDrafts,
+  generatePitchSuggestions,
+  generateFieldSuggestion,
 } from "./actions/index.ts";
 
 const corsHeaders = {
@@ -58,6 +60,7 @@ interface RequestBody {
   custom_prompt?: string;
   field?: string;
   problem?: string;
+  startup_context?: Record<string, unknown>;
 }
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -269,6 +272,25 @@ Deno.serve(async (req) => {
           body.industry,
           body.company_description || "",
           body.problem || ""
+        );
+        break;
+
+      // ===== Pitch Suggestions Actions (Step 2 AI) =====
+      case "pitch_suggestions":
+        result = await generatePitchSuggestions(
+          supabase,
+          user.id,
+          (body.startup_context || {}) as Record<string, unknown>
+        );
+        break;
+
+      case "field_suggestion":
+        if (!body.field) throw new Error("field is required");
+        result = await generateFieldSuggestion(
+          supabase,
+          user.id,
+          body.field as 'problem' | 'core_solution' | 'differentiator',
+          (body.startup_context || {}) as Record<string, unknown>
         );
         break;
 
