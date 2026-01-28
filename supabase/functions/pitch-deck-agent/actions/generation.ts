@@ -1,5 +1,6 @@
 /**
  * Deck Generation Actions: generate_deck
+ * Enhanced with realtime progress broadcasting
  */
 
 import { callGemini } from "../ai-utils.ts";
@@ -14,6 +15,27 @@ interface SlideContent {
   speaker_notes?: string;
 }
 
+/**
+ * Broadcast progress event to realtime channel
+ */
+async function broadcastProgress(
+  supabase: SupabaseClient,
+  deckId: string,
+  event: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    const channel = supabase.channel(`pitch_deck_generation:${deckId}`);
+    await channel.send({
+      type: 'broadcast',
+      event,
+      payload,
+    });
+  } catch (error) {
+    console.error(`[broadcastProgress] Error broadcasting ${event}:`, error);
+  }
+}
+
 export async function generateDeck(
   supabase: SupabaseClient,
   userId: string,
@@ -21,6 +43,13 @@ export async function generateDeck(
   template: string
 ) {
   console.log(`[generate_deck] Deck: ${deckId}, Template: ${template}`);
+
+  // Step 1: Understanding startup
+  await broadcastProgress(supabase, deckId, 'step_progress', {
+    step: 1,
+    progress: 0,
+    message: 'Understanding your startup...',
+  });
 
   // Fetch deck with wizard data
   const { data: deck, error: fetchError } = await supabase
@@ -62,9 +91,37 @@ export async function generateDeck(
     })
     .eq("id", deckId);
 
+  await broadcastProgress(supabase, deckId, 'step_complete', { step: 1 });
+
+  // Step 2: Researching market
+  await broadcastProgress(supabase, deckId, 'step_progress', {
+    step: 2,
+    progress: 0,
+    message: 'Researching your market...',
+  });
+
   // Build comprehensive context for AI
   const companyContext = buildCompanyContext(step1, step2, interviewAnswers);
+  
+  await broadcastProgress(supabase, deckId, 'step_complete', { step: 2 });
+
+  // Step 3: Structuring story
+  await broadcastProgress(supabase, deckId, 'step_progress', {
+    step: 3,
+    progress: 0,
+    message: 'Structuring your story...',
+  });
+
   const { systemPrompt, userPrompt } = buildGenerationPrompts(template, companyContext);
+
+  await broadcastProgress(supabase, deckId, 'step_complete', { step: 3 });
+
+  // Step 4: Designing deck
+  await broadcastProgress(supabase, deckId, 'step_progress', {
+    step: 4,
+    progress: 0,
+    message: 'Designing your deck...',
+  });
 
   // Try AI generation with Gemini Pro
   const aiResponse = await callGemini(
@@ -98,6 +155,15 @@ export async function generateDeck(
     console.log("[generate_deck] Using fallback template slides");
     slides = getFallbackSlides(step1, step2);
   }
+
+  await broadcastProgress(supabase, deckId, 'step_complete', { step: 4 });
+
+  // Step 5: Finalizing slides
+  await broadcastProgress(supabase, deckId, 'step_progress', {
+    step: 5,
+    progress: 0,
+    message: 'Finalizing slides...',
+  });
 
   // Delete existing slides
   await supabase
@@ -143,6 +209,14 @@ export async function generateDeck(
       metadata: finalMetadata,
     })
     .eq("id", deckId);
+
+  await broadcastProgress(supabase, deckId, 'step_complete', { step: 5 });
+
+  // Broadcast generation complete
+  await broadcastProgress(supabase, deckId, 'generation_complete', {
+    deck_id: deckId,
+    slide_count: slides.length,
+  });
 
   return {
     success: true,

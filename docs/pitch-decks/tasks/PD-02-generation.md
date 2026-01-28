@@ -1,12 +1,12 @@
 # PD-02: Pitch Deck Generation
 
-> **Status:** 🟡 80% Complete | **Priority:** P0 | **Category:** Backend/AI
+> **Status:** ✅ 95% Complete | **Priority:** P0 | **Category:** Backend/AI
 
 ---
 
 ## Summary
 
-AI-powered generation of 10-12 investor-ready slides from wizard data.
+AI-powered generation of 10-12 investor-ready slides from wizard data with animated progress UI.
 
 ---
 
@@ -28,9 +28,12 @@ AI-powered generation of 10-12 investor-ready slides from wizard data.
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `supabase/functions/pitch-deck-agent/actions/generation.ts` | Deck generation | ✅ |
+| `supabase/functions/pitch-deck-agent/actions/generation.ts` | Deck generation + realtime broadcasts | ✅ |
 | `supabase/functions/pitch-deck-agent/actions/images.ts` | Image generation | 🟡 |
-| `src/hooks/realtime/usePitchDeckRealtime.ts` | Progress updates | ✅ |
+| `src/pages/PitchDeckGenerating.tsx` | Generation progress page | ✅ NEW |
+| `src/components/pitchdeck/generation/GenerationProgress.tsx` | Animated progress UI | ✅ NEW |
+| `src/hooks/usePitchDeckGeneration.ts` | Generation state + realtime | ✅ NEW |
+| `src/hooks/realtime/usePitchDeckRealtime.ts` | Deck realtime updates | ✅ |
 
 ---
 
@@ -38,20 +41,29 @@ AI-powered generation of 10-12 investor-ready slides from wizard data.
 
 | Action | Model | Status |
 |--------|-------|--------|
-| `generate_deck` | Gemini 3 Pro | ✅ Implemented |
+| `generate_deck` | Gemini 3 Pro | ✅ Implemented + Realtime |
 | `generate_slide_visual` | Gemini 3 Pro Image | 🟡 Partial |
 | `generate_deck_visuals` | Gemini 3 Pro Image | 🟡 Partial |
 | `regenerate_slide_image` | Gemini 3 Pro Image | 🟡 Partial |
 
 ---
 
-## Gaps Identified
+## Realtime Progress Events
+
+| Event | Payload | Status |
+|-------|---------|--------|
+| `step_progress` | `{ step, progress, message }` | ✅ Implemented |
+| `step_complete` | `{ step }` | ✅ Implemented |
+| `generation_complete` | `{ deck_id, slide_count }` | ✅ Implemented |
+| `generation_failed` | `{ error }` | ✅ Implemented |
+
+---
+
+## Gaps Remaining
 
 | Gap | Description | Priority | Effort |
 |-----|-------------|----------|--------|
-| Progress UI | Animated generation screen missing | P1 | 4h |
-| Image generation | Nano Banana integration partial | P2 | 6h |
-| Realtime broadcast | Step progress events needed | P1 | 2h |
+| Image generation | Nano Banana integration | P2 | 6h |
 
 ---
 

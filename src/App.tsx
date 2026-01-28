@@ -32,6 +32,7 @@ import BlogPost from "./pages/BlogPost";
 import PitchDeckWizard from "./pages/PitchDeckWizard";
 import PitchDecksDashboard from "./pages/PitchDecksDashboard";
 import PitchDeckEditor from "./pages/PitchDeckEditor";
+import PitchDeckGenerating from "./pages/PitchDeckGenerating";
 import AIChat from "./pages/AIChat";
 import Analytics from "./pages/Analytics";
 
@@ -202,6 +203,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <PitchDeckEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/pitch-deck/:deckId/generating"
+              element={
+                <ProtectedRoute>
+                  <PitchDeckGenerating />
                 </ProtectedRoute>
               }
             />

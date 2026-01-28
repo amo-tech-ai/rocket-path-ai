@@ -1,8 +1,8 @@
 # Pitch Deck System — Master Index & Progress Tracker
 
-> **Version:** 6.0 | **Date:** January 28, 2026  
-> **Status:** 🟡 **92% Production Ready**  
-> **Overall Progress:** 92%
+> **Version:** 6.1 | **Date:** January 28, 2026  
+> **Status:** 🟢 **95% Production Ready**  
+> **Overall Progress:** 95%
 
 ---
 
@@ -11,15 +11,14 @@
 | Category | Status | Progress | Verified | Notes |
 |----------|--------|----------|----------|-------|
 | Database Schema | 🟢 Complete | 100% | ✅ | Tables + RLS |
-| Edge Function (12 actions) | 🟢 Complete | 100% | ✅ | All actions deployed |
+| Edge Function (12 actions) | 🟢 Complete | 100% | ✅ | All actions + realtime |
 | Wizard UI (4 steps) | 🟢 Complete | 100% | ✅ | Full validation |
+| **Generation Progress UI** | 🟢 Complete | 100% | ✅ | **NEW: Animated 5-step** |
 | Editor UI (3-panel) | 🟢 Complete | 95% | ✅ | Minor gaps |
 | Dashboard UI | 🟢 Complete | 90% | ✅ | Templates pending |
 | AI Slide Analysis | 🟢 Complete | 100% | ✅ | Gemini Flash |
 | Image Generation | 🟡 Partial | 40% | ⚠️ | Nano Banana pending |
 | Export (PDF/PPTX) | 🟢 Complete | 85% | ✅ | PPTX stub only |
-| Shareable Links | 🟡 Partial | 30% | ⚠️ | DB table needed |
-| Generation Progress UI | 🔴 Missing | 0% | ❌ | Not implemented |
 
 ---
 
