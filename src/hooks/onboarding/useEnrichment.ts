@@ -1,6 +1,6 @@
 /**
  * Enrichment Mutations
- * Handles URL, context, and founder enrichment via Gemini AI
+ * Handles URL, context, founder enrichment, and competitor generation via Gemini AI
  */
 
 import { useMutation } from '@tanstack/react-query';
@@ -12,7 +12,20 @@ import type {
   EnrichFounderParams,
   EnrichmentResult,
   FounderEnrichmentResult,
+  SessionIdParams,
 } from './types';
+
+interface CompetitorResult {
+  success: boolean;
+  competitors?: Array<{
+    name: string;
+    website?: string;
+    description?: string;
+    funding?: string;
+    differentiator?: string;
+  }>;
+  market_trends?: string[];
+}
 
 export function useEnrichment() {
   const { toast } = useToast();
@@ -68,12 +81,37 @@ export function useEnrichment() {
     },
   });
 
+  // Generate competitors using AI with Google Search grounding
+  const generateCompetitorsMutation = useMutation({
+    mutationFn: (params: SessionIdParams): Promise<CompetitorResult> =>
+      invokeAgent<CompetitorResult>({
+        action: 'generate_competitors',
+        session_id: params.session_id,
+      }),
+    onSuccess: () => {
+      toast({
+        title: 'Competitors updated',
+        description: 'AI found new competitor insights from web search.',
+      });
+    },
+    onError: (error) => {
+      console.error('Competitor generation failed:', error);
+      toast({
+        title: 'Re-scan failed',
+        description: 'Could not find competitor data. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     enrichUrl: enrichUrlMutation.mutateAsync,
     enrichContext: enrichContextMutation.mutateAsync,
     enrichFounder: enrichFounderMutation.mutateAsync,
+    generateCompetitors: generateCompetitorsMutation.mutateAsync,
     isEnrichingUrl: enrichUrlMutation.isPending,
     isEnrichingContext: enrichContextMutation.isPending,
     isEnrichingFounder: enrichFounderMutation.isPending,
+    isGeneratingCompetitors: generateCompetitorsMutation.isPending,
   };
 }
