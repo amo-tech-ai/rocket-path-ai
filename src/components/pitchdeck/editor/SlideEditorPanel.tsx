@@ -13,7 +13,8 @@ import {
   Sparkles,
   Check,
   AlertCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Play
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { ExportModal } from './ExportModal';
+import { SlideVisualPreview } from './SlideVisualPreview';
+import { SlideImageGenerator } from './SlideImageGenerator';
 import type { Slide, SlideContent } from '@/hooks/usePitchDeckEditor';
 
 interface SlideEditorPanelProps {
@@ -31,9 +34,12 @@ interface SlideEditorPanelProps {
   saveStatus: 'saved' | 'saving' | 'error';
   deckId: string;
   deckTitle: string;
+  isGeneratingImage?: boolean;
   onPrevSlide: () => void;
   onNextSlide: () => void;
   onUpdateContent: (slideId: string, updates: Partial<SlideContent>) => void;
+  onGenerateImage?: (customPrompt?: string, style?: string) => Promise<void>;
+  onStartPresentation?: () => void;
 }
 
 export function SlideEditorPanel({
@@ -43,9 +49,12 @@ export function SlideEditorPanel({
   saveStatus,
   deckId,
   deckTitle,
+  isGeneratingImage = false,
   onPrevSlide,
   onNextSlide,
   onUpdateContent,
+  onGenerateImage,
+  onStartPresentation,
 }: SlideEditorPanelProps) {
   const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -81,6 +90,12 @@ export function SlideEditorPanel({
         <div className="flex items-center gap-2">
           <SaveStatusIndicator status={saveStatus} />
           
+          {onStartPresentation && (
+            <Button variant="outline" size="sm" onClick={onStartPresentation}>
+              <Play className="w-4 h-4 mr-2" />
+              Present
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setExportModalOpen(true)}>
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -97,7 +112,19 @@ export function SlideEditorPanel({
         {currentSlide ? (
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Slide Preview */}
-            <SlidePreview slide={currentSlide} />
+            <SlideVisualPreview slide={currentSlide} />
+
+            {/* Image Generator */}
+            {onGenerateImage && (
+              <SlideImageGenerator
+                slideId={currentSlide.id}
+                slideType={currentSlide.slide_type}
+                slideTitle={currentSlide.title}
+                currentImageUrl={currentSlide.image_url || currentSlide.content?.background_image || null}
+                isGenerating={isGeneratingImage}
+                onGenerate={onGenerateImage}
+              />
+            )}
 
             {/* Content Editor */}
             <SlideContentEditor 

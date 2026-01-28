@@ -14,6 +14,7 @@ export interface SlideContent {
   bullets?: string[];
   metrics?: { label: string; value: string }[];
   image_url?: string;
+  background_image?: string;
   speaker_notes?: string;
   ai_suggestions?: AISuggestion[];
 }

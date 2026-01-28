@@ -18,6 +18,9 @@
 | [06-thinking.md](./06-thinking.md) | Advanced reasoning capabilities | ✅ |
 | [07-troubleshooting.md](./07-troubleshooting.md) | Error codes and solutions | ✅ |
 | [08-api-reference.md](./08-api-reference.md) | Quick API reference | ✅ |
+| [09-onboarding-agent-grounding.md](./09-onboarding-agent-grounding.md) | Onboarding AI integration | ✅ |
+| [10-nano-banana-image-generation.md](./10-nano-banana-image-generation.md) | Official Nano Banana docs | ✅ |
+| [11-nano-banana-implementation.md](./11-nano-banana-implementation.md) | Lovable AI Gateway integration | ✅ |
 
 ---
 
