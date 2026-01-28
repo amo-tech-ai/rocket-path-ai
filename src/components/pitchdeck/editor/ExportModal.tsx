@@ -65,65 +65,156 @@ export function ExportModal({
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      // Dynamic import of jsPDF
       const { jsPDF } = await import('jspdf');
+      
+      // Quality settings
+      const qualitySettings = {
+        standard: { width: 1280, height: 720 },
+        high: { width: 1920, height: 1080 },
+        print: { width: 2560, height: 1440 },
+      };
+      const { width, height } = qualitySettings[quality];
+      
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'pt',
-        format: [1920, 1080],
+        format: [width, height],
       });
+
+      // Professional color palette
+      const colors = {
+        background: { r: 15, g: 23, b: 42 },      // slate-900
+        backgroundAlt: { r: 30, g: 41, b: 59 },   // slate-800
+        title: { r: 248, g: 250, b: 252 },        // slate-50
+        subtitle: { r: 148, g: 163, b: 184 },     // slate-400
+        text: { r: 226, g: 232, b: 240 },         // slate-200
+        accent: { r: 99, g: 102, b: 241 },        // indigo-500
+        muted: { r: 100, g: 116, b: 139 },        // slate-500
+      };
 
       slides.forEach((slide, index) => {
         if (index > 0) {
           doc.addPage();
         }
 
-        // Background
-        doc.setFillColor(15, 23, 42); // slate-900
-        doc.rect(0, 0, 1920, 1080, 'F');
+        // Gradient-like background with subtle variation
+        doc.setFillColor(colors.background.r, colors.background.g, colors.background.b);
+        doc.rect(0, 0, width, height, 'F');
+        
+        // Subtle top accent bar
+        doc.setFillColor(colors.accent.r, colors.accent.g, colors.accent.b);
+        doc.rect(0, 0, width, 4, 'F');
 
-        // Title
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(72);
-        doc.text(slide.title || 'Untitled Slide', 960, 400, { align: 'center' });
+        // Slide type indicator
+        const slideTypeLabels: Record<string, string> = {
+          title: 'INTRODUCTION',
+          problem: 'THE PROBLEM',
+          solution: 'OUR SOLUTION',
+          market: 'MARKET OPPORTUNITY',
+          product: 'PRODUCT',
+          business_model: 'BUSINESS MODEL',
+          traction: 'TRACTION',
+          team: 'TEAM',
+          financials: 'FINANCIALS',
+          ask: 'THE ASK',
+          closing: 'THANK YOU',
+        };
+        
+        const slideType = slide.slide_type || 'content';
+        const slideLabel = slideTypeLabels[slideType] || slideType.toUpperCase();
+        doc.setFontSize(12);
+        doc.setTextColor(colors.accent.r, colors.accent.g, colors.accent.b);
+        doc.text(slideLabel, width * 0.05, height * 0.08);
+
+        // Main title - centered, large
+        doc.setTextColor(colors.title.r, colors.title.g, colors.title.b);
+        doc.setFontSize(width * 0.04); // Responsive font size
+        const titleY = slideType === 'title' ? height * 0.4 : height * 0.2;
+        doc.text(slide.title || 'Untitled Slide', width / 2, titleY, { align: 'center' });
 
         // Subtitle
         if (slide.subtitle) {
-          doc.setFontSize(36);
-          doc.setTextColor(148, 163, 184); // slate-400
-          doc.text(slide.subtitle, 960, 480, { align: 'center' });
+          doc.setFontSize(width * 0.02);
+          doc.setTextColor(colors.subtitle.r, colors.subtitle.g, colors.subtitle.b);
+          doc.text(slide.subtitle, width / 2, titleY + height * 0.06, { align: 'center' });
         }
 
-        // Bullets
+        // Bullets with professional styling
         if (slide.content?.bullets?.length) {
-          doc.setFontSize(28);
-          doc.setTextColor(226, 232, 240); // slate-200
+          doc.setFontSize(width * 0.018);
+          doc.setTextColor(colors.text.r, colors.text.g, colors.text.b);
+          
+          const bulletStartY = titleY + height * 0.15;
+          const bulletSpacing = height * 0.06;
+          const bulletIndent = width * 0.08;
+          const maxBulletWidth = width * 0.7;
+
           slide.content.bullets.forEach((bullet, bulletIndex) => {
-            doc.text(`• ${bullet}`, 400, 580 + bulletIndex * 50);
+            if (bulletIndex < 6) { // Max 6 bullets per slide
+              const bulletY = bulletStartY + bulletIndex * bulletSpacing;
+              
+              // Bullet point circle
+              doc.setFillColor(colors.accent.r, colors.accent.g, colors.accent.b);
+              doc.circle(bulletIndent - 15, bulletY - 5, 4, 'F');
+              
+              // Bullet text with wrapping
+              const lines = doc.splitTextToSize(bullet, maxBulletWidth);
+              doc.text(lines[0], bulletIndent, bulletY);
+              if (lines[1]) {
+                doc.setTextColor(colors.subtitle.r, colors.subtitle.g, colors.subtitle.b);
+                doc.text(lines[1], bulletIndent, bulletY + 20);
+              }
+            }
           });
         }
 
-        // Slide number
-        if (includeSlideNumbers) {
-          doc.setFontSize(18);
-          doc.setTextColor(100, 116, 139); // slate-500
-          doc.text(`${index + 1} / ${slides.length}`, 1880, 1050, { align: 'right' });
+        // Key metrics display for traction/financials slides
+        const hasMetrics = slide.content?.metrics && slide.content.metrics.length > 0;
+        if (hasMetrics && (slideType === 'traction' || slideType === 'financials')) {
+          const primaryMetric = slide.content.metrics![0];
+          doc.setFontSize(width * 0.06);
+          doc.setTextColor(colors.accent.r, colors.accent.g, colors.accent.b);
+          doc.text(`${primaryMetric.value}`, width / 2, height * 0.5, { align: 'center' });
+          doc.setFontSize(width * 0.02);
+          doc.setTextColor(colors.subtitle.r, colors.subtitle.g, colors.subtitle.b);
+          doc.text(primaryMetric.label, width / 2, height * 0.55, { align: 'center' });
         }
 
-        // Speaker notes on separate page
+        // Slide number with modern styling
+        if (includeSlideNumbers) {
+          doc.setFontSize(14);
+          doc.setTextColor(colors.muted.r, colors.muted.g, colors.muted.b);
+          doc.text(`${index + 1}`, width - 50, height - 30, { align: 'right' });
+          doc.setFontSize(10);
+          doc.text(`of ${slides.length}`, width - 30, height - 30);
+        }
+
+        // Company logo placeholder area
+        doc.setDrawColor(colors.muted.r, colors.muted.g, colors.muted.b);
+        doc.setLineWidth(0.5);
+
+        // Speaker notes on separate page (if enabled)
         if (includeSpeakerNotes && slide.content?.speaker_notes) {
           doc.addPage();
           doc.setFillColor(255, 255, 255);
-          doc.rect(0, 0, 1920, 1080, 'F');
-          doc.setTextColor(15, 23, 42);
+          doc.rect(0, 0, width, height, 'F');
+          
+          // Header
+          doc.setFillColor(colors.background.r, colors.background.g, colors.background.b);
+          doc.rect(0, 0, width, 80, 'F');
+          doc.setTextColor(255, 255, 255);
           doc.setFontSize(24);
-          doc.text(`Speaker Notes - Slide ${index + 1}`, 100, 100);
-          doc.setFontSize(18);
-          doc.text(slide.content.speaker_notes, 100, 160, { maxWidth: 1720 });
+          doc.text(`Speaker Notes — Slide ${index + 1}: ${slide.title || 'Untitled'}`, 40, 50);
+          
+          // Notes content
+          doc.setTextColor(30, 30, 30);
+          doc.setFontSize(16);
+          const noteLines = doc.splitTextToSize(slide.content.speaker_notes, width - 80);
+          doc.text(noteLines, 40, 120);
         }
       });
 
-      doc.save(`${deckTitle.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+      doc.save(`${deckTitle.replace(/\s+/g, '-').toLowerCase()}-pitch-deck.pdf`);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('PDF export error:', error);
