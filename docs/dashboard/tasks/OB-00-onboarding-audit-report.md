@@ -104,6 +104,16 @@ Comprehensive audit of the 4-step AI-powered onboarding wizard completed. **All 
 - **Problem**: `reset_session` and `generate_competitors` documented but not implemented
 - **Fix**: Added both functions with full Gemini integration
 
+### 3. Profile FK Race Condition (CRITICAL - Fixed 2026-01-28)
+- **Problem**: `wizard_sessions.user_id` has FK to `profiles.id`, but OAuth signup creates user before trigger creates profile
+- **Impact**: Session creation failed with "Key is not present in table profiles" 
+- **Fix**: Added `ensureProfileExists()` helper that creates profile if missing before session insert
+
+### 4. CORS Headers Missing Supabase Client Headers
+- **Problem**: Edge function didn't include `x-supabase-*` headers in CORS whitelist
+- **Impact**: Browser blocked edge function requests from Supabase JS client
+- **Fix**: Extended `corsHeaders` to include all required Supabase client headers
+
 ---
 
 ## Security Audit
