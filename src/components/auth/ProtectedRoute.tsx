@@ -2,8 +2,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
-// Set to true to bypass auth during development
-const DEV_BYPASS_AUTH = true;
+// PRODUCTION: Auth bypass disabled
+const DEV_BYPASS_AUTH = false;
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
