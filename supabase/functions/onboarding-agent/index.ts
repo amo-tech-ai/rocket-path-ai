@@ -159,6 +159,161 @@ async function updateSession(
   return { success: true };
 }
 
+// Reset session - archive old and create new
+async function resetSession(
+  supabase: SupabaseClient,
+  sessionId: string,
+  userId: string
+) {
+  console.log("Resetting session:", sessionId);
+
+  // Mark old session as abandoned
+  await supabase
+    .from("wizard_sessions")
+    .update({
+      status: "abandoned",
+      abandoned_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId);
+
+  // Create new session
+  const { data: newSession, error } = await supabase
+    .from("wizard_sessions")
+    .insert({
+      user_id: userId,
+      status: "in_progress",
+      current_step: 1,
+      form_data: {},
+      started_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Reset session error:", error);
+    throw new Error("Could not reset session");
+  }
+
+  return { session_id: newSession.id, reset: true };
+}
+
+// Generate competitors using Google Search grounding
+async function generateCompetitors(
+  supabase: SupabaseClient,
+  sessionId: string,
+  userId: string,
+  orgId: string
+) {
+  console.log("Generating competitors for session:", sessionId);
+  const startTime = Date.now();
+
+  // Get session data
+  const { data: session } = await supabase
+    .from("wizard_sessions")
+    .select("form_data, ai_extractions")
+    .eq("id", sessionId)
+    .single();
+
+  const formData = (session?.form_data || {}) as Record<string, unknown>;
+  const extractions = (session?.ai_extractions || {}) as Record<string, unknown>;
+  const companyName = formData.company_name || extractions.company_name || "startup";
+  const industry = formData.industry || extractions.industry || "technology";
+  const description = formData.description || extractions.description || "";
+
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY not configured");
+  }
+
+  const prompt = `Find direct competitors for this startup using real-time web search.
+
+Company: ${companyName}
+Industry: ${industry}
+Description: ${description}
+
+Use Google Search to find actual competitor companies. Return ONLY valid JSON:
+{
+  "competitors": [
+    {
+      "name": "string - company name",
+      "website": "string - company website URL",
+      "description": "string - what they do (1 sentence)",
+      "funding": "string - known funding if available",
+      "differentiator": "string - how the original startup differs"
+    }
+  ],
+  "market_trends": ["string array - 3-5 relevant market trends from search"],
+  "search_queries_used": ["string array - queries used to find this data"]
+}
+
+Find 3-5 real competitors. Only include companies that actually exist.`;
+
+  try {
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2000,
+            responseMimeType: "application/json",
+          },
+          tools: [{ google_search: {} }],
+        }),
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!responseText) {
+      throw new Error("No response from Gemini");
+    }
+
+    const competitorData = JSON.parse(responseText);
+    const duration = Date.now() - startTime;
+
+    // Log AI run
+    if (orgId) {
+      await logAiRun(supabase, {
+        user_id: userId,
+        org_id: orgId,
+        agent_name: "ProfileExtractor",
+        action: "generate_competitors",
+        model: "gemini-3-pro-preview",
+        duration_ms: duration,
+        status: "success",
+      });
+    }
+
+    // Merge with existing extractions
+    const currentExtractions = session?.ai_extractions || {};
+    const mergedExtractions = {
+      ...currentExtractions,
+      competitors: competitorData.competitors,
+      market_trends: competitorData.market_trends,
+      grounding_queries: competitorData.search_queries_used,
+    };
+
+    await supabase
+      .from("wizard_sessions")
+      .update({ ai_extractions: mergedExtractions })
+      .eq("id", sessionId);
+
+    return { success: true, ...competitorData };
+  } catch (error) {
+    console.error("Generate competitors error:", error);
+    throw error;
+  }
+}
+
 // Enrich startup data from URL using Gemini with URL context AND Google Search grounding
 async function enrichUrl(
   supabase: SupabaseClient,
@@ -924,6 +1079,17 @@ async function completeWizard(
     })
     .eq("id", sessionId);
 
+  // CRITICAL: Mark user profile as onboarding complete
+  // This gates access to dashboard vs redirect to onboarding
+  await supabase
+    .from("profiles")
+    .update({
+      onboarding_completed: true,
+      org_id: userOrgId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
   // Generate initial tasks
   const tasksToCreate = [
     {
@@ -1120,6 +1286,28 @@ Deno.serve(async (req: Request) => {
           throw new Error("session_id required");
         }
         result = await completeWizard(supabase, body.session_id, user.id);
+        break;
+
+      case "reset_session":
+        if (!body.session_id) {
+          throw new Error("session_id required");
+        }
+        result = await resetSession(supabase, body.session_id, user.id);
+        break;
+
+      case "generate_competitors":
+        if (!body.session_id) {
+          throw new Error("session_id required");
+        }
+        result = await generateCompetitors(supabase, body.session_id, user.id, orgId);
+        break;
+
+      // Alias for backwards compatibility
+      case "run_analysis":
+        if (!body.session_id) {
+          throw new Error("session_id required");
+        }
+        result = await calculateReadiness(supabase, body.session_id, user.id, orgId);
         break;
 
       default:
