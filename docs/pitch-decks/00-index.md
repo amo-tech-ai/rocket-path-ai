@@ -1,24 +1,8 @@
 # Pitch Deck System — Master Index & Progress Tracker
 
-> **Version:** 5.0 | **Date:** January 27, 2026  
-> **Status:** ✅ **100% Production Ready**  
-> **Overall Progress:** 100%
-
----
-
-## ✅ COMPLETED (This Session)
-
-| # | Task | File | Status |
-|---|------|------|--------|
-| 1 | Built Deck Editor UI (3-panel) | `PitchDeckEditor.tsx` | ✅ **DONE** |
-| 2 | Built Dashboard UI (grid + filters) | `PitchDecksDashboard.tsx` | ✅ **DONE** |
-| 3 | Created usePitchDeckEditor hook | `usePitchDeckEditor.ts` | ✅ **DONE** |
-| 4 | Created usePitchDecks hook | `usePitchDecks.ts` | ✅ **DONE** |
-| 5 | Added sidebar navigation | `DashboardLayout.tsx` | ✅ **DONE** |
-| 6 | Configured all routes | `App.tsx` | ✅ **DONE** |
-| 7 | Added `analyze_slide` action | `pitch-deck-agent` | ✅ **DONE** |
-| 8 | Connected real AI suggestions | `usePitchDeckEditor.ts` | ✅ **DONE** |
-| 9 | Production audit complete | `08-production-audit.md` | ✅ **DONE** |
+> **Version:** 6.0 | **Date:** January 28, 2026  
+> **Status:** 🟡 **92% Production Ready**  
+> **Overall Progress:** 92%
 
 ---
 
@@ -26,103 +10,56 @@
 
 | Category | Status | Progress | Verified | Notes |
 |----------|--------|----------|----------|-------|
-| Database Schema | 🟢 Completed | 100% | ✅ | Tables + RLS in place |
-| Edge Function (8 actions) | 🟢 Completed | 100% | ✅ | All actions + analyze_slide |
-| Gemini AI Integration | 🟢 Completed | 100% | ✅ | Pro + Flash connected |
-| 4-Step Wizard UI | 🟢 Completed | 100% | ✅ | Full validation + signals |
-| Smart Interview AI | 🟢 Completed | 100% | ✅ | Signal extraction, hints |
-| Signal Strength Calculation | 🟢 Completed | 100% | ✅ | Real-time scoring |
-| Deck Editor UI | 🟢 Completed | 100% | ✅ | 3-panel + real AI |
-| Dashboard UI | 🟢 Completed | 100% | ✅ | Grid, filters, AI panel |
-| AI Slide Suggestions | 🟢 Completed | 100% | ✅ | Gemini Flash connected |
-| Navigation | 🟢 Completed | 100% | ✅ | Sidebar + footer links |
+| Database Schema | 🟢 Complete | 100% | ✅ | Tables + RLS |
+| Edge Function (12 actions) | 🟢 Complete | 100% | ✅ | All actions deployed |
+| Wizard UI (4 steps) | 🟢 Complete | 100% | ✅ | Full validation |
+| Editor UI (3-panel) | 🟢 Complete | 95% | ✅ | Minor gaps |
+| Dashboard UI | 🟢 Complete | 90% | ✅ | Templates pending |
+| AI Slide Analysis | 🟢 Complete | 100% | ✅ | Gemini Flash |
+| Image Generation | 🟡 Partial | 40% | ⚠️ | Nano Banana pending |
+| Export (PDF/PPTX) | 🟢 Complete | 85% | ✅ | PPTX stub only |
+| Shareable Links | 🟡 Partial | 30% | ⚠️ | DB table needed |
+| Generation Progress UI | 🔴 Missing | 0% | ❌ | Not implemented |
+
+---
+
+## Task File Registry
+
+| Task ID | Name | Status | File |
+|---------|------|--------|------|
+| PD-01 | Wizard (4-Step) | ✅ 100% | [tasks/PD-01-wizard.md](tasks/PD-01-wizard.md) |
+| PD-02 | Deck Generation | 🟡 80% | [tasks/PD-02-generation.md](tasks/PD-02-generation.md) |
+| PD-03 | Editor (3-Panel) | ✅ 95% | [tasks/PD-03-editor.md](tasks/PD-03-editor.md) |
+| PD-04 | Dashboard | ✅ 90% | [tasks/PD-04-dashboard.md](tasks/PD-04-dashboard.md) |
+| PD-05 | Export & Sharing | ✅ 85% | [tasks/PD-05-export.md](tasks/PD-05-export.md) |
+| PD-06 | Image Generation | 🟡 40% | [tasks/PD-06-image-generation.md](tasks/PD-06-image-generation.md) |
+| PD-07 | Data Cycle | ✅ 90% | [tasks/PD-07-data-cycle.md](tasks/PD-07-data-cycle.md) |
+
+---
+
+## Prompt File Registry
+
+| Prompt | Name | Location |
+|--------|------|----------|
+| 06 | Dashboard Spec | [prompts/06-dashboard.md](prompts/06-dashboard.md) |
+| 12 | Generation Spec | [prompts/12-generation.md](prompts/12-generation.md) |
+| 12.1 | Image Generation Spec | [prompts/12.1-image-generation.md](prompts/12.1-image-generation.md) |
+| 13 | Editor Spec | [prompts/13-editor.md](prompts/13-editor.md) |
+| 14 | Data Cycle Spec | [prompts/14-cycle.md](prompts/14-cycle.md) |
 
 ---
 
 ## Route Map
 
-| Route | Page | Description | Status |
-|-------|------|-------------|--------|
-| `/app/pitch-decks` | Dashboard | List all decks with filters | ✅ |
-| `/app/pitch-deck/new` | Wizard | Create new deck (4 steps) | ✅ |
-| `/app/pitch-deck/:deckId` | Wizard | Resume in-progress deck | ✅ |
-| `/app/pitch-deck/:deckId/edit` | Editor | Edit generated slides | ✅ |
-
----
-
-## Documentation Files
-
-| File | Phase | Priority | Status | Purpose |
-|------|-------|----------|--------|---------|
-| **00-index.md** | — | P0 | 📋 | Master index & progress tracker |
-| **01-foundation.md** | Foundation | P0 | ✅ Done | Core architecture, layout |
-| **02-core.md** | Core | P0 | ✅ Done | Essential workflows |
-| **03-mvp.md** | MVP | P0 | ✅ Done | 4-step wizard UI specs |
-| **04-edge-functions.md** | MVP | P0 | ✅ Done | 7 edge function contracts |
-| **05-deck-editor.md** | Post-MVP | P1 | ✅ Implemented | 3-panel deck editor |
-| **06-dashboard.md** | Post-MVP | P1 | ✅ Implemented | Deck listing |
-| **07-ai-integration.md** | MVP | P0 | ✅ Done | AI agent specifications |
-| **09-industry-logic.md** | MVP | P0 | ✅ Done | Industry conditional logic |
-| **11-industry-strategy.md** | MVP | P0 | ✅ Done | Question packs |
-
----
-
-## Implementation Progress Tracker
-
-### Phase 0: Foundation ✅ 100%
-
-| Task | Status | % | Notes |
-|------|--------|---|-------|
-| Database Schema | 🟢 Completed | 100% | pitch_decks, pitch_deck_slides |
-| JSONB Structures | 🟢 Completed | 100% | metadata.wizard_data |
-| Zod Schemas | 🟢 Completed | 100% | pitchDeckSchema.ts |
-| Route Configuration | 🟢 Completed | 100% | /app/pitch-deck routes |
-
-### Phase 1: Core MVP ✅ 100%
-
-| Task | Status | % | Notes |
-|------|--------|---|-------|
-| **Wizard Layout** | 🟢 Completed | 100% | 3-panel responsive |
-| **WizardStepper** | 🟢 Completed | 100% | Left nav with icons |
-| **WizardAIPanel** | 🟢 Completed | 100% | Tips + signal strength |
-| **Step 1: Startup Info** | 🟢 Completed | 100% | Industry tiles, stages |
-| **Step 2: Market & Traction** | 🟢 Completed | 100% | All fields validated |
-| **Step 3: Smart Interview** | 🟢 Completed | 100% | Signal extraction, hints |
-| **Step 4: Review & Generate** | 🟢 Completed | 100% | Checklist, generate |
-| **usePitchDeckWizard Hook** | 🟢 Completed | 100% | Full state management |
-| **Auto-save** | 🟢 Completed | 100% | Saves on step change |
-| **Signal Strength** | 🟢 Completed | 100% | Real-time calculation |
-
-### Phase 1: Edge Functions ✅ 100%
-
-| Action | Status | AI Model | Notes |
-|--------|--------|----------|-------|
-| **save_wizard_step** | 🟢 Completed | — | Creates/updates deck |
-| **resume_wizard** | 🟢 Completed | — | Loads wizard_data |
-| **generate_interview_questions** | 🟢 Completed | Gemini Flash | Dynamic industry Q's |
-| **generate_deck** | 🟢 Completed | Gemini 3 Pro | Full 10-slide generation |
-| **get_deck** | 🟢 Completed | — | Fetch deck + slides |
-| **get_signal_strength** | 🟢 Completed | — | Calculate score |
-| **update_slide** | 🟢 Completed | — | Edit slide content |
-
-### Phase 2: Post-MVP ✅ 100%
-
-| Task | Status | % | Priority | Notes |
-|------|--------|---|----------|-------|
-| **Deck Editor UI** | 🟢 Completed | 100% | P2 | 3-panel with AI |
-| **Dashboard UI** | 🟢 Completed | 100% | P2 | Grid, filters, stats |
-| **usePitchDeckEditor Hook** | 🟢 Completed | 100% | P2 | Slide management |
-| **usePitchDecks Hook** | 🟢 Completed | 100% | P2 | Portfolio stats |
-| **Sidebar Navigation** | 🟢 Completed | 100% | P2 | DashboardLayout |
-
-### Phase 3: Polish 🟡 20%
-
-| Task | Status | % | Priority | Notes |
-|------|--------|---|----------|-------|
-| **AI Copilot (6 agents)** | 🟡 Partial | 40% | P3 | Mock suggestions |
-| **Export PDF** | 🔴 Placeholder | 0% | P2 | Button only |
-| **Export PPTX** | 🔴 Not Started | 0% | P3 | — |
-| **Shareable Link** | 🔴 Not Started | 0% | P3 | — |
+| Route | Page | Status |
+|-------|------|--------|
+| `/app/pitch-decks` | Dashboard | ✅ |
+| `/app/pitch-deck/new` | Wizard (new) | ✅ |
+| `/app/pitch-deck/:deckId` | Wizard (resume) | ✅ |
+| `/app/pitch-deck/:deckId/edit` | Editor | ✅ |
+| `/app/pitch-deck/generating/:deckId` | Generation Progress | 🔴 Missing |
+| `/share/:shareId` | Public View | 🔴 Missing |
+| `/app/pitch-deck/:deckId/present` | Presentation Mode | 🔴 Missing |
 
 ---
 
@@ -132,41 +69,165 @@
 src/
 ├── pages/
 │   ├── PitchDeckWizard.tsx          ✅ Complete
-│   ├── PitchDeckEditor.tsx          ✅ Complete (NEW)
-│   └── PitchDecksDashboard.tsx      ✅ Complete (NEW)
+│   ├── PitchDeckEditor.tsx          ✅ Complete
+│   ├── PitchDecksDashboard.tsx      ✅ Complete
+│   ├── PitchDeckGenerating.tsx      🔴 Missing
+│   └── PitchDeckPresent.tsx         🔴 Missing
 ├── components/pitchdeck/
-│   └── wizard/
-│       ├── index.ts                  ✅ Complete
-│       ├── WizardLayout.tsx          ✅ Complete
-│       ├── WizardStepper.tsx         ✅ Complete
-│       ├── WizardStep1.tsx           ✅ Complete
-│       ├── WizardStep2.tsx           ✅ Complete
-│       ├── WizardStep3.tsx           ✅ Enhanced
-│       ├── WizardStep4.tsx           ✅ Complete
-│       └── WizardAIPanel.tsx         ✅ Complete
+│   ├── wizard/
+│   │   ├── WizardLayout.tsx         ✅ Complete
+│   │   ├── WizardStepper.tsx        ✅ Complete
+│   │   ├── WizardStep1.tsx          ✅ Complete
+│   │   ├── WizardStep2.tsx          ✅ Complete
+│   │   ├── WizardStep3.tsx          ✅ Complete
+│   │   ├── WizardStep4.tsx          ✅ Complete
+│   │   └── WizardAIPanel.tsx        ✅ Complete
+│   ├── editor/
+│   │   ├── SlideNavigationPanel.tsx ✅ Complete
+│   │   ├── SlideEditorPanel.tsx     ✅ Complete
+│   │   ├── AIIntelligencePanel.tsx  ✅ Complete
+│   │   └── ExportModal.tsx          ✅ Complete
+│   ├── dashboard/
+│   │   ├── DeckCard.tsx             ✅ Complete
+│   │   ├── DeckFiltersBar.tsx       ✅ Complete
+│   │   ├── PortfolioSummaryPanel.tsx ✅ Complete
+│   │   └── EmptyState.tsx           ✅ Complete
+│   └── generation/
+│       └── GenerationProgress.tsx   🔴 Missing
 ├── hooks/
 │   ├── usePitchDeckWizard.ts        ✅ Complete
-│   ├── usePitchDeckEditor.ts        ✅ Complete (NEW)
-│   ├── usePitchDecks.ts             ✅ Complete (NEW)
-│   └── useDebounce.ts               ✅ Complete (NEW)
-└── lib/
-    └── pitchDeckSchema.ts            ✅ Complete
-    
-supabase/functions/
-└── pitch-deck-agent/
-    └── index.ts                      ✅ Complete (7 actions + Gemini AI)
+│   ├── usePitchDeckEditor.ts        ✅ Complete
+│   ├── usePitchDecks.ts             ✅ Complete
+│   └── usePitchDeckGeneration.ts    🔴 Missing
+
+supabase/functions/pitch-deck-agent/
+├── index.ts                          ✅ Complete
+├── ai-utils.ts                       ✅ Complete
+├── types.ts                          ✅ Complete
+└── actions/
+    ├── wizard.ts                     ✅ Complete
+    ├── interview.ts                  ✅ Complete
+    ├── generation.ts                 ✅ Complete
+    ├── slides.ts                     ✅ Complete
+    ├── research.ts                   ✅ Complete
+    ├── images.ts                     🟡 Partial
+    └── step1.ts                      ✅ Complete
 ```
 
 ---
 
-## Priority Next Steps
+## Edge Function Actions (12 Total)
 
-| Priority | Task | Impact | Effort | Notes |
-|----------|------|--------|--------|-------|
-| P2 | Implement Export PDF | Download decks | 4h | Use jspdf |
-| P3 | Full AI Copilot | Real Gemini suggestions | 8h | Replace mocks |
-| P3 | Export PPTX | PowerPoint export | 6h | — |
-| P3 | Shareable Links | Public deck URL | 4h | — |
+| # | Action | Model | Status |
+|---|--------|-------|--------|
+| 1 | `save_wizard_step` | — | ✅ |
+| 2 | `resume_wizard` | — | ✅ |
+| 3 | `generate_interview_questions` | Gemini Flash | ✅ |
+| 4 | `generate_deck` | Gemini 3 Pro | ✅ |
+| 5 | `get_deck` | — | ✅ |
+| 6 | `update_slide` | — | ✅ |
+| 7 | `get_signal_strength` | — | ✅ |
+| 8 | `analyze_slide` | Gemini Flash | ✅ |
+| 9 | `research_industry` | Gemini Pro + Grounding | ✅ |
+| 10 | `suggest_problems` | Gemini Flash | ✅ |
+| 11 | `generate_slide_visual` | Gemini 3 Pro Image | 🟡 Stub |
+| 12 | `conduct_market_research` | Gemini Pro + Grounding | ✅ |
+
+---
+
+## Gap Analysis & Priority Plan
+
+### 🔴 P1 Critical Gaps (Must Fix)
+
+| Gap | Description | Effort | Files Needed |
+|-----|-------------|--------|--------------|
+| Generation Progress UI | Animated progress screen (Prompt 12) | 6h | `PitchDeckGenerating.tsx`, `GenerationProgress.tsx`, `usePitchDeckGeneration.ts` |
+| Realtime Progress Events | Broadcast step progress during generation | 2h | `generation.ts` updates |
+
+### 🟡 P2 Important Gaps
+
+| Gap | Description | Effort | Files Needed |
+|-----|-------------|--------|--------------|
+| Image Generation | Full Nano Banana implementation | 8h | `images.ts` completion |
+| Slide Drag & Drop | Reorder slides in editor | 3h | `SlideNavigationPanel.tsx` |
+| Layout Selector | Change slide layouts | 2h | `SlideEditorPanel.tsx` |
+| Speaker Notes Toggle | Show/hide speaker notes | 1h | `SlideEditorPanel.tsx` |
+| PPTX Export | Full PowerPoint export | 8h | pptxgenjs integration |
+
+### 🔵 P3 Nice-to-Have
+
+| Gap | Description | Effort | Files Needed |
+|-----|-------------|--------|--------------|
+| Presentation Mode | Fullscreen slides view | 4h | `PitchDeckPresent.tsx` |
+| Shareable Links | Public view with expiration | 4h | DB table + edge function + `ShareView.tsx` |
+| Template Selector | Start from templates | 4h | Template modal + DB |
+| Deck Thumbnails | Real slide previews | 6h | html2canvas integration |
+| Full AI Copilot | All 6 agents live | 8h | Agent implementations |
+
+---
+
+## Implementation Sequence (Recommended)
+
+### Phase 1: Generation Progress (P1) — 8h
+
+1. Create `src/pages/PitchDeckGenerating.tsx` with animated progress
+2. Create `src/components/pitchdeck/generation/GenerationProgress.tsx`
+3. Create `src/hooks/usePitchDeckGeneration.ts` with realtime
+4. Update `generation.ts` to broadcast step events
+5. Add route `/app/pitch-deck/generating/:deckId`
+6. Wire wizard → generation → editor flow
+
+### Phase 2: Editor Polish (P2) — 6h
+
+1. Add drag & drop to `SlideNavigationPanel.tsx`
+2. Add layout selector to `SlideEditorPanel.tsx`
+3. Add speaker notes toggle
+4. Add keyboard shortcuts (Cmd+Z, arrows)
+
+### Phase 3: Image Generation (P2) — 10h
+
+1. Complete `images.ts` with Gemini Image API
+2. Add storage bucket for images
+3. Add image preview in editor
+4. Add regenerate button
+
+### Phase 4: Export & Sharing (P3) — 16h
+
+1. Add pptxgenjs for real PPTX export
+2. Create shareable links table
+3. Create public view route
+4. Add presentation mode
+
+---
+
+## Verification Checklist
+
+### Wizard ✅
+- [x] 4-step navigation
+- [x] Industry selection
+- [x] AI interview questions
+- [x] Signal strength calculation
+- [x] Auto-save
+
+### Editor ✅
+- [x] 3-panel layout
+- [x] Slide selection
+- [x] Content editing
+- [x] AI suggestions
+- [x] Export PDF
+
+### Dashboard ✅
+- [x] Deck grid
+- [x] Filters (status, date, search)
+- [x] Portfolio stats
+- [x] CRUD actions
+
+### Generation 🟡
+- [x] Deck creation
+- [x] Slide generation
+- [ ] Progress UI
+- [ ] Realtime updates
+- [ ] Image generation
 
 ---
 
@@ -174,17 +235,14 @@ supabase/functions/
 
 | Date | Change | Status |
 |------|--------|--------|
-| 2026-01-27 | Built PitchDeckEditor.tsx (3-panel) | ✅ |
-| 2026-01-27 | Built PitchDecksDashboard.tsx | ✅ |
-| 2026-01-27 | Created usePitchDeckEditor hook | ✅ |
-| 2026-01-27 | Created usePitchDecks hook | ✅ |
-| 2026-01-27 | Added Pitch Decks to sidebar nav | ✅ |
-| 2026-01-27 | Configured all routes in App.tsx | ✅ |
-| 2026-01-27 | Enhanced Smart Interviewer with signals | ✅ |
-| 2026-01-27 | Added Gemini 3 Pro for deck generation | ✅ |
-| 2026-01-27 | Added Gemini Flash for interview questions | ✅ |
+| 2026-01-28 | Added task files (PD-01 through PD-07) | ✅ |
+| 2026-01-28 | Added prompt files from uploads | ✅ |
+| 2026-01-28 | Comprehensive gap analysis | ✅ |
+| 2026-01-28 | Updated to v6.0 with 92% complete | ✅ |
+| 2026-01-27 | Editor + Dashboard implementation | ✅ |
+| 2026-01-27 | Edge function 12 actions | ✅ |
 
 ---
 
-**Last Updated:** January 27, 2026  
+**Last Updated:** January 28, 2026  
 **Maintainer:** AI Systems Architect
