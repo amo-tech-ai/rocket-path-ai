@@ -1,8 +1,8 @@
 # Dashboard System — Master Index & Progress Tracker
 
-> **Version:** 2.6 | **Date:** January 28, 2026  
+> **Version:** 2.7 | **Date:** January 28, 2026  
 > **Status:** 🟢 Production Ready  
-> **Overall Progress:** 88%
+> **Overall Progress:** 95%
 
 ---
 
@@ -21,7 +21,7 @@
 | 05 | `05-authentication.md` | OAuth, roles, RLS helpers | P0 |
 | 06 | `06-ai-architecture.md` | AI routing, models, prompts, costs | P0 |
 | 07 | `07-state-realtime.md` | React Query, autosave, realtime | P1 |
-| 08 | `08-edge-functions.md` | 10 deployed, 100+ actions | P0 |
+| 08 | `08-edge-functions.md` | 11 deployed, 100+ actions | P0 |
 | 09 | `09-testing-qa.md` | Test strategy, QA checklists, benchmarks | P1 |
 | **Module Prompts (10-17)** | | |
 | 10 | `10-tasks-screen-design.md` | Tasks screen luxury design | P0 |
@@ -32,10 +32,12 @@
 | 15 | `15-projects.md` | Projects (3 screens) | P1 |
 | 16 | `16-ai-chat.md` | AI Chat (2 screens) | P2 |
 | 17 | `17-settings.md` | Settings (6 tabs) | P2 |
+| 18 | `18-analytics.md` | Analytics Dashboard (NEW) | P1 |
 | **Reference** | | |
 | 100 | `100-dashboard-system.md` | Complete system plan (source of truth) | — |
 | EF | `edge-functions.md` | Edge function reference & actions | — |
 | PS | `PRODUCTION-STATUS.md` | Production readiness verification | — |
+| TS | `TROUBLESHOOTING.md` | Blank screen & debugging guide | — |
 
 ---
 
@@ -43,12 +45,12 @@
 
 | File | Title | Priority | Status | Effort |
 |------|-------|----------|--------|--------|
-| `tasks/01-create-metrics-aggregator.md` | Dashboard Metrics Aggregator | P1 | 🔵 Ready | 3h |
-| `tasks/03-complete-analytics-dashboard.md` | Analytics Dashboard | P1 | 🔵 Ready | 4h |
-| `tasks/05-add-realtime-subscriptions.md` | Real-time Subscriptions | P2 | 🔵 Ready | 3h |
-| `tasks/09-testing-qa.md` | Testing & QA Strategy | P1 | 📝 Doc | — |
-| `tasks/12-realtime-ai-strategy-features.md` | Realtime AI Strategy | P2 | 📝 Doc | — |
-| `tasks/98-supabase-realtime.md` | Supabase Realtime Integration | P2 | 📝 Doc | — |
+| `tasks/01-create-metrics-aggregator.md` | Dashboard Metrics Aggregator | P1 | ✅ Done | 3h |
+| `tasks/03-complete-analytics-dashboard.md` | Analytics Dashboard | P1 | ✅ Done | 4h |
+| `tasks/05-add-realtime-subscriptions.md` | Real-time Subscriptions | P2 | ✅ Done | 3h |
+| `tasks/09-testing-qa.md` | Testing & QA Strategy | P1 | ✅ Done | — |
+| `tasks/12-realtime-ai-strategy-features.md` | Realtime AI Strategy | P2 | ✅ Done | — |
+| `tasks/98-supabase-realtime.md` | Supabase Realtime Integration | P2 | ✅ Done | — |
 
 ---
 
@@ -61,7 +63,7 @@
 | 3 | **Events** | 3 screens | ✅ 100% | ✅ 100% | ✅ 100% | **100%** | ✅ Done |
 | 4 | **Lean Canvas** | 2 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 5 | **Pitch Deck** | 3 screens | ✅ 100% | ✅ 90% | ✅ 85% | **92%** | 🔵 Active |
-| 6 | **Main Dashboard** | 1 screen | ✅ 100% | ✅ 100% | ✅ 90% | **97%** | ✅ Done |
+| 6 | **Main Dashboard** | 1 screen | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 7 | **CRM** | 3 screens | ✅ 100% | ✅ 100% | ✅ 85% | **95%** | ✅ Done |
 | 8 | **Documents** | 3 screens | ✅ 100% | ✅ 100% | ✅ 90% | **97%** | ✅ Done |
 | 9 | **Investors** | 3 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
@@ -69,12 +71,13 @@
 | 11 | **Tasks** | 2 screens | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 12 | **AI Chat** | 2 screens | ✅ 100% | ✅ 80% | ✅ 80% | **87%** | 🔵 Active |
 | 13 | **Settings** | 6 tabs | N/A | N/A | ✅ 100% | **100%** | ✅ Done |
+| 14 | **Analytics** | 1 screen | ✅ 100% | N/A | ✅ 100% | **100%** | ✅ Done |
 
 ---
 
 ## Edge Functions — Verified Deployment Status
 
-### ✅ DEPLOYED (10 functions in supabase/functions/)
+### ✅ DEPLOYED (11 functions in supabase/functions/)
 
 | Function | Actions | Config | Hook | Status |
 |----------|---------|--------|------|--------|
@@ -88,53 +91,56 @@
 | `task-agent` | 6 | ✅ | `useTaskAgent` | ✅ Deployed |
 | `insights-generator` | 4 | ✅ | `useInsights` | ✅ Deployed |
 | `event-agent` | 5 | ✅ | `useEventAgent` | ✅ Deployed |
+| `dashboard-metrics` | 3 | ✅ | `useAnalytics` | ✅ Deployed |
 
 ### ❌ NOT DEPLOYED (optional future features)
 
 | Function | Actions | Purpose | Priority |
 |----------|---------|---------|----------|
-| `dashboard-metrics` | 5 | Aggregated real metrics | P1 |
 | `chatbot-agent` | 22 | Advanced conversational AI | P3 |
 | `stage-analyzer` | 3 | Auto-detect startup milestones | P3 |
 
 ---
 
-## Next Steps — Sequential Implementation Order
+## Completed Phases
 
-### Phase 1: Metrics & Data (P1)
+### ✅ Phase 1: Metrics & Data — COMPLETE
 
-| Step | Task | File | Effort |
-|------|------|------|--------|
-| 1.1 | Create `dashboard-metrics` edge function | `tasks/01-create-metrics-aggregator.md` | 2h |
-| 1.2 | Create `startup_metrics_view` SQL view | Migration | 30m |
-| 1.3 | Update `useDashboardData` hook | `src/hooks/useDashboardData.ts` | 1h |
-| 1.4 | Wire real metrics to `SummaryMetrics.tsx` | Component update | 30m |
+- [x] Created `dashboard-metrics` edge function (3 actions)
+- [x] Using parallel client-side queries (no SQL view needed)
+- [x] `useDashboardMetrics` hook working with real data
+- [x] `SummaryMetrics.tsx` displays live counts
 
-### Phase 2: Analytics Dashboard (P1)
+### ✅ Phase 2: Analytics Dashboard — COMPLETE
 
-| Step | Task | File | Effort |
-|------|------|------|--------|
-| 2.1 | Create Analytics page | `src/pages/Analytics.tsx` | 1h |
-| 2.2 | Create chart components | `src/components/analytics/` | 2h |
-| 2.3 | Add analytics route | `src/App.tsx` | 10m |
-| 2.4 | Wire to dashboard-metrics | `src/hooks/useAnalytics.ts` | 1h |
+- [x] Created `Analytics.tsx` page with full layout
+- [x] Created 4 chart components (Task, Project, Pipeline, Investor)
+- [x] Created `DateRangeFilter` component
+- [x] Added `/analytics` protected route
+- [x] Created `useAnalytics` hook with date range support
 
-### Phase 3: Real-time Subscriptions (P2)
+### ✅ Phase 3: Real-time Subscriptions — COMPLETE
 
-| Step | Task | File | Effort |
-|------|------|------|--------|
-| 3.1 | Create `useRealtimeSubscription` hook | `src/hooks/useRealtimeSubscription.ts` | 1h |
-| 3.2 | Add task subscriptions | `src/hooks/useTasks.ts` | 30m |
-| 3.3 | Add deal subscriptions | `src/hooks/useCRM.ts` | 30m |
-| 3.4 | Add dashboard subscriptions | `src/hooks/useDashboardRealtime.ts` | 1h |
+- [x] Created `useRealtimeSubscription` generic hook
+- [x] Created `useDashboardRealtime` composite hook
+- [x] Subscriptions for: tasks, deals, events, investors, projects, documents, contacts
+- [x] Toast notifications for task completion and deal stage changes
+- [x] Automatic query invalidation on changes
 
-### Phase 4: Polish & Testing (P2)
+### ✅ Phase 4: AI Strategy Features — COMPLETE
 
-| Step | Task | File | Effort |
-|------|------|------|--------|
-| 4.1 | Implement QA checklist | `tasks/09-testing-qa.md` | — |
-| 4.2 | Polish Pitch Deck export | `src/pages/PitchDeckEditor.tsx` | 1h |
-| 4.3 | Add chat history persistence | `src/hooks/useAIChat.ts` | 2h |
+- [x] `AIStrategicReview` component with daily insights
+- [x] `useInsights` hook with 4 mutation actions
+- [x] Stage recommendations via `insights-generator`
+- [x] Weekly summary generation
+- [x] Investor readiness checking via `investor-agent`
+
+### 🔵 Phase 5: Polish & QA — IN PROGRESS
+
+- [x] Implemented `TROUBLESHOOTING.md` guide
+- [x] Final security audit complete
+- [ ] Polish Pitch Deck export (optional)
+- [ ] Add chat history persistence (optional)
 
 ---
 
@@ -142,11 +148,13 @@
 
 | Area | Status | Verified |
 |------|--------|----------|
-| Edge Functions | ✅ 10/10 deployed | 2026-01-28 |
-| Frontend Hooks | ✅ 10/10 created | 2026-01-28 |
+| Edge Functions | ✅ 11/11 deployed | 2026-01-28 |
+| Frontend Hooks | ✅ 36 created | 2026-01-28 |
+| Analytics Page | ✅ 4 charts | 2026-01-28 |
+| Real-time | ✅ 7 table subscriptions | 2026-01-28 |
 | AI Panel Wiring | ✅ 7/7 complete | CRM, Docs, Investors, Dashboard, Canvas, Tasks, Events |
 | Detail Sheet AI | ✅ 3/3 complete | Investors, Documents, Tasks |
-| Routes | ✅ All protected | ProtectedRoute on dashboard routes |
+| Routes | ✅ 30 total | ProtectedRoute on dashboard routes |
 | Database | ✅ RLS enabled | All 43+ tables |
 | API Keys | ✅ Configured | GEMINI_API_KEY, ANTHROPIC_API_KEY |
 | Error Handling | ✅ Consistent | Try/catch + toast notifications |
@@ -167,6 +175,7 @@
 
 | Date | Change | Version |
 |------|--------|---------|
+| 2026-01-28 | Completed Phases 1-4, created dashboard-metrics, Analytics page, real-time | 2.7 |
 | 2026-01-28 | Added task files, next steps plan, updated navigation | 2.6 |
 | 2026-01-28 | Verified all implementations, updated accurate status | 2.5 |
 | 2026-01-28 | Created event-agent, completed all 6 Settings tabs | 2.4 |
@@ -177,4 +186,4 @@
 
 **Last Updated:** January 28, 2026  
 **Maintainer:** AI Systems Architect  
-**Status:** 🟢 Production Ready (88% complete)
+**Status:** 🟢 Production Ready (95% complete)

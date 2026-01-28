@@ -10,6 +10,7 @@ import { DashboardCalendar } from "@/components/dashboard/DashboardCalendar";
 import { StageGuidanceCard } from "@/components/dashboard/StageGuidanceCard";
 import { useStartup, useTasks } from "@/hooks/useDashboardData";
 import { useDashboardMetrics, useMetricChanges } from "@/hooks/useDashboardMetrics";
+import { useDashboardRealtime } from "@/hooks/useRealtimeSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { StartupStage } from "@/hooks/useStageGuidance";
 import { motion } from "framer-motion";
@@ -26,6 +27,9 @@ const Dashboard = () => {
   // Real dashboard metrics
   const { data: metrics } = useDashboardMetrics(startup?.id);
   const { data: changes } = useMetricChanges(startup?.id);
+  
+  // Enable real-time updates for all dashboard data
+  useDashboardRealtime(startup?.id);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'Founder';
   

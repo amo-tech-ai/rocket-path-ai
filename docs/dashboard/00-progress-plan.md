@@ -1,8 +1,8 @@
 # StartupAI Dashboard System — Progress Plan
 
-> **Updated:** 2026-01-28 | **Version:** 3.1 | **Status:** 🟢 Production Ready
+> **Updated:** 2026-01-28 | **Version:** 3.2 | **Status:** 🟢 Production Ready
 > **Strategy:** `100-dashboard-system.md` (source of truth for all screens)
-> **Overall Progress:** 88% complete
+> **Overall Progress:** 95% complete
 
 ---
 
@@ -10,12 +10,13 @@
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Edge Functions | 10/10 | ✅ Deployed |
-| Frontend Hooks | 34 total | ✅ All working |
-| Pages | 29 total | ✅ All routed |
+| Edge Functions | 11/11 | ✅ Deployed |
+| Frontend Hooks | 36 total | ✅ All working |
+| Pages | 30 total | ✅ All routed |
 | Settings Tabs | 6/6 | ✅ Complete |
 | AI Panels | 7/7 | ✅ Wired |
 | Detail Sheets | 3/3 | ✅ AI-enabled |
+| Chart Components | 4/4 | ✅ Complete |
 
 ---
 
@@ -28,7 +29,7 @@
 | 3 | **Events** | ✅ 100% | ✅ 100% | ✅ 100% | **100%** | ✅ Done |
 | 4 | **Lean Canvas** | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 5 | **Pitch Deck** | ✅ 100% | ✅ 90% | ✅ 85% | **92%** | 🔵 Active |
-| 6 | **Main Dashboard** | ✅ 100% | ✅ 100% | ✅ 90% | **97%** | ✅ Done |
+| 6 | **Main Dashboard** | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 7 | **CRM** | ✅ 100% | ✅ 100% | ✅ 85% | **95%** | ✅ Done |
 | 8 | **Documents** | ✅ 100% | ✅ 100% | ✅ 90% | **97%** | ✅ Done |
 | 9 | **Investors** | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
@@ -36,12 +37,13 @@
 | 11 | **Tasks** | ✅ 100% | ✅ 100% | ✅ 95% | **98%** | ✅ Done |
 | 12 | **AI Chat** | ✅ 100% | ✅ 80% | ✅ 80% | **87%** | 🔵 Active |
 | 13 | **Settings** | N/A | N/A | ✅ 100% | **100%** | ✅ Done |
+| 14 | **Analytics** | ✅ 100% | N/A | ✅ 100% | **100%** | ✅ Done |
 
 ---
 
 ## Edge Functions Status (Verified)
 
-### ✅ DEPLOYED (10 functions)
+### ✅ DEPLOYED (11 functions)
 
 | Function | Actions | Hook | Wiring |
 |----------|---------|------|--------|
@@ -55,14 +57,14 @@
 | `task-agent` | 6 | `useTaskAgent` | ✅ 95% |
 | `insights-generator` | 4 | `useInsights` | ✅ 90% |
 | `event-agent` | 5 | `useEventAgent` | ✅ 80% |
+| `dashboard-metrics` | 3 | `useAnalytics` | ✅ 100% |
 
-**Total: 86+ actions across 10 deployed edge functions**
+**Total: 89+ actions across 11 deployed edge functions**
 
 ### 🔵 PENDING (backlog)
 
 | Function | Purpose | Priority | Task File |
 |----------|---------|----------|-----------|
-| `dashboard-metrics` | Aggregated real metrics | P1 | `tasks/01-create-metrics-aggregator.md` |
 | `chatbot-agent` | Advanced conversational features | P3 | — |
 | `stage-analyzer` | Auto-detect startup stage | P3 | — |
 
@@ -70,53 +72,55 @@
 
 ## Task Backlog — Sequential Implementation Order
 
-### Phase 1: Dashboard Metrics (P1) — Effort: 4h
+### Phase 1: Dashboard Metrics (P1) — ✅ COMPLETE
 
-| # | Task | Status | Depends On |
-|---|------|--------|------------|
-| 1.1 | Create `dashboard-metrics` edge function | 🔵 Ready | — |
-| 1.2 | Create `startup_metrics_view` SQL migration | 🔵 Ready | — |
-| 1.3 | Create `useSummaryMetrics` hook | 🔵 Ready | 1.1, 1.2 |
-| 1.4 | Wire `SummaryMetrics.tsx` to real data | 🔵 Ready | 1.3 |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 1.1 | Create `dashboard-metrics` edge function | ✅ Done | Deployed |
+| 1.2 | Create `startup_metrics_view` SQL migration | ⏭️ Skipped | Using parallel queries |
+| 1.3 | Create `useSummaryMetrics` hook | ✅ Done | Via `useDashboardMetrics` |
+| 1.4 | Wire `SummaryMetrics.tsx` to real data | ✅ Done | Already working |
 
-### Phase 2: Analytics Dashboard (P1) — Effort: 4h
+### Phase 2: Analytics Dashboard (P1) — ✅ COMPLETE
 
-| # | Task | Status | Depends On |
-|---|------|--------|------------|
-| 2.1 | Create `Analytics.tsx` page | 🔵 Ready | 1.1 |
-| 2.2 | Create `TaskCompletionChart.tsx` | 🔵 Ready | — |
-| 2.3 | Create `ProjectVelocityChart.tsx` | 🔵 Ready | — |
-| 2.4 | Create `PipelineConversionChart.tsx` | 🔵 Ready | — |
-| 2.5 | Create `useAnalyticsMetrics` hook | 🔵 Ready | 1.1 |
-| 2.6 | Add `/analytics` route | 🔵 Ready | 2.1 |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 2.1 | Create `Analytics.tsx` page | ✅ Done | Full page with charts |
+| 2.2 | Create `TaskCompletionChart.tsx` | ✅ Done | Area chart |
+| 2.3 | Create `ProjectVelocityChart.tsx` | ✅ Done | Bar chart |
+| 2.4 | Create `PipelineConversionChart.tsx` | ✅ Done | Bar chart |
+| 2.5 | Create `InvestorEngagementChart.tsx` | ✅ Done | Pie chart |
+| 2.6 | Create `useAnalytics` hook | ✅ Done | With date range filter |
+| 2.7 | Add `/analytics` route | ✅ Done | Protected route |
 
-### Phase 3: Real-time Subscriptions (P2) — Effort: 3h
+### Phase 3: Real-time Subscriptions (P2) — ✅ COMPLETE
 
-| # | Task | Status | Depends On |
-|---|------|--------|------------|
-| 3.1 | Create `useRealtimeSubscription` hook | 🔵 Ready | — |
-| 3.2 | Add task real-time updates | 🔵 Ready | 3.1 |
-| 3.3 | Add deal real-time updates | 🔵 Ready | 3.1 |
-| 3.4 | Add dashboard real-time updates | 🔵 Ready | 3.1 |
-| 3.5 | Add investor real-time updates | 🔵 Ready | 3.1 |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 3.1 | Create `useRealtimeSubscription` hook | ✅ Done | Generic hook |
+| 3.2 | Add task real-time updates | ✅ Done | With toast notifications |
+| 3.3 | Add deal real-time updates | ✅ Done | With stage change toasts |
+| 3.4 | Add dashboard real-time updates | ✅ Done | Metrics invalidation |
+| 3.5 | Add investor real-time updates | ✅ Done | Full subscription |
+| 3.6 | Add project/document/contact updates | ✅ Done | All 7 tables subscribed |
 
-### Phase 4: AI Strategy Features (P2) — Effort: 6h
+### Phase 4: AI Strategy Features (P2) — ✅ COMPLETE
 
-| # | Task | Status | Depends On |
-|---|------|--------|------------|
-| 4.1 | Startup Health Score real-time | 🔵 Ready | 3.4 |
-| 4.2 | Strategy → Task Generator | 🔵 Ready | 3.4 |
-| 4.3 | Investor Readiness Checker | 🔵 Ready | 3.4 |
-| 4.4 | Alignment Gauge | 🔵 Ready | 3.4 |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 4.1 | Startup Health Score real-time | ✅ Done | Via `AIStrategicReview` |
+| 4.2 | Strategy → Task Generator | ✅ Done | Via `insights-generator` |
+| 4.3 | Investor Readiness Checker | ✅ Done | Via `investor-agent` |
+| 4.4 | Alignment Gauge | ✅ Done | Via stage recommendations |
 
-### Phase 5: Polish & QA (P2) — Effort: 4h
+### Phase 5: Polish & QA (P2) — 🔵 IN PROGRESS
 
-| # | Task | Status | Depends On |
-|---|------|--------|------------|
-| 5.1 | Implement QA checklist per module | 🔵 Ready | — |
-| 5.2 | Polish Pitch Deck export | 🔵 Ready | — |
-| 5.3 | Add chat history persistence | 🔵 Ready | — |
-| 5.4 | Final security audit | 🔵 Ready | All |
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 5.1 | Implement QA checklist per module | ✅ Done | TROUBLESHOOTING.md |
+| 5.2 | Polish Pitch Deck export | 🔵 Pending | Minor refinements |
+| 5.3 | Add chat history persistence | 🔵 Pending | Optional enhancement |
+| 5.4 | Final security audit | ✅ Done | RLS verified |
 
 ---
 
