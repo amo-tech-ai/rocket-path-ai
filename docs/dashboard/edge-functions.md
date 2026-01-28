@@ -7,7 +7,7 @@
 
 ## Overview
 
-All edge functions require JWT authentication via the `Authorization` header. Functions use Gemini 2.0 Flash for AI operations.
+All edge functions require JWT authentication via the `Authorization` header. Functions use Gemini 3 Flash/Pro for AI operations.
 
 ---
 
