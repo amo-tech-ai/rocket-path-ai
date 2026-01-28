@@ -344,57 +344,33 @@ export function usePitchDeckWizard(options: UsePitchDeckWizardOptions = {}) {
   }, [state.deckId, state.wizardData]);
 
   // ============================================================================
-  // Generate Deck (Step 4)
+  // Generate Deck (Step 4) - Navigates to progress page
   // ============================================================================
 
   const generateDeck = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, isGenerating: true }));
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Not authenticated');
+      if (!state.deckId) {
+        toast.error('No deck ID found');
+        return null;
       }
 
-      // Update deck status to generating
-      await supabase
-        .from('pitch_decks')
-        .update({ status: 'generating' })
-        .eq('id', state.deckId);
-
-      const response = await supabase.functions.invoke('pitch-deck-agent', {
-        body: {
-          action: 'generate_deck',
-          deck_id: state.deckId,
-          template: state.wizardData.template_selected || 'yc',
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+      // Save step 4 data before navigating
+      await saveStepData(4, {
+        deck_type: 'seed',
+        tone: 'clear',
+        signal_strength: state.signalStrength,
       });
 
-      if (response.error) throw response.error;
+      // Navigate to generation progress page - the page will handle the actual generation
+      navigate(`/app/pitch-deck/${state.deckId}/generating`);
 
-      toast.success('Deck generated successfully!');
-      navigate(`/app/pitch-deck/${state.deckId}/edit`);
-
-      return response.data;
+      return { redirected: true };
     } catch (error) {
-      console.error('Failed to generate deck:', error);
-      toast.error('Failed to generate deck. Please try again.');
-      setState(prev => ({ ...prev, isGenerating: false }));
-      
-      // Reset deck status
-      if (state.deckId) {
-        await supabase
-          .from('pitch_decks')
-          .update({ status: 'in_progress' })
-          .eq('id', state.deckId);
-      }
-      
+      console.error('Failed to start generation:', error);
+      toast.error('Failed to start generation. Please try again.');
       return null;
     }
-  }, [state.deckId, state.wizardData, navigate]);
+  }, [state.deckId, state.signalStrength, saveStepData, navigate]);
 
   // ============================================================================
   // Return Hook Values
