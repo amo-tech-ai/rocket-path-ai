@@ -3,19 +3,17 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { StartupSettings } from '@/components/settings/StartupSettings';
 import { TeamSettings } from '@/components/settings/TeamSettings';
+import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
+import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { AccountSettings } from '@/components/settings/AccountSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { 
-  Settings as SettingsIcon, 
   User, 
   Building2, 
   Users, 
   Bell,
   Palette,
-  Link2,
-  CreditCard,
   Shield
 } from 'lucide-react';
 
@@ -44,10 +42,18 @@ const Settings = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex mb-6">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 lg:w-auto lg:inline-flex mb-6">
               <TabsTrigger value="profile" className="gap-2">
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline">Profile</span>
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="gap-2">
+                <Palette className="w-4 h-4" />
+                <span className="hidden sm:inline">Appearance</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="gap-2">
+                <Bell className="w-4 h-4" />
+                <span className="hidden sm:inline">Notifications</span>
               </TabsTrigger>
               <TabsTrigger value="startup" className="gap-2">
                 <Building2 className="w-4 h-4" />
@@ -57,47 +63,23 @@ const Settings = () => {
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Team</span>
               </TabsTrigger>
+              <TabsTrigger value="account" className="gap-2">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Account</span>
+              </TabsTrigger>
             </TabsList>
 
             <div className="space-y-6">
               <TabsContent value="profile" className="mt-0 space-y-6">
                 <ProfileSettings />
-                
-                {/* Appearance - placeholder */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Palette className="w-5 h-5" />
-                      Appearance
-                    </CardTitle>
-                    <CardDescription>
-                      Customize how StartupAI looks
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Theme customization coming soon. Currently using system preference.
-                    </p>
-                  </CardContent>
-                </Card>
+              </TabsContent>
 
-                {/* Notifications - placeholder */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5" />
-                      Notifications
-                    </CardTitle>
-                    <CardDescription>
-                      Configure email and push notifications
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Notification preferences coming soon.
-                    </p>
-                  </CardContent>
-                </Card>
+              <TabsContent value="appearance" className="mt-0 space-y-6">
+                <AppearanceSettings />
+              </TabsContent>
+
+              <TabsContent value="notifications" className="mt-0 space-y-6">
+                <NotificationSettings />
               </TabsContent>
 
               <TabsContent value="startup" className="mt-0 space-y-6">
@@ -107,41 +89,12 @@ const Settings = () => {
               <TabsContent value="team" className="mt-0 space-y-6">
                 <TeamSettings />
               </TabsContent>
+
+              <TabsContent value="account" className="mt-0 space-y-6">
+                <AccountSettings />
+              </TabsContent>
             </div>
           </Tabs>
-        </motion.div>
-
-        {/* Danger Zone */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-12"
-        >
-          <Card className="border-destructive/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive">
-                <Shield className="w-5 h-5" />
-                Danger Zone
-              </CardTitle>
-              <CardDescription>
-                Irreversible actions that affect your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-                <div>
-                  <p className="font-medium">Delete Account</p>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently delete your account and all associated data
-                  </p>
-                </div>
-                <Button variant="destructive" size="sm" disabled>
-                  Delete Account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </motion.div>
       </div>
     </DashboardLayout>

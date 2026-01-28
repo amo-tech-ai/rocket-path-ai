@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { TaskWithProject, TASK_PRIORITIES, TASK_STATUSES } from '@/hooks/useTasks';
+import { useBreakdownTask, Subtask } from '@/hooks/useTaskAgent';
+import { useStartup } from '@/hooks/useDashboardData';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -20,7 +23,12 @@ import {
   CheckCircle2,
   Circle,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Loader2,
+  ListTodo,
+  Clock3,
+  User,
+  Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +49,15 @@ export function TaskDetailSheet({
   onDelete,
   onStatusChange 
 }: TaskDetailSheetProps) {
+  const { data: startup } = useStartup();
+  const breakdownTask = useBreakdownTask();
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [breakdown, setBreakdown] = useState<{
+    complexity?: string;
+    suggested_approach?: string;
+    total_estimated_hours?: number;
+  } | null>(null);
+
   if (!task) return null;
 
   const priority = TASK_PRIORITIES.find(p => p.value === task.priority);
@@ -50,6 +67,25 @@ export function TaskDetailSheet({
   const handleToggleComplete = () => {
     onStatusChange(isCompleted ? 'pending' : 'completed');
   };
+
+  const handleBreakdown = async () => {
+    if (!startup?.id || !task.id) return;
+    
+    const result = await breakdownTask.mutateAsync({
+      startupId: startup.id,
+      taskId: task.id,
+    });
+
+    if (result.success && result.subtasks) {
+      setSubtasks(result.subtasks);
+      setBreakdown({
+        complexity: result.complexity,
+        suggested_approach: result.suggested_approach,
+        total_estimated_hours: result.total_estimated_hours,
+      });
+    }
+  };
+
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -169,6 +205,92 @@ export function TaskDetailSheet({
                   </Button>
                 ))}
               </div>
+            </div>
+
+            <Separator />
+
+            {/* AI Task Breakdown */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <ListTodo className="w-4 h-4" />
+                  AI Task Breakdown
+                </h4>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBreakdown}
+                  disabled={breakdownTask.isPending || !startup?.id}
+                  className="gap-1"
+                >
+                  {breakdownTask.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3 h-3" />
+                  )}
+                  {breakdownTask.isPending ? "Analyzing..." : "Break Down"}
+                </Button>
+              </div>
+
+              {breakdown && (
+                <div className="p-3 rounded-lg bg-secondary/50 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="secondary">{breakdown.complexity} complexity</Badge>
+                    {breakdown.total_estimated_hours && (
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Clock3 className="w-3 h-3" />
+                        ~{breakdown.total_estimated_hours}h total
+                      </span>
+                    )}
+                  </div>
+                  {breakdown.suggested_approach && (
+                    <p className="text-sm text-muted-foreground">
+                      {breakdown.suggested_approach}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {subtasks.length > 0 && (
+                <div className="space-y-2">
+                  {subtasks.map((subtask, index) => (
+                    <div
+                      key={index}
+                      className="p-3 rounded-lg border bg-background space-y-2"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {index + 1}.
+                          </span>
+                          <span className="text-sm font-medium">{subtask.title}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock3 className="w-3 h-3" />
+                          {subtask.estimated_minutes}m
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground pl-5">
+                        {subtask.description}
+                      </p>
+                      <div className="flex items-center gap-2 pl-5">
+                        {subtask.can_be_delegated && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <User className="w-3 h-3" />
+                            Can delegate
+                          </Badge>
+                        )}
+                        {subtask.tools_needed.length > 0 && (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Wrench className="w-3 h-3" />
+                            {subtask.tools_needed[0]}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* AI Insights (if available) */}
