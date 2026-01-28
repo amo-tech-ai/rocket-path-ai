@@ -46,6 +46,42 @@ export async function researchIndustry(
 ): Promise<{ success: boolean; insights: IndustryInsights }> {
   console.log(`[research_industry] Industry: ${industry}, Sub: ${subCategory}`);
 
+  // First, try to get industry context from industry_packs database
+  try {
+    const { data: industryPack } = await supabase
+      .from('industry_packs')
+      .select('benchmarks, terminology, competitive_intel, market_context, startup_types')
+      .eq('industry', industry)
+      .eq('is_active', true)
+      .single();
+
+    if (industryPack) {
+      console.log(`[research_industry] Found industry pack for ${industry}`);
+      
+      // Transform industry pack data to IndustryInsights format
+      const benchmarks = industryPack.benchmarks as Record<string, unknown> || {};
+      const competitiveIntel = industryPack.competitive_intel as Record<string, unknown> || {};
+      const marketContext = industryPack.market_context as Record<string, unknown> || {};
+      
+      return {
+        success: true,
+        insights: {
+          coreProblems: (marketContext.core_problems as string[]) || getDefaultIndustryInsights(industry).coreProblems,
+          buyingPersonas: (marketContext.buying_personas as string[]) || getDefaultIndustryInsights(industry).buyingPersonas,
+          existingSolutions: {
+            ai: (competitiveIntel.ai_solutions as string[]) || [],
+            nonAi: (competitiveIntel.traditional_solutions as string[]) || [],
+          },
+          gaps: (marketContext.market_gaps as string[]) || [],
+          trends: (marketContext.trends as string[]) || [],
+        },
+      };
+    }
+  } catch (error) {
+    console.log(`[research_industry] No industry pack found, falling back to AI research`);
+  }
+
+  // Fallback to AI research with grounding
   const query = `${industry} ${subCategory || ''} startup market problems challenges solutions trends 2024 2025`;
   const context = `Analyze the ${industry} industry for a startup founder creating a pitch deck. Identify core problems, buying personas, existing solutions (both AI and traditional), market gaps, and current trends.`;
 
@@ -53,7 +89,6 @@ export async function researchIndustry(
     const result = await callGeminiWithGrounding(query, context);
 
     if (result.content) {
-      // Try to extract structured insights
       const systemPrompt = `You are an industry analyst. Extract structured insights from this research about the ${industry} industry. Return JSON with:
 {
   "coreProblems": ["problem1", "problem2", ...],
