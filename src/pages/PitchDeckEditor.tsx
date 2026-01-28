@@ -9,7 +9,8 @@ import { usePitchDeckEditor } from '@/hooks/usePitchDeckEditor';
 import { 
   SlideNavigationPanel, 
   SlideEditorPanel, 
-  AIIntelligencePanel 
+  AIIntelligencePanel,
+  PresentationMode 
 } from '@/components/pitchdeck/editor';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,10 +37,13 @@ export default function PitchDeckEditor() {
     fetchAISuggestions,
     applySuggestion,
     dismissSuggestion,
+    generateSlideImage,
+    isGeneratingImage,
   } = usePitchDeckEditor({ deckId: deckId! });
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const [showPresentation, setShowPresentation] = useState(false);
 
   useEffect(() => {
     if (deck?.title) {
@@ -97,44 +101,58 @@ export default function PitchDeckEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Slide Navigation */}
-      <SlideNavigationPanel
-        deck={deck}
-        slides={slides}
-        currentSlideIndex={currentSlideIndex}
-        aiSuggestions={aiSuggestions}
-        isEditingTitle={isEditingTitle}
-        titleValue={titleValue}
-        onSlideClick={goToSlide}
-        onEditTitleStart={() => setIsEditingTitle(true)}
-        onEditTitleEnd={handleTitleCancel}
-        onTitleChange={setTitleValue}
-        onTitleSave={handleTitleSave}
-      />
+    <>
+      <div className="min-h-screen bg-background flex">
+        {/* Left Panel - Slide Navigation */}
+        <SlideNavigationPanel
+          deck={deck}
+          slides={slides}
+          currentSlideIndex={currentSlideIndex}
+          aiSuggestions={aiSuggestions}
+          isEditingTitle={isEditingTitle}
+          titleValue={titleValue}
+          onSlideClick={goToSlide}
+          onEditTitleStart={() => setIsEditingTitle(true)}
+          onEditTitleEnd={handleTitleCancel}
+          onTitleChange={setTitleValue}
+          onTitleSave={handleTitleSave}
+        />
 
-      {/* Main Panel - Slide Editor */}
-      <SlideEditorPanel
-        slides={slides}
-        currentSlide={currentSlide}
-        currentSlideIndex={currentSlideIndex}
-        saveStatus={saveStatus}
-        deckId={deckId!}
-        deckTitle={deck.title}
-        onPrevSlide={prevSlide}
-        onNextSlide={nextSlide}
-        onUpdateContent={updateSlideContent}
-      />
+        {/* Main Panel - Slide Editor */}
+        <SlideEditorPanel
+          slides={slides}
+          currentSlide={currentSlide}
+          currentSlideIndex={currentSlideIndex}
+          saveStatus={saveStatus}
+          deckId={deckId!}
+          deckTitle={deck.title}
+          isGeneratingImage={isGeneratingImage}
+          onPrevSlide={prevSlide}
+          onNextSlide={nextSlide}
+          onUpdateContent={updateSlideContent}
+          onGenerateImage={generateSlideImage}
+          onStartPresentation={() => setShowPresentation(true)}
+        />
 
-      {/* Right Panel - AI Intelligence */}
-      <AIIntelligencePanel
-        slideAnalysis={slideAnalysis}
-        aiSuggestions={aiSuggestions}
-        isLoadingSuggestions={isLoadingSuggestions}
-        onFetchSuggestions={fetchAISuggestions}
-        onApplySuggestion={applySuggestion}
-        onDismissSuggestion={dismissSuggestion}
-      />
-    </div>
+        {/* Right Panel - AI Intelligence */}
+        <AIIntelligencePanel
+          slideAnalysis={slideAnalysis}
+          aiSuggestions={aiSuggestions}
+          isLoadingSuggestions={isLoadingSuggestions}
+          onFetchSuggestions={fetchAISuggestions}
+          onApplySuggestion={applySuggestion}
+          onDismissSuggestion={dismissSuggestion}
+        />
+      </div>
+
+      {/* Presentation Mode Overlay */}
+      {showPresentation && (
+        <PresentationMode
+          slides={slides}
+          initialSlideIndex={currentSlideIndex}
+          onClose={() => setShowPresentation(false)}
+        />
+      )}
+    </>
   );
 }
