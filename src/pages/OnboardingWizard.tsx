@@ -197,11 +197,17 @@ export default function OnboardingWizard() {
     enrichFounder,
   });
 
+  // Extract industry from form data for coaching context
+  const selectedIndustry = Array.isArray(formData.industry) 
+    ? formData.industry[0] 
+    : formData.industry;
+
   const step3Handlers = useStep3Handlers({
     sessionId: session?.id,
     answers,
     signals,
     currentQuestionIndex,
+    industry: selectedIndustry, // Pass industry for coaching
     setAnswers,
     setSignals,
     setCurrentQuestionIndex,
@@ -511,6 +517,9 @@ export default function OnboardingWizard() {
                   isProcessing={isProcessingAnswer}
                   currentQuestionIndex={currentQuestionIndex}
                   onSetCurrentIndex={setCurrentQuestionIndex}
+                  coachingFeedback={step3Handlers.coachingFeedback}
+                  isCoaching={step3Handlers.isCoaching}
+                  onDismissCoaching={step3Handlers.dismissCoaching}
                 />
               )
             )}

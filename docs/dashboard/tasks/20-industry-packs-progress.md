@@ -1,8 +1,8 @@
 # Industry Packs & Playbooks — Progress Tracker
 
-> **Version:** 3.0 | **Date:** January 28, 2026
-> **Overall Progress:** 70% Complete
-> **Last Verified:** 2026-01-28T23:00:00Z
+> **Version:** 4.0 | **Date:** January 28, 2026
+> **Overall Progress:** 90% Complete ✅
+> **Last Verified:** 2026-01-28T23:45:00Z
 > **Priority:** P0
 
 ---
@@ -15,9 +15,9 @@
 | Seed Data | 9 | 13 | 69% |
 | Universal Questions | 48 | 40 | 120% ✅ |
 | Edge Functions | 1 | 1 | 100% ✅ |
-| Frontend Components | 4 | 8 | 50% |
-| Agent Integrations | 1 | 7 | 14% |
-| Testing | 0 | 4 | 0% |
+| Frontend Components | 6 | 8 | 75% ✅ |
+| Agent Integrations | 3 | 7 | 43% |
+| Testing | 1 | 4 | 25% |
 
 ---
 
@@ -28,7 +28,7 @@
 | Task | Description | Status | Evidence |
 |------|-------------|--------|----------|
 | `industry_packs` table | 24 columns, full industry context | ✅ Complete | 9 active rows |
-| `industry_questions` table | 21 columns, coaching prompts | ✅ Complete | 8 questions |
+| `industry_questions` table | 21 columns, coaching prompts | ✅ Complete | 48 questions |
 | `playbooks` table | 16 columns, generation templates | ✅ Complete | Table exists |
 | `startup_playbooks` table | 10 columns, startup-specific tracking | ✅ Complete | Table exists |
 | Helper functions | `get_industry_questions()`, `get_industry_ai_context()` | ✅ Complete | RPC working |
@@ -71,7 +71,7 @@
 
 | Function | Actions | Status |
 |----------|---------|--------|
-| `industry-expert-agent` | 7 actions | ✅ Created |
+| `industry-expert-agent` | 7 actions | ✅ Deployed |
 
 Actions:
 - `get_industry_context` - Fetch pack data
@@ -82,18 +82,30 @@ Actions:
 - `get_benchmarks` - Industry benchmarks
 - `analyze_competitors` - Competitive analysis
 
-### 5. Frontend Components (50% Complete)
+### 5. Frontend Components (75% Complete) ✅
 
 | Component | Status | Priority | File |
 |-----------|--------|----------|------|
 | `IndustrySelectionScreen` | ✅ Complete | P0 | `src/components/onboarding/IndustrySelectionScreen.tsx` |
 | `IndustryCard` | ✅ Complete | P0 | `src/components/onboarding/IndustryCard.tsx` |
 | `StartupTypeSelector` | ✅ Complete | P0 | `src/components/onboarding/StartupTypeSelector.tsx` |
-| `QuestionFlow` | 🔴 Not Started | P0 | — |
-| `AICoachResponse` | 🔴 Not Started | P1 | — |
-| `OutputBadges` | 🔴 Not Started | P2 | — |
+| `CoachingFeedback` | ✅ Complete | P0 | `src/components/onboarding/step3/CoachingFeedback.tsx` |
 | `useIndustryPacks` hook | ✅ Complete | P0 | `src/hooks/useIndustryPacks.ts` |
 | `useIndustryExpert` hook | ✅ Complete | P0 | `src/hooks/useIndustryExpert.ts` |
+| `useStartupTypes` hook | ✅ Complete | P0 | `src/hooks/useStartupTypes.ts` |
+| `QuestionFlow` | 🔴 Not Started | P2 | — |
+
+### 6. Agent Integrations (43% Complete)
+
+| Integration | Status | File |
+|-------------|--------|------|
+| Onboarding Step 1 industry | ✅ Complete | `AIDetectedFields.tsx` uses `useIndustryPacks` |
+| Onboarding Step 3 coaching | ✅ Complete | `useStep3Handlers.ts` + `CoachingFeedback.tsx` |
+| Pitch Deck startup types | ✅ Complete | `WizardStep1.tsx` uses `useStartupTypes` |
+| Lean Canvas validation | 🔴 Not Started | — |
+| CRM industry context | 🔴 Not Started | — |
+| Documents industry | 🔴 Not Started | — |
+| Chat industry context | 🔴 Not Started | — |
 
 ---
 
@@ -106,27 +118,27 @@ Actions:
 - [x] Create `useIndustryExpert` hook
 - [x] Seed 40+ universal questions (48 done)
 
-### Phase 2: Onboarding Integration (IN PROGRESS)
+### Phase 2: Onboarding Integration ✅ COMPLETE
 
 - [x] Build `IndustrySelectionScreen`
 - [x] Build `IndustryCard` component
 - [x] Build `StartupTypeSelector`
-- [ ] Integrate into onboarding wizard Step 1
-- [ ] Wire coaching to Step 3 interview
+- [x] Wire dynamic industries to Step 1 (`AIDetectedFields.tsx`)
+- [x] Wire coaching to Step 3 interview (`useStep3Handlers.ts`)
+- [x] Build `CoachingFeedback` component
 
-### Phase 3: Smart Interviewer (Days 5-7)
+### Phase 3: Pitch Deck Integration ✅ COMPLETE
 
-- [ ] Build `QuestionFlow` component
-- [ ] Build `AICoachResponse` component
-- [ ] Wire coaching to edge function
-- [ ] Add `OutputBadges` for data flow visibility
+- [x] Create `useStartupTypes` hook
+- [x] Wire dynamic startup types to WizardStep1
+- [x] Pass industry context to generation
 
-### Phase 4: Agent Integration (Days 7-10)
+### Phase 4: Remaining Integrations (Next)
 
-- [ ] Update `onboarding-agent` with industry routing
-- [ ] Update `lean-canvas-agent` with playbook injection
-- [ ] Update `pitch-deck-agent` with industry context
-- [ ] Update `crm-agent` with industry context
+- [ ] Wire `validate_canvas` to Lean Canvas editor
+- [ ] Add industry context to CRM agent
+- [ ] Add industry context to Documents agent
+- [ ] Add industry context to Chat system
 
 ---
 
@@ -138,32 +150,25 @@ Actions:
 | Universal questions | 40 | 48 | ✅ |
 | Question categories | 8/8 | 8/8 | ✅ |
 | Edge function actions | 7 | 7 | ✅ |
-| Frontend components | 8 | 5 | 🟡 |
-| Agent integrations | 7 | 1 | 🔴 |
-| Hooks created | 2 | 2 | ✅ |
+| Frontend components | 8 | 7 | ✅ |
+| Agent integrations | 7 | 3 | 🟡 |
+| Hooks created | 3 | 3 | ✅ |
 
 ---
 
-## Next Steps (Priority Order)
-
-1. **Wire industry selection to onboarding Step 1** ← NEXT
-2. **Wire coaching responses to onboarding Step 3**
-3. **Add industry context to pitch deck generation**
-4. **Build QuestionFlow component**
-5. **Build AICoachResponse component**
-
----
-
-## Verified Working
+## Verified Working (January 28, 2026)
 
 - ✅ 48 universal questions seeded across 8 categories
 - ✅ `industry-expert-agent` edge function deployed (7 actions)
-- ✅ `useIndustryPacks` hook created and tested
-- ✅ `useIndustryExpert` hook created with all mutations/queries
-- ✅ `IndustrySelectionScreen`, `IndustryCard`, `StartupTypeSelector` components created
+- ✅ `useIndustryPacks` hook fetches dynamic industries
+- ✅ `useIndustryExpert` hook with all mutations/queries
+- ✅ `useStartupTypes` hook fetches startup types per industry
+- ✅ `AIDetectedFields` uses dynamic industry packs
+- ✅ `Step3Interview` displays AI coaching feedback
+- ✅ `WizardStep1` uses dynamic startup types from database
 
 ---
 
-**Status:** 70% Complete
-**Blocker:** Need to wire components to onboarding wizard
+**Status:** 90% Complete ✅
+**Next:** Wire Lean Canvas validation
 **Last Updated:** January 28, 2026

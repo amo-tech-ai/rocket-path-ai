@@ -1,6 +1,7 @@
 /**
  * Wizard Step 1: Enhanced Startup Info
  * Company description, industry research, AI-assisted problem input, Lean Canvas
+ * Now uses dynamic startup types from industry_packs database
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
 import { INDUSTRIES, FUNDING_STAGES, type Step1Data, type LeanCanvasData as LeanCanvasSchemaData } from '@/lib/pitchDeckSchema';
 import { cn } from '@/lib/utils';
 import { useStep1AI } from '@/hooks/useStep1AI';
+import { useStartupTypes } from '@/hooks/useStartupTypes';
 import {
   CompanyDescriptionInput,
   ProblemInput,
@@ -38,22 +41,6 @@ interface WizardStep1Props {
   deckId?: string | null;
   startupId?: string | null;
 }
-
-const SUB_CATEGORIES: Record<string, string[]> = {
-  ai_saas: ['B2B SaaS', 'AI Infrastructure', 'Vertical AI', 'AI Agents', 'MLOps'],
-  fintech: ['Payments', 'Banking', 'Insurance', 'Wealth Management', 'Crypto'],
-  healthcare: ['Digital Health', 'Biotech', 'MedTech', 'Mental Health', 'Telemedicine'],
-  edtech: ['K-12', 'Higher Ed', 'Corporate Training', 'Tutoring', 'Skills Platform'],
-  ecommerce: ['D2C', 'B2B Marketplace', 'Retail Tech', 'Fashion', 'Food & Beverage'],
-  marketplace: ['Services', 'Products', 'B2B', 'Gig Economy', 'Local'],
-  enterprise: ['Security', 'DevTools', 'Productivity', 'HR Tech', 'Data'],
-  consumer: ['Social', 'Gaming', 'Entertainment', 'Lifestyle', 'Travel'],
-  climate: ['Clean Energy', 'Carbon', 'Mobility', 'Agriculture', 'Circular Economy'],
-  proptech: ['Residential', 'Commercial', 'Construction', 'Property Management', 'Mortgage'],
-  logistics: ['Freight', 'Last Mile', 'Warehouse', 'Fleet', 'Supply Chain'],
-  media: ['Streaming', 'News', 'Creator Economy', 'Advertising', 'Publishing'],
-  other: ['Other'],
-};
 
 interface UploadedFile {
   name: string;
@@ -108,6 +95,9 @@ export function WizardStep1({
     loadingCanvasField,
     generateCanvasSuggestions,
   } = useStep1AI({ deckId, startupId });
+
+  // Dynamic startup types from industry_packs
+  const { data: startupTypes, isLoading: isLoadingTypes } = useStartupTypes(formData.industry);
 
   useEffect(() => {
     if (initialData) {
@@ -235,7 +225,8 @@ export function WizardStep1({
     }
   };
 
-  const subCategories = formData.industry ? SUB_CATEGORIES[formData.industry] || [] : [];
+  // Use dynamic startup types or empty array
+  const subCategories = startupTypes || [];
 
   return (
     <div className="space-y-6">
@@ -345,7 +336,7 @@ export function WizardStep1({
         </div>
 
         {/* Sub-category */}
-        {subCategories.length > 0 && (
+        {formData.industry && formData.industry !== 'other' && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -359,21 +350,29 @@ export function WizardStep1({
                 AI Enhance
               </Badge>
             </Label>
-            <Select
-              value={formData.sub_category || ''}
-              onValueChange={(value) => handleChange('sub_category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select sub-category" />
-              </SelectTrigger>
-              <SelectContent>
-                {subCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat.toLowerCase().replace(/\s+/g, '_')}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isLoadingTypes ? (
+              <Skeleton className="h-10 w-full" />
+            ) : subCategories.length > 0 ? (
+              <Select
+                value={formData.sub_category || ''}
+                onValueChange={(value) => handleChange('sub_category', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sub-category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                No sub-categories available for this industry
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Be specific: investors scan this in 2 seconds
             </p>
