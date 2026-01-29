@@ -38,6 +38,3 @@ verify_jwt = false
 
 [functions.industry-expert-agent]
 verify_jwt = false
-
-[functions.prompt-pack]
-verify_jwt = false

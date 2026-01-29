@@ -16,8 +16,7 @@ import {
   Sparkles,
   Presentation,
   MessageSquare,
-  BarChart3,
-  Layers
+  BarChart3
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -36,7 +35,6 @@ const navItems = [
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
   { label: "Investors", path: "/investors", icon: TrendingUp },
-  { label: "Prompt Packs", path: "/prompt-packs", icon: Layers },
   { label: "AI Chat", path: "/ai-chat", icon: MessageSquare },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
 ];
