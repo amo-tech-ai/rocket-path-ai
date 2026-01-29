@@ -2,9 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ChatbotLauncher } from "@/components/chat/ChatbotLauncher";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Features from "./pages/Features";
@@ -38,6 +39,24 @@ import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
+// Global chatbot launcher - only shows for authenticated users
+function GlobalChatbotLauncher() {
+  const { user } = useAuth();
+  const location = useLocation();
+  
+  // Only show for authenticated users, not on public pages
+  const publicPaths = ['/', '/login', '/how-it-works', '/features', '/blog', '/events'];
+  const isPublicPage = publicPaths.some(path => 
+    location.pathname === path || 
+    location.pathname.startsWith('/blog/') ||
+    (location.pathname.startsWith('/events/') && !location.pathname.startsWith('/app/events'))
+  );
+  
+  if (!user || isPublicPage) return null;
+  
+  return <ChatbotLauncher />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -45,7 +64,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-        <Routes>
+          <GlobalChatbotLauncher />
+          <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/features" element={<Features />} />
