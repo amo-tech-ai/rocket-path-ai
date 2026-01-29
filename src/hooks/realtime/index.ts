@@ -14,6 +14,15 @@
  * - useEventsRealtime
  */
 
+// Shared realtime channel hook (new production pattern)
+export { 
+  useRealtimeChannel, 
+  useTableChanges,
+  type RealtimeChannelOptions,
+  type RealtimeChannelResult,
+  type TableChangeOptions,
+} from './useRealtimeChannel';
+
 // Types
 export * from './types';
 

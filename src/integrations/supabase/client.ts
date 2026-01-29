@@ -13,5 +13,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  realtime: {
+    params: {
+      // Enable detailed logging in development, minimal in production
+      log_level: import.meta.env.DEV ? 'info' : 'warn',
+    },
+  },
 });
