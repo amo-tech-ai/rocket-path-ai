@@ -419,31 +419,46 @@ async function enrichUrl(
   }
 
   // Use Gemini with URL context AND Google Search grounding for competitor discovery
-  const prompt = `Analyze this website URL and extract structured startup information.
-  
+  const prompt = `You are a startup intelligence analyst. Analyze this website URL and extract comprehensive startup information.
+
 URL: ${url}
 
-IMPORTANT: Use Google Search to find competitor companies and market trends for this startup.
+IMPORTANT INSTRUCTIONS:
+1. Use Google Search to find competitor companies and market trends for this startup.
+2. ALWAYS provide values for ALL fields - use inference when explicit information is not available.
+3. For brand-led or marketing-focused websites, SYNTHESIZE information from:
+   - Product descriptions and value propositions
+   - Marketing language and positioning statements
+   - Visual content themes and messaging
+   - Industry context and typical use cases
 
-Extract the following information from the website content. Return ONLY valid JSON with these fields:
+EXTRACTION RULES:
+- key_features: If not explicitly listed, INFER from product descriptions, workflows, and capabilities mentioned. Look for verbs (automate, generate, manage, track, collaborate) and nouns (dashboard, AI, templates, integrations).
+- target_audience: DERIVE from context - who would benefit from these features? What roles, industries, company sizes? If "for fashion brands" is mentioned, audience = "Fashion brands, apparel companies, fashion event organizers"
+- detected_phrases: Extract 3-5 distinctive marketing phrases in quotes that capture the brand voice
+- If confidence is low on any field, mark it as inferred and still provide your best synthesis
+
+Return ONLY valid JSON with these fields:
 {
   "company_name": "string - the company/startup name",
-  "description": "string - what the company does (2-3 sentences)",
-  "tagline": "string - short tagline if found",
-  "industry": ["string array - relevant industries like SaaS, Fintech, Healthcare, etc."],
+  "description": "string - what the company does (2-3 comprehensive sentences)",
+  "tagline": "string - short tagline or main headline",
+  "industry": ["string array - relevant industries: SaaS, AI, Fintech, E-commerce, Fashion, Healthcare, etc."],
   "business_model": ["string array - B2B, B2C, B2B2C, Marketplace, Platform, Services"],
-  "stage": "string - Idea, Pre-seed, Seed, Series A, Series B+ (infer from team size, funding, etc.)",
-  "target_market": "string - who are the customers (be specific about segment, geography)",
-  "key_features": ["string array - main product features"],
+  "stage": "string - Idea, Pre-seed, Seed, Series A, Series B+ (infer from polish, team, pricing)",
+  "target_market": "string - primary customer segment with specifics",
+  "target_audience": ["string array - 2-4 specific audience segments like 'Fashion brand managers', 'E-commerce teams'"],
+  "key_features": ["string array - 3-6 core capabilities, ALWAYS infer if not explicit"],
+  "detected_phrases": ["string array - 3-5 distinctive marketing phrases in quotes"],
   "competitors": ["string array - likely competitors found via web search"],
   "market_trends": ["string array - relevant market trends from search"],
-  "pricing_model": "string - freemium, subscription, one-time, etc.",
+  "pricing_model": "string - freemium, subscription, one-time, enterprise, etc.",
   "unique_value_proposition": "string - what makes them unique",
-  "confidence": "number 0-1 - how confident you are in the extraction"
+  "confidence": "number 0-1",
+  "inferred_fields": ["string array - list field names that were inferred rather than explicitly found"]
 }
 
-Only include fields you can confidently extract. If you cannot access the URL or extract information, return:
-{"error": "Could not access or parse the website", "confidence": 0}`;
+CRITICAL: Never return empty arrays for key_features, target_audience, or detected_phrases. Always synthesize from available context.`;
 
   // Try multiple models with fallback - use Gemini 3 models
   const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
@@ -489,15 +504,18 @@ Only include fields you can confidently extract. If you cannot access the URL or
     }
   }
 
-  // Fallback extractions if all models fail
+  // Fallback extractions if all models fail - provide synthesized defaults
   if (!extractions) {
     console.log("All models failed for URL enrichment, using fallback");
     extractions = {
       error: "Could not analyze URL with AI",
       confidence: 0,
-      key_features: [],
+      key_features: ["AI-powered automation"],
+      target_audience: ["Business teams"],
+      detected_phrases: [],
       competitors: [],
-      target_market: "",
+      target_market: "Business professionals",
+      inferred_fields: ["key_features", "target_audience", "target_market"],
     };
     usedModel = "fallback";
   }
