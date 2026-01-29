@@ -70,16 +70,17 @@ sequenceDiagram
 
 | Phase | Task | Status | File(s) |
 |-------|------|--------|---------|
-| 1 | Update Supabase client config | ⏳ Todo | `client.ts` |
-| 2 | Create shared realtime hook | ⏳ Todo | `useRealtimeChannel.ts` |
-| 3 | Update useDashboardRealtime | ⏳ Todo | `useRealtimeSubscription.ts` |
-| 4 | Update usePitchDeckGeneration | ⏳ Todo | `usePitchDeckGeneration.ts` |
-| 5 | Deduplicate task subscriptions | ⏳ Todo | Multiple files |
-| 6 | Update usePitchDeckRealtime | ⏳ Todo | `usePitchDeckRealtime.ts` |
-| 7 | Update useCRMRealtime | ⏳ Todo | `useCRMRealtime.ts` |
-| 8 | Update useOnboardingRealtime | ⏳ Todo | `useOnboardingRealtime.ts` |
-| 9 | Update remaining hooks | ⏳ Todo | Multiple files |
-| 10 | Update presence hooks | ⏳ Todo | `useCofounderPresence.ts` |
+| 1 | Update Supabase client config | ✅ Done | `client.ts` |
+| 2 | Create shared realtime hook | ✅ Done | `useRealtimeChannel.ts` |
+| 3 | Update useDashboardRealtime | ✅ Done | `useRealtimeSubscription.ts` |
+| 4 | Update usePitchDeckGeneration | ✅ Done | `usePitchDeckGeneration.ts` |
+| 5 | Deduplicate task subscriptions | ✅ Done | Multiple files |
+| 6 | Update usePitchDeckRealtime | ✅ Done | `usePitchDeckRealtime.ts` |
+| 7 | Update useCRMRealtime | ✅ Done | `useCRMRealtime.ts` |
+| 8 | Update useOnboardingRealtime | ✅ Done | `useOnboardingRealtime.ts` |
+| 9 | Update remaining hooks | ✅ Done | Multiple files |
+| 10 | Update presence hooks | ✅ Done | `useCofounderPresence.ts` |
+| 11 | **Realtime Chat** | ✅ Done | `useRealtimeChatRoom.ts`, `RealtimeChat.tsx` |
 
 ## Quick Links
 
@@ -87,6 +88,8 @@ sequenceDiagram
 - [Supabase Schema Reference](./02-supabase-schema.md)
 - [Edge Functions Reference](./03-edge-functions.md)
 - [Testing Checklist](./04-testing-checklist.md)
+- [Implementation Plan](./05-implementation-plan.md)
+- [**Realtime Chat**](./06-realtime-chat.md) ← NEW
 
 ---
 
