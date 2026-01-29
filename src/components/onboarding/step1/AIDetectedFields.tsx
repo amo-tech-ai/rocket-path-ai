@@ -1,20 +1,16 @@
 /**
  * AI Detected Fields Component
  * Displays industry, business model, and stage fields
- * Now uses dynamic industry packs from database
+ * Uses universal industry categories with AI detection highlighting
  */
 
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useIndustryPacks } from '@/hooks/useIndustryPacks';
-
-// Fallback industries if API fails
-const FALLBACK_INDUSTRIES = [
-  'SaaS', 'Marketplace', 'E-commerce', 'Fintech',
-  'Healthcare', 'EdTech', 'AI/ML', 'Consumer', 'Other'
-];
+import { Sparkles } from 'lucide-react';
+import { UNIVERSAL_INDUSTRIES, type IndustryOption } from '@/constants/industries';
 
 const BUSINESS_MODELS = [
   'B2B', 'B2C', 'B2B2C', 'Marketplace', 'Platform', 'Services'
@@ -30,6 +26,7 @@ interface AIDetectedFieldsProps {
   stage: string;
   onUpdate: (field: 'industry' | 'business_model' | 'stage', value: string | string[]) => void;
   isFromAI?: boolean;
+  aiDetectedIndustries?: string[];
   errors?: {
     industry?: string;
     business_model?: string;
@@ -48,24 +45,45 @@ export function AIDetectedFields({
   stage,
   onUpdate,
   isFromAI = false,
+  aiDetectedIndustries = [],
   errors,
   touched,
 }: AIDetectedFieldsProps) {
-  // Fetch dynamic industry packs from database
-  const { data: industryPacks, isLoading: isLoadingPacks } = useIndustryPacks();
-  
-  // Build industries list from packs or use fallback
-  const industries = industryPacks && industryPacks.length > 0
-    ? industryPacks.map(pack => pack.display_name)
-    : FALLBACK_INDUSTRIES;
+  const [otherText, setOtherText] = useState('');
+  const [showOtherInput, setShowOtherInput] = useState(false);
 
-  // Industry is now multi-select
-  const toggleIndustry = (ind: string) => {
-    const currentIndustries = Array.isArray(industry) ? industry : (industry ? [industry] : []);
-    if (currentIndustries.includes(ind)) {
-      onUpdate('industry', currentIndustries.filter(i => i !== ind));
+  const industryArray = Array.isArray(industry) ? industry : (industry ? [industry] : []);
+
+  // Toggle industry selection
+  const toggleIndustry = (id: string) => {
+    if (industryArray.includes(id)) {
+      onUpdate('industry', industryArray.filter(i => i !== id));
     } else {
-      onUpdate('industry', [...currentIndustries, ind]);
+      onUpdate('industry', [...industryArray, id]);
+    }
+  };
+
+  // Handle "Other" selection
+  const handleOtherToggle = () => {
+    if (showOtherInput) {
+      // Remove 'other' from selection
+      setShowOtherInput(false);
+      setOtherText('');
+      onUpdate('industry', industryArray.filter(i => !i.startsWith('other:')));
+    } else {
+      setShowOtherInput(true);
+    }
+  };
+
+  // Handle "Other" text input
+  const handleOtherTextChange = (value: string) => {
+    setOtherText(value);
+    // Remove any existing 'other:' entries and add the new one
+    const filtered = industryArray.filter(i => !i.startsWith('other:'));
+    if (value.trim()) {
+      onUpdate('industry', [...filtered, `other:${value.trim()}`]);
+    } else {
+      onUpdate('industry', filtered);
     }
   };
 
@@ -77,70 +95,91 @@ export function AIDetectedFields({
     }
   };
 
-  const industryArray = Array.isArray(industry) ? industry : (industry ? [industry] : []);
   const showIndustryError = touched?.industry && errors?.industry;
   const showBusinessModelError = touched?.business_model && errors?.business_model;
   const showStageError = touched?.stage && errors?.stage;
 
-  // Get icon for industry (from pack data)
-  const getIndustryIcon = (industryName: string): string => {
-    if (!industryPacks) return '';
-    const pack = industryPacks.find(p => p.display_name === industryName);
-    return pack?.icon || '';
-  };
+  // Check if industry is AI-detected
+  const isAIDetected = (id: string) => aiDetectedIndustries.includes(id);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">AI DETECTED (click to edit)</Label>
-        {isFromAI && (
-          <Badge variant="secondary" className="text-xs">From AI</Badge>
-        )}
-      </div>
-
-      {/* Industry - Multi-select with dynamic packs */}
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-          Industry (select multiple)
+    <div className="space-y-5">
+      {/* Industry - Multi-select with universal categories */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium flex items-center gap-2">
+          Industry
           <span className="text-destructive">*</span>
+          {isFromAI && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
+              <Sparkles className="w-3 h-3 text-primary" />
+              AI detected
+            </span>
+          )}
         </Label>
-        {isLoadingPacks ? (
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5].map(i => (
-              <Skeleton key={i} className="h-6 w-20 rounded-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {industries.map((ind) => {
-              const icon = getIndustryIcon(ind);
-              return (
-                <Badge
-                  key={ind}
-                  variant={industryArray.includes(ind) ? 'default' : 'outline'}
-                  className={cn(
-                    'cursor-pointer transition-colors',
-                    industryArray.includes(ind) && 'bg-primary text-primary-foreground'
-                  )}
-                  onClick={() => toggleIndustry(ind)}
-                >
-                  {icon && <span className="mr-1">{icon}</span>}
-                  {ind}
-                  {industryArray.includes(ind) && ' ✓'}
-                </Badge>
-              );
-            })}
-          </div>
+        <p className="text-xs text-muted-foreground">
+          Select all that apply. AI-highlighted options are based on your description.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {UNIVERSAL_INDUSTRIES.map((ind) => {
+            const isSelected = industryArray.includes(ind.id);
+            const isDetected = isAIDetected(ind.id);
+            
+            return (
+              <Badge
+                key={ind.id}
+                variant={isSelected ? 'default' : 'outline'}
+                className={cn(
+                  'cursor-pointer transition-all text-sm py-1.5 px-3',
+                  isSelected && 'bg-primary text-primary-foreground',
+                  !isSelected && isDetected && 'border-primary/50 bg-primary/5 text-primary',
+                  !isSelected && !isDetected && 'hover:bg-muted'
+                )}
+                onClick={() => toggleIndustry(ind.id)}
+              >
+                <span className="mr-1.5">{ind.icon}</span>
+                {ind.label}
+                {isSelected && ' ✓'}
+                {!isSelected && isDetected && (
+                  <Sparkles className="w-3 h-3 ml-1.5 text-primary" />
+                )}
+              </Badge>
+            );
+          })}
+          
+          {/* Other option */}
+          <Badge
+            variant={showOtherInput ? 'default' : 'outline'}
+            className={cn(
+              'cursor-pointer transition-all text-sm py-1.5 px-3',
+              showOtherInput && 'bg-primary text-primary-foreground',
+              !showOtherInput && 'hover:bg-muted'
+            )}
+            onClick={handleOtherToggle}
+          >
+            ✨ Other
+            {showOtherInput && ' ✓'}
+          </Badge>
+        </div>
+
+        {/* Other text input */}
+        {showOtherInput && (
+          <Input
+            value={otherText}
+            onChange={(e) => handleOtherTextChange(e.target.value)}
+            placeholder="Describe your industry..."
+            className="mt-2"
+          />
         )}
+
         {showIndustryError && (
           <p className="text-xs text-destructive">{errors?.industry}</p>
         )}
       </div>
 
       {/* Business Model - Multi-select */}
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground flex items-center gap-1">
-          Business Model (select multiple)
+      <div className="space-y-3">
+        <Label className="text-sm font-medium flex items-center gap-1">
+          Business Model
           <span className="text-destructive">*</span>
         </Label>
         <div className="flex flex-wrap gap-2">
@@ -149,8 +188,9 @@ export function AIDetectedFields({
               key={model}
               variant={businessModel.includes(model) ? 'default' : 'outline'}
               className={cn(
-                'cursor-pointer transition-colors',
-                businessModel.includes(model) && 'bg-primary text-primary-foreground'
+                'cursor-pointer transition-all text-sm py-1.5 px-3',
+                businessModel.includes(model) && 'bg-primary text-primary-foreground',
+                !businessModel.includes(model) && 'hover:bg-muted'
               )}
               onClick={() => toggleBusinessModel(model)}
             >
@@ -165,8 +205,8 @@ export function AIDetectedFields({
       </div>
 
       {/* Stage - Single select */}
-      <div className="space-y-2">
-        <Label className="text-xs text-muted-foreground flex items-center gap-1">
+      <div className="space-y-3">
+        <Label className="text-sm font-medium flex items-center gap-1">
           Stage
           <span className="text-destructive">*</span>
         </Label>
@@ -176,8 +216,9 @@ export function AIDetectedFields({
               key={s}
               variant={stage === s ? 'default' : 'outline'}
               className={cn(
-                'cursor-pointer transition-colors',
-                stage === s && 'bg-primary text-primary-foreground'
+                'cursor-pointer transition-all text-sm py-1.5 px-3',
+                stage === s && 'bg-primary text-primary-foreground',
+                stage !== s && 'hover:bg-muted'
               )}
               onClick={() => onUpdate('stage', s)}
             >
