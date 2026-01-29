@@ -1106,7 +1106,8 @@ export type Database = {
           top_3_risks: Json | null
           total_risk_score: number | null
           updated_at: string
-          validation_report_id: string
+          user_id: string | null
+          validation_report_id: string | null
         }
         Insert: {
           adjusted_score?: number | null
@@ -1125,7 +1126,8 @@ export type Database = {
           top_3_risks?: Json | null
           total_risk_score?: number | null
           updated_at?: string
-          validation_report_id: string
+          user_id?: string | null
+          validation_report_id?: string | null
         }
         Update: {
           adjusted_score?: number | null
@@ -1144,7 +1146,8 @@ export type Database = {
           top_3_risks?: Json | null
           total_risk_score?: number | null
           updated_at?: string
-          validation_report_id?: string
+          user_id?: string | null
+          validation_report_id?: string | null
         }
         Relationships: [
           {

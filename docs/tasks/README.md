@@ -89,7 +89,8 @@ sequenceDiagram
 - [Edge Functions Reference](./03-edge-functions.md)
 - [Testing Checklist](./04-testing-checklist.md)
 - [Implementation Plan](./05-implementation-plan.md)
-- [**Realtime Chat**](./06-realtime-chat.md) ← NEW
+- [**Realtime Chat**](./06-realtime-chat.md)
+- [**Prompt Packs**](./07-prompt-packs.md) ← NEW
 
 ---
 

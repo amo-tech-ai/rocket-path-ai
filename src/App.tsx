@@ -37,6 +37,7 @@ import PitchDeckEditor from "./pages/PitchDeckEditor";
 import PitchDeckGenerating from "./pages/PitchDeckGenerating";
 import AIChat from "./pages/AIChat";
 import Analytics from "./pages/Analytics";
+import PromptPacks from "./pages/PromptPacks";
 
 const queryClient = new QueryClient();
 
@@ -249,6 +250,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Analytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/prompt-packs"
+              element={
+                <ProtectedRoute>
+                  <PromptPacks />
                 </ProtectedRoute>
               }
             />
