@@ -5449,6 +5449,14 @@ export type Database = {
         }
         Returns: number
       }
+      check_realtime_setup: {
+        Args: never
+        Returns: {
+          check_name: string
+          details: string
+          status: string
+        }[]
+      }
       complete_wizard_atomic: {
         Args: {
           p_session_id: string
@@ -5616,6 +5624,10 @@ export type Database = {
           step_count: number
           title: string
         }[]
+      }
+      send_realtime_event: {
+        Args: { event_name: string; payload: Json; topic: string }
+        Returns: undefined
       }
       slide_in_org: { Args: { slide_deck_id: string }; Returns: boolean }
       startup_in_org: { Args: { check_startup_id: string }; Returns: boolean }
