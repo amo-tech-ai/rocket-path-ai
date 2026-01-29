@@ -2,17 +2,20 @@
  * Canvas Realtime Hook
  * Channel: canvas:{documentId}:events
  * 
- * Handles live updates for Lean Canvas:
+ * Handles live updates for Lean Canvas with private channels:
  * - Box validation scores
  * - Autosave confirmations
  * - Co-editing indicators (future)
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CanvasRealtimeState, CanvasPayload } from './types';
 import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseCanvasRealtimeOptions {
   onValidated?: (boxes: Record<string, { status: 'complete' | 'needs_work' | 'missing' }>) => void;
@@ -33,6 +36,7 @@ export function useCanvasRealtime(
 ) {
   const [state, setState] = useState<CanvasRealtimeState>(initialState);
   const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleCanvasValidated = useCallback((payload: CanvasPayload) => {
     if (payload.eventType !== 'canvas_validated') return;
@@ -77,10 +81,26 @@ export function useCanvasRealtime(
   useEffect(() => {
     if (!documentId) return;
 
-    console.log('[Canvas Realtime] Subscribing to document:', documentId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `canvas:${documentId}:events`;
+    console.log(`[Canvas Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`canvas:${documentId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'canvas_validated' }, ({ payload }) => {
         handleCanvasValidated(payload as CanvasPayload);
       })
@@ -102,16 +122,27 @@ export function useCanvasRealtime(
         () => {
           queryClient.invalidateQueries({ queryKey: ['lean-canvas', documentId] });
         }
-      )
-      .subscribe((status) => {
+      );
+
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('[Canvas Realtime] Channel subscribed');
+          console.log(`[Canvas Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Canvas Realtime] ✗ Error on ${topic}`);
         }
       });
+    });
 
     return () => {
-      console.log('[Canvas Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[Canvas Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [documentId, handleCanvasValidated, handleCanvasSaved, handleCanvasPrefilled, queryClient]);
 

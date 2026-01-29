@@ -2,17 +2,20 @@
  * Pitch Deck Realtime Hook
  * Channel: pitchdeck:{deckId}:events
  * 
- * Handles live updates during deck generation:
+ * Handles live updates during deck generation with private channels:
  * - Slide-by-slide progress
  * - Individual slide scores
  * - Overall signal strength
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PitchDeckRealtimeState, SlideCompletedPayload, DeckReadyPayload } from './types';
 import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UsePitchDeckRealtimeOptions {
   onSlideComplete?: (slideIndex: number, totalSlides: number) => void;
@@ -34,6 +37,7 @@ export function usePitchDeckRealtime(
 ) {
   const [state, setState] = useState<PitchDeckRealtimeState>(initialState);
   const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleSlideCompleted = useCallback((payload: SlideCompletedPayload) => {
     setState(prev => {
@@ -94,10 +98,26 @@ export function usePitchDeckRealtime(
   useEffect(() => {
     if (!deckId) return;
 
-    console.log('[PitchDeck Realtime] Subscribing to deck:', deckId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `pitchdeck:${deckId}:events`;
+    console.log(`[PitchDeck Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`pitchdeck:${deckId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'slide_completed' }, ({ payload }) => {
         handleSlideCompleted(payload as SlideCompletedPayload);
       })
@@ -119,16 +139,27 @@ export function usePitchDeckRealtime(
             queryClient.invalidateQueries({ queryKey: ['pitch-deck', deckId] });
           }
         }
-      )
-      .subscribe((status) => {
+      );
+
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('[PitchDeck Realtime] Channel subscribed');
+          console.log(`[PitchDeck Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[PitchDeck Realtime] ✗ Error on ${topic}`);
         }
       });
+    });
 
     return () => {
-      console.log('[PitchDeck Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[PitchDeck Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [deckId, handleSlideCompleted, handleDeckReady, queryClient]);
 

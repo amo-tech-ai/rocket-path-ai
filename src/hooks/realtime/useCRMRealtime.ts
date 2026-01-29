@@ -2,13 +2,15 @@
  * CRM Realtime Hook
  * Channel: crm:{startupId}:events
  * 
- * Handles live updates for CRM module:
+ * Handles live updates for CRM module with private channels:
  * - Contact enrichment
  * - Deal scoring
  * - Pipeline analysis alerts
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -18,6 +20,7 @@ import {
   RiskPayload 
 } from './types';
 import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseCRMRealtimeOptions {
   onContactEnriched?: (payload: ContactEnrichedPayload) => void;
@@ -38,6 +41,7 @@ export function useCRMRealtime(
 ) {
   const [state, setState] = useState<CRMRealtimeState>(initialState);
   const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleContactEnriched = useCallback((payload: ContactEnrichedPayload) => {
     setState(prev => {
@@ -110,10 +114,26 @@ export function useCRMRealtime(
   useEffect(() => {
     if (!startupId) return;
 
-    console.log('[CRM Realtime] Subscribing to startup:', startupId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `crm:${startupId}:events`;
+    console.log(`[CRM Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`crm:${startupId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'contact_enriched' }, ({ payload }) => {
         handleContactEnriched(payload as ContactEnrichedPayload);
       })
@@ -129,44 +149,33 @@ export function useCRMRealtime(
           handlePipelineAnalyzed(risk);
         }
       })
-      // Also listen to postgres changes for immediate updates
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'contacts',
-          filter: `startup_id=eq.${startupId}`,
-        },
-        (payload) => {
-          const contact = payload.new as { id: string; enriched_at?: string };
-          if (contact.enriched_at) {
-            queryClient.invalidateQueries({ queryKey: ['contacts', startupId] });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'deals',
-          filter: `startup_id=eq.${startupId}`,
-        },
-        (payload) => {
-          queryClient.invalidateQueries({ queryKey: ['deals', startupId] });
-          queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[CRM Realtime] Channel subscribed');
+      // Also listen to broadcast changes from database triggers
+      .on('broadcast', { event: 'UPDATE' }, ({ payload }) => {
+        const data = payload as { new?: { enriched_at?: string } };
+        if (data.new?.enriched_at) {
+          queryClient.invalidateQueries({ queryKey: ['contacts', startupId] });
         }
       });
 
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[CRM Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[CRM Realtime] ✗ Error on ${topic}`);
+        }
+      });
+    });
+
     return () => {
-      console.log('[CRM Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[CRM Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [startupId, handleContactEnriched, handleDealScored, handlePipelineAnalyzed, queryClient]);
 
