@@ -2,17 +2,20 @@
  * Documents Realtime Hook
  * Channel: documents:{startupId}:events
  * 
- * Handles live updates for document module:
+ * Handles live updates for document module with private channels:
  * - Document analysis results
  * - Quality score updates
  * - AI suggestions
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentsRealtimeState, DocumentAnalyzedPayload } from './types';
 import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseDocumentsRealtimeOptions {
   onDocumentAnalyzed?: (payload: DocumentAnalyzedPayload) => void;
@@ -29,6 +32,7 @@ export function useDocumentsRealtime(
 ) {
   const [state, setState] = useState<DocumentsRealtimeState>(initialState);
   const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleDocumentAnalyzed = useCallback((payload: DocumentAnalyzedPayload) => {
     setState(prev => {
@@ -53,42 +57,64 @@ export function useDocumentsRealtime(
   useEffect(() => {
     if (!startupId) return;
 
-    console.log('[Documents Realtime] Subscribing to startup:', startupId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `documents:${startupId}:events`;
+    console.log(`[Documents Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`documents:${startupId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'document_analyzed' }, ({ payload }) => {
         handleDocumentAnalyzed(payload as DocumentAnalyzedPayload);
       })
-      // Listen for document table changes
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documents',
-          filter: `startup_id=eq.${startupId}`,
-        },
-        (payload) => {
-          queryClient.invalidateQueries({ queryKey: ['documents', startupId] });
-          
-          if (payload.eventType === 'INSERT') {
-            const doc = payload.new as { title?: string };
-            if (options.showToasts) {
-              toast.info(`New document: ${doc.title || 'Untitled'}`);
-            }
-          }
+      // Listen for table changes via broadcast
+      .on('broadcast', { event: 'INSERT' }, ({ payload }) => {
+        queryClient.invalidateQueries({ queryKey: ['documents', startupId] });
+        
+        const doc = (payload as { new?: { title?: string } })?.new;
+        if (options.showToasts && doc?.title) {
+          toast.info(`New document: ${doc.title}`);
         }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Documents Realtime] Channel subscribed');
-        }
+      })
+      .on('broadcast', { event: 'UPDATE' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['documents', startupId] });
+      })
+      .on('broadcast', { event: 'DELETE' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['documents', startupId] });
       });
 
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Documents Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Documents Realtime] ✗ Error on ${topic}`);
+        }
+      });
+    });
+
     return () => {
-      console.log('[Documents Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[Documents Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [startupId, handleDocumentAnalyzed, queryClient, options]);
 

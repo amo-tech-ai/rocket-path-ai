@@ -2,15 +2,18 @@
  * Chat Realtime Hook
  * Channel: chat:{sessionId}:events
  * 
- * Handles live updates for AI chat:
+ * Handles live updates for AI chat with private channels:
  * - Token streaming
  * - Route link suggestions
  * - Context updates
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatRealtimeState } from './types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface MessageChunk {
   content: string;
@@ -36,6 +39,7 @@ export function useChatRealtime(
 ) {
   const [state, setState] = useState<ChatRealtimeState>(initialState);
   const messageBuffer = useRef<string>('');
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleMessageChunk = useCallback((chunk: MessageChunk) => {
     messageBuffer.current += chunk.content;
@@ -83,10 +87,26 @@ export function useChatRealtime(
   useEffect(() => {
     if (!sessionId) return;
 
-    console.log('[Chat Realtime] Subscribing to session:', sessionId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `chat:${sessionId}:events`;
+    console.log(`[Chat Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`chat:${sessionId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'message_chunk' }, ({ payload }) => {
         handleMessageChunk(payload as MessageChunk);
       })
@@ -96,16 +116,27 @@ export function useChatRealtime(
           isComplete: true,
           routeLinks: (payload as { routeLinks?: Array<{ module: string; action: string }> }).routeLinks,
         });
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Chat Realtime] Channel subscribed');
-        }
       });
 
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Chat Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Chat Realtime] ✗ Error on ${topic}`);
+        }
+      });
+    });
+
     return () => {
-      console.log('[Chat Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[Chat Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [sessionId, handleMessageChunk]);
 

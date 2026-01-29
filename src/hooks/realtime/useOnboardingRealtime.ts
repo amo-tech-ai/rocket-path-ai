@@ -2,16 +2,19 @@
  * Onboarding Realtime Hook
  * Channel: onboarding:{sessionId}:events
  * 
- * Handles live updates during the onboarding wizard:
+ * Handles live updates during the onboarding wizard with private channels:
  * - URL enrichment progress
  * - Context/competitor discovery
  * - Founder profile enrichment
  * - Readiness score updates
+ * 
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { OnboardingRealtimeState, EnrichmentPayload, ReadinessScorePayload } from './types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseOnboardingRealtimeOptions {
   onEnrichmentComplete?: (type: 'url' | 'context' | 'founder', data: Record<string, unknown>) => void;
@@ -32,6 +35,7 @@ export function useOnboardingRealtime(
   options: UseOnboardingRealtimeOptions = {}
 ) {
   const [state, setState] = useState<OnboardingRealtimeState>(initialState);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleEnrichmentEvent = useCallback((payload: EnrichmentPayload) => {
     const enrichmentType = payload.eventType.replace('enrichment_', '').replace('_completed', '') as 'url' | 'context' | 'founder';
@@ -81,10 +85,26 @@ export function useOnboardingRealtime(
   useEffect(() => {
     if (!sessionId) return;
 
-    console.log('[Onboarding Realtime] Subscribing to session:', sessionId);
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `onboarding:${sessionId}:events`;
+    console.log(`[Onboarding Realtime] Subscribing to ${topic}`);
 
     const channel = supabase
-      .channel(`onboarding:${sessionId}:events`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'enrichment_url_completed' }, ({ payload }) => {
         handleEnrichmentEvent(payload as EnrichmentPayload);
       })
@@ -96,16 +116,27 @@ export function useOnboardingRealtime(
       })
       .on('broadcast', { event: 'readiness_score_updated' }, ({ payload }) => {
         handleReadinessEvent(payload as ReadinessScorePayload);
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('[Onboarding Realtime] Channel subscribed');
-        }
       });
 
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Onboarding Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Onboarding Realtime] ✗ Error on ${topic}`);
+        }
+      });
+    });
+
     return () => {
-      console.log('[Onboarding Realtime] Unsubscribing');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log('[Onboarding Realtime] Unsubscribing');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [sessionId, handleEnrichmentEvent, handleReadinessEvent]);
 

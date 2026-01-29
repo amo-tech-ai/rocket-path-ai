@@ -96,7 +96,13 @@ export function useCofounderPresence(options: UseCofounderPresenceOptions) {
     const channelName = `onboarding:${sessionId}:presence`;
     console.log('[CofounderPresence] Subscribing to:', channelName);
 
-    const channel = supabase.channel(channelName);
+    const channel = supabase.channel(channelName, {
+      config: {
+        presence: { key: user.id },
+        private: true,
+      },
+    });
+
     channelRef.current = channel;
 
     channel
@@ -127,13 +133,18 @@ export function useCofounderPresence(options: UseCofounderPresenceOptions) {
         if (syncPayload.userId !== user.id) {
           onFormSync?.(syncPayload);
         }
-      })
-      .subscribe(async (status) => {
+      });
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           setIsConnected(true);
           await trackPresence();
+          console.log('[CofounderPresence] ✓ Subscribed');
         }
       });
+    });
 
     return () => {
       console.log('[CofounderPresence] Unsubscribing');

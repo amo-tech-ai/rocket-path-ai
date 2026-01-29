@@ -1,12 +1,16 @@
 /**
  * usePitchDeckGeneration Hook
  * Manages pitch deck generation state with realtime progress updates
+ * 
+ * Uses private channels with setAuth() for secure realtime communication
+ * @see docs/tasks/01-realtime-tasks.md
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export type GenerationStep = {
   id: number;
@@ -82,6 +86,7 @@ const TOTAL_DURATION = DEFAULT_STEPS.reduce((sum, step) => sum + step.duration, 
 
 export function usePitchDeckGeneration(deckId: string | undefined) {
   const navigate = useNavigate();
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const [state, setState] = useState<GenerationState>({
     isGenerating: false,
     currentStep: 0,
@@ -241,14 +246,32 @@ export function usePitchDeckGeneration(deckId: string | undefined) {
     return () => clearInterval(interval);
   }, [state.isGenerating, state.error, calculateProgress]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates with private channel
   useEffect(() => {
     if (!deckId) return;
 
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
+      }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    const topic = `pitch_deck_generation:${deckId}`;
+    console.log(`[PitchDeck Generation] Subscribing to ${topic}`);
+
     const channel = supabase
-      .channel(`pitch_deck_generation:${deckId}`)
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
       .on('broadcast', { event: 'step_progress' }, ({ payload }) => {
-        const { step, progress: stepProgress, message } = payload as {
+        const { step, progress: stepProgress } = payload as {
           step: number;
           progress: number;
           message: string;
@@ -286,11 +309,27 @@ export function usePitchDeckGeneration(deckId: string | undefined) {
             status: idx === prev.currentStep ? 'error' : step.status,
           })),
         }));
-      })
-      .subscribe();
+      });
+
+    channelRef.current = channel;
+
+    // Set auth before subscribing (required for private channels)
+    supabase.realtime.setAuth().then(() => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[PitchDeck Generation] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[PitchDeck Generation] ✗ Error on ${topic}`);
+        }
+      });
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        console.log(`[PitchDeck Generation] Unsubscribing from ${topic}`);
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [deckId, updateStep, calculateProgress]);
 
