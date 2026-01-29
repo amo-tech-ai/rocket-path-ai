@@ -39,6 +39,7 @@ export { useDocumentsRealtime } from './useDocumentsRealtime';
 export { useChatRealtime } from './useChatRealtime';
 export { useEventsRealtime } from './useEventsRealtime';
 export { useRealtimeChatRoom, type UseRealtimeChatRoomOptions, type UseRealtimeChatRoomReturn } from './useRealtimeChatRoom';
+export { useRealtimeAIChat, type UseRealtimeAIChatReturn, type RealtimeAIMessage } from './useRealtimeAIChat';
 
 // Re-export enhanced versions from main subscription hook
 export { 

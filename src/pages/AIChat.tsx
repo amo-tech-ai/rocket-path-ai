@@ -18,13 +18,16 @@ import {
   Presentation,
   Loader2,
   MessageSquare,
-  Plus
+  Plus,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAIChat, AIMessage } from "@/hooks/useAIChat";
+import { useRealtimeAIChat, type RealtimeAIMessage } from "@/hooks/realtime/useRealtimeAIChat";
 import { useStartup } from "@/hooks/useDashboardData";
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Quick action suggestions
 const quickActions = [
@@ -35,7 +38,7 @@ const quickActions = [
 ];
 
 // Chat message component
-function ChatMessage({ message, isLast }: { message: AIMessage; isLast: boolean }) {
+function ChatMessage({ message }: { message: RealtimeAIMessage }) {
   const isUser = message.role === 'user';
   
   return (
@@ -49,7 +52,11 @@ function ChatMessage({ message, isLast }: { message: AIMessage; isLast: boolean 
     >
       {!isUser && (
         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <Brain className="w-4 h-4 text-primary" />
+          {message.isStreaming ? (
+            <Loader2 className="w-4 h-4 text-primary animate-spin" />
+          ) : (
+            <Brain className="w-4 h-4 text-primary" />
+          )}
         </div>
       )}
       <div
@@ -65,6 +72,32 @@ function ChatMessage({ message, isLast }: { message: AIMessage; isLast: boolean 
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown>{message.content}</ReactMarkdown>
+            {message.isStreaming && (
+              <span className="inline-block w-2 h-4 ml-1 bg-primary animate-pulse" />
+            )}
+          </div>
+        )}
+        
+        {/* Metadata */}
+        {message.metadata?.model && !message.isStreaming && (
+          <div className="mt-2 text-xs opacity-60">
+            {message.metadata.provider} • {message.metadata.model}
+          </div>
+        )}
+
+        {/* Suggested Actions */}
+        {message.suggestedActions && message.suggestedActions.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {message.suggestedActions.map((action, idx) => (
+              <Button 
+                key={idx} 
+                variant="outline" 
+                size="sm"
+                className="text-xs h-7"
+              >
+                {action.label}
+              </Button>
+            ))}
           </div>
         )}
       </div>
@@ -74,6 +107,37 @@ function ChatMessage({ message, isLast }: { message: AIMessage; isLast: boolean 
         </div>
       )}
     </motion.div>
+  );
+}
+
+// Connection status indicator
+function ConnectionStatus({ isConnected }: { isConnected: boolean }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={cn(
+          "flex items-center gap-1 text-xs px-2 py-1 rounded-full",
+          isConnected 
+            ? "text-primary bg-primary/10" 
+            : "text-destructive bg-destructive/10"
+        )}>
+          {isConnected ? (
+            <>
+              <Wifi className="h-3 w-3" />
+              <span className="hidden sm:inline">Live</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3 w-3" />
+              <span className="hidden sm:inline">Offline</span>
+            </>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        {isConnected ? 'Connected to realtime channel' : 'Reconnecting...'}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -161,7 +225,19 @@ function AIContextPanel({ startup }: { startup: { name?: string; industry?: stri
 
 const AIChat = () => {
   const { data: startup } = useStartup();
-  const { messages, isLoading, error, sendMessage, clearMessages } = useAIChat();
+  const { 
+    messages, 
+    isLoading, 
+    isConnected,
+    isStreaming,
+    error, 
+    sendMessage, 
+    clearMessages 
+  } = useRealtimeAIChat({
+    startupId: startup?.id,
+    username: 'User',
+  });
+  
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -174,19 +250,15 @@ const AIChat = () => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isStreaming) return;
     
     const message = input;
     setInput('');
     
     await sendMessage(message, 'chat', {
-      screen: 'ai-chat',
-      startup_id: startup?.id,
-      data: {
-        startup_name: startup?.name,
-        industry: startup?.industry,
-        stage: startup?.stage,
-      },
+      startup_name: startup?.name,
+      industry: startup?.industry,
+      stage: startup?.stage,
     });
   };
 
@@ -220,7 +292,8 @@ const AIChat = () => {
               Your startup advisor, powered by AI
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <ConnectionStatus isConnected={isConnected} />
             <Button variant="outline" size="sm" onClick={clearMessages} className="text-xs sm:text-sm">
               <Plus className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">New Chat</span>
@@ -264,16 +337,15 @@ const AIChat = () => {
             ) : (
               <div className="space-y-4">
                 <AnimatePresence mode="popLayout">
-                  {messages.map((message, index) => (
+                  {messages.map((message) => (
                     <ChatMessage 
-                      key={index} 
+                      key={message.id} 
                       message={message} 
-                      isLast={index === messages.length - 1} 
                     />
                   ))}
                 </AnimatePresence>
                 
-                {isLoading && (
+                {isLoading && !isStreaming && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -306,17 +378,17 @@ const AIChat = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
-                disabled={isLoading}
+                placeholder={isConnected ? "Ask anything..." : "Connecting..."}
+                disabled={isLoading || isStreaming}
                 className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
               />
               <Button 
                 onClick={handleSend} 
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || isStreaming}
                 size="icon"
                 className="h-11 w-11 sm:h-10 sm:w-10"
               >
-                {isLoading ? (
+                {isLoading || isStreaming ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
@@ -324,7 +396,8 @@ const AIChat = () => {
               </Button>
             </div>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-2 text-center">
-              AI responses are generated based on your startup profile.
+              AI responses are generated based on your startup profile. 
+              {isConnected && <span className="text-primary"> • Live</span>}
             </p>
           </div>
         </Card>
