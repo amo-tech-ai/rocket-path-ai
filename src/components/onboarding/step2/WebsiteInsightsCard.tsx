@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 
 interface WebsiteInsightsCardProps {
   data: WizardFormData;
+  detectedPhrases?: string[];
+  inferredFields?: string[];
   onUpdate: (updates: Partial<WizardFormData>) => void;
   onEnhance: (field: string) => Promise<void>;
   isEnhancing: Record<string, boolean>;
@@ -21,9 +23,10 @@ interface EditableChipsProps {
   onChange: (values: string[]) => void;
   onEnhance?: () => void;
   isEnhancing?: boolean;
+  isInferred?: boolean;
 }
 
-function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing }: EditableChipsProps) {
+function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, isInferred }: EditableChipsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(values.join(', '));
 
@@ -39,6 +42,11 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing }
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
           {icon}
           {label}
+          {isInferred && values.length > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/5 text-primary border-primary/20">
+              AI-inferred
+            </Badge>
+          )}
         </span>
         <div className="flex items-center gap-1">
           {onEnhance && (
@@ -83,11 +91,14 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing }
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {values.length > 0 ? values.map((v, i) => (
-            <Badge key={i} variant="secondary" className="text-xs">
+            <Badge key={i} variant="secondary" className={cn("text-xs", isInferred && "bg-primary/10 border-primary/20")}>
               {v}
             </Badge>
           )) : (
-            <span className="text-sm text-muted-foreground italic">Not detected</span>
+            <span className="text-sm text-muted-foreground italic flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              Click enhance to generate
+            </span>
           )}
         </div>
       )}
@@ -97,6 +108,8 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing }
 
 export function WebsiteInsightsCard({
   data,
+  detectedPhrases = [],
+  inferredFields = [],
   onUpdate,
   onEnhance,
   isEnhancing,
@@ -104,11 +117,8 @@ export function WebsiteInsightsCard({
   const [editingTagline, setEditingTagline] = useState(false);
   const [taglineValue, setTaglineValue] = useState(data.tagline || '');
 
-  const detectedPhrases = [
-    '"Collaborative intelligence"',
-    '"Brand consistency at scale"',
-    '"Enterprise-grade security"',
-  ];
+  // Helper to check if a field was inferred
+  const isInferred = (field: string) => inferredFields.includes(field);
 
   return (
     <Card className="border-border/50">
@@ -182,6 +192,7 @@ export function WebsiteInsightsCard({
             onChange={(values) => onUpdate({ key_features: values })}
             onEnhance={() => onEnhance('key_features')}
             isEnhancing={isEnhancing.key_features}
+            isInferred={isInferred('key_features')}
           />
           
           {/* Product Summary */}
@@ -205,6 +216,7 @@ export function WebsiteInsightsCard({
             onChange={(values) => onUpdate({ target_customers: values })}
             onEnhance={() => onEnhance('target_customers')}
             isEnhancing={isEnhancing.target_customers}
+            isInferred={isInferred('target_audience')}
           />
 
           {/* Detected Phrases */}
@@ -214,11 +226,15 @@ export function WebsiteInsightsCard({
               Detected Phrases
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {detectedPhrases.map((phrase, i) => (
+              {detectedPhrases.length > 0 ? detectedPhrases.map((phrase, i) => (
                 <Badge key={i} variant="outline" className="text-xs bg-muted/50">
-                  {phrase}
+                  {phrase.startsWith('"') ? phrase : `"${phrase}"`}
                 </Badge>
-              ))}
+              )) : (
+                <span className="text-sm text-muted-foreground italic">
+                  No brand phrases extracted
+                </span>
+              )}
             </div>
           </div>
         </div>

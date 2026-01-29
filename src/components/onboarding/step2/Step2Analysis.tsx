@@ -38,14 +38,24 @@ export function Step2Analysis({
   isGeneratingCompetitors,
 }: Step2AnalysisProps) {
   // Merge form data with AI extractions for display
-  // AI extractions provide key_features, target_audience, competitors if not in form_data
+  // AI extractions provide key_features, target_audience, competitors, detected_phrases if not in form_data
+  const targetAudienceArray = extractions.target_audience 
+    ? (Array.isArray(extractions.target_audience) 
+        ? extractions.target_audience as string[] 
+        : [extractions.target_audience as string])
+    : [];
+    
   const mergedData: WizardFormData = {
     ...data,
     key_features: data.key_features?.length ? data.key_features : (extractions.key_features as string[]) || [],
-    target_customers: data.target_customers?.length ? data.target_customers : (extractions.target_audience ? [extractions.target_audience as string] : []),
+    target_customers: data.target_customers?.length ? data.target_customers : targetAudienceArray,
     competitors: data.competitors?.length ? data.competitors : (Array.isArray(extractions.competitors) ? (extractions.competitors as Array<{name: string}>).map(c => typeof c === 'string' ? c : c.name) : []),
     tagline: data.tagline || (extractions.unique_value_proposition as string) || (extractions.tagline as string) || '',
   };
+
+  // Get detected phrases from extractions
+  const detectedPhrases = (extractions.detected_phrases as string[]) || [];
+  const inferredFields = (extractions.inferred_fields as string[]) || [];
 
   const groundingActive = Boolean(data.website_url);
 
@@ -100,6 +110,8 @@ export function Step2Analysis({
       {/* Section 3: Website Context Insights */}
       <WebsiteInsightsCard
         data={mergedData}
+        detectedPhrases={detectedPhrases}
+        inferredFields={inferredFields}
         onUpdate={onUpdate}
         onEnhance={onEnhanceField}
         isEnhancing={isEnhancing}
