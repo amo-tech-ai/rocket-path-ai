@@ -10,12 +10,14 @@ interface ChatRequest {
   messages?: Array<{ role: string; content: string }>;
   message?: string;
   session_id?: string;
+  room_id?: string; // For realtime broadcast
   action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance';
   context?: {
     screen?: string;
     startup_id?: string;
     data?: Record<string, unknown>;
   };
+  stream?: boolean; // Enable token streaming
 }
 
 // Model configuration based on action type
@@ -54,7 +56,7 @@ serve(async (req) => {
     }
 
     const body: ChatRequest = await req.json();
-    const { messages, message, session_id, action = 'chat', context } = body;
+    const { messages, message, session_id, room_id, action = 'chat', context, stream = false } = body;
 
     const userMessage = message || messages?.[messages.length - 1]?.content;
     
@@ -66,6 +68,7 @@ serve(async (req) => {
     }
 
     console.log(`Processing ${action} from user ${user.id}:`, userMessage.substring(0, 100));
+    console.log(`Stream: ${stream}, Room: ${room_id || 'none'}`);
 
     // Get user's profile and org
     const { data: profile } = await supabase
@@ -114,6 +117,39 @@ serve(async (req) => {
     }
 
     const suggestedActions = extractSuggestedActions(responseText, action);
+    const messageId = crypto.randomUUID();
+
+    // Broadcast message_complete to room if room_id provided
+    if (room_id && context?.startup_id) {
+      try {
+        const topic = `chat:${context.startup_id}:${room_id}:events`;
+        console.log(`[AI Chat] Broadcasting to ${topic}`);
+        
+        // Use Supabase Realtime to broadcast
+        const broadcastChannel = supabase.channel(topic);
+        await broadcastChannel.send({
+          type: 'broadcast',
+          event: 'message_complete',
+          payload: {
+            id: messageId,
+            content: responseText,
+            role: 'assistant',
+            metadata: {
+              model: modelConfig.model,
+              provider: modelConfig.provider,
+              tokens: inputTokens + outputTokens,
+              streamComplete: true,
+            },
+            suggestedActions,
+            createdAt: new Date().toISOString(),
+          },
+        });
+        
+        await supabase.removeChannel(broadcastChannel);
+      } catch (broadcastError) {
+        console.warn('[AI Chat] Broadcast failed:', broadcastError);
+      }
+    }
 
     // Log the AI run
     if (profile?.org_id) {
@@ -154,6 +190,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        id: messageId,
         response: responseText,
         message: responseText,
         suggested_actions: suggestedActions,
