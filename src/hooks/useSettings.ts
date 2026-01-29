@@ -14,13 +14,45 @@ export function useProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
+      // Use maybeSingle to avoid 406 when profile doesn't exist
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      // If profile doesn't exist, create it (first-time user)
+      if (!data) {
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+            avatar_url: user.user_metadata?.avatar_url || null,
+          })
+          .select()
+          .maybeSingle();
+
+        if (createError) {
+          console.warn('[useProfile] Failed to create profile:', createError);
+          // Return minimal profile object to prevent UI breakage
+          return { 
+            id: user.id, 
+            email: user.email || '', 
+            full_name: null, 
+            avatar_url: null, 
+            org_id: null,
+            role: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as Profile;
+        }
+        return newProfile;
+      }
+      
       return data;
     },
   });
@@ -122,11 +154,12 @@ export function useOrganization() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
+      // Use maybeSingle to avoid 406 errors
       const { data: profile } = await supabase
         .from('profiles')
         .select('org_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.org_id) return null;
 
@@ -134,9 +167,9 @@ export function useOrganization() {
         .from('organizations')
         .select('*')
         .eq('id', profile.org_id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
   });
@@ -172,11 +205,12 @@ export function useOrgMembers() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
+      // Use maybeSingle to avoid 406 errors
       const { data: profile } = await supabase
         .from('profiles')
         .select('org_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.org_id) return [];
 
