@@ -332,7 +332,21 @@ export default function OnboardingWizard() {
   // Loading & Transition States
   // =========================================================================
   
-  if (isLoading) {
+  // Loading timeout state - prevents infinite spinner
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  
+  useEffect(() => {
+    if (isLoading && !loadingTimedOut) {
+      const timeout = setTimeout(() => {
+        console.warn('[Wizard] Loading timeout reached, allowing user to proceed');
+        setLoadingTimedOut(true);
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading, loadingTimedOut]);
+  
+  // Show loading spinner only if loading AND not timed out
+  if (isLoading && !loadingTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -368,6 +382,16 @@ export default function OnboardingWizard() {
   // =========================================================================
   
   return (
+    <>
+      {/* Background loading banner when timed out but still loading */}
+      {loadingTimedOut && isLoading && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-primary/10 border-b border-primary/20 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Setting up in background… You can start below.</span>
+          </div>
+        </div>
+      )}
     <WizardLayout
       currentStep={currentStep}
       completedSteps={navigation.completedSteps()}
@@ -596,5 +620,6 @@ export default function OnboardingWizard() {
         )}
       </div>
     </WizardLayout>
+    </>
   );
 }
