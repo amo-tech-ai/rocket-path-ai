@@ -20,6 +20,7 @@ import { Search, Sparkles, Filter, LayoutGrid } from 'lucide-react';
 import { useListPacks, useGetPack, type PromptPack, type PackWithSteps } from '@/hooks/usePromptPack';
 import { PackCard, PackDetailModal, RunPackModal } from '@/components/prompt-pack';
 import { useStartup } from '@/hooks/useDashboardData';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 const CATEGORIES = ['all', 'validation', 'canvas', 'pitch', 'gtm', 'ideation'];
 const STAGES = ['all', 'idea', 'pre-seed', 'seed', 'series-a'];
@@ -102,19 +103,19 @@ export default function PromptPacks() {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8">
+      <DashboardLayout>
         <div className="text-center py-12">
           <p className="text-destructive">Failed to load prompt packs. Please try again.</p>
           <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
             Retry
           </Button>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <DashboardLayout>
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
@@ -261,6 +262,6 @@ export default function PromptPacks() {
         onClose={() => setRunningPack(null)}
         onApplySuccess={handleApplySuccess}
       />
-    </div>
+    </DashboardLayout>
   );
 }
