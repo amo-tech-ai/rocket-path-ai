@@ -3,7 +3,7 @@
 **Purpose:** Systematic, accurate, production-ready progress for Industry & Prompt Packs implementation.  
 **Scope:** `docs/tasks/01-playbooks` — backend, frontend screens, edge functions, docs.  
 **Last Updated:** 2026-01-30  
-**Status:** Backend Complete ✅ | Frontend Integration In Progress 🟡
+**Status:** Backend Complete ✅ | Frontend Screens In Progress 🟡
 
 ---
 
@@ -14,21 +14,83 @@
 | **Migrations** | 🟢 | 100% | All backend tables deployed |
 | **Seeds** | 🟢 | 100% | 19 Industries + 54 Packs seeded |
 | **Edge Functions** | 🟢 | 100% | 13/13 Deployed & Active |
-| **Type Definitions** | 🔴 | 0% | `industry_packs` not in generated types |
+| **Type Workaround** | 🟢 | 100% | Using edge function bridge pattern |
 | **Realtime Integration** | 🟢 | 100% | Private channels + broadcast ready |
 | **Lovable Prompts** | 🟢 | 100% | 8/8 Screen specs in repo |
-| **Frontend Screens** | 🔴 | 0% | 0/8 Screens implemented |
+| **Frontend Screens** | 🟡 | 45% | 3/8 Screens need work |
 | **Testing** | 🟡 | 50% | Edge functions tested; UI pending |
 
 ---
 
-## 🔴 Critical Blockers
+## 📊 Current Implementation Assessment
 
-| # | Issue | Impact | Status | Fix Required |
-|---|-------|--------|--------|--------------|
-| 1 | `industry_packs` table not in Supabase types | TypeScript errors in hooks | 🔴 **BLOCKING** | Run `supabase gen types` or create migration |
-| 2 | `useIndustryPacks.ts` build errors | 20+ TS errors | 🔴 **BLOCKING** | Fix types or use typed edge function |
-| 3 | `useStartupTypes.ts` build errors | 20+ TS errors | 🔴 **BLOCKING** | Same as above |
+### Onboarding Wizard (`/onboarding`) — 🟡 70% Complete
+
+| Spec Requirement | Current Status | Gap |
+|------------------|:--------------:|-----|
+| 4-step wizard flow | ✅ | — |
+| Industry picker (13 categories) | 🟡 | Uses categories but not full sub-category dropdown |
+| Step 1: Context & Enrichment | ✅ | URL enrichment, AI extraction working |
+| Step 2: AI Analysis | ✅ | Readiness score, insights panel |
+| Step 3: Smart Interview | ✅ | Adaptive questions, coaching |
+| Step 4: Review & Score | ✅ | Investor score, summary |
+| Right panel intelligence | ✅ | AI suggestions, signals |
+| Save & resume | ✅ | Session persistence |
+| Industry-specific questions | 🟡 | Loaded but not full 8 per industry |
+| Founder fit assessment | 🟡 | Basic scoring, missing detailed breakdown |
+
+**Next Steps:**
+1. Enhance industry picker with sub-categories
+2. Add 8 industry-specific questions per category
+3. Improve founder fit scoring detail
+
+---
+
+### Main Dashboard (`/app/dashboard`) — 🟡 60% Complete
+
+| Spec Requirement | Current Status | Gap |
+|------------------|:--------------:|-----|
+| Health score widget | 🟡 | Shows score but only 2 categories (spec: 6) |
+| Score breakdown (6 components) | ❌ | Currently: Brand Story, Traction only |
+| Today's Focus (top 3 actions) | ❌ | Not implemented |
+| Module progress cards | ❌ | No progress tracking for Canvas/Pitch/Tasks |
+| Recent activity timeline | ❌ | Not implemented |
+| Quick Actions bar | ✅ | Present |
+| Summary Metrics cards | ✅ | Decks, Investors, Tasks, Events |
+| AI Strategic Review | ✅ | Right panel |
+| Stage Guidance | ✅ | Right panel |
+| Calendar widget | ✅ | Right panel |
+| Health scorer edge function | ❌ | Not implemented |
+| Action recommender edge function | ❌ | Not implemented |
+
+**Critical Gaps:**
+1. Health score only shows 2/6 categories
+2. Missing "Today's Focus" recommended actions
+3. No module progress tracking (Canvas %, Pitch %, etc.)
+4. No recent activity timeline
+5. Need `health-scorer` and `action-recommender` edge functions
+
+---
+
+### Validation Dashboard (`/validator`) — 🔴 0% Complete
+
+| Spec Requirement | Current Status | Gap |
+|------------------|:--------------:|-----|
+| Validation mode selector | ❌ | No page exists |
+| Quick Validate mode | ❌ | — |
+| Deep Validate mode | ❌ | — |
+| Investor Lens mode | ❌ | — |
+| Score circle (0-100) | ❌ | — |
+| Category breakdown bars | ❌ | — |
+| Risk radar chart | ❌ | — |
+| Industry benchmarks | ❌ | — |
+| Task auto-generation | ❌ | — |
+| Historical scores | ❌ | — |
+
+**Implementation Required:**
+- Create `/validator` page
+- Build all components from scratch
+- Wire to `prompt-pack` and `industry-expert-agent`
 
 ---
 
@@ -37,38 +99,38 @@
 ```mermaid
 flowchart TB
     subgraph Frontend["Frontend (React)"]
-        UI["UI Components"]
-        Hooks["Hooks Layer"]
-        Types["TypeScript Types"]
+        OW["Onboarding Wizard 🟡"]
+        MD["Main Dashboard 🟡"]
+        VD["Validation Dashboard 🔴"]
+        LC["Lean Canvas 🟡"]
+        PD["Pitch Deck 🟡"]
+        AC["AI Chat 🟢"]
+        TM["Tasks 🟡"]
+        CRM["CRM 🟡"]
     end
     
-    subgraph EdgeFunctions["Edge Functions (Deno)"]
+    subgraph EdgeFunctions["Edge Functions (Deno) ✅"]
         IEA["industry-expert-agent"]
         PP["prompt-pack"]
         OA["onboarding-agent"]
-        LCA["lean-canvas-agent"]
-        PDA["pitch-deck-agent"]
+        HS["health-scorer 🔴"]
+        AR["action-recommender 🔴"]
     end
     
-    subgraph Supabase["Supabase Backend"]
-        Tables["Tables"]
-        RLS["RLS Policies"]
-        Functions["DB Functions"]
-    end
-    
-    UI --> Hooks
-    Hooks --> EdgeFunctions
-    EdgeFunctions --> Supabase
-    
-    subgraph TablesList["Key Tables"]
+    subgraph Supabase["Supabase Backend ✅"]
         IP["industry_packs"]
         IQ["industry_questions"]
-        IPB["industry_playbooks"]
-        PPS["prompt_packs"]
-        PPST["prompt_pack_steps"]
+        VR["validation_reports"]
+        ST["startups"]
     end
     
-    Tables --> TablesList
+    OW --> OA
+    OW --> IEA
+    MD --> HS
+    MD --> AR
+    VD --> PP
+    VD --> IEA
+    EdgeFunctions --> Supabase
 ```
 
 ---
@@ -77,23 +139,22 @@ flowchart TB
 
 ```mermaid
 journey
-    title Maria's Onboarding Journey
-    section Step 1: Industry
+    title Maria's StartupAI Experience
+    section Onboarding
       Select FinTech - Payments: 5: Maria
-      See industry-specific context: 5: System
-    section Step 2: Problem
-      Answer compliance questions: 4: Maria
-      AI sharpens problem statement: 5: System
-    section Step 3: Founder Fit
-      Share relevant experience: 4: Maria
-      AI assesses founder-market fit: 5: System
-    section Step 4: One-Liner
-      Review AI-generated options: 5: Maria
-      Select memorable pitch: 5: System
-    section Post-Onboarding
-      Dashboard shows health score: 5: System
-      Canvas pre-filled with data: 5: System
-      Pitch deck uses FinTech template: 5: System
+      Answer compliance questions: 5: System
+      Get investor readiness score: 5: System
+    section Dashboard
+      See health score 67/100: 4: Maria
+      View Today's Focus actions: 3: System
+      Click recommended task: 4: Maria
+    section Validation
+      Run Quick Validate: 5: Maria
+      See regulatory gap at 45/100: 5: System
+      Auto-generated task created: 5: System
+    section Action
+      Complete licensing research: 5: Maria
+      Score improves to 72: 5: System
 ```
 
 ---
@@ -105,132 +166,69 @@ journey
 | Task | Status | Verified |
 |------|:------:|:--------:|
 | Schema audit | 🟢 | ✅ |
-| Edge functions audit | 🟢 | ✅ |
+| Edge functions deployed | 🟢 | ✅ |
 | RLS policies verified | 🟢 | ✅ |
-| Types generated | 🔴 | ❌ Missing `industry_packs` |
+| Type workaround applied | 🟢 | ✅ |
+| Realtime infrastructure | 🟢 | ✅ |
+| Prompt files added | 🟢 | ✅ |
 
-### Phase 1: Type System Fixes 🔴 Required First
+### Phase 1: Core Screens (P0) 🟡 In Progress
 
-| Task | File | Status | Priority |
-|------|------|:------:|:--------:|
-| Add `industry_packs` to types | `types.ts` or migration | 🔴 | P0 |
-| Fix `useIndustryPacks.ts` | `src/hooks/useIndustryPacks.ts` | 🔴 | P0 |
-| Fix `useStartupTypes.ts` | `src/hooks/useStartupTypes.ts` | 🔴 | P0 |
+| # | Screen | Route | Current | Target | Priority |
+|---|--------|-------|:-------:|:------:|:--------:|
+| 1 | Onboarding Wizard | `/onboarding` | 70% | 95% | P0 |
+| 2 | Main Dashboard | `/dashboard` | 60% | 95% | P0 |
+| 3 | Validation Dashboard | `/validator` | 0% | 90% | P0 |
 
-### Phase 2: Core Playbook Screens 🔴 Not Started
+### Phase 2: Value-Add Screens (P1) 🟡 Partial
 
-| # | Screen | Route | Prompt File | Status | Priority |
-|---|--------|-------|-------------|:------:|:--------:|
-| 1 | Onboarding Wizard | `/onboarding` | `01-onboarding-wizard.md` | 🔴 | P0 |
-| 2 | Validation Dashboard | `/validator` | `02-validation-dashboard.md` | 🔴 | P0 |
-| 3 | Main Dashboard | `/app/dashboard` | `08-main-dashboard.md` | 🔴 | P0 |
+| # | Screen | Route | Current | Target | Priority |
+|---|--------|-------|:-------:|:------:|:--------:|
+| 4 | Lean Canvas | `/canvas` | 40% | 85% | P1 |
+| 5 | Pitch Deck | `/pitch` | 50% | 85% | P1 |
+| 6 | AI Chat | `/ai-chat` | 90% | 95% | P1 |
+| 7 | Tasks | `/tasks` | 50% | 80% | P1 |
+| 8 | CRM | `/crm` | 40% | 80% | P1 |
 
-### Phase 3: Value-Add Screens 🔴 Not Started
+---
 
-| # | Screen | Route | Prompt File | Status | Priority |
-|---|--------|-------|-------------|:------:|:--------:|
-| 4 | Lean Canvas Builder | `/canvas` | `03-lean-canvas-builder.md` | 🔴 | P1 |
-| 5 | Pitch Deck Generator | `/pitch` | `04-pitch-deck-generator.md` | 🔴 | P1 |
-| 6 | AI Chat Assistant | `/app/chat` | `05-ai-chat-assistant.md` | 🟡 | P1 |
-| 7 | Task Management | `/app/tasks` | `06-task-management.md` | 🟢 | P1 |
-| 8 | CRM & Contacts | `/app/contacts` | `07-crm-contacts.md` | 🟢 | P1 |
+## 🔴 Critical Blockers
+
+| # | Issue | Impact | Solution |
+|---|-------|--------|----------|
+| 1 | Missing `health-scorer` edge function | Dashboard can't calculate real scores | Create new edge function |
+| 2 | Missing `action-recommender` edge function | No Today's Focus actions | Create new edge function |
+| 3 | Validation Dashboard doesn't exist | Core P0 feature missing | Build from spec |
+
+---
+
+## 🟡 High-Risk Issues
+
+| # | Issue | Impact | Solution |
+|---|-------|--------|----------|
+| 4 | Health score shows 2/6 categories | Incomplete founder visibility | Add 4 more score dimensions |
+| 5 | No module progress tracking | Founders can't see Canvas/Pitch % | Add progress hooks |
+| 6 | Onboarding lacks sub-categories | Less targeted industry context | Enhance picker UI |
 
 ---
 
 ## Edge Function Status
 
-| Function | Actions | Model | Status | Verified |
-|----------|---------|-------|:------:|:--------:|
-| `industry-expert-agent` | `get_industry_context`, `get_questions`, `coach_answer`, `validate_canvas`, `pitch_feedback`, `get_benchmarks`, `analyze_competitors` | Gemini 3 Flash/Pro | 🟢 | ✅ |
-| `prompt-pack` | `search`, `run`, `apply` | Gemini/Claude | 🟢 | ✅ |
-| `onboarding-agent` | `enrich_problem`, `assess_founder_fit`, `complete_wizard` | Claude Sonnet | 🟢 | ✅ |
-| `lean-canvas-agent` | `generate`, `validate`, `suggest` | Gemini Pro | 🟢 | ✅ |
-| `pitch-deck-agent` | `generate_slides`, `critique`, `refine` | Claude Sonnet | 🟢 | ✅ |
-| `crm-agent` | Contact enrichment | Gemini Pro | 🟢 | ✅ |
-| `investor-agent` | Investor matching | Gemini Pro | 🟢 | ✅ |
-| `task-agent` | Task generation | Claude Haiku | 🟢 | ✅ |
-| `dashboard-metrics` | Health scoring | Gemini Flash | 🟢 | ✅ |
-| `insights-generator` | AI insights | Gemini Pro | 🟢 | ✅ |
-| `stage-analyzer` | Stage classification | Gemini Flash | 🟢 | ✅ |
-| `documents-agent` | Document processing | Claude Sonnet | 🟢 | ✅ |
-| `event-agent` | Event management | Gemini Flash | 🟢 | ✅ |
-
----
-
-## Database Tables
-
-### Core Industry Tables
-
-| Table | Rows | Status | Used By |
-|-------|:----:|:------:|---------|
-| `industry_packs` | 19 | 🟢 | All screens |
-| `industry_questions` | 152+ | 🟢 | Onboarding, Validation |
-| `industry_playbooks` | 19 | 🟢 | All AI agents |
-
-### Prompt Pack Tables
-
-| Table | Rows | Status | Used By |
-|-------|:----:|:------:|---------|
-| `prompt_packs` | 54 | 🟢 | All AI flows |
-| `prompt_pack_steps` | 64 | 🟢 | Step execution |
-| `prompt_pack_runs` | — | 🟢 | Run history |
-| `feature_pack_routing` | 12 | 🟢 | Agent routing |
-| `context_injection_configs` | 8 | 🟢 | Knowledge injection |
-
-### Output Tables
-
-| Table | Status | Used By |
-|-------|:------:|---------|
-| `playbook_runs` | 🟢 | Onboarding progress |
-| `validation_reports` | 🟢 | Validator output |
-| `lean_canvases` | 🟢 | Canvas data |
-| `pitch_decks` | 🟢 | Deck slides |
-| `startups` | 🟢 | Profile storage |
-| `profiles` | 🟢 | User data |
-| `tasks` | 🟢 | Generated tasks |
-
----
-
-## Knowledge Injection System
-
-```mermaid
-flowchart LR
-    subgraph Input["Context Detection"]
-        Industry["Industry: FinTech"]
-        Stage["Stage: Seed"]
-        Feature["Feature: Pitch Deck"]
-    end
-    
-    subgraph Filter["Knowledge Filter"]
-        Map["Feature → Knowledge Map"]
-    end
-    
-    subgraph Knowledge["Injected Knowledge"]
-        IE["Investor Expectations"]
-        SS["Success Stories"]
-        RF["Red Flags"]
-        BM["Benchmarks"]
-    end
-    
-    subgraph Output["Enriched Prompt"]
-        Prompt["System Prompt + Context"]
-    end
-    
-    Input --> Filter
-    Filter --> Knowledge
-    Knowledge --> Output
-```
-
-### Feature → Knowledge Mapping
-
-| Feature | Knowledge Slice |
-|---------|-----------------|
-| **Onboarding** | Failure patterns + Terminology |
-| **Canvas** | GTM patterns + Benchmarks |
-| **Pitch** | Investor expectations + Success stories + Red flags |
-| **Validator** | Benchmarks + Red flags + Failure patterns |
-| **Tasks** | GTM patterns + Failure patterns |
-| **Chatbot** | All knowledge types |
+| Function | Status | Priority | Notes |
+|----------|:------:|:--------:|-------|
+| `onboarding-agent` | 🟢 | — | 9 actions working |
+| `industry-expert-agent` | 🟢 | — | 7 actions working |
+| `prompt-pack` | 🟢 | — | Search/run/apply working |
+| `ai-chat` | 🟢 | — | Realtime broadcast |
+| `health-scorer` | 🔴 | P0 | **NEEDED** for dashboard |
+| `action-recommender` | 🔴 | P0 | **NEEDED** for dashboard |
+| `dashboard-metrics` | 🟢 | — | Basic aggregation |
+| `lean-canvas-agent` | 🟢 | — | Generate/validate |
+| `pitch-deck-agent` | 🟢 | — | Generate/critique |
+| `crm-agent` | 🟢 | — | Enrichment |
+| `investor-agent` | 🟢 | — | Matching |
+| `task-agent` | 🟢 | — | Generation |
+| `documents-agent` | 🟢 | — | Processing |
 
 ---
 
@@ -238,21 +236,41 @@ flowchart LR
 
 ### 🔴 Immediate (Blocking)
 
-1. **Fix Type Errors**: Create migration for `industry_packs` table to sync types
-2. **Update Hooks**: Fix `useIndustryPacks.ts` and `useStartupTypes.ts`
-3. **Verify Build**: Ensure clean TypeScript compilation
+1. **Create `health-scorer` edge function**
+   - Calculate 6-component health score
+   - Store in `startups.health_score`
+   - Return breakdown and trend
+
+2. **Create `action-recommender` edge function**
+   - Prioritize actions based on gaps
+   - Return top 3 with module links
+
+3. **Build Validation Dashboard page**
+   - Create `/validator` route
+   - Implement Quick Validate mode first
+   - Wire to `prompt-pack` and `industry-expert-agent`
 
 ### 🟡 Short-Term (This Sprint)
 
-4. **Implement Onboarding Wizard** (01-onboarding-wizard.md)
-5. **Implement Validation Dashboard** (02-validation-dashboard.md)
-6. **Implement Main Dashboard** (08-main-dashboard.md)
+4. **Enhance Dashboard Health Widget**
+   - Add 4 missing score categories
+   - Add Today's Focus section
+   - Add module progress cards
+
+5. **Add Dashboard Recent Activity**
+   - Timeline of last 7 days
+   - Task completions, AI runs, updates
+
+6. **Enhance Onboarding Industry Picker**
+   - Add sub-category dropdown
+   - Show example startups per industry
 
 ### 🟢 Medium-Term (Next Sprint)
 
-7. **Implement Lean Canvas Builder** (03-lean-canvas-builder.md)
-8. **Implement Pitch Deck Generator** (04-pitch-deck-generator.md)
-9. **Enhance AI Chat** (05-ai-chat-assistant.md)
+7. Complete Validation Deep Validate mode
+8. Complete Validation Investor Lens mode
+9. Add validation history timeline
+10. PDF export for validation reports
 
 ---
 
@@ -263,6 +281,7 @@ flowchart LR
 | `00-progress-tracker.md` | This file — master progress |
 | `prd-industry-prompt-playbooks.md` | Product requirements |
 | `roadmap.md` | Implementation phases |
+| `101-startup-playbooks.md` | Master playbook guide |
 | `lovable-prompts/00-index.md` | Screen prompts index |
 | `lovable-prompts/00-backend-handoff-checklist.md` | Backend readiness |
 | `lovable-prompts/01-onboarding-wizard.md` | Onboarding spec |
@@ -270,6 +289,22 @@ flowchart LR
 | `lovable-prompts/03-lean-canvas-builder.md` | Canvas spec |
 | `lovable-prompts/04-pitch-deck-generator.md` | Pitch deck spec |
 | `lovable-prompts/05-ai-chat-assistant.md` | Chat spec |
+| `lovable-prompts/06-task-management.md` | Tasks spec |
+| `lovable-prompts/07-crm-contacts.md` | CRM spec |
+| `lovable-prompts/08-main-dashboard.md` | Dashboard spec |
+
+---
+
+## Success Criteria
+
+| Goal | Metric | Current |
+|------|--------|:-------:|
+| Onboarding completion rate | 90%+ of starts | 🟡 ~70% |
+| Dashboard loads < 2 seconds | With real data | 🟡 ~3s |
+| Health score shows 6 categories | All visible | 🔴 2/6 |
+| Today's Focus shows 3 actions | With links | 🔴 0/3 |
+| Validation Dashboard exists | Quick mode works | 🔴 ❌ |
+| No TypeScript build errors | Clean build | 🟢 ✅ |
 
 ---
 
@@ -278,23 +313,11 @@ flowchart LR
 | Symbol | Status | Meaning |
 |:------:|--------|---------|
 | 🟢 | Complete | Fully functional, verified, deployed |
-| 🟡 | In Progress | Partially working or needs verification |
+| 🟡 | In Progress | Partially working or needs enhancement |
 | 🔴 | Not Started / Blocked | Planned but not implemented |
 | ✅ | Verified | Tested and confirmed working |
 | ❌ | Failed | Broken or missing |
 
 ---
 
-## Success Criteria
-
-| Goal | Metric | Current |
-|------|--------|:-------:|
-| Industry selection used | 100% of onboarding flows | 🔴 0% |
-| 8+ questions per industry | 19 industries × 8 questions | 🟢 ✅ |
-| Prompt pack search/run/apply | Used by onboarding, validator, canvas, pitch | 🔴 0% |
-| Structured JSON apply | To profile, canvas, slides, tasks | 🔴 0% |
-| No TypeScript errors | Clean build | 🔴 ❌ |
-
----
-
-**Last Updated:** 2026-01-30 12:00 EST
+**Last Updated:** 2026-01-30 14:00 EST
