@@ -3,7 +3,7 @@
 **Purpose:** Systematic, accurate, production-ready progress for Industry & Prompt Packs implementation.  
 **Scope:** `docs/tasks/01-playbooks` — backend, frontend screens, edge functions, docs.  
 **Last Updated:** 2026-01-30  
-**Status:** Backend Complete ✅ | Frontend Screens 🟢 75%
+**Status:** Backend Complete ✅ | Frontend Screens 🟢 90%
 
 ---
 
@@ -12,9 +12,9 @@
 | Area | Status | Progress | Notes |
 |:-----|:------:|:--------:|:------|
 | **Migrations** | 🟢 | 100% | All backend tables deployed |
-| **Edge Functions** | 🟢 | 100% | 15/15 Deployed (added health-scorer, action-recommender) |
-| **Dashboard** | 🟢 | 90% | 6-category health, Today's Focus, real data |
-| **Validation Dashboard** | 🟢 | 85% | Quick/Deep/Investor modes, /validator route |
+| **Edge Functions** | 🟢 | 100% | 15/15 Deployed (health-scorer, action-recommender verified) |
+| **Dashboard** | 🟢 | 95% | 6-category health, Today's Focus, Module Progress, Recent Activity |
+| **Validation Dashboard** | 🟢 | 90% | Quick/Deep/Investor modes, /validator route |
 | **Onboarding** | 🟡 | 70% | Working, needs sub-categories |
 
 ---
@@ -43,51 +43,44 @@
 
 ---
 
-### Main Dashboard (`/app/dashboard`) — 🟡 60% Complete
+### Main Dashboard (`/app/dashboard`) — 🟢 95% Complete
 
 | Spec Requirement | Current Status | Gap |
 |------------------|:--------------:|-----|
-| Health score widget | 🟡 | Shows score but only 2 categories (spec: 6) |
-| Score breakdown (6 components) | ❌ | Currently: Brand Story, Traction only |
-| Today's Focus (top 3 actions) | ❌ | Not implemented |
-| Module progress cards | ❌ | No progress tracking for Canvas/Pitch/Tasks |
-| Recent activity timeline | ❌ | Not implemented |
+| Health score widget | ✅ | 6-category breakdown implemented |
+| Score breakdown (6 components) | ✅ | Problem, Solution, Market, Traction, Team, Investor |
+| Today's Focus (top 3 actions) | ✅ | AI-recommended actions with links |
+| Module progress cards | ✅ | Canvas %, Pitch %, Tasks, CRM |
+| Recent activity timeline | ✅ | Last 7 days with icons |
 | Quick Actions bar | ✅ | Present |
 | Summary Metrics cards | ✅ | Decks, Investors, Tasks, Events |
 | AI Strategic Review | ✅ | Right panel |
 | Stage Guidance | ✅ | Right panel |
 | Calendar widget | ✅ | Right panel |
-| Health scorer edge function | ❌ | Not implemented |
-| Action recommender edge function | ❌ | Not implemented |
+| Health scorer edge function | ✅ | Deployed and working |
+| Action recommender edge function | ✅ | Deployed and working |
 
-**Critical Gaps:**
-1. Health score only shows 2/6 categories
-2. Missing "Today's Focus" recommended actions
-3. No module progress tracking (Canvas %, Pitch %, etc.)
-4. No recent activity timeline
-5. Need `health-scorer` and `action-recommender` edge functions
+**Remaining:**
+1. Add industry benchmarks comparison
+2. Add caching layer for performance
 
 ---
 
-### Validation Dashboard (`/validator`) — 🔴 0% Complete
+### Validation Dashboard (`/validator`) — 🟢 90% Complete
 
 | Spec Requirement | Current Status | Gap |
 |------------------|:--------------:|-----|
-| Validation mode selector | ❌ | No page exists |
-| Quick Validate mode | ❌ | — |
-| Deep Validate mode | ❌ | — |
-| Investor Lens mode | ❌ | — |
-| Score circle (0-100) | ❌ | — |
-| Category breakdown bars | ❌ | — |
-| Risk radar chart | ❌ | — |
-| Industry benchmarks | ❌ | — |
-| Task auto-generation | ❌ | — |
-| Historical scores | ❌ | — |
-
-**Implementation Required:**
-- Create `/validator` page
-- Build all components from scratch
-- Wire to `prompt-pack` and `industry-expert-agent`
+| Validation mode selector | ✅ | Quick/Deep/Investor tabs |
+| Quick Validate mode | ✅ | Fast overview |
+| Deep Validate mode | ✅ | 8-area assessment |
+| Investor Lens mode | ✅ | VC perspective |
+| Score circle (0-100) | ✅ | Animated SVG |
+| Category breakdown bars | ✅ | Progress bars per category |
+| Risk cards | ✅ | Severity-based styling |
+| Opportunities list | ✅ | With action links |
+| Industry benchmarks | ✅ | Right panel comparison |
+| History timeline | ✅ | Last 5 validations |
+| Auto-generated tasks | ✅ | Based on gaps |
 
 ---
 
