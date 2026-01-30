@@ -3,7 +3,8 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SummaryMetrics } from "@/components/dashboard/SummaryMetrics";
 import { StartupHealthEnhanced } from "@/components/dashboard/StartupHealthEnhanced";
 import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
-import { DeckActivity } from "@/components/dashboard/DeckActivity";
+import { ModuleProgress } from "@/components/dashboard/ModuleProgress";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { InsightsTabs } from "@/components/dashboard/InsightsTabs";
 import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
 import { EventCard } from "@/components/dashboard/EventCard";
@@ -14,6 +15,7 @@ import { useDashboardMetrics, useMetricChanges } from "@/hooks/useDashboardMetri
 import { useDashboardRealtime } from "@/hooks/useRealtimeSubscription";
 import { useHealthScore } from "@/hooks/useHealthScore";
 import { useActionRecommender } from "@/hooks/useActionRecommender";
+import { useModuleProgress } from "@/hooks/useModuleProgress";
 import { useAuth } from "@/hooks/useAuth";
 import { StartupStage } from "@/hooks/useStageGuidance";
 import { motion } from "framer-motion";
@@ -39,6 +41,9 @@ const Dashboard = () => {
     startup?.id, 
     healthScore?.breakdown
   );
+  
+  // Module progress (Canvas, Pitch, Tasks, CRM)
+  const { data: moduleProgress, isLoading: moduleLoading } = useModuleProgress(startup?.id);
   
   // Enable real-time updates for all dashboard data
   useDashboardRealtime(startup?.id);
@@ -140,14 +145,20 @@ const Dashboard = () => {
           isLoading={actionsLoading}
         />
 
-        {/* Startup Health (6 categories) & Deck Activity */}
+        {/* Startup Health & Module Progress */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StartupHealthEnhanced 
             healthScore={healthScore}
             isLoading={healthLoading}
           />
-          <DeckActivity />
+          <ModuleProgress 
+            data={moduleProgress}
+            isLoading={moduleLoading}
+          />
         </div>
+
+        {/* Recent Activity Timeline */}
+        <RecentActivity startupId={startup?.id} />
 
         {/* Insights Tabs */}
         <InsightsTabs />
