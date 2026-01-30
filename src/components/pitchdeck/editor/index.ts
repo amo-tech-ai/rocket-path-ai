@@ -3,6 +3,7 @@
  */
 
 export { SlideNavigationPanel, SLIDE_TYPE_ICONS } from './SlideNavigationPanel';
+export { DraggableSlideNavigationPanel } from './DraggableSlideNavigationPanel';
 export { SlideEditorPanel } from './SlideEditorPanel';
 export { AIIntelligencePanel } from './AIIntelligencePanel';
 export { ExportModal } from './ExportModal';

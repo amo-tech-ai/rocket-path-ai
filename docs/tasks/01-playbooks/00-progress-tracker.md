@@ -222,10 +222,10 @@ journey
 | # | Screen | Route | Current | Target | Priority |
 |---|--------|-------|:-------:|:------:|:--------:|
 | 4 | Lean Canvas | `/canvas` | 95% | 95% | P1 |
-| 5 | Pitch Deck | `/pitch` | 80% | 85% | P1 |
+| 5 | Pitch Deck | `/pitch` | 85% | 85% | P1 |
 | 6 | AI Chat | `/ai-chat` | 90% | 95% | P1 |
-| 7 | Tasks | `/tasks` | 50% | 80% | P1 |
-| 8 | CRM | `/crm` | 70% | 80% | P1 |
+| 7 | Tasks | `/tasks` | 80% | 80% | P1 |
+| 8 | CRM | `/crm` | 80% | 80% | P1 |
 
 ---
 
