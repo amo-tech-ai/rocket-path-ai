@@ -6,7 +6,8 @@ import { DealPipeline } from '@/components/crm/DealPipeline';
 import { ContactDialog } from '@/components/crm/ContactDialog';
 import { DealDialog } from '@/components/crm/DealDialog';
 import { ContactDetailSheet } from '@/components/crm/ContactDetailSheet';
-import { 
+import { CSVImportDialog } from '@/components/crm/CSVImportDialog';
+import {
   useContacts, 
   useDeals,
   useCreateContact,
@@ -25,7 +26,8 @@ import {
   Search,
   Filter,
   TrendingUp,
-  UserPlus
+  UserPlus,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +78,7 @@ const CRM = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<DealWithContact | null>(null);
+  const [csvImportOpen, setCSVImportOpen] = useState(false);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,20 +207,34 @@ const CRM = () => {
     setDealDialogOpen(true);
   };
 
-  const handleAddFromMatcher = async (investor: any) => {
+  const handleCSVImport = async (contacts: Array<Record<string, string>>) => {
     if (!startup?.id) return;
     
-    try {
-      await createContact.mutateAsync({
-        name: investor.name,
-        company: investor.firm,
-        type: 'investor',
-        startup_id: startup.id,
-        linkedin_url: investor.linkedinUrl || null,
-      });
-    } catch (error) {
-      // Error handled by mutation
+    for (const contact of contacts) {
+      if (contact.name) {
+        await createContact.mutateAsync({
+          name: contact.name,
+          email: contact.email || null,
+          phone: contact.phone || null,
+          company: contact.company || null,
+          title: contact.title || null,
+          linkedin_url: contact.linkedin_url || null,
+          startup_id: startup.id,
+          type: contact.type || 'other',
+        });
+      }
     }
+  };
+
+  const handleAddFromMatcher = async (investor: any) => {
+    if (!startup?.id) return;
+    await createContact.mutateAsync({
+      name: investor.name,
+      company: investor.firm,
+      type: 'investor',
+      startup_id: startup.id,
+      linkedin_url: investor.linkedinUrl || null,
+    });
   };
 
   // Empty state
@@ -283,6 +300,10 @@ const CRM = () => {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setCSVImportOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import CSV
+            </Button>
             <Button variant="outline" onClick={() => setDealDialogOpen(true)}>
               <TrendingUp className="w-4 h-4 mr-2" />
               New Deal
@@ -439,6 +460,13 @@ const CRM = () => {
         onDelete={() => selectedContact && openDeleteConfirm(selectedContact)}
         onAddDeal={openAddDealForContact}
         startupId={startup?.id}
+      />
+
+      {/* CSV Import Dialog */}
+      <CSVImportDialog
+        open={csvImportOpen}
+        onOpenChange={setCSVImportOpen}
+        onImport={handleCSVImport}
       />
 
       {/* Delete Confirmation */}
