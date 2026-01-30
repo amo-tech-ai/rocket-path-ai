@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { StartupSettings } from '@/components/settings/StartupSettings';
@@ -6,6 +7,7 @@ import { TeamSettings } from '@/components/settings/TeamSettings';
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { AccountSettings } from '@/components/settings/AccountSettings';
+import { AIBudgetSettings } from '@/components/settings/AIBudgetSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
 import { 
@@ -14,11 +16,20 @@ import {
   Users, 
   Bell,
   Palette,
-  Shield
+  Shield,
+  Brain
 } from 'lucide-react';
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState('profile');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'profile';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Update tab when URL changes
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   return (
     <DashboardLayout>
@@ -42,7 +53,7 @@ const Settings = () => {
           transition={{ delay: 0.1 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 lg:w-auto lg:inline-flex mb-6">
+            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 lg:w-auto lg:inline-flex mb-6">
               <TabsTrigger value="profile" className="gap-2">
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline">Profile</span>
@@ -54,6 +65,10 @@ const Settings = () => {
               <TabsTrigger value="notifications" className="gap-2">
                 <Bell className="w-4 h-4" />
                 <span className="hidden sm:inline">Notifications</span>
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="gap-2">
+                <Brain className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Budget</span>
               </TabsTrigger>
               <TabsTrigger value="startup" className="gap-2">
                 <Building2 className="w-4 h-4" />
@@ -80,6 +95,10 @@ const Settings = () => {
 
               <TabsContent value="notifications" className="mt-0 space-y-6">
                 <NotificationSettings />
+              </TabsContent>
+
+              <TabsContent value="ai" className="mt-0 space-y-6">
+                <AIBudgetSettings />
               </TabsContent>
 
               <TabsContent value="startup" className="mt-0 space-y-6">
