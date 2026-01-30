@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MobileAISheet } from "@/components/mobile/MobileAISheet";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
+import { NotificationCenter } from "@/components/notifications";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -189,7 +190,7 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
             <Menu className="w-5 h-5" />
           </Button>
           <Link to="/dashboard" className="font-semibold">StartupAI</Link>
-          <div className="w-10" /> {/* Spacer */}
+          <NotificationCenter />
         </header>
 
         <div className="flex-1 flex overflow-hidden">
