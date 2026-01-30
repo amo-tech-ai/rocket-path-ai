@@ -9,3 +9,5 @@ export { ExportModal } from './ExportModal';
 export { SlideImageGenerator } from './SlideImageGenerator';
 export { SlideVisualPreview } from './SlideVisualPreview';
 export { PresentationMode } from './PresentationMode';
+export { CriticPanel } from './CriticPanel';
+export { PresenterNotesPanel } from './PresenterNotesPanel';

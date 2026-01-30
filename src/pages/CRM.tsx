@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { CRMAIPanel } from '@/components/crm/CRMAIPanel';
+import { EnhancedCRMAIPanel } from '@/components/crm/EnhancedCRMAIPanel';
 import { ContactCard } from '@/components/crm/ContactCard';
 import { DealPipeline } from '@/components/crm/DealPipeline';
 import { ContactDialog } from '@/components/crm/ContactDialog';
@@ -8,7 +8,7 @@ import { DealDialog } from '@/components/crm/DealDialog';
 import { ContactDetailSheet } from '@/components/crm/ContactDetailSheet';
 import { 
   useContacts, 
-  useDeals, 
+  useDeals,
   useCreateContact,
   useUpdateContact,
   useDeleteContact,
@@ -75,6 +75,7 @@ const CRM = () => {
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
+  const [selectedDeal, setSelectedDeal] = useState<DealWithContact | null>(null);
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -199,13 +200,30 @@ const CRM = () => {
 
   const openEditDeal = (deal: DealWithContact) => {
     setEditingDeal(deal);
+    setSelectedDeal(deal);
     setDealDialogOpen(true);
+  };
+
+  const handleAddFromMatcher = async (investor: any) => {
+    if (!startup?.id) return;
+    
+    try {
+      await createContact.mutateAsync({
+        name: investor.name,
+        company: investor.firm,
+        type: 'investor',
+        startup_id: startup.id,
+        linkedin_url: investor.linkedinUrl || null,
+      });
+    } catch (error) {
+      // Error handled by mutation
+    }
   };
 
   // Empty state
   if (!isLoading && contacts.length === 0 && deals.length === 0) {
     return (
-      <DashboardLayout aiPanel={<CRMAIPanel contactsCount={0} dealsCount={0} startupId={startup?.id} />}>
+      <DashboardLayout aiPanel={<EnhancedCRMAIPanel contactsCount={0} dealsCount={0} startupId={startup?.id} onAddContact={handleAddFromMatcher} />}>
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -250,7 +268,7 @@ const CRM = () => {
   }
 
   return (
-    <DashboardLayout aiPanel={<CRMAIPanel contactsCount={contacts.length} dealsCount={deals.length} startupId={startup?.id} />}>
+    <DashboardLayout aiPanel={<EnhancedCRMAIPanel contactsCount={contacts.length} dealsCount={deals.length} startupId={startup?.id} selectedDeal={selectedDeal} onAddContact={handleAddFromMatcher} />}>
       <div className="max-w-6xl">
         {/* Header */}
         <motion.div 
