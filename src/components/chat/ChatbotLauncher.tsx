@@ -19,8 +19,10 @@ import {
   Brain,
   Sparkles,
   Minimize2,
-  Maximize2
+  Maximize2,
+  History
 } from 'lucide-react';
+import { ChatHistoryDialog } from './ChatHistoryDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useAIChat, AIMessage } from '@/hooks/useAIChat';
@@ -220,6 +222,14 @@ export function ChatbotLauncher({ className }: ChatbotLauncherProps) {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <ChatHistoryDialog 
+                  onSelectMessage={(message) => {
+                    // Load the selected message content
+                    if (message.role === 'user') {
+                      setInput(message.content);
+                    }
+                  }}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
