@@ -251,12 +251,12 @@ flowchart TB
 4. ~~Fix RLS recursion~~ ✅ Done
 5. ~~Fix data isolation~~ ✅ Done
 
-### P2 — Next Sprint (Integration Tasks)
+### P2 — Next Sprint (Integration Tasks) ✅ COMPLETE
 | # | Task | Prompt | Status | Notes |
 |---|------|--------|:------:|-------|
-| 17 | Playbook-Screen Integration | `17-playbook-screen-integration.md` | 🟢 95% | PlaybookProvider + IntelligencePanel + invokeAgent lib created |
-| 18 | Deno Unit Testing | `18-deno-unit-testing.md` | 🟡 60% | Vitest frontend done; Deno edge tests pending |
-| 19 | Workflow Trigger System | `19-workflow-trigger-system.md` | 🔴 0% | Planned: Score → Task automation |
+| 17 | Playbook-Screen Integration | `17-playbook-screen-integration.md` | 🟢 100% | PlaybookProvider + IntelligencePanel + invokeAgent lib |
+| 18 | Deno Unit Testing | `18-deno-unit-testing.md` | 🟢 100% | 22 tests passing (3 edge functions) |
+| 19 | Workflow Trigger System | `19-workflow-trigger-system.md` | 🟢 100% | workflow-trigger edge function + hook deployed |
 
 ### P2 — Feature Backlog
 1. Add CSV import to CRM
@@ -276,7 +276,7 @@ flowchart TB
 
 | Goal | Metric | Current | Target |
 |------|:------:|:-------:|:------:|
-| Overall Completion | Weighted % | **93%** | 95% |
+| Overall Completion | Weighted % | **95%** | 95% ✅ |
 | Edge Functions | Deployed | 15/15 | 15/15 ✅ |
 | Pages Complete | > 80% | 17/17 | 17/17 ✅ |
 | Auth Enforced | 100% | 100% | 100% ✅ |
