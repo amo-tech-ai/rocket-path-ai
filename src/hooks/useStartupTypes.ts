@@ -1,6 +1,6 @@
 /**
  * useStartupTypes Hook
- * Fetches dynamic startup types from industry_packs for pitch deck sub-categories
+ * Fetches dynamic startup types via edge function
  * Falls back to static data if database unavailable
  */
 
@@ -43,7 +43,7 @@ const STATIC_SUB_CATEGORIES: Record<string, StartupType[]> = {
     { id: 'mental_health', label: 'Mental Health' },
     { id: 'telemedicine', label: 'Telemedicine' },
   ],
-  edtech: [
+  education: [
     { id: 'k12', label: 'K-12' },
     { id: 'higher_ed', label: 'Higher Ed' },
     { id: 'corporate_training', label: 'Corporate Training' },
@@ -99,6 +99,27 @@ const STATIC_SUB_CATEGORIES: Record<string, StartupType[]> = {
     { id: 'fleet', label: 'Fleet' },
     { id: 'supply_chain', label: 'Supply Chain' },
   ],
+  logistics_supply_chain: [
+    { id: 'freight', label: 'Freight' },
+    { id: 'last_mile', label: 'Last Mile' },
+    { id: 'warehouse', label: 'Warehouse' },
+    { id: 'fleet', label: 'Fleet' },
+    { id: 'supply_chain', label: 'Supply Chain' },
+  ],
+  cybersecurity: [
+    { id: 'endpoint', label: 'Endpoint Security' },
+    { id: 'network', label: 'Network Security' },
+    { id: 'identity', label: 'Identity & Access' },
+    { id: 'cloud', label: 'Cloud Security' },
+    { id: 'compliance', label: 'Compliance' },
+  ],
+  legal_professional: [
+    { id: 'legal_tech', label: 'Legal Tech' },
+    { id: 'accounting', label: 'Accounting' },
+    { id: 'consulting', label: 'Consulting' },
+    { id: 'hr_services', label: 'HR Services' },
+    { id: 'compliance', label: 'Compliance' },
+  ],
   media: [
     { id: 'streaming', label: 'Streaming' },
     { id: 'news', label: 'News' },
@@ -111,8 +132,20 @@ const STATIC_SUB_CATEGORIES: Record<string, StartupType[]> = {
   ],
 };
 
+// Static industry list
+const STATIC_INDUSTRIES: IndustryWithTypes[] = [
+  { industry: 'ai_saas', display_name: 'AI SaaS', icon: '🤖', startup_types: STATIC_SUB_CATEGORIES.ai_saas || [] },
+  { industry: 'fintech', display_name: 'FinTech', icon: '💳', startup_types: STATIC_SUB_CATEGORIES.fintech || [] },
+  { industry: 'healthcare', display_name: 'Healthcare', icon: '🏥', startup_types: STATIC_SUB_CATEGORIES.healthcare || [] },
+  { industry: 'education', display_name: 'Education', icon: '📚', startup_types: STATIC_SUB_CATEGORIES.education || [] },
+  { industry: 'ecommerce', display_name: 'E-commerce', icon: '🛒', startup_types: STATIC_SUB_CATEGORIES.ecommerce || [] },
+  { industry: 'cybersecurity', display_name: 'Cybersecurity', icon: '🔐', startup_types: STATIC_SUB_CATEGORIES.cybersecurity || [] },
+  { industry: 'logistics_supply_chain', display_name: 'Logistics', icon: '📦', startup_types: STATIC_SUB_CATEGORIES.logistics_supply_chain || [] },
+  { industry: 'legal_professional', display_name: 'Legal & Professional', icon: '⚖️', startup_types: STATIC_SUB_CATEGORIES.legal_professional || [] },
+];
+
 /**
- * Fetch startup types for a specific industry
+ * Fetch startup types for a specific industry via edge function
  */
 export function useStartupTypes(industryKey?: string) {
   return useQuery({
@@ -120,27 +153,27 @@ export function useStartupTypes(industryKey?: string) {
     queryFn: async (): Promise<StartupType[]> => {
       if (!industryKey) return [];
       
-      // First try to fetch from database
-      const { data: pack, error } = await supabase
-        .from('industry_packs')
-        .select('startup_types')
-        .eq('industry', industryKey)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error) {
-        console.warn('[useStartupTypes] Database error, using fallback:', error);
+      try {
+        const { data, error } = await supabase.functions.invoke('industry-expert-agent', {
+          body: { action: 'get_industry_context', industry: industryKey },
+        });
+
+        if (error) {
+          console.warn('[useStartupTypes] Edge function error, using fallback:', error);
+          return STATIC_SUB_CATEGORIES[industryKey] || [];
+        }
+
+        // Check if context has startup_types
+        if (data?.context?.startup_types && Array.isArray(data.context.startup_types)) {
+          return data.context.startup_types as StartupType[];
+        }
+
+        // Fallback to static data
+        return STATIC_SUB_CATEGORIES[industryKey] || [];
+      } catch (err) {
+        console.warn('[useStartupTypes] Fetch error, using fallback:', err);
         return STATIC_SUB_CATEGORIES[industryKey] || [];
       }
-      
-      if (pack?.startup_types && Array.isArray(pack.startup_types) && pack.startup_types.length > 0) {
-        // Safely cast the JSON array to StartupType[]
-        const types = pack.startup_types as unknown as StartupType[];
-        return types.filter(t => t && typeof t === 'object' && 'id' in t && 'label' in t);
-      }
-      
-      // Fallback to static data
-      return STATIC_SUB_CATEGORIES[industryKey] || [];
     },
     enabled: !!industryKey,
     staleTime: 1000 * 60 * 30, // Cache for 30 minutes
@@ -148,38 +181,39 @@ export function useStartupTypes(industryKey?: string) {
 }
 
 /**
- * Fetch all industries with their startup types
+ * Fetch all industries with their startup types via edge function
  */
 export function useIndustriesWithTypes() {
   return useQuery({
     queryKey: ['industries-with-types'],
     queryFn: async (): Promise<IndustryWithTypes[]> => {
-      const { data: packs, error } = await supabase
-        .from('industry_packs')
-        .select('industry, display_name, icon, startup_types')
-        .eq('is_active', true)
-        .order('display_name');
-      
-      if (error) {
-        console.warn('[useIndustriesWithTypes] Database error:', error);
-        return [];
+      try {
+        const { data, error } = await supabase.functions.invoke('industry-expert-agent', {
+          body: { action: 'get_industry_context' },
+        });
+
+        if (error) {
+          console.warn('[useIndustriesWithTypes] Edge function error, using fallback:', error);
+          return STATIC_INDUSTRIES;
+        }
+
+        // Edge function returns { success: true, packs: [...] }
+        if (data?.packs && Array.isArray(data.packs)) {
+          return data.packs.map((pack: Record<string, unknown>) => ({
+            industry: pack.industry as string,
+            display_name: pack.display_name as string,
+            icon: (pack.icon as string) || '🏢',
+            startup_types: Array.isArray(pack.startup_types) 
+              ? (pack.startup_types as StartupType[])
+              : [],
+          }));
+        }
+
+        return STATIC_INDUSTRIES;
+      } catch (err) {
+        console.warn('[useIndustriesWithTypes] Fetch error, using fallback:', err);
+        return STATIC_INDUSTRIES;
       }
-      
-      return (packs || []).map(pack => {
-        // Safely cast startup_types
-        const types = Array.isArray(pack.startup_types) 
-          ? (pack.startup_types as unknown as StartupType[]).filter(
-              t => t && typeof t === 'object' && 'id' in t && 'label' in t
-            )
-          : [];
-        
-        return {
-          industry: pack.industry,
-          display_name: pack.display_name,
-          icon: pack.icon || '🏢',
-          startup_types: types,
-        };
-      });
     },
     staleTime: 1000 * 60 * 30,
   });
