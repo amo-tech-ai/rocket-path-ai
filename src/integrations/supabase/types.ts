@@ -4927,6 +4927,7 @@ export type Database = {
         }[]
       }
       get_pitch_deck_with_slides: { Args: { p_deck_id: string }; Returns: Json }
+      get_user_org_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

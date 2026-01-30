@@ -7,21 +7,50 @@ export type Project = Tables<'projects'>;
 export type Task = Tables<'tasks'>;
 export type Deal = Tables<'deals'>;
 
-// Fetch user's startup (with fallback for demo data)
+// Fetch user's startup via proper user isolation
 export function useStartup() {
   return useQuery({
     queryKey: ['startup'],
     queryFn: async () => {
-      // Get first available startup (fallback for demo)
-      const { data, error } = await supabase
-        .from('startups')
-        .select('*')
-        .order('created_at', { ascending: true })
-        .limit(1)
+      // Get current user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return null;
+      
+      // First try: Get startup via wizard session (most reliable for onboarded users)
+      const { data: session } = await supabase
+        .from('wizard_sessions')
+        .select('startup_id')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .not('startup_id', 'is', null)
         .maybeSingle();
       
-      if (error) throw error;
-      return data;
+      if (session?.startup_id) {
+        const { data, error } = await supabase
+          .from('startups')
+          .select('*')
+          .eq('id', session.startup_id)
+          .single();
+        if (!error && data) return data;
+      }
+      
+      // Second try: Get startup via profile org_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (profile?.org_id) {
+        const { data, error } = await supabase
+          .from('startups')
+          .select('*')
+          .eq('org_id', profile.org_id)
+          .maybeSingle();
+        if (!error) return data;
+      }
+      
+      return null;
     },
   });
 }
