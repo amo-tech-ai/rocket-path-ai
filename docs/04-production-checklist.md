@@ -139,8 +139,11 @@
 | Issue | Severity | Status |
 |-------|----------|--------|
 | Leaked password protection disabled | Low | OAuth primary |
-| DEV_BYPASS in ProtectedRoute | High | Remove for prod |
+| ~~DEV_BYPASS in ProtectedRoute~~ | ~~High~~ | ✅ Fixed |
+| ~~RLS infinite recursion on profiles~~ | ~~Critical~~ | ✅ Fixed |
+| ~~useStartup data isolation~~ | ~~High~~ | ✅ Fixed |
 | Type workarounds in useEvents.ts | Low | TS2589 fix |
+| Function search_path warnings (19) | Low | Non-blocking |
 
 ---
 
@@ -150,14 +153,29 @@
 |--------|--------|---|
 | Core Infrastructure | ✅ | 100% |
 | Authentication | ✅ | 100% |
-| Dashboard | ✅ | 95% |
+| Dashboard | ✅ | 98% |
 | Tasks | ✅ | 100% |
 | CRM | ✅ | 95% |
 | Investors | ✅ | 95% |
-| Events | ✅ | 85% |
-| Projects | 🔄 | 60% |
-| Documents | 🔄 | 30% |
-| Settings | 🔄 | 30% |
-| AI Integration | ✅ | 80% |
+| Events | ✅ | 95% |
+| Projects | ✅ | 90% |
+| Documents | ✅ | 90% |
+| Settings | ✅ | 95% |
+| AI Integration | ✅ | 95% |
+| Global AI Assistant | ✅ | 100% |
+| Notifications | ✅ | 100% |
+| Calendar Sync | ✅ | 100% |
 
-**Overall Progress: 85%**
+**Overall Progress: 92%**
+
+---
+
+## Changelog
+
+### 2026-01-30
+- ✅ Fixed: RLS infinite recursion on profiles table
+- ✅ Fixed: useStartup data isolation (was returning wrong user's data)
+- ✅ Added: Global AI Assistant (Atlas) - floating on all pages
+- ✅ Added: Notification system with browser push support
+- ✅ Added: Calendar sync for investor meetings
+- ✅ Added: AI Budget settings page
