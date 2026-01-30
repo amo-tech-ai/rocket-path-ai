@@ -3,9 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { ChatbotLauncher } from "@/components/chat/ChatbotLauncher";
+import { AIAssistantProvider } from "@/providers/AIAssistantProvider";
+import { GlobalAIAssistant } from "@/components/ai";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Features from "./pages/Features";
@@ -41,24 +42,6 @@ import Validator from "./pages/Validator";
 
 const queryClient = new QueryClient();
 
-// Global chatbot launcher - only shows for authenticated users
-function GlobalChatbotLauncher() {
-  const { user } = useAuth();
-  const location = useLocation();
-  
-  // Only show for authenticated users, not on public pages
-  const publicPaths = ['/', '/login', '/how-it-works', '/features', '/blog', '/events'];
-  const isPublicPage = publicPaths.some(path => 
-    location.pathname === path || 
-    location.pathname.startsWith('/blog/') ||
-    (location.pathname.startsWith('/events/') && !location.pathname.startsWith('/app/events'))
-  );
-  
-  if (!user || isPublicPage) return null;
-  
-  return <ChatbotLauncher />;
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -66,8 +49,10 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <GlobalChatbotLauncher />
-          <Routes>
+          <AIAssistantProvider>
+            {/* Global AI Assistant - visible on ALL pages */}
+            <GlobalAIAssistant />
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/features" element={<Features />} />
@@ -264,6 +249,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AIAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

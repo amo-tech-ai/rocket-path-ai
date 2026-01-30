@@ -10,24 +10,66 @@ interface ChatRequest {
   messages?: Array<{ role: string; content: string }>;
   message?: string;
   session_id?: string;
-  room_id?: string; // For realtime broadcast
+  room_id?: string;
+  mode?: 'public' | 'authenticated';
   action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance';
   context?: {
     screen?: string;
     startup_id?: string;
+    is_public?: boolean;
     data?: Record<string, unknown>;
   };
-  stream?: boolean; // Enable token streaming
+  stream?: boolean;
 }
 
 // Model configuration based on action type
 const MODEL_CONFIG = {
   chat: { provider: 'gemini', model: 'gemini-3-flash-preview' },
+  public_chat: { provider: 'gemini', model: 'gemini-3-flash-preview' },
   prioritize_tasks: { provider: 'anthropic', model: 'claude-sonnet-4-5' },
   generate_tasks: { provider: 'anthropic', model: 'claude-haiku-4-5' },
   extract_profile: { provider: 'gemini', model: 'gemini-3-flash-preview' },
   stage_guidance: { provider: 'gemini', model: 'gemini-3-flash-preview' },
 } as const;
+
+// Public mode system prompt
+const PUBLIC_SYSTEM_PROMPT = `You are Atlas, StartupAI's friendly assistant on the public website.
+
+ABOUT STARTUPAI:
+StartupAI is an AI-powered platform that helps founders:
+- Plan and track their startup journey with AI guidance
+- Generate professional pitch decks and documents
+- Manage investor relations with smart CRM tools
+- Get personalized strategic recommendations
+- Validate ideas and track progress with data-driven insights
+
+CAPABILITIES:
+- Explain StartupAI features and benefits in detail
+- Answer pricing and plan questions
+- Share how founders use StartupAI with concrete examples
+- Provide general startup advice and industry insights
+- Guide visitors to sign up or log in
+
+RESTRICTIONS:
+- You cannot access any user dashboards or personal data
+- You cannot perform startup planning, task creation, or CRM actions
+- You cannot create documents, pitch decks, or any personalized content
+- You cannot view or analyze any specific startup
+
+RESPONSE STYLE:
+- Friendly, helpful, and conversational
+- Concise but informative (2-4 sentences per point)
+- Highlight value propositions naturally
+- Encourage exploration without being pushy
+
+When asked to perform restricted actions like creating tasks, analyzing a startup, or generating documents, respond:
+"To [specific action], you'll need to sign up or sign in. I'd be happy to explain how StartupAI helps with that!"
+
+PRICING INFO (if asked):
+- Free tier: Basic features to get started
+- Pro tier: Full AI capabilities, unlimited documents, priority support
+- Enterprise: Custom solutions for accelerators and VCs
+Suggest they visit the pricing page or sign up for details.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,19 +87,22 @@ serve(async (req) => {
       },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Try to get user - allow unauthenticated for public mode
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (userError || !user) {
-      console.log('Auth error or no user:', userError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const body: ChatRequest = await req.json();
-    const { messages, message, session_id, room_id, action = 'chat', context, stream = false } = body;
+    const { 
+      messages, 
+      message, 
+      session_id, 
+      room_id, 
+      mode = user ? 'authenticated' : 'public',
+      action = 'chat', 
+      context, 
+      stream = false 
+    } = body;
 
+    const isPublicMode = mode === 'public' || !user;
     const userMessage = message || messages?.[messages.length - 1]?.content;
     
     if (!userMessage) {
@@ -67,38 +112,50 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${action} from user ${user.id}:`, userMessage.substring(0, 100));
-    console.log(`Stream: ${stream}, Room: ${room_id || 'none'}`);
+    console.log(`[AI Chat] Mode: ${isPublicMode ? 'public' : 'authenticated'}, Action: ${action}`);
+    console.log(`[AI Chat] Message: ${userMessage.substring(0, 100)}...`);
 
-    // Get user's profile and org
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('org_id, full_name')
-      .eq('id', user.id)
-      .single();
+    // For public mode, only allow chat action
+    const effectiveAction = isPublicMode ? 'chat' : action;
 
-    // Get startup context
+    let systemPrompt: string;
+    let profile = null;
     let startup = null;
-    if (profile?.org_id) {
-      const { data } = await supabase
-        .from('startups')
-        .select('*')
-        .eq('org_id', profile.org_id)
+
+    if (isPublicMode) {
+      // Public mode - use public system prompt
+      systemPrompt = PUBLIC_SYSTEM_PROMPT;
+    } else {
+      // Authenticated mode - get user context
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('org_id, full_name')
+        .eq('id', user!.id)
         .single();
-      startup = data;
+      profile = profileData;
+
+      if (profile?.org_id) {
+        const { data: startupData } = await supabase
+          .from('startups')
+          .select('*')
+          .eq('org_id', profile.org_id)
+          .single();
+        startup = startupData;
+      }
+
+      systemPrompt = buildSystemPrompt(effectiveAction, {
+        user_name: profile?.full_name || 'User',
+        startup_name: startup?.name,
+        startup_stage: startup?.stage,
+        industry: startup?.industry,
+        is_raising: startup?.is_raising,
+        screen: context?.screen || 'dashboard',
+      });
     }
 
-    const systemPrompt = buildSystemPrompt(action, {
-      user_name: profile?.full_name || 'User',
-      startup_name: startup?.name,
-      startup_stage: startup?.stage,
-      industry: startup?.industry,
-      is_raising: startup?.is_raising,
-      screen: context?.screen || 'dashboard',
-    });
-
     // Get model config for this action
-    const modelConfig = MODEL_CONFIG[action] || MODEL_CONFIG.chat;
+    const modelKey = isPublicMode ? 'public_chat' : effectiveAction;
+    const modelConfig = MODEL_CONFIG[modelKey as keyof typeof MODEL_CONFIG] || MODEL_CONFIG.chat;
     
     let responseText = '';
     let inputTokens = 0;
@@ -116,76 +173,78 @@ serve(async (req) => {
       outputTokens = result.outputTokens;
     }
 
-    const suggestedActions = extractSuggestedActions(responseText, action);
+    const suggestedActions = extractSuggestedActions(responseText, effectiveAction, isPublicMode);
     const messageId = crypto.randomUUID();
 
-    // Broadcast message_complete to room if room_id provided
-    if (room_id && context?.startup_id) {
-      try {
-        const topic = `chat:${context.startup_id}:${room_id}:events`;
-        console.log(`[AI Chat] Broadcasting to ${topic}`);
-        
-        // Use Supabase Realtime to broadcast
-        const broadcastChannel = supabase.channel(topic);
-        await broadcastChannel.send({
-          type: 'broadcast',
-          event: 'message_complete',
-          payload: {
-            id: messageId,
-            content: responseText,
-            role: 'assistant',
-            metadata: {
-              model: modelConfig.model,
-              provider: modelConfig.provider,
-              tokens: inputTokens + outputTokens,
-              streamComplete: true,
+    // Only broadcast and log for authenticated users
+    if (!isPublicMode && user) {
+      // Broadcast message_complete to room if room_id provided
+      if (room_id && context?.startup_id) {
+        try {
+          const topic = `chat:${context.startup_id}:${room_id}:events`;
+          console.log(`[AI Chat] Broadcasting to ${topic}`);
+          
+          const broadcastChannel = supabase.channel(topic);
+          await broadcastChannel.send({
+            type: 'broadcast',
+            event: 'message_complete',
+            payload: {
+              id: messageId,
+              content: responseText,
+              role: 'assistant',
+              metadata: {
+                model: modelConfig.model,
+                provider: modelConfig.provider,
+                tokens: inputTokens + outputTokens,
+                streamComplete: true,
+              },
+              suggestedActions,
+              createdAt: new Date().toISOString(),
             },
-            suggestedActions,
-            createdAt: new Date().toISOString(),
-          },
-        });
-        
-        await supabase.removeChannel(broadcastChannel);
-      } catch (broadcastError) {
-        console.warn('[AI Chat] Broadcast failed:', broadcastError);
+          });
+          
+          await supabase.removeChannel(broadcastChannel);
+        } catch (broadcastError) {
+          console.warn('[AI Chat] Broadcast failed:', broadcastError);
+        }
       }
-    }
 
-    // Log the AI run
-    if (profile?.org_id) {
-      await supabase.from('ai_runs').insert({
-        user_id: user.id,
-        org_id: profile.org_id,
-        startup_id: startup?.id,
-        agent_name: getAgentName(action),
-        action: action,
-        model: modelConfig.model,
-        provider: modelConfig.provider,
-        status: 'completed',
-        input_tokens: inputTokens,
-        output_tokens: outputTokens,
-      });
-    }
+      // Log the AI run
+      if (profile?.org_id) {
+        await supabase.from('ai_runs').insert({
+          user_id: user.id,
+          org_id: profile.org_id,
+          startup_id: startup?.id,
+          agent_name: getAgentName(effectiveAction),
+          action: effectiveAction,
+          model: modelConfig.model,
+          provider: modelConfig.provider,
+          status: 'completed',
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+        });
+      }
 
-    // Store chat message if session exists
-    if (session_id) {
-      await supabase.from('chat_messages').insert([
-        {
-          session_id,
-          user_id: user.id,
-          role: 'user',
-          content: userMessage,
-          tab: context?.screen || 'general',
-        },
-        {
-          session_id,
-          user_id: user.id,
-          role: 'assistant',
-          content: responseText,
-          tab: context?.screen || 'general',
-          suggested_actions: suggestedActions,
-        },
-      ]);
+      // Store chat message if session exists
+      if (session_id) {
+        await supabase.from('chat_messages').insert([
+          {
+            session_id,
+            user_id: user.id,
+            role: 'user',
+            content: userMessage,
+            tab: context?.screen || 'general',
+          },
+          {
+            session_id,
+            user_id: user.id,
+            role: 'assistant',
+            content: responseText,
+            tab: context?.screen || 'general',
+            suggested_actions: suggestedActions,
+          },
+        ]);
+      }
     }
 
     return new Response(
@@ -196,6 +255,7 @@ serve(async (req) => {
         suggested_actions: suggestedActions,
         model: modelConfig.model,
         provider: modelConfig.provider,
+        mode: isPublicMode ? 'public' : 'authenticated',
         usage: { promptTokens: inputTokens, completionTokens: outputTokens }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -225,7 +285,6 @@ async function callAnthropic(
 
   const messages = [];
   
-  // Add history
   for (const msg of history.slice(0, -1)) {
     messages.push({
       role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -233,7 +292,6 @@ async function callAnthropic(
     });
   }
   
-  // Add current message with context
   let currentMessage = userMessage;
   if (context?.data) {
     currentMessage += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
@@ -287,7 +345,6 @@ async function callGemini(
 
   const contents = [];
   
-  // Add history
   for (const msg of history.slice(0, -1)) {
     contents.push({
       role: msg.role === 'assistant' ? 'model' : 'user',
@@ -295,7 +352,6 @@ async function callGemini(
     });
   }
   
-  // Add current message with context
   let currentMessage = userMessage;
   if (context?.data) {
     currentMessage += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
@@ -404,12 +460,22 @@ Response Format (JSON):
 }`;
 
     default:
-      return `You are an AI startup advisor for StartupAI, helping founders build and scale.
-Be concise, actionable, and founder-friendly.
+      return `You are Atlas, an AI startup advisor for StartupAI, helping founders build and scale their startups.
 
 ${baseContext}
 
-You help with: task prioritization, fundraising, product development, strategic planning.`;
+CAPABILITIES:
+- Provide personalized guidance based on their startup stage
+- Help prioritize tasks and suggest next actions
+- Answer questions about fundraising, product, and growth
+- Explain insights from their dashboard and metrics
+- Suggest relevant templates and resources
+
+RULES:
+- Be concise but actionable
+- Reference their actual startup context when relevant
+- Confirm before suggesting any database changes
+- Use markdown formatting for clarity`;
   }
 }
 
@@ -425,11 +491,28 @@ function getAgentName(action: string): string {
 
 function extractSuggestedActions(
   response: string,
-  action: string
+  action: string,
+  isPublicMode: boolean
 ): Array<{ type: string; label: string; payload?: Record<string, unknown> }> {
   const actions: Array<{ type: string; label: string; payload?: Record<string, unknown> }> = [];
   const lower = response.toLowerCase();
   
+  // Public mode - suggest auth actions
+  if (isPublicMode) {
+    if (lower.includes('sign up') || lower.includes('sign in') || lower.includes('log in')) {
+      actions.push({ type: 'auth', label: 'Sign Up', payload: { action: 'signup' } });
+      actions.push({ type: 'auth', label: 'Sign In', payload: { action: 'login' } });
+    }
+    if (lower.includes('pricing') || lower.includes('plans')) {
+      actions.push({ type: 'navigate', label: 'View Pricing', payload: { route: '/pricing' } });
+    }
+    if (lower.includes('features')) {
+      actions.push({ type: 'navigate', label: 'Explore Features', payload: { route: '/features' } });
+    }
+    return actions.slice(0, 3);
+  }
+  
+  // Authenticated mode - suggest app navigation
   if (lower.includes('task') || lower.includes('priorit')) {
     actions.push({ type: 'navigate', label: 'View Tasks', payload: { route: '/tasks' } });
   }
@@ -441,6 +524,9 @@ function extractSuggestedActions(
   }
   if (lower.includes('document') || lower.includes('pitch deck')) {
     actions.push({ type: 'navigate', label: 'View Documents', payload: { route: '/documents' } });
+  }
+  if (lower.includes('crm') || lower.includes('contact')) {
+    actions.push({ type: 'navigate', label: 'Open CRM', payload: { route: '/crm' } });
   }
   
   return actions.slice(0, 3);
