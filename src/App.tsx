@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AIAssistantProvider } from "@/providers/AIAssistantProvider";
+import { PlaybookProvider } from "@/providers/PlaybookProvider";
 import { GlobalAIAssistant } from "@/components/ai";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
@@ -50,6 +51,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AIAssistantProvider>
+            <PlaybookProvider>
             {/* Global AI Assistant - visible on ALL pages */}
             <GlobalAIAssistant />
             <Routes>
@@ -249,6 +251,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+            </PlaybookProvider>
           </AIAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>

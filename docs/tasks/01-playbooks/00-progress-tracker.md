@@ -254,10 +254,11 @@ flowchart TB
 ### P2 — Next Sprint (Integration Tasks)
 | # | Task | Prompt | Status | Notes |
 |---|------|--------|:------:|-------|
-| 17 | Playbook-Screen Integration | `17-playbook-screen-integration.md` | 🟡 70% | Industry context wired; knowledge panel pending |
+| 17 | Playbook-Screen Integration | `17-playbook-screen-integration.md` | 🟢 95% | PlaybookProvider + IntelligencePanel + invokeAgent lib created |
 | 18 | Deno Unit Testing | `18-deno-unit-testing.md` | 🟡 60% | Vitest frontend done; Deno edge tests pending |
 | 19 | Workflow Trigger System | `19-workflow-trigger-system.md` | 🔴 0% | Planned: Score → Task automation |
 
+### P2 — Feature Backlog
 1. Add CSV import to CRM
 2. Add PDF export to Validation
 3. Enhance pitch deck drag-drop
@@ -275,7 +276,7 @@ flowchart TB
 
 | Goal | Metric | Current | Target |
 |------|:------:|:-------:|:------:|
-| Overall Completion | Weighted % | **92%** | 95% |
+| Overall Completion | Weighted % | **93%** | 95% |
 | Edge Functions | Deployed | 15/15 | 15/15 ✅ |
 | Pages Complete | > 80% | 17/17 | 17/17 ✅ |
 | Auth Enforced | 100% | 100% | 100% ✅ |
