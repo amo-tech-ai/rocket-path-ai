@@ -1,7 +1,8 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SummaryMetrics } from "@/components/dashboard/SummaryMetrics";
-import { StartupHealth } from "@/components/dashboard/StartupHealth";
+import { StartupHealthEnhanced } from "@/components/dashboard/StartupHealthEnhanced";
+import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
 import { DeckActivity } from "@/components/dashboard/DeckActivity";
 import { InsightsTabs } from "@/components/dashboard/InsightsTabs";
 import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
@@ -11,6 +12,8 @@ import { StageGuidanceCard } from "@/components/dashboard/StageGuidanceCard";
 import { useStartup, useTasks } from "@/hooks/useDashboardData";
 import { useDashboardMetrics, useMetricChanges } from "@/hooks/useDashboardMetrics";
 import { useDashboardRealtime } from "@/hooks/useRealtimeSubscription";
+import { useHealthScore } from "@/hooks/useHealthScore";
+import { useActionRecommender } from "@/hooks/useActionRecommender";
 import { useAuth } from "@/hooks/useAuth";
 import { StartupStage } from "@/hooks/useStageGuidance";
 import { motion } from "framer-motion";
@@ -27,6 +30,15 @@ const Dashboard = () => {
   // Real dashboard metrics
   const { data: metrics } = useDashboardMetrics(startup?.id);
   const { data: changes } = useMetricChanges(startup?.id);
+  
+  // Health score from edge function
+  const { data: healthScore, isLoading: healthLoading } = useHealthScore(startup?.id);
+  
+  // Action recommendations based on health score
+  const { data: recommendations, isLoading: actionsLoading } = useActionRecommender(
+    startup?.id, 
+    healthScore?.breakdown
+  );
   
   // Enable real-time updates for all dashboard data
   useDashboardRealtime(startup?.id);
@@ -55,7 +67,7 @@ const Dashboard = () => {
         stage={currentStage}
         startupData={{
           hasLeanCanvas,
-          profileStrength: startup?.profile_strength || 0,
+          profileStrength: healthScore?.overall || startup?.profile_strength || 0,
           investorCount: metrics?.investorsCount || 0,
           taskCompletionRate: tasks.length > 0 ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0,
           documentCount: metrics?.documentsCount || 0,
@@ -122,12 +134,17 @@ const Dashboard = () => {
           changes={changes}
         />
 
-        {/* Startup Health & Deck Activity */}
+        {/* Today's Focus - AI Recommended Actions */}
+        <TodaysFocus 
+          actions={recommendations?.todaysFocus}
+          isLoading={actionsLoading}
+        />
+
+        {/* Startup Health (6 categories) & Deck Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StartupHealth 
-            overallScore={startup?.profile_strength || 75}
-            brandStoryScore={80}
-            tractionScore={40}
+          <StartupHealthEnhanced 
+            healthScore={healthScore}
+            isLoading={healthLoading}
           />
           <DeckActivity />
         </div>

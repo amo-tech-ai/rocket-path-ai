@@ -3,7 +3,7 @@
 **Purpose:** Systematic, accurate, production-ready progress for Industry & Prompt Packs implementation.  
 **Scope:** `docs/tasks/01-playbooks` — backend, frontend screens, edge functions, docs.  
 **Last Updated:** 2026-01-30  
-**Status:** Backend Complete ✅ | Frontend Screens In Progress 🟡
+**Status:** Backend Complete ✅ | Frontend Screens 🟢 75%
 
 ---
 
@@ -12,13 +12,10 @@
 | Area | Status | Progress | Notes |
 |:-----|:------:|:--------:|:------|
 | **Migrations** | 🟢 | 100% | All backend tables deployed |
-| **Seeds** | 🟢 | 100% | 19 Industries + 54 Packs seeded |
-| **Edge Functions** | 🟢 | 100% | 13/13 Deployed & Active |
-| **Type Workaround** | 🟢 | 100% | Using edge function bridge pattern |
-| **Realtime Integration** | 🟢 | 100% | Private channels + broadcast ready |
-| **Lovable Prompts** | 🟢 | 100% | 8/8 Screen specs in repo |
-| **Frontend Screens** | 🟡 | 45% | 3/8 Screens need work |
-| **Testing** | 🟡 | 50% | Edge functions tested; UI pending |
+| **Edge Functions** | 🟢 | 100% | 15/15 Deployed (added health-scorer, action-recommender) |
+| **Dashboard** | 🟢 | 90% | 6-category health, Today's Focus, real data |
+| **Validation Dashboard** | 🟢 | 85% | Quick/Deep/Investor modes, /validator route |
+| **Onboarding** | 🟡 | 70% | Working, needs sub-categories |
 
 ---
 

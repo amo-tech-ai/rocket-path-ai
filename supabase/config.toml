@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.industry-expert-agent]
 verify_jwt = false
+
+[functions.health-scorer]
+verify_jwt = false
+
+[functions.action-recommender]
+verify_jwt = false
