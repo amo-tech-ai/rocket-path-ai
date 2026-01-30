@@ -244,14 +244,20 @@ flowchart TB
 
 ## 🎯 Next Steps (Priority Order)
 
-### P1 — This Sprint
+### P1 — This Sprint ✅ COMPLETE
 1. ~~Create `health-scorer` edge function~~ ✅ Done
 2. ~~Create `action-recommender` edge function~~ ✅ Done
 3. ~~Build Validation Dashboard~~ ✅ Done
 4. ~~Fix RLS recursion~~ ✅ Done
 5. ~~Fix data isolation~~ ✅ Done
 
-### P2 — Next Sprint
+### P2 — Next Sprint (Integration Tasks)
+| # | Task | Prompt | Status | Notes |
+|---|------|--------|:------:|-------|
+| 17 | Playbook-Screen Integration | `17-playbook-screen-integration.md` | 🟡 70% | Industry context wired; knowledge panel pending |
+| 18 | Deno Unit Testing | `18-deno-unit-testing.md` | 🟡 60% | Vitest frontend done; Deno edge tests pending |
+| 19 | Workflow Trigger System | `19-workflow-trigger-system.md` | 🔴 0% | Planned: Score → Task automation |
+
 1. Add CSV import to CRM
 2. Add PDF export to Validation
 3. Enhance pitch deck drag-drop

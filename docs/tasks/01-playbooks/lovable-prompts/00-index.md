@@ -12,9 +12,9 @@ owner: "Full Stack"
 
 # Lovable Prompts — Index
 
-> **Version:** 1.0 | **Date:** January 29, 2026  
+> **Version:** 1.1 | **Date:** January 30, 2026  
 > **Purpose:** Index of all Lovable-ready prompts for UI generation  
-> **Total Prompts:** 8 screens  
+> **Total Prompts:** 11 prompts (8 screens + 3 integration tasks)  
 > **Format:** Each prompt follows the standard Lovable prompt structure
 
 ---
@@ -31,6 +31,9 @@ owner: "Full Stack"
 | 06 | `06-task-management.md` | `/app/tasks` | Kanban, AI prioritization, stage tasks | P1 |
 | 07 | `07-crm-contacts.md` | `/app/contacts` | Deal pipeline, enrichment, investor matching | P1 |
 | 08 | `08-main-dashboard.md` | `/app/dashboard` | Health score, progress, AI insights | P0 |
+| 17 | `17-playbook-screen-integration.md` | All Screens | Industry context injection, knowledge mapping | P0 |
+| 18 | `18-deno-unit-testing.md` | Edge Functions | Test suite, mock client, coverage | P1 |
+| 19 | `19-workflow-trigger-system.md` | Automation | Score-to-task triggers, closed-loop actions | P1 |
 
 ---
 
