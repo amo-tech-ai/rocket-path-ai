@@ -1,16 +1,23 @@
 /**
  * AI Detected Fields Component
- * Displays industry, business model, and stage fields
+ * Displays industry with sub-category dropdown, business model, and stage fields
  * Uses universal industry categories with AI detection highlighting
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Sparkles } from 'lucide-react';
-import { UNIVERSAL_INDUSTRIES, type IndustryOption } from '@/constants/industries';
+import { Sparkles, ChevronDown } from 'lucide-react';
+import { UNIVERSAL_INDUSTRIES, getSubcategories, type IndustryOption, type SubCategory } from '@/constants/industries';
 
 const BUSINESS_MODELS = [
   'B2B', 'B2C', 'B2B2C', 'Marketplace', 'Platform', 'Services'
@@ -24,7 +31,8 @@ interface AIDetectedFieldsProps {
   industry: string[];
   businessModel: string[];
   stage: string;
-  onUpdate: (field: 'industry' | 'business_model' | 'stage', value: string | string[]) => void;
+  subcategory?: string;
+  onUpdate: (field: 'industry' | 'business_model' | 'stage' | 'subcategory', value: string | string[]) => void;
   isFromAI?: boolean;
   aiDetectedIndustries?: string[];
   errors?: {
@@ -43,6 +51,7 @@ export function AIDetectedFields({
   industry,
   businessModel,
   stage,
+  subcategory = '',
   onUpdate,
   isFromAI = false,
   aiDetectedIndustries = [],
@@ -54,10 +63,22 @@ export function AIDetectedFields({
 
   const industryArray = Array.isArray(industry) ? industry : (industry ? [industry] : []);
 
+  // Get available subcategories based on selected industry
+  const availableSubcategories = useMemo(() => {
+    if (industryArray.length === 1 && !industryArray[0].startsWith('other:')) {
+      return getSubcategories(industryArray[0]);
+    }
+    return [];
+  }, [industryArray]);
+
   // Toggle industry selection
   const toggleIndustry = (id: string) => {
     if (industryArray.includes(id)) {
       onUpdate('industry', industryArray.filter(i => i !== id));
+      // Clear subcategory when industry is deselected
+      if (subcategory) {
+        onUpdate('subcategory', '');
+      }
     } else {
       onUpdate('industry', [...industryArray, id]);
     }
@@ -66,7 +87,6 @@ export function AIDetectedFields({
   // Handle "Other" selection
   const handleOtherToggle = () => {
     if (showOtherInput) {
-      // Remove 'other' from selection
       setShowOtherInput(false);
       setOtherText('');
       onUpdate('industry', industryArray.filter(i => !i.startsWith('other:')));
@@ -78,7 +98,6 @@ export function AIDetectedFields({
   // Handle "Other" text input
   const handleOtherTextChange = (value: string) => {
     setOtherText(value);
-    // Remove any existing 'other:' entries and add the new one
     const filtered = industryArray.filter(i => !i.startsWith('other:'));
     if (value.trim()) {
       onUpdate('industry', [...filtered, `other:${value.trim()}`]);
@@ -175,6 +194,34 @@ export function AIDetectedFields({
           <p className="text-xs text-destructive">{errors?.industry}</p>
         )}
       </div>
+
+      {/* Sub-category dropdown - shows when exactly one industry is selected */}
+      {availableSubcategories.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            Sub-category
+            <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+          </Label>
+          <Select
+            value={subcategory}
+            onValueChange={(value) => onUpdate('subcategory', value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a sub-category..." />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSubcategories.map((sub) => (
+                <SelectItem key={sub.id} value={sub.id}>
+                  {sub.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Sub-categories help tailor AI suggestions to your specific niche.
+          </p>
+        </div>
+      )}
 
       {/* Business Model - Multi-select */}
       <div className="space-y-3">

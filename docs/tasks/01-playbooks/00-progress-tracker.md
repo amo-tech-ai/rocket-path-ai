@@ -84,27 +84,42 @@
 
 ---
 
+### Lean Canvas Builder (`/canvas`) — 🟢 85% Complete
+
+| Spec Requirement | Current Status | Gap |
+|------------------|:--------------:|-----|
+| 9-box grid layout | ✅ | Responsive 3x3 grid |
+| AI suggestions per box | ✅ | BoxSuggestionPopover |
+| Profile mapping/prefill | ✅ | Auto-maps from startup data |
+| Validation with AI | ✅ | Risk assessment, warnings |
+| Export (PDF/PNG) | ✅ | html2canvas + jsPDF |
+| Autosave (2s debounce) | ✅ | useCanvasAutosave |
+| Right panel AI advisor | ✅ | CanvasAIPanel |
+| Version history | 🟡 | Disabled, needs implementation |
+
+---
+
 ## Architecture Overview
 
 ```mermaid
 flowchart TB
     subgraph Frontend["Frontend (React)"]
-        OW["Onboarding Wizard 🟡"]
-        MD["Main Dashboard 🟡"]
-        VD["Validation Dashboard 🔴"]
-        LC["Lean Canvas 🟡"]
-        PD["Pitch Deck 🟡"]
-        AC["AI Chat 🟢"]
-        TM["Tasks 🟡"]
-        CRM["CRM 🟡"]
+        OW["Onboarding Wizard 🟡 85%"]
+        MD["Main Dashboard 🟢 95%"]
+        VD["Validation Dashboard 🟢 90%"]
+        LC["Lean Canvas 🟢 85%"]
+        PD["Pitch Deck 🟡 50%"]
+        AC["AI Chat 🟢 90%"]
+        TM["Tasks 🟡 50%"]
+        CRM["CRM 🟡 40%"]
     end
     
     subgraph EdgeFunctions["Edge Functions (Deno) ✅"]
         IEA["industry-expert-agent"]
         PP["prompt-pack"]
         OA["onboarding-agent"]
-        HS["health-scorer 🔴"]
-        AR["action-recommender 🔴"]
+        HS["health-scorer ✅"]
+        AR["action-recommender ✅"]
     end
     
     subgraph Supabase["Supabase Backend ✅"]

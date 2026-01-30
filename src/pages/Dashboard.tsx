@@ -5,6 +5,7 @@ import { StartupHealthEnhanced } from "@/components/dashboard/StartupHealthEnhan
 import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
 import { ModuleProgress } from "@/components/dashboard/ModuleProgress";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { IndustryBenchmarks } from "@/components/dashboard/IndustryBenchmarks";
 import { InsightsTabs } from "@/components/dashboard/InsightsTabs";
 import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
 import { EventCard } from "@/components/dashboard/EventCard";
@@ -70,6 +71,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       <StageGuidanceCard 
         stage={currentStage}
+        startupId={startup?.id}
         startupData={{
           hasLeanCanvas,
           profileStrength: healthScore?.overall || startup?.profile_strength || 0,
@@ -77,6 +79,14 @@ const Dashboard = () => {
           taskCompletionRate: tasks.length > 0 ? Math.round(((tasks.length - pendingTasks) / tasks.length) * 100) : 0,
           documentCount: metrics?.documentsCount || 0,
         }}
+      />
+      <IndustryBenchmarks 
+        startupId={startup?.id}
+        industry={startup?.industry as string}
+        stage={startup?.stage as string}
+        mrr={(startup?.traction_data as any)?.mrr || 0}
+        users={(startup?.traction_data as any)?.users || 0}
+        growthRate={(startup?.traction_data as any)?.growth_rate_monthly || 0}
       />
       <AIStrategicReview startupId={startup?.id} />
       <EventCard />

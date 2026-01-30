@@ -114,10 +114,14 @@ export function Step1Context({
   };
 
   const handleFieldUpdate = (
-    field: 'industry' | 'business_model' | 'stage',
+    field: 'industry' | 'business_model' | 'stage' | 'subcategory',
     value: string | string[]
   ) => {
-    updateData({ [field]: value });
+    if (field === 'subcategory') {
+      updateData({ subcategory: value as string });
+    } else {
+      updateData({ [field]: value });
+    }
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
@@ -197,6 +201,7 @@ export function Step1Context({
         industry={Array.isArray(data.industry) ? data.industry : (data.industry ? [data.industry] : [])}
         businessModel={data.business_model || []}
         stage={data.stage || ''}
+        subcategory={data.subcategory || ''}
         onUpdate={handleFieldUpdate}
         isFromAI={urlExtractionDone || isEnrichingContext}
         errors={{

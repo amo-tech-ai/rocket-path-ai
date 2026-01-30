@@ -18,7 +18,7 @@ export function DetectedSignalsCard({ data }: DetectedSignalsCardProps) {
     {
       category: 'General',
       items: [
-        { label: 'Industry', value: data.industry || 'Marketing Technology' },
+        { label: 'Industry', value: Array.isArray(data.industry) ? data.industry.join(', ') : (data.industry || 'Marketing Technology') },
         { label: 'Stage', value: data.stage || 'Seed / Series A Ready' },
         { label: 'Messaging', value: 'Clear & Value-Focused' },
       ],

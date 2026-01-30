@@ -84,7 +84,8 @@ export interface WizardFormData {
   description?: string;
   target_market?: string;
   search_terms?: string;
-  industry?: string;
+  industry?: string | string[];
+  subcategory?: string;
   business_model?: string[];
   stage?: string;
   year_founded?: number;
