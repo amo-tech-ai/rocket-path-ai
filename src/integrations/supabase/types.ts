@@ -250,12 +250,15 @@ export type Database = {
           action: string
           agent_name: string
           context_id: string | null
+          context_tokens: number | null
           context_type: string | null
           cost_usd: number | null
           created_at: string | null
           duration_ms: number | null
           error_message: string | null
+          feature_context: string | null
           id: string
+          industry_context_used: string | null
           input_tokens: number | null
           model: string
           org_id: string
@@ -272,12 +275,15 @@ export type Database = {
           action: string
           agent_name: string
           context_id?: string | null
+          context_tokens?: number | null
           context_type?: string | null
           cost_usd?: number | null
           created_at?: string | null
           duration_ms?: number | null
           error_message?: string | null
+          feature_context?: string | null
           id?: string
+          industry_context_used?: string | null
           input_tokens?: number | null
           model: string
           org_id: string
@@ -294,12 +300,15 @@ export type Database = {
           action?: string
           agent_name?: string
           context_id?: string | null
+          context_tokens?: number | null
           context_type?: string | null
           cost_usd?: number | null
           created_at?: string | null
           duration_ms?: number | null
           error_message?: string | null
+          feature_context?: string | null
           id?: string
+          industry_context_used?: string | null
           input_tokens?: number | null
           model?: string
           org_id?: string
@@ -3508,6 +3517,36 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_template_registry: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          max_tokens: number | null
+          model_preference: string | null
+          name: string
+          playbook_sections: string[]
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id: string
+          max_tokens?: number | null
+          model_preference?: string | null
+          name: string
+          playbook_sections: string[]
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_tokens?: number | null
+          model_preference?: string | null
+          name?: string
+          playbook_sections?: string[]
+        }
+        Relationships: []
+      }
       proposed_actions: {
         Row: {
           action_type: string
@@ -4838,6 +4877,7 @@ export type Database = {
           validation_score: number
         }[]
       }
+      get_industry_ai_context: { Args: { p_industry: string }; Returns: Json }
       get_industry_playbook: {
         Args: { p_industry_id: string }
         Returns: {
@@ -4869,6 +4909,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      get_industry_questions: {
+        Args: { p_context?: string; p_industry: string; p_stage?: string }
+        Returns: Json
       }
       get_next_pack_step: {
         Args: { p_current_step_order?: number; p_pack_id: string }

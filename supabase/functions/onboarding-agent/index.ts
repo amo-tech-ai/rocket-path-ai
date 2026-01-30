@@ -962,80 +962,161 @@ async function calculateScore(
     .single();
 
   if (error || !session) {
+    console.error("Session not found:", sessionId, error);
     throw new Error("Session not found");
   }
 
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
+  
+  // Calculate base score from available data
+  const formData = (session.form_data || {}) as Record<string, unknown>;
+  const extractions = (session.ai_extractions || {}) as Record<string, unknown>;
+  const traction = (session.extracted_traction || {}) as Record<string, unknown>;
+  const funding = (session.extracted_funding || {}) as Record<string, unknown>;
+
+  // Rule-based scoring fallback
+  let teamScore = 50;
+  let tractionScore = 30;
+  let marketScore = 50;
+  let productScore = 50;
+  let fundraisingScore = 40;
+
+  // Boost scores based on traction data
+  if (traction.mrr_range === "10k_plus") {
+    tractionScore = 90;
+  } else if (traction.mrr_range === "1k_10k") {
+    tractionScore = 70;
+  } else if (formData.revenue || extractions.has_revenue) {
+    tractionScore = 50;
   }
 
-  const prompt = `Calculate an investor readiness score for this startup.
+  // Check for team
+  if (formData.team_size || extractions.team) {
+    const teamSize = formData.team_size || extractions.team;
+    if (teamSize === "10+" || (typeof teamSize === 'number' && teamSize >= 10)) {
+      teamScore = 80;
+    } else if (teamSize === "4-10" || (typeof teamSize === 'number' && teamSize >= 4)) {
+      teamScore = 70;
+    } else if (teamSize === "2-3" || (typeof teamSize === 'number' && teamSize >= 2)) {
+      teamScore = 60;
+    }
+  }
+
+  // Check for product
+  if (extractions.key_features && Array.isArray(extractions.key_features) && extractions.key_features.length > 0) {
+    productScore = Math.min(40 + extractions.key_features.length * 10, 80);
+  }
+
+  // Check for market
+  if (extractions.target_market || extractions.industry) {
+    marketScore = 60;
+    if (extractions.competitors && Array.isArray(extractions.competitors) && extractions.competitors.length > 0) {
+      marketScore = 75;
+    }
+  }
+
+  // Check for fundraising
+  if (funding.is_raising) {
+    fundraisingScore = 70;
+  }
+
+  const recommendations = [
+    { action: "Add more team member details to boost investor confidence", points_gain: 15 },
+    { action: "Document your key metrics and KPIs", points_gain: 10 },
+    { action: "Complete your competitive analysis", points_gain: 12 },
+  ];
+
+  let investorScore = {
+    total_score: Math.round((teamScore + tractionScore + marketScore + productScore + fundraisingScore) / 5),
+    breakdown: {
+      team: teamScore,
+      traction: tractionScore,
+      market: marketScore,
+      product: productScore,
+      fundraising: fundraisingScore,
+    },
+    recommendations,
+  };
+
+  // Try AI enhancement if API key available
+  if (GEMINI_API_KEY) {
+    const prompt = `Calculate an investor readiness score for this startup.
 
 Startup Data:
 ${JSON.stringify(session, null, 2)}
 
 Evaluate like an investor would. Return ONLY valid JSON:
 {
-  "total_score": "number 0-100",
+  "total_score": 65,
   "breakdown": {
-    "team": "number 0-100",
-    "traction": "number 0-100",
-    "market": "number 0-100",
-    "product": "number 0-100",
-    "fundraising": "number 0-100"
+    "team": 60,
+    "traction": 50,
+    "market": 70,
+    "product": 65,
+    "fundraising": 55
   },
   "recommendations": [
-    {"action": "string - specific action to take", "points_gain": "number - potential score increase"}
+    {"action": "specific action to take", "points_gain": 10}
   ]
 }`;
 
-  try {
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 1000,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
-    }
-
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Try multiple models with fallback
+    const models = ["gemini-2.0-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
     
-    if (!responseText) {
-      throw new Error("No response from Gemini");
+    for (const model of models) {
+      try {
+        console.log(`Trying score calculation with model: ${model}`);
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 1000,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
+
+        if (!geminiResponse.ok) {
+          console.warn(`Model ${model} returned status ${geminiResponse.status}`);
+          continue;
+        }
+
+        const geminiData = await geminiResponse.json();
+        const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (responseText) {
+          const aiScore = JSON.parse(responseText);
+          investorScore = aiScore;
+          
+          const duration = Date.now() - startTime;
+          if (orgId) {
+            await logAiRun(supabase, {
+              user_id: userId,
+              org_id: orgId,
+              agent_name: "ProfileExtractor",
+              action: "calculate_score",
+              model: model,
+              duration_ms: duration,
+              status: "success",
+            });
+          }
+          break;
+        }
+      } catch (modelError) {
+        console.warn(`Model ${model} failed:`, modelError);
+        continue;
+      }
     }
-
-    const investorScore = JSON.parse(responseText);
-    const duration = Date.now() - startTime;
-
-    await logAiRun(supabase, {
-      user_id: userId,
-      org_id: orgId,
-      agent_name: "ProfileExtractor",
-      action: "calculate_score",
-      model: "gemini-3-pro-preview",
-      duration_ms: duration,
-      status: "success",
-    });
-
-    return { success: true, investor_score: investorScore };
-  } catch (error) {
-    console.error("Score calculation error:", error);
-    throw error;
   }
+
+  console.log("Calculated score:", investorScore.total_score);
+  return { success: true, investor_score: investorScore };
 }
 
 // Generate AI summary (Step 4)
@@ -1055,72 +1136,106 @@ async function generateSummary(
     .single();
 
   if (error || !session) {
+    console.error("Session not found:", sessionId, error);
     throw new Error("Session not found");
   }
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
+  const formData = (session.form_data || {}) as Record<string, unknown>;
+  const extractions = (session.ai_extractions || {}) as Record<string, unknown>;
+  
+  // Build fallback summary from available data
+  const companyName = formData.company_name || extractions.company_name || "Your startup";
+  const description = formData.description || extractions.description || "";
+  const industry = formData.industry || extractions.industry || "technology";
+  const features = (extractions.key_features as string[]) || [];
 
-  const prompt = `Generate a compelling investor-ready summary for this startup.
+  // Generate rule-based summary as fallback
+  let summaryData = {
+    summary: `${companyName} is a ${industry} company${description ? ` that ${description.toString().toLowerCase().replace(/^we\s+/i, '').slice(0, 100)}` : ''}. The team is building innovative solutions to address key market needs.`,
+    strengths: [
+      "Clear value proposition",
+      features.length > 0 ? `${features.length} key product features identified` : "Defined product concept",
+      "Focused market approach",
+    ],
+    improvements: [
+      "Add more traction data to strengthen investor appeal",
+      "Document key metrics and KPIs",
+      "Develop a clear go-to-market strategy",
+    ],
+  };
+
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  
+  if (GEMINI_API_KEY) {
+    const prompt = `Generate a compelling investor-ready summary for this startup.
 
 Startup Data:
 ${JSON.stringify(session, null, 2)}
 
 Return ONLY valid JSON:
 {
-  "summary": "string - 2-3 sentence compelling pitch summary",
-  "strengths": ["string array - 3-5 key strengths"],
-  "improvements": ["string array - 3-5 areas to improve"]
+  "summary": "2-3 sentence compelling pitch summary",
+  "strengths": ["3-5 key strengths as strings"],
+  "improvements": ["3-5 areas to improve as strings"]
 }`;
 
-  try {
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.5,
-            maxOutputTokens: 1000,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
-    }
-
-    const geminiData = await geminiResponse.json();
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Try multiple models with fallback
+    const models = ["gemini-2.0-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
     
-    if (!responseText) {
-      throw new Error("No response from Gemini");
+    for (const model of models) {
+      try {
+        console.log(`Trying summary generation with model: ${model}`);
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.5,
+                maxOutputTokens: 1000,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
+
+        if (!geminiResponse.ok) {
+          console.warn(`Model ${model} returned status ${geminiResponse.status}`);
+          continue;
+        }
+
+        const geminiData = await geminiResponse.json();
+        const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (responseText) {
+          const aiSummary = JSON.parse(responseText);
+          summaryData = aiSummary;
+          
+          const duration = Date.now() - startTime;
+          if (orgId) {
+            await logAiRun(supabase, {
+              user_id: userId,
+              org_id: orgId,
+              agent_name: "ProfileExtractor",
+              action: "generate_summary",
+              model: model,
+              duration_ms: duration,
+              status: "success",
+            });
+          }
+          break;
+        }
+      } catch (modelError) {
+        console.warn(`Model ${model} failed:`, modelError);
+        continue;
+      }
     }
-
-    const summary = JSON.parse(responseText);
-    const duration = Date.now() - startTime;
-
-    await logAiRun(supabase, {
-      user_id: userId,
-      org_id: orgId,
-      agent_name: "ProfileExtractor",
-      action: "generate_summary",
-      model: "gemini-3-pro-preview",
-      duration_ms: duration,
-      status: "success",
-    });
-
-    return { success: true, summary };
-  } catch (error) {
-    console.error("Summary generation error:", error);
-    throw error;
   }
+
+  console.log("Generated summary for:", companyName);
+  return { success: true, summary: summaryData };
 }
 
 // Complete wizard and create startup

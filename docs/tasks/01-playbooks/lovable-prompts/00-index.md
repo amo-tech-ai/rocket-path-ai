@@ -12,9 +12,9 @@ owner: "Full Stack"
 
 # Lovable Prompts — Index
 
-> **Version:** 1.1 | **Date:** January 30, 2026  
+> **Version:** 1.2 | **Date:** January 30, 2026  
 > **Purpose:** Index of all Lovable-ready prompts for UI generation  
-> **Total Prompts:** 11 prompts (8 screens + 3 integration tasks)  
+> **Total Prompts:** 15 prompts (8 screens + 7 integration/feature tasks)  
 > **Format:** Each prompt follows the standard Lovable prompt structure
 
 ---
@@ -34,6 +34,10 @@ owner: "Full Stack"
 | 17 | `17-playbook-screen-integration.md` | All Screens | Industry context injection, knowledge mapping | P0 |
 | 18 | `18-deno-unit-testing.md` | Edge Functions | Test suite, mock client, coverage | P1 |
 | 19 | `19-workflow-trigger-system.md` | Automation | Score-to-task triggers, closed-loop actions | P1 |
+| 20 | `20-onboarding-dynamic-questions.md` | `/onboarding` | Industry-specific questions, adaptive interview | P1 |
+| 22 | `22-agentic-routing-packs.md` | AI System | Feature-to-pack routing, multi-step execution | P1 |
+| 23 | `23-fix-step4-score-summary.md` | `/onboarding` | Fix 400 errors, fallback scoring, model fixes | P0 |
+| 24 | `24-fix-interview-persistence.md` | `/onboarding` | localStorage + Supabase sync, resume dialog | P1 |
 
 ---
 
@@ -45,7 +49,7 @@ All Lovable prompts use the [task metadata schema](../00-task-metadata-schema.md
 |---|-------|----------|-------------|-------|----------|--------|---|-------|
 | 00 | Lovable Prompts — Index | Documentation | Index | 0 | P2 | Complete | 100 | Full Stack |
 | 00 | Backend Handoff Checklist | Documentation | Checklist | 0 | P1 | Complete | 100 | Backend Developer |
-| 01 | Onboarding Wizard | Wizards | Onboarding | 1 | P0 | 🟡 In Progress | 70 | Frontend Developer |
+| 01 | Onboarding Wizard | Wizards | Onboarding | 1 | P0 | 🟢 Complete | 95 | Frontend Developer |
 | 02 | Validation Dashboard | Dashboard | Validation | 1 | P0 | 🟢 Complete | 90 | Frontend Developer |
 | 03 | Lean Canvas Builder | Lean Canvas | Lean Canvas Editor | 2 | P1 | 🟡 In Progress | 40 | Frontend Developer |
 | 04 | Pitch Deck Generator | Pitch Deck | Pitch Deck Wizard | 2 | P1 | 🟡 In Progress | 50 | Frontend Developer |
@@ -53,6 +57,13 @@ All Lovable prompts use the [task metadata schema](../00-task-metadata-schema.md
 | 06 | Task Management Dashboard | Features | Task Management | 2 | P1 | 🟡 In Progress | 50 | Frontend Developer |
 | 07 | CRM & Contacts Dashboard | CRM | CRM Contacts | 2 | P1 | 🟡 In Progress | 40 | Frontend Developer |
 | 08 | Main Dashboard & Health Score | Dashboard | Dashboard Home | 1 | P0 | 🟢 Complete | 95 | Frontend Developer |
+| 17 | Playbook-Screen Integration | Integration | Context Injection | 3 | P0 | 🟢 Complete | 100 | Full Stack |
+| 18 | Deno Unit Testing | Testing | Edge Functions | 3 | P1 | 🟢 Complete | 100 | Backend Developer |
+| 19 | Workflow Trigger System | Automation | Score Triggers | 3 | P1 | 🟢 Complete | 100 | Full Stack |
+| 20 | Dynamic Onboarding Questions | Feature | Onboarding | 3 | P1 | 🟢 Complete | 100 | Full Stack |
+| 22 | Agentic Routing & Packs | AI | Agent Strategy | 3 | P1 | 🟢 Complete | 100 | Full Stack |
+| 23 | Fix Step 4 Score/Summary | Bug Fix | Edge Functions | 0 | P0 | 🟢 Complete | 100 | Backend Developer |
+| 24 | Interview Answer Persistence | Bug Fix | Frontend State | 1 | P1 | 🟢 Complete | 100 | Frontend Developer |
 
 ---
 
