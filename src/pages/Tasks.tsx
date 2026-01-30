@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useTasks';
 import { useStartup } from '@/hooks/useDashboardData';
 import { useAllProjects } from '@/hooks/useProjects';
+import { useTaskCrossTabSync } from '@/hooks/useCrossTabSync';
 import { 
   CheckSquare, 
   Plus, 
@@ -65,6 +66,8 @@ const Tasks = () => {
   const deleteTask = useDeleteTask();
   const updateTaskStatus = useUpdateTaskStatus();
   
+  // Cross-tab synchronization
+  const { broadcastTaskChange } = useTaskCrossTabSync();
   // Dialog states
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
@@ -115,6 +118,8 @@ const Tasks = () => {
       });
       toast.success('Task created');
       setTaskDialogOpen(false);
+      // Broadcast to other tabs
+      broadcastTaskChange('created', data);
     } catch (error) {
       toast.error('Failed to create task');
     }

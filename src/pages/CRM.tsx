@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { EnhancedCRMAIPanel } from '@/components/crm/EnhancedCRMAIPanel';
 import { ContactCard } from '@/components/crm/ContactCard';
@@ -19,6 +19,7 @@ import {
   Contact
 } from '@/hooks/useCRM';
 import { useStartup } from '@/hooks/useDashboardData';
+import { useCRMCrossTabSync } from '@/hooks/useCrossTabSync';
 import { Tables } from '@/integrations/supabase/types';
 import { 
   Users, 
@@ -68,6 +69,9 @@ const CRM = () => {
   const createDeal = useCreateDeal();
   const updateDeal = useUpdateDeal();
   
+  // Cross-tab synchronization
+  const { broadcastDealChange, broadcastContactChange } = useCRMCrossTabSync();
+  
   // Dialog states
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [dealDialogOpen, setDealDialogOpen] = useState(false);
@@ -110,6 +114,8 @@ const CRM = () => {
       });
       toast.success('Contact added successfully');
       setContactDialogOpen(false);
+      // Broadcast to other tabs
+      broadcastContactChange('created', data);
     } catch (error) {
       toast.error('Failed to add contact');
     }

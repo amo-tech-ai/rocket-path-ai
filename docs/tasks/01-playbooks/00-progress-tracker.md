@@ -3,7 +3,7 @@
 **Purpose:** Systematic, accurate, production-ready progress for Industry & Prompt Packs implementation.  
 **Scope:** `docs/tasks/01-playbooks` — backend, frontend screens, edge functions, docs.  
 **Last Updated:** 2026-01-30  
-**Status:** Backend Complete ✅ | Frontend Screens 🟢 85%
+**Status:** Backend Complete ✅ | Frontend Screens 🟢 90%
 
 ---
 
@@ -17,8 +17,10 @@
 | **Validation Dashboard** | 🟢 | 90% | Quick/Deep/Investor modes, /validator route |
 | **Onboarding** | 🟢 | 90% | Sub-categories + 8 industry questions per category |
 | **Lean Canvas** | 🟢 | 95% | Version History Panel added |
-| **Pitch Deck** | 🟢 | 80% | Critic Panel + Presenter Notes added |
-| **CRM** | 🟢 | 70% | Investor Matcher + Deal Advisor added |
+| **Pitch Deck** | 🟢 | 85% | Critic Panel + Presenter Notes + DnD Reorder |
+| **CRM** | 🟢 | 80% | Investor Matcher + Deal Advisor + CSV Import + Cross-tab Sync |
+| **Tasks** | 🟢 | 80% | AI Prioritization + Task Breakdown + Cross-tab Sync |
+| **AI Chat** | 🟢 | 95% | Chat History Search + Enhanced PDF exports |
 
 ---
 
@@ -217,13 +219,13 @@ journey
 | 2 | Main Dashboard | `/dashboard` | 95% | 95% | P0 |
 | 3 | Validation Dashboard | `/validator` | 90% | 90% | P0 |
 
-### Phase 2: Value-Add Screens (P1) 🟢 Mostly Complete
+### Phase 2: Value-Add Screens (P1) 🟢 Complete
 
 | # | Screen | Route | Current | Target | Priority |
 |---|--------|-------|:-------:|:------:|:--------:|
 | 4 | Lean Canvas | `/canvas` | 95% | 95% | P1 |
 | 5 | Pitch Deck | `/pitch` | 85% | 85% | P1 |
-| 6 | AI Chat | `/ai-chat` | 90% | 95% | P1 |
+| 6 | AI Chat | `/ai-chat` | 95% | 95% | P1 |
 | 7 | Tasks | `/tasks` | 80% | 80% | P1 |
 | 8 | CRM | `/crm` | 80% | 80% | P1 |
 
