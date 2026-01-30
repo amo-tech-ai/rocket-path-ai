@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LeanCanvasGrid } from '@/components/leancanvas/LeanCanvasGrid';
 import { CanvasAIPanel } from '@/components/leancanvas/CanvasAIPanel';
 import { AutosaveIndicator } from '@/components/leancanvas/AutosaveIndicator';
+import { VersionHistoryPanel } from '@/components/leancanvas/VersionHistoryPanel';
 import { ProfileMappingBanner } from '@/components/leancanvas/ProfileMappingBanner';
 import { useLeanCanvas, useSaveLeanCanvas, LeanCanvasData, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
 import { useCanvasAutosave } from '@/hooks/useCanvasAutosave';
@@ -13,7 +14,6 @@ import {
   LayoutGrid, 
   Save, 
   Download, 
-  History,
   Loader2,
   FileImage,
   FileText
@@ -260,15 +260,13 @@ const LeanCanvas = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              disabled
-              className="hidden sm:flex"
-            >
-              <History className="w-4 h-4 mr-2" />
-              Versions
-            </Button>
+            <VersionHistoryPanel
+              documentId={savedCanvas?.id}
+              onRestore={(data) => {
+                setCanvasData(data as unknown as LeanCanvasData);
+                autosave.markDirty();
+              }}
+            />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
