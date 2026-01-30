@@ -1,16 +1,65 @@
-# Supabase Realtime Implementation Tasks
+# StartupAI Tasks Documentation
 
-> **Status:** ✅ PRODUCTION COMPLETE  
-> **Last Updated:** 2026-01-29  
-> **Priority:** Complete - All realtime features implemented with private channels
+> **Status:** Active Development  
+> **Last Updated:** 2026-01-30  
+> **Priority:** Industry & Prompt Packs integration
 
 ---
 
-## Summary
+## Documentation Index
 
-All realtime hooks migrated to **private broadcast channels** with `setAuth()` pattern. The AI Chat page now uses `useRealtimeAIChat` which bridges the AI edge function with realtime broadcast for live connection status and future streaming support.
+| Document | Purpose | Status |
+|----------|---------|:------:|
+| **[01-playbooks/](./01-playbooks/)** | Industry & Prompt Packs implementation | 🟡 Active |
+| [01-realtime-tasks.md](./01-realtime-tasks.md) | Realtime implementation tasks | ✅ Complete |
+| [02-supabase-schema.md](./02-supabase-schema.md) | Supabase schema reference | ✅ Complete |
+| [03-edge-functions.md](./03-edge-functions.md) | Edge functions reference | ✅ Complete |
+| [04-testing-checklist.md](./04-testing-checklist.md) | Testing checklist | ✅ Complete |
+| [05-implementation-plan.md](./05-implementation-plan.md) | Implementation plan | ✅ Complete |
+| [06-realtime-chat.md](./06-realtime-chat.md) | Realtime chat implementation | ✅ Complete |
 
-## Architecture Diagram
+---
+
+## 🎯 Current Focus: Industry & Prompt Packs
+
+### Quick Links
+
+| Document | Description |
+|----------|-------------|
+| **[00-progress-tracker.md](./01-playbooks/00-progress-tracker.md)** | Master progress tracker |
+| [prd-industry-prompt-playbooks.md](./01-playbooks/prd-industry-prompt-playbooks.md) | Product requirements |
+| [roadmap.md](./01-playbooks/roadmap.md) | Implementation roadmap |
+| [lovable-prompts/](./01-playbooks/lovable-prompts/) | 8 screen specifications |
+
+### Overall Status
+
+| Area | Status | Progress |
+|:-----|:------:|:--------:|
+| Backend (Migrations) | 🟢 | 100% |
+| Backend (Seeds) | 🟢 | 100% |
+| Edge Functions | 🟢 | 100% |
+| Frontend Screens | 🔴 | 0% |
+
+### Implementation Order
+
+```
+1. Main Dashboard (08)      ─ Core entry point
+2. Onboarding Wizard (01)   ─ First-time user flow  
+3. Validation Dashboard (02) ─ Core value prop
+4. Lean Canvas Builder (03) ─ Data for pitch
+5. Pitch Deck Generator (04) ─ Uses canvas data
+6. Task Management (06)      ─ Work tracking
+7. CRM & Contacts (07)       ─ Relationship tracking
+8. AI Chat Assistant (05)    ─ Ties everything together
+```
+
+---
+
+## ✅ Realtime Implementation (Complete)
+
+All realtime hooks migrated to **private broadcast channels** with `setAuth()` pattern.
+
+### Architecture
 
 ```mermaid
 flowchart TB
@@ -25,126 +74,62 @@ flowchart TB
         rls["RLS Policies"]
         triggers["Database Triggers"]
         realtime["Realtime Server"]
-        tables["Tables (tasks, deals, contacts...)"]
     end
     
     shared -->|"1. setAuth()"| auth
     shared -->|"2. subscribe(private: true)"| realtime
-    tables -->|"3. INSERT/UPDATE/DELETE"| triggers
-    triggers -->|"4. broadcast_changes()"| realtime
-    realtime -->|"5. Check RLS"| rls
-    rls -->|"6. Deliver event"| shared
+    triggers -->|"broadcast_changes()"| realtime
+    realtime -->|"Check RLS"| rls
+    rls -->|"Deliver event"| shared
 ```
 
-## Data Flow Diagram
+### Implementation Status
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant C as React Component
-    participant H as useRealtimeChannel
-    participant S as Supabase Client
-    participant R as Realtime Server
-    participant D as Database
-    
-    U->>C: Opens Dashboard
-    C->>H: useRealtimeChannel({ topic })
-    H->>S: supabase.realtime.setAuth()
-    S->>R: Auth token
-    H->>S: channel.subscribe({ private: true })
-    S->>R: Join channel
-    R->>R: Check RLS policy
-    R-->>H: SUBSCRIBED
-    
-    Note over D,R: Another user creates task
-    D->>D: INSERT task
-    D->>R: Trigger: broadcast_changes()
-    R->>R: Check RLS for recipients
-    R-->>H: Broadcast: INSERT event
-    H->>C: onBroadcast callback
-    C->>C: Update UI
-    C-->>U: Task appears
-```
-
-## Implementation Status
-
-| Phase | Task | Status | File(s) |
-|-------|------|--------|---------|
-| 1 | Update Supabase client config | ✅ Done | `client.ts` |
-| 2 | Create shared realtime hook | ✅ Done | `useRealtimeChannel.ts` |
-| 3 | Update useDashboardRealtime | ✅ Done | `useRealtimeSubscription.ts` |
-| 4 | Update usePitchDeckGeneration | ✅ Done | `usePitchDeckGeneration.ts` |
-| 5 | Deduplicate task subscriptions | ✅ Done | Multiple files |
-| 6 | Update usePitchDeckRealtime | ✅ Done | `usePitchDeckRealtime.ts` |
-| 7 | Update useCRMRealtime | ✅ Done | `useCRMRealtime.ts` |
-| 8 | Update useOnboardingRealtime | ✅ Done | `useOnboardingRealtime.ts` |
-| 9 | Update remaining hooks | ✅ Done | Multiple files |
-| 10 | Update presence hooks | ✅ Done | `useCofounderPresence.ts` |
-| 11 | **Realtime Chat** | ✅ Done | `useRealtimeChatRoom.ts`, `RealtimeChat.tsx` |
-
-## Quick Links
-
-- [Task Details](./01-realtime-tasks.md)
-- [Supabase Schema Reference](./02-supabase-schema.md)
-- [Edge Functions Reference](./03-edge-functions.md)
-- [Testing Checklist](./04-testing-checklist.md)
-- [Implementation Plan](./05-implementation-plan.md)
-- [**Realtime Chat**](./06-realtime-chat.md) ← NEW
-
----
-
-## Backend Status
-
-### ✅ Completed (Backend Ready)
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| RLS on `realtime.messages` | ✅ | SELECT + INSERT policies |
-| Broadcast triggers | ✅ | 10 tables configured |
-| Publication setup | ✅ | `supabase_realtime` publication |
-| Edge functions | ✅ | 13 functions deployed |
+| Task | Status |
+|------|:------:|
+| Supabase client config | ✅ |
+| Shared realtime hook | ✅ |
+| Dashboard realtime | ✅ |
+| Pitch deck generation | ✅ |
+| Task subscriptions | ✅ |
+| CRM realtime | ✅ |
+| Presence hooks | ✅ |
+| Realtime chat | ✅ |
 
 ### Database Triggers
 
-| Table | Trigger | Function |
-|-------|---------|----------|
-| `contacts` | `broadcast_contacts_changes` | `broadcast_table_changes()` |
-| `deals` | `broadcast_deals_changes` | `broadcast_table_changes()` |
-| `documents` | `broadcast_documents_changes` | `broadcast_table_changes()` |
-| `events` | `broadcast_events_changes` | `broadcast_table_changes()` |
-| `investors` | `broadcast_investors_changes` | `broadcast_table_changes()` |
-| `lean_canvases` | `broadcast_lean_canvases_changes` | `broadcast_table_changes()` |
-| `pitch_decks` | `broadcast_pitch_decks_changes` | `broadcast_table_changes()` |
-| `projects` | `broadcast_projects_changes` | `broadcast_table_changes()` |
-| `tasks` | `broadcast_tasks_changes` | `broadcast_table_changes()` |
-| `tasks` | `task_event_broadcast` | `broadcast_task_event()` |
+| Table | Trigger |
+|-------|---------|
+| `contacts` | `broadcast_contacts_changes` |
+| `deals` | `broadcast_deals_changes` |
+| `documents` | `broadcast_documents_changes` |
+| `events` | `broadcast_events_changes` |
+| `investors` | `broadcast_investors_changes` |
+| `lean_canvases` | `broadcast_lean_canvases_changes` |
+| `pitch_decks` | `broadcast_pitch_decks_changes` |
+| `projects` | `broadcast_projects_changes` |
+| `tasks` | `broadcast_tasks_changes` |
 
 ---
 
-## Next Steps
+## Edge Functions (13 Deployed)
 
-1. **Phase 1**: Update Supabase client with realtime config
-2. **Phase 2**: Create shared `useRealtimeChannel` hook
-3. **Phase 3**: Migrate hooks one by one (priority order below)
-4. **Phase 4**: Test and validate all realtime features
-5. **Phase 5**: Enable private-only mode in Supabase dashboard
+| Function | Purpose | Status |
+|----------|---------|:------:|
+| `ai-chat` | Conversational AI | ✅ |
+| `industry-expert-agent` | Industry context & coaching | ✅ |
+| `onboarding-agent` | Wizard orchestration | ✅ |
+| `lean-canvas-agent` | Canvas generation | ✅ |
+| `pitch-deck-agent` | Deck generation | ✅ |
+| `crm-agent` | Contact enrichment | ✅ |
+| `investor-agent` | Investor matching | ✅ |
+| `task-agent` | Task generation | ✅ |
+| `dashboard-metrics` | Health scoring | ✅ |
+| `insights-generator` | AI insights | ✅ |
+| `stage-analyzer` | Stage classification | ✅ |
+| `documents-agent` | Document processing | ✅ |
+| `event-agent` | Event management | ✅ |
 
-### Priority Order
+---
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. Client config (low risk, adds logging)                  │
-├─────────────────────────────────────────────────────────────┤
-│ 2. Shared hook (no breaking changes)                       │
-├─────────────────────────────────────────────────────────────┤
-│ 3. usePitchDeckGeneration (critical for generation)        │
-├─────────────────────────────────────────────────────────────┤
-│ 4. Deduplicate tasks (fix duplicate subscriptions)         │
-├─────────────────────────────────────────────────────────────┤
-│ 5. useDashboardRealtime (main dashboard fix)               │
-├─────────────────────────────────────────────────────────────┤
-│ 6. usePitchDeckRealtime, useCRMRealtime, etc.              │
-├─────────────────────────────────────────────────────────────┤
-│ 7. Presence hooks                                          │
-└─────────────────────────────────────────────────────────────┘
-```
+**Last Updated:** 2026-01-30
