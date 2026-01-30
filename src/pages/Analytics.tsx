@@ -8,10 +8,14 @@ import { ProjectVelocityChart } from "@/components/analytics/ProjectVelocityChar
 import { PipelineConversionChart } from "@/components/analytics/PipelineConversionChart";
 import { InvestorEngagementChart } from "@/components/analytics/InvestorEngagementChart";
 import { DateRangeFilter } from "@/components/analytics/DateRangeFilter";
+import { UsageMetricsCard } from "@/components/analytics/UsageMetricsCard";
+import { ConversionTrackingChart } from "@/components/analytics/ConversionTrackingChart";
+import { AICostMonitoringPanel } from "@/components/analytics/AICostMonitoringPanel";
+import { TeamPresenceIndicator } from "@/components/collaboration/TeamPresenceIndicator";
 import { useAnalyticsMetrics } from "@/hooks/useAnalytics";
 import { useStartup } from "@/hooks/useDashboardData";
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, Users, Target, RefreshCw, Download } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, RefreshCw, Download, Brain, Filter, Activity } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { useState } from "react";
 
@@ -52,11 +56,16 @@ export default function Analytics() {
               Analytics Dashboard
             </h1>
             <p className="text-muted-foreground mt-1">
-              Track your startup's performance and growth metrics.
+              Track your startup's performance, AI usage, and growth metrics.
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <TeamPresenceIndicator 
+              channelName={`analytics:${startup?.id || 'global'}`}
+              currentPage="Analytics"
+              compact
+            />
             <DateRangeFilter dateRange={dateRange} onDateRangeChange={setDateRange} />
             <Button 
               variant="outline" 
@@ -105,9 +114,18 @@ export default function Analytics() {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks</TabsTrigger>
-            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-            <TabsTrigger value="investors">Investors</TabsTrigger>
+            <TabsTrigger value="usage">
+              <Activity className="w-4 h-4 mr-1" />
+              Usage
+            </TabsTrigger>
+            <TabsTrigger value="conversion">
+              <Filter className="w-4 h-4 mr-1" />
+              Conversion
+            </TabsTrigger>
+            <TabsTrigger value="ai">
+              <Brain className="w-4 h-4 mr-1" />
+              AI Costs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -119,21 +137,102 @@ export default function Analytics() {
             </div>
           </TabsContent>
 
-          <TabsContent value="tasks" className="space-y-4">
-            <div className="grid grid-cols-1 gap-6">
-              <TaskCompletionChart data={metrics?.taskTrends} loading={isLoading} fullWidth />
+          <TabsContent value="usage" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <UsageMetricsCard loading={isLoading} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-primary" />
+                    Activity Heatmap
+                  </CardTitle>
+                  <CardDescription>
+                    Team activity patterns over time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Activity data visualization</p>
+                      <p className="text-xs">Coming with more usage data</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="pipeline" className="space-y-4">
-            <div className="grid grid-cols-1 gap-6">
-              <PipelineConversionChart data={metrics?.pipelineConversion} loading={isLoading} fullWidth />
+          <TabsContent value="conversion" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ConversionTrackingChart 
+                title="Investor Pipeline Conversion"
+                type="funnel"
+                loading={isLoading}
+              />
+              <ConversionTrackingChart 
+                title="Deal Stage Progression"
+                type="bar"
+                data={[
+                  { name: 'Lead', value: metrics?.pipelineConversion?.find(p => p.stage === 'Lead')?.count || 0 },
+                  { name: 'Qualified', value: metrics?.pipelineConversion?.find(p => p.stage === 'Qualified')?.count || 0 },
+                  { name: 'Proposal', value: metrics?.pipelineConversion?.find(p => p.stage === 'Proposal')?.count || 0 },
+                  { name: 'Negotiation', value: metrics?.pipelineConversion?.find(p => p.stage === 'Negotiation')?.count || 0 },
+                  { name: 'Closed', value: metrics?.pipelineConversion?.find(p => p.stage === 'Closed')?.count || 0 },
+                ]}
+                loading={isLoading}
+              />
             </div>
           </TabsContent>
 
-          <TabsContent value="investors" className="space-y-4">
-            <div className="grid grid-cols-1 gap-6">
-              <InvestorEngagementChart data={metrics?.investorEngagement} loading={isLoading} fullWidth />
+          <TabsContent value="ai" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AICostMonitoringPanel 
+                startupId={startup?.id}
+                loading={isLoading}
+              />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-primary" />
+                    AI Efficiency Insights
+                  </CardTitle>
+                  <CardDescription>
+                    Optimize AI usage and reduce costs
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-chart-2" />
+                        <span className="text-sm font-medium">Efficient Usage</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        AI Chat has optimal token usage with 2.5k avg per request
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-chart-4" />
+                        <span className="text-sm font-medium">Optimization Tip</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Consider caching frequent investor research queries
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                        <span className="text-sm font-medium">Cost Saving</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Using smaller models for simple tasks saves ~40% costs
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

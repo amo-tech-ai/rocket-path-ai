@@ -1,13 +1,14 @@
 /**
  * Enhanced CRM AI Panel
- * Combines investor matching, deal advisor, and enrichment
+ * Combines investor matching, deal advisor, outreach sequences, and enrichment
  */
 
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target, Lightbulb, Sparkles, Users } from 'lucide-react';
+import { Target, Lightbulb, Sparkles, Users, Mail } from 'lucide-react';
 import { InvestorMatcherPanel } from './InvestorMatcherPanel';
 import { DealAdvisorPanel } from './DealAdvisorPanel';
+import { OutreachSequencePanel } from './OutreachSequencePanel';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 
@@ -23,6 +24,12 @@ interface EnhancedCRMAIPanelProps {
     expected_close?: string;
     contact?: { name: string; email?: string } | null;
   } | null;
+  selectedContact?: {
+    id: string;
+    name: string;
+    email?: string;
+    company?: string;
+  } | null;
   onAddContact: (investor: any) => void;
 }
 
@@ -31,6 +38,7 @@ export function EnhancedCRMAIPanel({
   contactsCount,
   dealsCount,
   selectedDeal,
+  selectedContact,
   onAddContact
 }: EnhancedCRMAIPanelProps) {
   const [activeTab, setActiveTab] = useState('matcher');
@@ -75,16 +83,23 @@ export function EnhancedCRMAIPanel({
         <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
           <TabsTrigger 
             value="matcher"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-sage data-[state=active]:bg-transparent"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-sage data-[state=active]:bg-transparent text-xs px-2"
           >
-            <Target className="w-4 h-4 mr-1.5" />
+            <Target className="w-3.5 h-3.5 mr-1" />
             Match
           </TabsTrigger>
           <TabsTrigger 
-            value="advisor"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-sage data-[state=active]:bg-transparent"
+            value="outreach"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-sage data-[state=active]:bg-transparent text-xs px-2"
           >
-            <Lightbulb className="w-4 h-4 mr-1.5" />
+            <Mail className="w-3.5 h-3.5 mr-1" />
+            Outreach
+          </TabsTrigger>
+          <TabsTrigger 
+            value="advisor"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-sage data-[state=active]:bg-transparent text-xs px-2"
+          >
+            <Lightbulb className="w-3.5 h-3.5 mr-1" />
             Advise
           </TabsTrigger>
         </TabsList>
@@ -93,6 +108,13 @@ export function EnhancedCRMAIPanel({
           <InvestorMatcherPanel 
             startupId={startupId}
             onAddContact={onAddContact}
+          />
+        </TabsContent>
+
+        <TabsContent value="outreach" className="flex-1 m-0">
+          <OutreachSequencePanel 
+            startupId={startupId}
+            selectedContact={selectedContact}
           />
         </TabsContent>
 
