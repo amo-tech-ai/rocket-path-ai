@@ -35,8 +35,8 @@ const navItems = [
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
   { label: "Investors", path: "/investors", icon: TrendingUp },
-  { label: "AI Chat", path: "/ai-chat", icon: MessageSquare },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
+  // AI Chat removed from nav - now accessible via floating assistant
 ];
 
 const profileItems = [
