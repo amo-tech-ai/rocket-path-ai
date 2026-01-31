@@ -33,6 +33,14 @@ import Step2Analysis from '@/components/onboarding/step2/Step2Analysis';
 import Step3Interview, { Question, AdvisorPersona } from '@/components/onboarding/step3/Step3Interview';
 import Step4Review from '@/components/onboarding/step4/Step4Review';
 
+// Task 27: Interview Persistence Components
+import { useInterviewPersistence } from '@/hooks/onboarding/useInterviewPersistence';
+import { ResumeInterviewDialog } from '@/components/onboarding/step3/ResumeInterviewDialog';
+import { AutoSaveIndicator } from '@/components/onboarding/step3/AutoSaveIndicator';
+
+// Task 28: Dynamic Industry Questions
+import { useOnboardingQuestions } from '@/hooks/onboarding/useOnboardingQuestions';
+
 // Modular utilities
 import { WIZARD_STEPS, STEP_DESCRIPTIONS } from './onboarding/constants';
 import { useStep1Handlers } from './onboarding/useStep1Handlers';
@@ -113,7 +121,43 @@ export default function OnboardingWizard() {
   // Intro state
   const [showIntro, setShowIntro] = useState(() => !hasSeenIntro());
 
+  // Resume dialog state (Task 27)
+  const [showResumeDialog, setShowResumeDialog] = useState(false);
+
   const currentStep = session?.current_step || 1;
+
+  // Extract industry from form data for coaching context
+  const selectedIndustry = Array.isArray(formData.industry) 
+    ? formData.industry[0] 
+    : formData.industry;
+
+  // =========================================================================
+  // Task 27: Interview Persistence Hook
+  // =========================================================================
+  const {
+    isRestoring: isRestoringInterview,
+    isSaving: isInterviewSaving,
+    hasSavedState,
+    restoredState,
+    saveAnswer: persistAnswer,
+    clearState: clearInterviewState,
+    getAnsweredCount,
+  } = useInterviewPersistence({
+    sessionId: session?.id || '',
+  });
+
+  // =========================================================================
+  // Task 28: Dynamic Industry Questions Hook
+  // =========================================================================
+  const {
+    questions: industryQuestions,
+    isLoading: isLoadingIndustryQuestions,
+    fetchQuestions: fetchIndustryQuestions,
+  } = useOnboardingQuestions({
+    industryId: selectedIndustry,
+    stage: formData.stage,
+    maxQuestions: 5,
+  });
 
   // =========================================================================
   // Callbacks
@@ -197,11 +241,6 @@ export default function OnboardingWizard() {
     enrichFounder,
   });
 
-  // Extract industry from form data for coaching context
-  const selectedIndustry = Array.isArray(formData.industry) 
-    ? formData.industry[0] 
-    : formData.industry;
-
   const step3Handlers = useStep3Handlers({
     sessionId: session?.id,
     answers,
@@ -248,6 +287,38 @@ export default function OnboardingWizard() {
   });
 
   // =========================================================================
+  // Task 27: Resume Dialog Handlers
+  // =========================================================================
+  const handleResumeInterview = useCallback(() => {
+    if (restoredState) {
+      // Restore question index from saved state
+      setCurrentQuestionIndex(restoredState.currentQuestionIndex);
+      // Restore answers - convert from Record to array format with timestamp
+      const restoredAnswers: InterviewAnswer[] = Object.entries(restoredState.answers).map(
+        ([questionId, data]) => ({
+          question_id: questionId,
+          answer_id: data.answerId,
+          answer_text: data.answerText,
+          timestamp: restoredState.updatedAt || new Date().toISOString(),
+        })
+      );
+      setAnswers(restoredAnswers);
+      setSignals(restoredState.signals || []);
+      console.log('[Wizard] Resumed interview from saved state');
+    }
+    setShowResumeDialog(false);
+  }, [restoredState]);
+
+  const handleStartFresh = useCallback(() => {
+    clearInterviewState();
+    setAnswers([]);
+    setCurrentQuestionIndex(0);
+    setSignals([]);
+    setShowResumeDialog(false);
+    console.log('[Wizard] Started fresh interview');
+  }, [clearInterviewState]);
+
+  // =========================================================================
   // Effects
   // =========================================================================
   
@@ -289,13 +360,47 @@ export default function OnboardingWizard() {
     }
   }, [session]);
 
-  // Load questions when Step 3 starts
+  // Task 27: Check for saved interview state when entering Step 3
+  useEffect(() => {
+    if (currentStep === 3 && !isRestoringInterview && hasSavedState && getAnsweredCount() > 0) {
+      setShowResumeDialog(true);
+    }
+  }, [currentStep, isRestoringInterview, hasSavedState, getAnsweredCount]);
+
+  // Task 28: Load industry-specific questions when Step 3 starts
   useEffect(() => {
     if (currentStep === 3 && session?.id && questions.length === 0 && !isGettingQuestions) {
       console.log('[Wizard] Step 3 mounted, loading questions...');
-      step3Handlers.loadQuestions().catch(console.error);
+      
+      // Try industry-specific questions first (Task 28)
+      if (selectedIndustry && !isLoadingIndustryQuestions) {
+        fetchIndustryQuestions(selectedIndustry).then((dynamicQuestions) => {
+          if (dynamicQuestions && dynamicQuestions.length > 0) {
+            // Map DynamicQuestion to Question format
+            const mappedQuestions: Question[] = dynamicQuestions.map(q => ({
+              id: q.id,
+              topic: q.topic,
+              text: q.text,
+              type: q.type,
+              options: q.options,
+              why_matters: q.why_matters,
+            }));
+            setQuestions(mappedQuestions);
+            console.log('[Wizard] Loaded industry-specific questions:', mappedQuestions.length);
+          } else {
+            // Fallback to generic questions from onboarding-agent
+            step3Handlers.loadQuestions().catch(console.error);
+          }
+        }).catch(() => {
+          // Fallback on error
+          step3Handlers.loadQuestions().catch(console.error);
+        });
+      } else {
+        // No industry selected, use generic questions
+        step3Handlers.loadQuestions().catch(console.error);
+      }
     }
-  }, [currentStep, session?.id, questions.length, isGettingQuestions, step3Handlers.loadQuestions]);
+  }, [currentStep, session?.id, questions.length, isGettingQuestions, selectedIndustry, isLoadingIndustryQuestions, fetchIndustryQuestions, step3Handlers]);
 
   // Auto-load score and summary when entering Step 4
   useEffect(() => {
@@ -324,9 +429,24 @@ export default function OnboardingWizard() {
   };
 
   const handleInterviewComplete = async () => {
+    // Clear interview persistence on completion
+    clearInterviewState();
     await flushSave(formData);
     setCurrentStep(4);
   };
+
+  // Enhanced answer handler with persistence (Task 27)
+  const handleAnswerWithPersistence = useCallback(async (
+    questionId: string,
+    answerId: string,
+    answerText?: string
+  ) => {
+    // Call original handler
+    await step3Handlers.handleAnswer(questionId, answerId, answerText);
+    
+    // Persist answer (Task 27)
+    persistAnswer(questionId, answerId, answerText, signals, currentQuestionIndex);
+  }, [step3Handlers, persistAnswer, signals, currentQuestionIndex]);
 
   // =========================================================================
   // Loading & Transition States
@@ -383,6 +503,14 @@ export default function OnboardingWizard() {
   
   return (
     <>
+      {/* Task 27: Resume Interview Dialog */}
+      <ResumeInterviewDialog
+        open={showResumeDialog && currentStep === 3}
+        answeredCount={getAnsweredCount()}
+        onResume={handleResumeInterview}
+        onStartFresh={handleStartFresh}
+      />
+
       {/* Background loading banner when timed out but still loading */}
       {loadingTimedOut && isLoading && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-primary/10 border-b border-primary/20 px-4 py-2">
@@ -461,9 +589,18 @@ export default function OnboardingWizard() {
       <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
         {/* Step Header */}
         <div className="mb-6 sm:mb-8">
-          <p className="text-xs font-medium text-primary uppercase tracking-wider mb-2">
-            Step {currentStep} of {WIZARD_STEPS.length}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-primary uppercase tracking-wider mb-2">
+              Step {currentStep} of {WIZARD_STEPS.length}
+            </p>
+            {/* Task 27: Auto-save indicator for Step 3 */}
+            {currentStep === 3 && (
+              <AutoSaveIndicator
+                isSaving={isInterviewSaving}
+                lastSaved={restoredState?.updatedAt}
+              />
+            )}
+          </div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-medium mb-2">
             {WIZARD_STEPS[currentStep - 1]?.title}
           </h1>
@@ -535,7 +672,7 @@ export default function OnboardingWizard() {
                   answers={answers}
                   signals={signals}
                   advisor={advisor}
-                  onAnswer={step3Handlers.handleAnswer}
+                  onAnswer={handleAnswerWithPersistence}
                   onSkip={step3Handlers.handleSkipQuestion}
                   onComplete={handleInterviewComplete}
                   isProcessing={isProcessingAnswer}
