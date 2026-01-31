@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AIAssistantProvider } from "@/providers/AIAssistantProvider";
 import { PlaybookProvider } from "@/providers/PlaybookProvider";
 import { GlobalAIAssistant } from "@/components/ai";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
 import Features from "./pages/Features";
@@ -49,6 +50,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <VercelAnalytics />
         <BrowserRouter>
           <AIAssistantProvider>
             <PlaybookProvider>
