@@ -38,6 +38,10 @@ owner: "Full Stack"
 | 22 | `22-agentic-routing-packs.md` | AI System | Feature-to-pack routing, multi-step execution | P1 |
 | 23 | `23-fix-step4-score-summary.md` | `/onboarding` | Fix 400 errors, fallback scoring, model fixes | P0 |
 | 24 | `24-fix-interview-persistence.md` | `/onboarding` | localStorage + Supabase sync, resume dialog | P1 |
+| 27 | `27-wire-interview-persistence-ui.md` | `/onboarding` | Wire ResumeInterviewDialog, AutoSaveIndicator | P0 |
+| 28 | `28-wire-dynamic-questions.md` | `/onboarding` | Replace generic with industry-specific questions | P1 |
+| 29 | `29-wire-agentic-routing-ui.md` | AI Features | Connect usePromptPack + PackExecutionDrawer | P1 |
+| 30 | `30-fix-backend-gaps.md` | Backend | Add get_validation_history, create template registry | P1 |
 
 ---
 
@@ -64,6 +68,10 @@ All Lovable prompts use the [task metadata schema](../00-task-metadata-schema.md
 | 22 | Agentic Routing & Packs | AI | Agent Strategy | 3 | P1 | 🟢 Complete | 100 | Full Stack |
 | 23 | Fix Step 4 Score/Summary | Bug Fix | Edge Functions | 0 | P0 | 🟢 Complete | 100 | Backend Developer |
 | 24 | Interview Answer Persistence | Bug Fix | Frontend State | 1 | P1 | 🟢 Complete | 100 | Frontend Developer |
+| 27 | Wire Interview Persistence UI | Integration Fix | Onboarding | 1 | P0 | 🟢 Complete | 100 | Frontend Developer |
+| 28 | Wire Dynamic Industry Questions | Integration Fix | Onboarding | 1 | P1 | 🟢 Complete | 100 | Full Stack Developer |
+| 29 | Wire Agentic Routing UI | Integration Fix | AI Features | 2 | P1 | 🟢 Complete | 100 | Full Stack Developer |
+| 30 | Fix Backend Gaps | Bug Fix | Backend | 1 | P1 | 🟢 Complete | 100 | Backend Developer |
 
 ---
 

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface IndustryRequest {
-  action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors';
+  action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors' | 'get_validation_history';
   industry?: string;
   startup_id?: string;
   category?: string;
@@ -17,6 +17,7 @@ interface IndustryRequest {
   answer?: string;
   canvas_data?: Record<string, unknown>;
   pitch_data?: Record<string, unknown>;
+  limit?: number;
 }
 
 // Model configuration - using Gemini 3 Flash for speed
@@ -86,6 +87,11 @@ serve(async (req) => {
 
       case 'analyze_competitors':
         result = await analyzeCompetitors(supabase, industry, startup_id);
+        break;
+
+      // Task 30: Add get_validation_history action
+      case 'get_validation_history':
+        result = await getValidationHistory(supabase, startup_id, body.limit);
         break;
 
       default:
@@ -552,4 +558,47 @@ Return JSON:
   } catch {
     return { analysis: { error: 'Failed to parse analysis', raw: resultText } };
   }
+}
+
+// Task 30: Get validation history for a startup
+// deno-lint-ignore no-explicit-any
+async function getValidationHistory(
+  supabase: any,
+  startupId?: string,
+  limit: number = 10
+) {
+  if (!startupId) {
+    return { error: 'startup_id is required' };
+  }
+
+  // Query validation runs from ai_runs table
+  const { data: runs, error } = await supabase
+    .from('ai_runs')
+    .select('id, created_at, request_metadata, response_metadata, action')
+    .eq('startup_id', startupId)
+    .in('action', ['validate_canvas', 'pitch_feedback', 'calculate_score'])
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('[industry-expert-agent] Error fetching validation history:', error);
+    throw error;
+  }
+
+  // Transform runs to consistent format
+  // deno-lint-ignore no-explicit-any
+  const history = (runs || []).map((run: any) => ({
+    id: run.id,
+    date: run.created_at,
+    action: run.action,
+    score: run.response_metadata?.total_score ?? 
+           run.response_metadata?.overall_score ?? 
+           run.response_metadata?.validation?.overall_score ?? null,
+    summary: run.response_metadata?.summary ?? 
+             run.response_metadata?.feedback?.investment_readiness ?? null,
+    breakdown: run.response_metadata?.breakdown ?? 
+               run.response_metadata?.sections ?? null,
+  }));
+
+  return { runs: history, count: history.length };
 }
