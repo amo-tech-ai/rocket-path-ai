@@ -67,7 +67,7 @@ export interface InterviewAnswer {
   question_id: string;
   answer_id: string;
   answer_text?: string;
-  timestamp: string;
+  answered_at: string;
 }
 
 // ============================================================================
@@ -95,18 +95,18 @@ export interface WizardFormData {
   target_customers?: string[];
   competitors?: string[];
   founders?: Founder[];
-  
+
   // Step 2: Analysis (read from session)
   readiness_score?: ReadinessScore | null;
   url_insights?: Record<string, unknown> | null;
-  
+
   // Step 3: Interview
   interview_answers?: InterviewAnswer[];
   signals?: string[];
   extracted_traction?: TractionData;
   extracted_funding?: FundingData;
   current_question_index?: number;
-  
+
   // Step 4: Review
   investor_score?: InvestorScore | null;
   ai_summary?: AISummary | null;
@@ -127,6 +127,8 @@ export interface WizardSession {
   extracted_traction: Record<string, unknown> | null;
   extracted_funding: Record<string, unknown> | null;
   profile_strength: number | null;
+  interview_answers: InterviewAnswer[];
+  interview_progress: number;
   started_at: string | null;
   completed_at: string | null;
 }

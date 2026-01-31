@@ -17,15 +17,35 @@ import {
 
 interface TractionFundingCardProps {
   data: WizardFormData;
+  sessionTraction?: Record<string, unknown> | null;  // Session-level traction data
+  sessionFunding?: Record<string, unknown> | null;   // Session-level funding data
   isOpen: boolean;
   onToggle: () => void;
 }
 
 export function TractionFundingCard({
   data,
+  sessionTraction,
+  sessionFunding,
   isOpen,
   onToggle,
 }: TractionFundingCardProps) {
+  // Merge session data with form data (session takes priority - it's the source of truth from edge function)
+  const traction = sessionTraction || data.extracted_traction || {};
+  const funding = sessionFunding || data.extracted_funding || {};
+
+  // Check for display values first (set by processAnswer), then fall back to raw values
+  const mrrValue = (traction as any)?.mrr_display ||
+                   (traction as any)?.mrr_range ||
+                   (traction as any)?.current_mrr;
+  const growthValue = (traction as any)?.growth_display ||
+                      (traction as any)?.growth_range ||
+                      (traction as any)?.growth_rate;
+  const usersValue = (traction as any)?.users_display ||
+                     (traction as any)?.users_range ||
+                     (traction as any)?.users;
+  const pmfValue = (traction as any)?.pmf_display || (traction as any)?.pmf_status;
+
   return (
     <Collapsible open={isOpen} onOpenChange={onToggle}>
       <Card>
@@ -52,36 +72,35 @@ export function TractionFundingCard({
               <div>
                 <p className="text-xs text-muted-foreground">MRR</p>
                 <p className="text-sm font-medium">
-                  {parseTractionValue(
-                    data.extracted_traction?.mrr_range || data.extracted_traction?.current_mrr,
-                    MRR_LABELS
-                  )}
+                  {mrrValue ?
+                    (typeof mrrValue === 'string' && mrrValue.includes('$') ? mrrValue : parseTractionValue(mrrValue, MRR_LABELS))
+                    : 'Not set'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Growth</p>
                 <p className="text-sm font-medium">
-                  {parseTractionValue(
-                    data.extracted_traction?.growth_range || data.extracted_traction?.growth_rate,
-                    GROWTH_LABELS
-                  )}
+                  {growthValue ? parseTractionValue(growthValue, GROWTH_LABELS) : 'Not set'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Users</p>
                 <p className="text-sm font-medium">
-                  {parseTractionValue(
-                    data.extracted_traction?.users_range || data.extracted_traction?.users,
-                    USERS_LABELS
-                  )}
+                  {usersValue ? parseTractionValue(usersValue, USERS_LABELS) : 'Not set'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fundraising</p>
                 <p className="text-sm font-medium">
-                  {parseFundingStatus(data.extracted_funding)}
+                  {(funding as any)?.raising_display || parseFundingStatus(funding) || 'Not set'}
                 </p>
               </div>
+              {pmfValue && (
+                <div className="col-span-2">
+                  <p className="text-xs text-muted-foreground">Product-Market Fit</p>
+                  <p className="text-sm font-medium">{pmfValue}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </CollapsibleContent>

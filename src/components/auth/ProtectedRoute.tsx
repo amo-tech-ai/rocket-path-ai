@@ -1,9 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
-
-// PRODUCTION: Auth bypass disabled
-const DEV_BYPASS_AUTH = false;
+import { DEV_BYPASS_AUTH } from '@/lib/devConfig';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,10 +9,10 @@ interface ProtectedRouteProps {
   requireModerator?: boolean;
 }
 
-export function ProtectedRoute({ 
-  children, 
+export function ProtectedRoute({
+  children,
   requireAdmin = false,
-  requireModerator = false 
+  requireModerator = false
 }: ProtectedRouteProps) {
   const { user, loading, isAdmin, isModerator } = useAuth();
   const location = useLocation();

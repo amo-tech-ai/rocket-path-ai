@@ -1,0 +1,42 @@
+-- =============================================================================
+-- Migration: Create Unified Events View
+-- Purpose: Single view for events directory page showing all events
+-- Date: 2026-01-26
+-- Only creates view when public.events exists (events schema may be created elsewhere).
+-- When events does not exist, creates view from industry_events only so directory still works.
+-- =============================================================================
+
+do $$
+begin
+  -- When public.events exists: create full unified view (hosted + industry)
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'events') then
+    create or replace view public.events_directory as
+    select id, name, coalesce(name, title) as display_name, description, start_date, end_date, location, location as display_location, event_type, status, 'hosted' as event_source, event_scope, startup_id, capacity, budget, ticket_price, registration_url, is_public, slug, cover_image_url, organizer_name, organizer_logo_url, tags, industry, target_audience, related_contact_id, related_deal_id, virtual_meeting_url, null::integer as startup_relevance, null::text as ticket_cost_tier, null::numeric as ticket_cost_min, null::numeric as ticket_cost_max, null::text as external_url, null::event_category[] as categories, null::text[] as topics, created_at, updated_at, published_at, cancelled_at
+    from public.events where event_scope = 'hosted'
+    union all
+    select id, name, coalesce(full_name, name) as display_name, description, event_date::timestamptz as start_date, end_date::timestamptz as end_date, location_city || ', ' || location_country as location, location_city || ', ' || location_country as display_location, 'conference'::event_type as event_type, case when event_date < current_date then 'completed'::event_status when event_date >= current_date then 'scheduled'::event_status else 'scheduled'::event_status end as status, 'industry' as event_source, 'external'::event_scope as event_scope, null::uuid as startup_id, null::integer as capacity, null::numeric as budget, null::numeric as ticket_price, registration_url, true as is_public, slug, image_url as cover_image_url, null::text as organizer_name, null::text as organizer_logo_url, tags, null::text as industry, audience_types as target_audience, null::uuid as related_contact_id, null::uuid as related_deal_id, null::text as virtual_meeting_url, startup_relevance, ticket_cost_tier::text as ticket_cost_tier, ticket_cost_min, ticket_cost_max, website_url as external_url, categories, topics, created_at, updated_at, null::timestamptz as published_at, null::timestamptz as cancelled_at
+    from public.industry_events where (event_date >= current_date - interval '30 days' or event_date is null);
+    comment on view public.events_directory is 'Unified view for events directory page. Combines hosted events (from events table) and industry events (from industry_events table) into a single listing.';
+    grant select on public.events_directory to authenticated, anon;
+    create index if not exists idx_events_hosted_public_date on public.events (is_public, start_date, event_scope) where is_public = true and event_scope = 'hosted';
+    return;
+  end if;
+
+  -- When public.events does not exist: create view from industry_events only (no event_type/event_scope enums).
+  -- Note: image_url is added in a later migration; use coalesce so it works before and after that migration.
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'industry_events') then
+    create or replace view public.events_directory as
+    select id, name, coalesce(full_name, name) as display_name, description, event_date::timestamptz as start_date, end_date::timestamptz as end_date, location_city || ', ' || coalesce(location_country, '') as location, location_city || ', ' || coalesce(location_country, '') as display_location, 'conference'::text as event_type, case when event_date < current_date then 'completed'::text when event_date >= current_date then 'scheduled'::text else 'scheduled'::text end as status, 'industry' as event_source, 'external'::text as event_scope, null::uuid as startup_id, null::integer as capacity, null::numeric as budget, null::numeric as ticket_price, registration_url, true as is_public, slug, null::text as cover_image_url, null::text as organizer_name, null::text as organizer_logo_url, tags, null::text as industry, audience_types as target_audience, null::uuid as related_contact_id, null::uuid as related_deal_id, null::text as virtual_meeting_url, startup_relevance, ticket_cost_tier::text as ticket_cost_tier, ticket_cost_min, ticket_cost_max, website_url as external_url, categories, topics, created_at, updated_at, null::timestamptz as published_at, null::timestamptz as cancelled_at
+    from public.industry_events where (event_date >= current_date - interval '30 days' or event_date is null);
+    comment on view public.events_directory is 'Unified view for events directory page (industry events only when hosted events table is not present).';
+    grant select on public.events_directory to authenticated, anon;
+  end if;
+end $$;
+
+-- Index for industry events query (if table exists). No partial predicate (current_date is not immutable).
+do $$
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'industry_events') then
+    create index if not exists idx_industry_events_upcoming on public.industry_events (event_date);
+  end if;
+end $$;

@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { DEV_BYPASS_AUTH, DEV_MOCK_USER_ID } from '@/lib/devConfig';
 
 interface Profile {
   id: string;
@@ -42,12 +43,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (DEV_BYPASS_AUTH) {
+      const mockUser = {
+        id: DEV_MOCK_USER_ID,
+        email: 'dev-bypass@startupai.dev',
+        app_metadata: {},
+        user_metadata: { full_name: 'Dev Bypass User' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as User;
+
+      setUser(mockUser);
+      setProfile({
+        id: DEV_MOCK_USER_ID,
+        email: 'dev-bypass@startupai.dev',
+        full_name: 'Dev Bypass User',
+        avatar_url: null,
+        org_id: 'default-org',
+        role: 'admin',
+        onboarding_completed: true,
+        preferences: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setUserRole({ role: 'admin' });
+      setLoading(false);
+      return;
+    }
+
     // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           // Defer profile/role fetch to avoid blocking auth state update
           setTimeout(() => {
@@ -57,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setUserRole(null);
         }
-        
+
         setLoading(false);
       }
     );
@@ -66,11 +95,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserData(session.user.id);
       }
-      
+
       setLoading(false);
     });
 
@@ -114,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: window.location.origin + '/onboarding',
       },
     });
-    
+
     if (error) {
       console.error('Error signing in with Google:', error);
       throw error;
@@ -128,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: window.location.origin + '/onboarding',
       },
     });
-    
+
     if (error) {
       console.error('Error signing in with LinkedIn:', error);
       throw error;

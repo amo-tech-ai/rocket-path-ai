@@ -14,10 +14,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { DEV_BYPASS_AUTH } from '@/lib/devConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { invokeAgent } from './onboarding/invokeAgent';
-import type { WizardSession, WizardFormData } from './onboarding/types';
+import type { WizardSession, WizardFormData, InterviewAnswer } from './onboarding/types';
 
 // Re-export types for backwards compatibility
 export type {
@@ -54,6 +55,25 @@ export function useWizardSession() {
     queryFn: async (): Promise<WizardSession | null> => {
       if (!user?.id) return null;
 
+      if (DEV_BYPASS_AUTH) {
+        return {
+          id: 'dev-session-default',
+          user_id: user.id,
+          startup_id: null,
+          current_step: 1,
+          status: 'in_progress',
+          form_data: {},
+          ai_extractions: null,
+          extracted_traction: null,
+          extracted_funding: null,
+          profile_strength: null,
+          interview_answers: [],
+          interview_progress: 0,
+          started_at: new Date().toISOString(),
+          completed_at: null,
+        };
+      }
+
       const { data, error } = await supabase
         .from('wizard_sessions')
         .select('*')
@@ -64,7 +84,7 @@ export function useWizardSession() {
         .maybeSingle();
 
       if (error) throw error;
-      
+
       if (data) {
         return {
           id: data.id,
@@ -77,11 +97,13 @@ export function useWizardSession() {
           extracted_traction: (typeof data.extracted_traction === 'object' && data.extracted_traction !== null && !Array.isArray(data.extracted_traction) ? data.extracted_traction : null) as Record<string, unknown> | null,
           extracted_funding: (typeof data.extracted_funding === 'object' && data.extracted_funding !== null && !Array.isArray(data.extracted_funding) ? data.extracted_funding : null) as Record<string, unknown> | null,
           profile_strength: data.profile_strength,
+          interview_answers: (Array.isArray(data.interview_answers) ? data.interview_answers : []) as unknown as InterviewAnswer[],
+          interview_progress: data.interview_progress || 0,
           started_at: data.started_at,
           completed_at: data.completed_at,
         };
       }
-      
+
       return null;
     },
     enabled: !!user?.id,
@@ -107,10 +129,10 @@ export function useWizardSession() {
       }
 
       console.log('[WizardSession] Session created with auth:', sessionId);
-      
+
       // Invalidate and refetch to get the real DB row
       await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
-      
+
       // Wait for the query to actually refetch and find the session
       let retries = 0;
       const maxRetries = 5;
@@ -121,7 +143,7 @@ export function useWizardSession() {
           .select('id')
           .eq('id', sessionId)
           .single();
-        
+
         if (freshSession?.id) {
           console.log('[WizardSession] Session confirmed in DB');
           await queryClient.invalidateQueries({ queryKey: ['wizard-session', user?.id] });
@@ -174,6 +196,8 @@ export function useWizardSession() {
         extracted_traction: null,
         extracted_funding: null,
         profile_strength: null,
+        interview_answers: [],
+        interview_progress: 0,
         started_at: new Date().toISOString(),
         completed_at: null,
       };

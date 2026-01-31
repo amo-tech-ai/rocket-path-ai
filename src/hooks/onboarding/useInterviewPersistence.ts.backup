@@ -1,0 +1,42 @@
+/**
+ * useInterviewPersistence Hook
+ * Manages the state and restoration of onboarding interviews.
+ * Ensures the user can resume progress if they navigate away.
+ */
+
+import { useState, useEffect } from 'react';
+import { useWizardSession } from '@/hooks/useWizardSession';
+
+export function useInterviewPersistence() {
+    const { session, isLoading } = useWizardSession();
+    const [showResumeDialog, setShowResumeDialog] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+    useEffect(() => {
+        // Check if we should show a resume dialog
+        // Condition: Session exists, in_progress, and has some answers, but user is on Step 1 or 2
+        if (!isLoading && session && session.status === 'in_progress') {
+            const hasProgress = session.interview_progress > 0;
+            const onEarlierStep = session.current_step < 3;
+
+            if (hasProgress && onEarlierStep) {
+                setShowResumeDialog(true);
+            }
+
+            // Track last activity for the "Saved" indicator
+            if (session.interview_answers && session.interview_answers.length > 0) {
+                const lastAnswer = session.interview_answers[session.interview_answers.length - 1];
+                setLastSaved(new Date(lastAnswer.answered_at));
+            }
+        }
+    }, [session, isLoading]);
+
+    const dismissResume = () => setShowResumeDialog(false);
+
+    return {
+        showResumeDialog,
+        dismissResume,
+        lastSaved,
+        progress: session?.interview_progress || 0,
+    };
+}

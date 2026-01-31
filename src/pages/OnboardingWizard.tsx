@@ -357,8 +357,51 @@ export default function OnboardingWizard() {
     if (session?.ai_extractions) {
       setExtractions(session.ai_extractions);
       setUrlExtractionDone(Object.keys(session.ai_extractions).length > 0);
+
+      // CRITICAL: Sync extracted fields to formData if not already present
+      // This ensures Step 2 displays the extracted data even after page refresh
+      const updates: Partial<WizardFormData> = {};
+      const extractions = session.ai_extractions;
+
+      if (extractions.key_features && Array.isArray(extractions.key_features) && !session.form_data?.key_features?.length) {
+        updates.key_features = extractions.key_features as string[];
+      }
+      if (extractions.target_audience && !session.form_data?.target_customers?.length) {
+        const audience = extractions.target_audience;
+        updates.target_customers = Array.isArray(audience) ? audience as string[] : [audience as string];
+      }
+      if (extractions.tagline && !session.form_data?.tagline) {
+        updates.tagline = extractions.tagline as string;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        console.log('[Wizard] Syncing ai_extractions to formData:', Object.keys(updates));
+        setFormData(prev => ({ ...prev, ...updates }));
+      }
     }
   }, [session]);
+
+  // Auto-trigger URL extraction when URL is entered and extraction hasn't run
+  useEffect(() => {
+    const shouldAutoExtract =
+      currentStep === 1 &&
+      session?.id &&
+      formData.website_url &&
+      formData.website_url.length > 10 && // Ensure it's a reasonable URL
+      !urlExtractionDone &&
+      !isEnrichingUrl &&
+      !session?.ai_extractions; // Only if no existing extractions
+
+    if (shouldAutoExtract) {
+      // Debounce to avoid multiple triggers while user is typing
+      const timer = setTimeout(() => {
+        console.log('[Wizard] Auto-triggering URL extraction...');
+        step1Handlers.handleEnrichUrl();
+      }, 1500); // Wait 1.5 seconds after URL entry
+
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, session?.id, formData.website_url, urlExtractionDone, isEnrichingUrl, session?.ai_extractions, step1Handlers]);
 
   // Task 27: Check for saved interview state when entering Step 3
   useEffect(() => {
@@ -687,6 +730,8 @@ export default function OnboardingWizard() {
             {currentStep === 4 && (
               <Step4Review
                 data={formData}
+                sessionTraction={session?.extracted_traction as Record<string, unknown> | null}
+                sessionFunding={session?.extracted_funding as Record<string, unknown> | null}
                 onUpdate={updateFormData}
                 investorScore={investorScore}
                 aiSummary={aiSummary}

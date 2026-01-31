@@ -56,9 +56,12 @@ async function logAiRun(
   }
 ) {
   try {
+    // Fix: Ensure org_id is a valid UUID or null to prevent Postgres errors
+    const org_id = (params.org_id && params.org_id.length === 36) ? params.org_id : null;
+
     await supabase.from("ai_runs").insert({
       user_id: params.user_id,
-      org_id: params.org_id,
+      org_id: org_id,
       agent_name: params.agent_name,
       action: params.action,
       model: params.model,
@@ -84,7 +87,7 @@ async function ensureProfileExists(
   userEmail?: string
 ): Promise<boolean> {
   console.log("Ensuring profile exists for user:", userId);
-  
+
   // Check if profile already exists
   const { data: existingProfile } = await supabase
     .from("profiles")
@@ -99,7 +102,7 @@ async function ensureProfileExists(
 
   // Profile doesn't exist - create it now (handles trigger latency)
   console.log("Profile missing, creating directly...");
-  
+
   const { error: insertError } = await supabase
     .from("profiles")
     .insert({
@@ -121,7 +124,7 @@ async function ensureProfileExists(
   }
 
   console.log("Profile created successfully");
-  
+
   // Also ensure user_roles entry exists
   await supabase
     .from("user_roles")
@@ -138,14 +141,14 @@ async function createSession(
   userEmail?: string
 ) {
   console.log("Creating session for user:", userId);
-  
+
   // CRITICAL: Ensure profile exists before creating session
   // wizard_sessions has FK to profiles, so this must succeed first
   const profileCreated = await ensureProfileExists(supabase, userId, userEmail);
   if (!profileCreated) {
     throw new Error("Could not ensure profile exists for user");
   }
-  
+
   // Get user's org_id (profile now definitely exists)
   const { data: profile } = await supabase
     .from("profiles")
@@ -199,9 +202,9 @@ async function updateSession(
   updates: { form_data?: Record<string, unknown>; current_step?: number }
 ) {
   console.log("Updating session:", sessionId, updates);
-  
+
   const updatePayload: Record<string, unknown> = {};
-  
+
   if (updates.form_data !== undefined) {
     updatePayload.form_data = updates.form_data;
   }
@@ -260,6 +263,79 @@ async function resetSession(
   return { session_id: newSession.id, reset: true };
 }
 
+// Validate that a URL actually exists (HEAD request with timeout)
+async function validateUrl(url: string): Promise<boolean> {
+  if (!url || url === "" || url === "N/A" || url === "Unknown") return false;
+
+  // Validate URL format first
+  try {
+    new URL(url);
+  } catch {
+    return false;
+  }
+
+  // Skip HEAD request for known-good domains (performance optimization)
+  const knownDomains = [
+    "stripe.com", "shopify.com", "square.com", "paypal.com", "brex.com",
+    "plaid.com", "ramp.com", "mercury.com", "pipe.com", "deel.com",
+    "notion.com", "airtable.com", "monday.com", "asana.com", "trello.com",
+    "figma.com", "canva.com", "webflow.com", "framer.com", "bubble.io",
+  ];
+
+  try {
+    const urlObj = new URL(url);
+    if (knownDomains.some(d => urlObj.hostname.includes(d))) {
+      return true; // Trust known domains
+    }
+  } catch {
+    return false;
+  }
+
+  // For unknown domains, do a quick HEAD request
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; StartupAI/1.0)" },
+    });
+
+    clearTimeout(timeoutId);
+    return response.status < 500; // Accept 2xx, 3xx, 4xx (site exists)
+  } catch {
+    return false;
+  }
+}
+
+// Filter competitors to only include valid URLs
+async function filterValidCompetitors(
+  competitors: Array<{ name: string; website: string; description: string; funding?: string; differentiator?: string }>
+): Promise<Array<{ name: string; website: string; description: string; funding?: string; differentiator?: string; verified?: boolean }>> {
+  const validated = await Promise.all(
+    competitors.map(async (comp) => {
+      // If no website, keep competitor but mark as unverified
+      if (!comp.website || comp.website === "" || comp.website === "N/A") {
+        return { ...comp, website: "", verified: false };
+      }
+
+      // Validate URL exists
+      const isValid = await validateUrl(comp.website);
+      return {
+        ...comp,
+        website: isValid ? comp.website : "",
+        verified: isValid,
+      };
+    })
+  );
+
+  // Filter out competitors with no valid website AND no meaningful description
+  return validated.filter(
+    c => c.website || (c.description && c.description.length > 20)
+  );
+}
+
 // Generate competitors using Google Search grounding
 async function generateCompetitors(
   supabase: SupabaseClient,
@@ -288,28 +364,36 @@ async function generateCompetitors(
     throw new Error("GEMINI_API_KEY not configured");
   }
 
-  const prompt = `Find direct competitors for this startup using real-time web search.
+  const prompt = `Find REAL direct competitors for this startup using Google Search.
 
 Company: ${companyName}
 Industry: ${industry}
 Description: ${description}
 
-Use Google Search to find actual competitor companies. Return ONLY valid JSON:
+CRITICAL REQUIREMENTS:
+1. Only return REAL companies that exist TODAY - verify with search results
+2. Every website URL MUST be a real, working domain starting with https://
+3. Do NOT invent or hallucinate company names or URLs
+4. If you cannot find real competitors with working websites, return an empty array
+5. Prefer well-known funded companies that show up in search results
+
+Return ONLY valid JSON:
 {
   "competitors": [
     {
-      "name": "string - company name",
-      "website": "string - company website URL",
+      "name": "string - REAL company name (verified from search)",
+      "website": "string - REAL working website URL like https://company.com",
       "description": "string - what they do (1 sentence)",
-      "funding": "string - known funding if available",
-      "differentiator": "string - how the original startup differs"
+      "funding": "string - known funding if available, or 'Unknown'",
+      "differentiator": "string - how ${companyName} differs from them"
     }
   ],
   "market_trends": ["string array - 3-5 relevant market trends from search"],
   "search_queries_used": ["string array - queries used to find this data"]
 }
 
-Find 3-5 real competitors. Only include companies that actually exist.`;
+Find 3-5 REAL competitors with REAL websites. If unsure about a company, exclude it.
+An empty competitors array is better than fake data.`;
 
   // Try multiple models with fallback - use Gemini 3 models
   const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
@@ -327,7 +411,7 @@ Find 3-5 real competitors. Only include companies that actually exist.`;
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3,
+              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
               maxOutputTokens: 2000,
               responseMimeType: "application/json",
             },
@@ -343,7 +427,7 @@ Find 3-5 real competitors. Only include companies that actually exist.`;
 
       const geminiData = await geminiResponse.json();
       const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
       if (responseText) {
         competitorData = JSON.parse(responseText);
         usedModel = model;
@@ -355,19 +439,25 @@ Find 3-5 real competitors. Only include companies that actually exist.`;
     }
   }
 
-  // Fallback with generic competitors based on industry
+  // Fallback - return EMPTY array, not fake data
   if (!competitorData) {
-    console.log("All models failed for competitor generation, using fallback");
+    console.log("All models failed for competitor generation, returning empty");
     competitorData = {
-      competitors: [
-        { name: "Competitor 1", website: "", description: "Similar solution in your space", funding: "Unknown", differentiator: "Your unique approach" },
-        { name: "Competitor 2", website: "", description: "Alternative approach to the problem", funding: "Unknown", differentiator: "Your technology advantage" },
-        { name: "Competitor 3", website: "", description: "Established player in the market", funding: "Unknown", differentiator: "Your fresher perspective" },
+      competitors: [], // EMPTY - no fake data
+      market_trends: [
+        "Unable to fetch market trends - please try again",
       ],
-      market_trends: ["AI/ML adoption growing", "Digital transformation accelerating", "Remote-first becoming standard"],
       search_queries_used: [],
+      generation_failed: true, // Flag for UI to show retry option
     };
     usedModel = "fallback";
+  }
+
+  // Validate competitor URLs - remove fake/broken URLs
+  if (competitorData && competitorData.competitors && competitorData.competitors.length > 0) {
+    console.log(`Validating ${competitorData.competitors.length} competitor URLs...`);
+    competitorData.competitors = await filterValidCompetitors(competitorData.competitors);
+    console.log(`${competitorData.competitors.length} competitors after validation`);
   }
 
   const duration = Date.now() - startTime;
@@ -476,23 +566,44 @@ CRITICAL: Never return empty arrays for key_features, target_audience, or detect
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.2,
+              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
               maxOutputTokens: 2000,
               responseMimeType: "application/json",
             },
-            tools: [{ google_search: {} }],
+            // CRITICAL: Enable BOTH tools per official Gemini docs
+            tools: [
+              { url_context: {} },   // Fetches actual URL content
+              { google_search: {} }, // Search grounding for competitors
+            ],
           }),
         }
       );
 
       if (!geminiResponse.ok) {
-        console.warn(`Model ${model} returned status ${geminiResponse.status}`);
+        const errorText = await geminiResponse.text();
+        console.warn(`Model ${model} returned status ${geminiResponse.status}: ${errorText}`);
         continue;
       }
 
       const geminiData = await geminiResponse.json();
+
+      // Log URL context metadata for debugging
+      const urlContextMeta = geminiData.candidates?.[0]?.urlContextMetadata;
+      if (urlContextMeta?.urlMetadata) {
+        console.log("URL Context retrieval status:");
+        for (const meta of urlContextMeta.urlMetadata) {
+          console.log(`  ${meta.retrievedUrl}: ${meta.urlRetrievalStatus}`);
+        }
+      }
+
+      // Log grounding metadata if present
+      const groundingMeta = geminiData.candidates?.[0]?.groundingMetadata;
+      if (groundingMeta?.webSearchQueries) {
+        console.log("Search queries used:", groundingMeta.webSearchQueries);
+      }
+
       const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
       if (responseText) {
         extractions = JSON.parse(responseText);
         usedModel = model;
@@ -587,7 +698,7 @@ Extract the following information. Return ONLY valid JSON:
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.2,
+            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
             maxOutputTokens: 1000,
             responseMimeType: "application/json",
           },
@@ -601,7 +712,7 @@ Extract the following information. Return ONLY valid JSON:
 
     const geminiData = await geminiResponse.json();
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
     if (!responseText) {
       throw new Error("No response from Gemini");
     }
@@ -706,7 +817,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3,
+              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
               maxOutputTokens: 1000,
               responseMimeType: "application/json",
             },
@@ -721,7 +832,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
 
       const geminiData = await geminiResponse.json();
       const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
       if (responseText) {
         readinessScore = JSON.parse(responseText);
         usedModel = model;
@@ -897,51 +1008,128 @@ async function processAnswer(
 ) {
   console.log("Processing answer:", { sessionId, questionId, answerId });
 
-  // Extract signals and data from answer
-  const signals: string[] = [];
+  // 1. Get current session state - include all fields we need to merge
+  const { data: session } = await supabase
+    .from("wizard_sessions")
+    .select("interview_answers, signals, form_data, extracted_traction, extracted_funding")
+    .eq("id", sessionId)
+    .single();
+
+  const currentAnswers = (session?.interview_answers || []) as any[];
+  const currentSignals = (session?.signals || []) as string[];
+  const currentTraction = (session?.extracted_traction || {}) as Record<string, unknown>;
+  const currentFunding = (session?.extracted_funding || {}) as Record<string, unknown>;
+
+  // 2. Extract signals and data from answer
+  const newSignals: string[] = [];
   let extractedTraction: Record<string, unknown> | null = null;
   let extractedFunding: Record<string, unknown> | null = null;
 
-  // Process based on question type
+  // Process based on question type - map answers to structured data
   if (questionId === "q1_traction") {
     if (answerId === "a4") {
-      signals.push("has_revenue");
-      extractedTraction = { mrr_range: "10k_plus" };
+      newSignals.push("has_revenue");
+      extractedTraction = { mrr_range: "10k_plus", mrr_display: "$10K+ MRR" };
     } else if (answerId === "a3") {
-      signals.push("has_revenue");
-      extractedTraction = { mrr_range: "1k_10k" };
+      newSignals.push("has_revenue");
+      extractedTraction = { mrr_range: "1k_10k", mrr_display: "$1K - $10K MRR" };
+    } else if (answerId === "a2") {
+      extractedTraction = { mrr_range: "under_1k", mrr_display: "Under $1K MRR" };
+    } else if (answerId === "a1") {
+      extractedTraction = { mrr_range: "pre_revenue", mrr_display: "Pre-revenue" };
+    }
+  } else if (questionId === "q2_users") {
+    // Map user count question
+    if (answerText) {
+      extractedTraction = { users: answerText, users_display: answerText };
     }
   } else if (questionId === "q3_fundraising") {
-    if (answerId === "a3") {
-      signals.push("actively_raising");
-      extractedFunding = { is_raising: true };
+    if (answerId === "a3" || answerId === "a4") {
+      newSignals.push("actively_raising");
+      extractedFunding = { is_raising: true, raising_display: "Yes, actively raising" };
+    } else if (answerId === "a2") {
+      extractedFunding = { is_raising: false, raising_display: "Planning to raise soon" };
+    } else if (answerId === "a1") {
+      extractedFunding = { is_raising: false, raising_display: "Bootstrapping" };
+    }
+  } else if (questionId === "q4_team") {
+    // Map team size
+    if (answerText) {
+      extractedTraction = { team_size: answerText, team_display: answerText };
     }
   } else if (questionId === "q5_pmf") {
     if (answerId === "a3" || answerId === "a4") {
-      signals.push("has_pmf");
+      newSignals.push("has_pmf");
+      extractedTraction = { pmf_status: "achieved", pmf_display: "Product-market fit achieved" };
+    } else if (answerId === "a2") {
+      extractedTraction = { pmf_status: "seeking", pmf_display: "Seeking PMF" };
+    } else if (answerId === "a1") {
+      extractedTraction = { pmf_status: "pre_pmf", pmf_display: "Pre-PMF" };
     }
   }
 
-  // Update session with extracted data
+  // 3. Update interview answers list
+  const updatedAnswers = [
+    ...currentAnswers.filter((a: any) => a.question_id !== questionId),
+    {
+      question_id: questionId,
+      answer_id: answerId,
+      answer_text: answerText,
+      answered_at: new Date().toISOString()
+    }
+  ];
+
+  const allSignals = Array.from(new Set([...currentSignals, ...newSignals]));
+
+  // 4. Update session with ALL interview data atomically
+  const updatePayload: Record<string, unknown> = {
+    interview_answers: updatedAnswers,
+    interview_progress: updatedAnswers.length,
+    signals: allSignals,
+    // Also update form_data for backwards compatibility and UI access
+    form_data: {
+      ...(session?.form_data || {}),
+      interview_answers: updatedAnswers,
+      current_question_index: updatedAnswers.length,
+      signals: allSignals,
+    },
+  };
+
+  // Merge traction data if extracted (don't overwrite existing)
   if (extractedTraction) {
-    await supabase
-      .from("wizard_sessions")
-      .update({ extracted_traction: extractedTraction })
-      .eq("id", sessionId);
+    const mergedTraction = { ...currentTraction, ...extractedTraction };
+    updatePayload.extracted_traction = mergedTraction;
+    // Also add to form_data for UI access
+    (updatePayload.form_data as Record<string, unknown>).extracted_traction = mergedTraction;
   }
 
+  // Merge funding data if extracted (don't overwrite existing)
   if (extractedFunding) {
-    await supabase
-      .from("wizard_sessions")
-      .update({ extracted_funding: extractedFunding })
-      .eq("id", sessionId);
+    const mergedFunding = { ...currentFunding, ...extractedFunding };
+    updatePayload.extracted_funding = mergedFunding;
+    (updatePayload.form_data as Record<string, unknown>).extracted_funding = mergedFunding;
   }
 
+  const { error: updateError } = await supabase
+    .from("wizard_sessions")
+    .update(updatePayload)
+    .eq("id", sessionId);
+
+  if (updateError) {
+    console.error("Failed to update interview progress:", updateError);
+    throw new Error("Failed to save answer");
+  }
+
+  console.log("Answer saved. Progress:", updatedAnswers.length, "Signals:", allSignals);
+
+  // Return the extracted data so client can update local state
   return {
     success: true,
-    signals,
+    signals: newSignals,
     extracted_traction: extractedTraction,
     extracted_funding: extractedFunding,
+    interview_progress: updatedAnswers.length,
+    all_signals: allSignals,
   };
 }
 
@@ -1060,9 +1248,9 @@ Evaluate like an investor would. Return ONLY valid JSON:
   ]
 }`;
 
-    // Try multiple models with fallback
-    const models = ["gemini-2.0-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
-    
+    // Try multiple models with fallback - use Gemini 3 models
+    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-flash-latest"];
+
     for (const model of models) {
       try {
         console.log(`Trying score calculation with model: ${model}`);
@@ -1074,7 +1262,7 @@ Evaluate like an investor would. Return ONLY valid JSON:
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.3,
+                temperature: 1.0, // Per Gemini 3 docs: must be 1.0
                 maxOutputTokens: 1000,
                 responseMimeType: "application/json",
               },
@@ -1089,11 +1277,11 @@ Evaluate like an investor would. Return ONLY valid JSON:
 
         const geminiData = await geminiResponse.json();
         const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-        
+
         if (responseText) {
           const aiScore = JSON.parse(responseText);
           investorScore = aiScore;
-          
+
           const duration = Date.now() - startTime;
           if (orgId) {
             await logAiRun(supabase, {
@@ -1179,9 +1367,9 @@ Return ONLY valid JSON:
   "improvements": ["3-5 areas to improve as strings"]
 }`;
 
-    // Try multiple models with fallback
-    const models = ["gemini-2.0-flash-001", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
-    
+    // Try multiple models with fallback - use Gemini 3 models
+    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-flash-latest"];
+
     for (const model of models) {
       try {
         console.log(`Trying summary generation with model: ${model}`);
@@ -1193,7 +1381,7 @@ Return ONLY valid JSON:
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.5,
+                temperature: 1.0, // Per Gemini 3 docs: must be 1.0
                 maxOutputTokens: 1000,
                 responseMimeType: "application/json",
               },
@@ -1208,11 +1396,11 @@ Return ONLY valid JSON:
 
         const geminiData = await geminiResponse.json();
         const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-        
+
         if (responseText) {
           const aiSummary = JSON.parse(responseText);
           summaryData = aiSummary;
-          
+
           const duration = Date.now() - startTime;
           if (orgId) {
             await logAiRun(supabase, {
@@ -1257,26 +1445,61 @@ async function completeWizard(
     throw new Error("Session not found");
   }
 
-  // Get user's org_id (handle missing org gracefully for new users)
-  const { data: profile } = await supabase
+  // Get user profile to check for existing org_id
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("org_id")
+    .select("org_id, email")
     .eq("id", userId)
     .maybeSingle();
 
-  // For new users, org_id might not exist yet - use user's id as fallback org reference
-  const userOrgId = profile?.org_id;
+  if (profileError) {
+    console.error("Profile fetch error:", profileError);
+  }
+
+  let userOrgId = profile?.org_id;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formData = (session.form_data || {}) as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractions = (session.ai_extractions || {}) as any;
 
+  // CRITICAL FIX: Create organization if user doesn't have one
+  if (!userOrgId) {
+    console.log("User has no org_id, creating organization...");
+
+    const companyName = formData.name || formData.company_name || extractions.company_name || "My Startup";
+
+    // Create organization for the user
+    const { data: newOrg, error: orgError } = await supabase
+      .from("organizations")
+      .insert({
+        name: `${companyName}`,
+        owner_id: userId,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (orgError) {
+      console.error("Organization creation error:", orgError);
+      throw new Error(`Could not create organization: ${orgError.message}`);
+    }
+
+    userOrgId = newOrg.id;
+    console.log("Created organization:", userOrgId);
+
+    // Update user profile with new org_id
+    await supabase
+      .from("profiles")
+      .update({ org_id: userOrgId })
+      .eq("id", userId);
+  }
+
   // Merge data, preferring user input over AI extractions
   const industryValue = formData.industry || extractions.industry;
   const industryArray = Array.isArray(industryValue) ? industryValue : (industryValue ? [industryValue] : null);
 
-  // Use org_id if available, otherwise skip org requirement for new users
+  // Build startup data with guaranteed org_id
   const startupData: Record<string, unknown> = {
     name: formData.name || formData.company_name || extractions.company_name || "My Startup",
     description: formData.description || extractions.description,
@@ -1295,12 +1518,8 @@ async function completeWizard(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     is_raising: (session.extracted_funding as any)?.is_raising || false,
     profile_strength: session.profile_strength,
+    org_id: userOrgId, // Now guaranteed to have a value
   };
-
-  // Add org_id if available
-  if (userOrgId) {
-    startupData.org_id = userOrgId;
-  }
 
   // Create startup
   const { data: startup, error: startupError } = await supabase
@@ -1311,7 +1530,8 @@ async function completeWizard(
 
   if (startupError) {
     console.error("Startup creation error:", startupError);
-    throw new Error("Could not create startup");
+    console.error("Startup data attempted:", JSON.stringify(startupData, null, 2));
+    throw new Error(`Could not create startup: ${startupError.message}`);
   }
 
   // Update session as completed
@@ -1330,7 +1550,7 @@ async function completeWizard(
     .from("profiles")
     .update({
       onboarding_completed: true,
-      org_id: userOrgId || null,
+      org_id: userOrgId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId);
@@ -1374,11 +1594,15 @@ async function completeWizard(
     .insert(tasksToCreate)
     .select();
 
-  console.log("Wizard completed. Startup:", startup.id, "Tasks:", tasks?.length);
+  console.log("Wizard completed successfully!");
+  console.log("- Startup ID:", startup.id);
+  console.log("- Org ID:", userOrgId);
+  console.log("- Tasks created:", tasks?.length || 0);
 
   return {
     success: true,
     startup_id: startup.id,
+    org_id: userOrgId,
     tasks_created: tasks?.length || 0,
   };
 }
@@ -1391,7 +1615,7 @@ async function enrichFounder(
   name: string | undefined
 ) {
   console.log("Enriching founder:", linkedinUrl);
-  
+
   // For now, return success - LinkedIn enrichment would require additional API
   return {
     success: true,
@@ -1415,7 +1639,7 @@ Deno.serve(async (req: Request) => {
 
     // Get user from auth
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+
     if (authError || !user) {
       console.error("Auth error:", authError);
       return new Response(

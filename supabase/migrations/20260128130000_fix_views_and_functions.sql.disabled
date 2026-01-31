@@ -1,0 +1,43 @@
+-- ============================================================================
+-- Migration: fix_views_and_functions
+-- Date: 2026-01-28
+-- Purpose: Fix SECURITY DEFINER views and mutable search_path functions
+-- Views are altered only if they exist (idempotent for different migration order).
+-- ============================================================================
+
+-- 1. Set views to SECURITY INVOKER (respects RLS of querying user)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'calendar_events') THEN
+    ALTER VIEW public.calendar_events SET (security_invoker = true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'hosted_events') THEN
+    ALTER VIEW public.hosted_events SET (security_invoker = true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND table_name = 'events_directory') THEN
+    ALTER VIEW public.events_directory SET (security_invoker = true);
+  END IF;
+END $$;
+
+-- 2. Fix functions with mutable search_path
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;

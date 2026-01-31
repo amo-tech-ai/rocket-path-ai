@@ -22,6 +22,8 @@ import { PackExecutionDrawer } from '@/components/ai/PackExecutionDrawer';
 
 interface Step4ReviewProps {
   data: WizardFormData;
+  sessionTraction?: Record<string, unknown> | null;  // Session-level traction data
+  sessionFunding?: Record<string, unknown> | null;   // Session-level funding data
   onUpdate: (updates: Partial<WizardFormData>) => void;
   investorScore: InvestorScore | null;
   aiSummary: AISummary | null;
@@ -35,6 +37,8 @@ interface Step4ReviewProps {
 
 export function Step4Review({
   data,
+  sessionTraction,
+  sessionFunding,
   onUpdate,
   investorScore,
   aiSummary,
@@ -148,9 +152,11 @@ export function Step4Review({
         onToggle={() => toggleSection('company')}
       />
 
-      {/* Traction & Funding */}
+      {/* Traction & Funding - pass session data as source of truth */}
       <TractionFundingCard
         data={data}
+        sessionTraction={sessionTraction}
+        sessionFunding={sessionFunding}
         isOpen={openSections.traction}
         onToggle={() => toggleSection('traction')}
       />

@@ -1,0 +1,45 @@
+/**
+ * useOnboardingQuestions Hook
+ * Fetches industry-specific questions from the industry-expert-agent.
+ * Falls back to universal startup questions if no industry-specific ones exist.
+ */
+
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { invokeAgent } from './invokeAgent';
+import type { QuestionsResult } from './types';
+
+export function useOnboardingQuestions(industryId: string | undefined) {
+  return useQuery({
+    queryKey: ['onboarding-questions', industryId],
+    queryFn: async (): Promise<QuestionsResult> => {
+      // 1. Attempt to fetch industry questions
+      if (industryId) {
+        try {
+          const response = await invokeAgent<QuestionsResult>({
+            action: 'get_questions',
+            industry: industryId,
+            context: 'onboarding',
+          });
+
+          if (response.success && response.questions && response.questions.length > 0) {
+            return response;
+          }
+        } catch (e) {
+          console.error('Industry questions fetch failed, falling back:', e);
+        }
+      }
+
+      // 2. Fallback to universal questions (using onboarding-agent as fallback provider)
+      // This is a safety measure to ensure the wizard never breaks.
+      const { data, error } = await supabase.functions.invoke('onboarding-agent', {
+        body: { action: 'get_questions', session_id: 'default' },
+      });
+
+      if (error) throw error;
+      return data as QuestionsResult;
+    },
+    enabled: true,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+}

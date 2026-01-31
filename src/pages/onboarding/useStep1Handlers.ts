@@ -41,18 +41,53 @@ export function useStep1Handlers({
       if (result.extractions) {
         setExtractions(prev => ({ ...prev, ...result.extractions }));
         setUrlExtractionDone(true);
-        // Auto-fill form fields
+
+        // Build all updates at once to batch the state update
+        const updates: Partial<WizardFormData> = {};
+
+        // Auto-fill company name
         if (result.extractions.company_name && !formData.company_name) {
-          updateFormData({ 
-            company_name: result.extractions.company_name,
-            name: result.extractions.company_name,
-          });
+          updates.company_name = result.extractions.company_name;
+          updates.name = result.extractions.company_name;
         }
+
+        // Auto-fill industry
         if (result.extractions.industry) {
-          updateFormData({ industry: result.extractions.industry });
+          updates.industry = result.extractions.industry;
         }
+
+        // Auto-fill description
         if (result.extractions.description && !formData.description) {
-          updateFormData({ description: result.extractions.description });
+          updates.description = result.extractions.description;
+        }
+
+        // AUTO-FILL KEY FEATURES - Critical for Step 2 display
+        if (result.extractions.key_features && Array.isArray(result.extractions.key_features)) {
+          updates.key_features = result.extractions.key_features;
+        }
+
+        // AUTO-FILL TARGET AUDIENCE -> target_customers
+        if (result.extractions.target_audience) {
+          const audience = result.extractions.target_audience;
+          updates.target_customers = Array.isArray(audience) ? audience : [audience];
+        }
+
+        // AUTO-FILL TAGLINE
+        if (result.extractions.tagline || result.extractions.unique_value_proposition) {
+          updates.tagline = result.extractions.tagline || result.extractions.unique_value_proposition;
+        }
+
+        // AUTO-FILL COMPETITORS
+        if (result.extractions.competitors && Array.isArray(result.extractions.competitors)) {
+          updates.competitors = result.extractions.competitors.map(
+            (c: any) => typeof c === 'string' ? c : c.name
+          );
+        }
+
+        // Apply all updates at once
+        if (Object.keys(updates).length > 0) {
+          console.log('[Step1Handlers] Auto-filling extracted fields:', Object.keys(updates));
+          updateFormData(updates);
         }
       }
     } catch (error: any) {

@@ -229,8 +229,10 @@ export function WizardAIPanel({
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Competitors</span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {extractions.competitors.slice(0, 4).map((comp, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">{comp}</Badge>
+                        {extractions.competitors.slice(0, 4).map((comp: any, i: number) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {typeof comp === 'string' ? comp : comp?.name || 'Unknown'}
+                          </Badge>
                         ))}
                       </div>
                     </div>
