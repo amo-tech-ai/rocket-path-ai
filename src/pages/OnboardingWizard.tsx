@@ -419,6 +419,11 @@ export default function OnboardingWizard() {
 
   // Auto-trigger URL extraction when URL is entered and extraction hasn't run
   useEffect(() => {
+    // Check if ai_extractions has actual content (not empty object)
+    const hasExtractions = session?.ai_extractions &&
+      Object.keys(session.ai_extractions).length > 0 &&
+      (session.ai_extractions.key_features || session.ai_extractions.company_name);
+
     const shouldAutoExtract =
       currentStep === 1 &&
       session?.id &&
@@ -426,7 +431,7 @@ export default function OnboardingWizard() {
       formData.website_url.length > 10 && // Ensure it's a reasonable URL
       !urlExtractionDone &&
       !isEnrichingUrl &&
-      !session?.ai_extractions; // Only if no existing extractions
+      !hasExtractions; // Only if no meaningful extractions exist
 
     if (shouldAutoExtract) {
       // Debounce to avoid multiple triggers while user is typing
