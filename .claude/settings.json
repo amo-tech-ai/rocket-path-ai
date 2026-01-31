@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "ignorePatterns": [
+    "pm/**",
+    "tasks/prompts/**",
+    "tasks/data/**",
+    "tasks/testing/**",
+    "knowledge/**",
+    "docs/plans/**",
+    "archive/**",
+    "*.log",
+    "*.jsonl",
+    "node_modules/**",
+    "dist/**",
+    ".next/**",
+    "screenshots/**",
+    "figma/**",
+    ".backup*/**"
+  ]
+}

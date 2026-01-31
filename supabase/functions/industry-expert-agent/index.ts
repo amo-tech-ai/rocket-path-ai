@@ -349,7 +349,9 @@ Return JSON:
           temperature: 0.5,
           maxOutputTokens: 2048,
           responseMimeType: 'application/json',
-        }
+        },
+        // Use google_search for real-time industry benchmarks (per Gemini 3 best practices)
+        tools: [{ google_search: {} }]
       }),
     }
   );

@@ -37,6 +37,7 @@ import Step4Review from '@/components/onboarding/step4/Step4Review';
 import { useInterviewPersistence } from '@/hooks/onboarding/useInterviewPersistence';
 import { ResumeInterviewDialog } from '@/components/onboarding/step3/ResumeInterviewDialog';
 import { AutoSaveIndicator } from '@/components/onboarding/step3/AutoSaveIndicator';
+import { WizardStep } from '@/components/onboarding/StepProgress';
 
 // Task 28: Dynamic Industry Questions
 import { useOnboardingQuestions } from '@/hooks/onboarding/useOnboardingQuestions';
@@ -194,13 +195,48 @@ export default function OnboardingWizard() {
     
     setIsEnhancing(prev => ({ ...prev, [fieldName]: true }));
     try {
-      // For now just simulate enhancement for non-competitor fields
-      // Could add enrich_context calls here for specific fields
-      await new Promise(resolve => setTimeout(resolve, 800));
+      console.log(`[Wizard] Enhancing field: ${fieldName}`);
+      
+      const result = await enrichContext({
+        session_id: session.id,
+        description: formData.description || '',
+        target_market: formData.target_market || ''
+      });
+
+      if (result.success && result.extractions) {
+        const updates: Partial<WizardFormData> = {};
+        const ext = result.extractions;
+
+        // Map agent fields to form fields
+        if (fieldName === 'key_features' && ext.key_features) {
+          updates.key_features = ext.key_features;
+        }
+        
+        if (fieldName === 'target_customers' && ext.target_audience) {
+          const audience = ext.target_audience;
+          updates.target_customers = Array.isArray(audience) ? audience : [audience];
+        }
+
+        // Sync and Save
+        if (Object.keys(updates).length > 0) {
+          updateFormData(updates);
+          toast({
+            title: "Success",
+            description: `Successfully enhanced ${fieldName.replace('_', ' ')}`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Enhancement failed:', error);
+      toast({
+        title: "Enhancement failed",
+        description: "Could not enhance field. Please try manual entry.",
+        variant: "destructive",
+      });
     } finally {
       setIsEnhancing(prev => ({ ...prev, [fieldName]: false }));
     }
-  }, [session?.id]);
+  }, [session?.id, formData.description, formData.target_market, enrichContext, updateFormData, toast]);
 
   // Generate competitors with AI Re-scan
   const handleGenerateCompetitors = useCallback(async () => {
@@ -299,7 +335,7 @@ export default function OnboardingWizard() {
           question_id: questionId,
           answer_id: data.answerId,
           answer_text: data.answerText,
-          timestamp: restoredState.updatedAt || new Date().toISOString(),
+          answered_at: restoredState.updatedAt || new Date().toISOString(),
         })
       );
       setAnswers(restoredAnswers);
@@ -566,7 +602,7 @@ export default function OnboardingWizard() {
     <WizardLayout
       currentStep={currentStep}
       completedSteps={navigation.completedSteps()}
-      steps={WIZARD_STEPS as any}
+      steps={WIZARD_STEPS as unknown as WizardStep[]}
       onStepChange={navigation.handleStepChange}
       onSaveLater={handleSaveLater}
       isSaving={isSaving}
@@ -574,7 +610,7 @@ export default function OnboardingWizard() {
         <WizardAIPanel
           currentStep={currentStep}
           isProcessing={isProcessing}
-          extractions={extractions as any}
+          extractions={extractions as React.ComponentProps<typeof WizardAIPanel>['extractions']}
           readinessScore={readinessScore}
           investorScore={investorScore}
           aiSummary={aiSummary}

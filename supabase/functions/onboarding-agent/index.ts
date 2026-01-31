@@ -1248,8 +1248,8 @@ Evaluate like an investor would. Return ONLY valid JSON:
   ]
 }`;
 
-    // Try multiple models with fallback - use Gemini 3 models
-    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-flash-latest"];
+    // Try multiple models with fallback - use Gemini 3 models only
+    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
 
     for (const model of models) {
       try {
@@ -1367,8 +1367,8 @@ Return ONLY valid JSON:
   "improvements": ["3-5 areas to improve as strings"]
 }`;
 
-    // Try multiple models with fallback - use Gemini 3 models
-    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-1.5-flash-latest"];
+    // Try multiple models with fallback - use Gemini 3 models only
+    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
 
     for (const model of models) {
       try {

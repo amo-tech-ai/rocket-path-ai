@@ -4,7 +4,11 @@
  */
 
 import { useCallback } from 'react';
-import { WizardFormData } from '@/hooks/onboarding/types';
+import { 
+  WizardFormData, 
+  EnrichmentResult, 
+  FounderEnrichmentResult 
+} from '@/hooks/onboarding/types';
 
 interface UseStep1HandlersParams {
   sessionId: string | undefined;
@@ -13,9 +17,9 @@ interface UseStep1HandlersParams {
   setExtractions: (fn: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
   setUrlExtractionDone: (done: boolean) => void;
   setUrlExtractionError: (error: string | undefined) => void;
-  enrichUrl: (params: { session_id: string; url: string }) => Promise<any>;
-  enrichContext: (params: { session_id: string; description: string; target_market?: string }) => Promise<any>;
-  enrichFounder: (params: { session_id: string; linkedin_url: string; name?: string }) => Promise<any>;
+  enrichUrl: (params: { session_id: string; url: string }) => Promise<EnrichmentResult>;
+  enrichContext: (params: { session_id: string; description: string; target_market?: string }) => Promise<EnrichmentResult>;
+  enrichFounder: (params: { session_id: string; linkedin_url: string; name?: string }) => Promise<FounderEnrichmentResult>;
 }
 
 export function useStep1Handlers({
@@ -80,7 +84,7 @@ export function useStep1Handlers({
         // AUTO-FILL COMPETITORS
         if (result.extractions.competitors && Array.isArray(result.extractions.competitors)) {
           updates.competitors = result.extractions.competitors.map(
-            (c: any) => typeof c === 'string' ? c : c.name
+            (c: string | Record<string, unknown>) => typeof c === 'string' ? c : (c as any).name
           );
         }
 
@@ -90,8 +94,9 @@ export function useStep1Handlers({
           updateFormData(updates);
         }
       }
-    } catch (error: any) {
-      setUrlExtractionError(error?.message || 'Failed to extract data');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to extract data';
+      setUrlExtractionError(errorMessage);
     }
   }, [sessionId, formData.website_url, formData.company_name, formData.description, enrichUrl, updateFormData, setExtractions, setUrlExtractionDone, setUrlExtractionError]);
 
@@ -120,12 +125,16 @@ export function useStep1Handlers({
         session_id: sessionId,
         linkedin_url: linkedinUrl,
       });
-      if (result.success) {
+      if (result.success && result.founder_data) {
         // Update founder with enriched data
         const founders = formData.founders || [];
         updateFormData({
           founders: founders.map(f => 
-            f.id === founderId ? { ...f, enriched: true } : f
+            f.id === founderId ? { 
+              ...f, 
+              ...result.founder_data,
+              enriched: true 
+            } : f
           ),
         });
       }

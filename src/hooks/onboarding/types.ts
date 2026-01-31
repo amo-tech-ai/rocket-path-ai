@@ -13,6 +13,9 @@ export interface Founder {
   role: string;
   linkedin_url?: string;
   enriched?: boolean;
+  bio?: string;
+  experience?: string[];
+  education?: string;
 }
 
 export interface TractionData {
@@ -93,7 +96,7 @@ export interface WizardFormData {
   tagline?: string;
   key_features?: string[];
   target_customers?: string[];
-  competitors?: string[];
+  competitors?: (string | { name: string; website?: string; description?: string; verified?: boolean })[];
   founders?: Founder[];
 
   // Step 2: Analysis (read from session)
@@ -178,13 +181,21 @@ export interface EnrichmentResult {
   success: boolean;
   extractions?: {
     company_name?: string;
-    industry?: string;
+    industry?: string[];
     description?: string;
-    features?: string[];
-    target_audience?: string;
-    competitors?: string[];
+    tagline?: string;
+    business_model?: string[];
+    stage?: string;
+    target_market?: string;
+    target_audience?: string[];
+    key_features?: string[];
+    detected_phrases?: string[];
+    competitors?: string[] | Record<string, unknown>[];
+    market_trends?: string[];
     pricing_model?: string;
     unique_value_proposition?: string;
+    confidence?: number;
+    inferred_fields?: string[];
   };
   error?: string;
 }

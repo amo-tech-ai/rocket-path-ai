@@ -18,10 +18,11 @@ interface WizardAIPanelProps {
   isProcessing?: boolean;
   extractions?: {
     company_name?: string;
-    industry?: string;
-    features?: string[];
-    competitors?: string[];
+    industry?: string[];
+    key_features?: string[];
+    competitors?: string[] | Record<string, unknown>[];
     tagline?: string;
+    target_audience?: string[];
     target_customers?: string[];
   };
   readinessScore?: ReadinessScore | null;
@@ -215,11 +216,11 @@ export function WizardAIPanel({
                       <p className="text-sm">{extractions.tagline}</p>
                     </div>
                   )}
-                  {extractions.features && extractions.features.length > 0 && (
+                  {extractions.key_features && extractions.key_features.length > 0 && (
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Features</span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {extractions.features.slice(0, 5).map((feature, i) => (
+                        {extractions.key_features.slice(0, 5).map((feature, i) => (
                           <Badge key={i} variant="secondary" className="text-xs">{feature}</Badge>
                         ))}
                       </div>
@@ -229,7 +230,7 @@ export function WizardAIPanel({
                     <div>
                       <span className="text-xs text-muted-foreground uppercase tracking-wider">Competitors</span>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {extractions.competitors.slice(0, 4).map((comp: any, i: number) => (
+                        {extractions.competitors.slice(0, 4).map((comp, i) => (
                           <Badge key={i} variant="outline" className="text-xs">
                             {typeof comp === 'string' ? comp : comp?.name || 'Unknown'}
                           </Badge>

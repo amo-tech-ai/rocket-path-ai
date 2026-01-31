@@ -55,54 +55,101 @@ export function getMockAgentResponse<T>(action: string, body: Record<string, unk
         success: true,
       } as T;
 
-    case 'enrich_url':
-      const urlCompanyName = (body.url as string)?.includes('example') ? 'Example Company' : 'Tech Startup Inc';
+    case 'enrich_url': {
+      const url = body.url as string;
+      const urlCompanyName = url ? new URL(url).hostname.split('.')[1] : 'Startup';
+      const capitalizedName = urlCompanyName.charAt(0).toUpperCase() + urlCompanyName.slice(1);
+      
       return {
         extractions: {
-          company_name: urlCompanyName,
-          description: 'AI-powered platform for startups',
-          industry: ['Technology', 'SaaS'],
-          business_model: ['Subscription', 'Freemium'],
+          company_name: capitalizedName,
+          description: `AI-powered operating system for fashion brands and events that turns complex planning, content creation, and collaboration into fast, structured workflows.`,
+          tagline: 'The Operating System for Modern Fashion',
+          industry: ['Fashion', 'AI', 'SaaS'],
+          business_model: ['B2B', 'SaaS'],
           stage: 'Seed',
-          competitors: generateMockCompetitors(urlCompanyName, 'Technology'),
+          target_market: 'Fashion designers, retailers, models, PR/media, event organizers.',
+          target_audience: [
+            'Fashion Designers',
+            'Event Producers',
+            'Creative Directors',
+            'Boutique Retailers'
+          ],
+          key_features: [
+            'AI-driven Event Planning',
+            'Automated Content Workflows',
+            'Real-time Collaboration Dashboard',
+            'Smart Asset Management',
+            'Vendor Coordination Engine'
+          ],
+          detected_phrases: [
+            "From concept to catwalk in half the time",
+            "The intelligence behind the industry",
+            "Streamlining creativity through structure"
+          ],
+          competitors: generateMockCompetitors(capitalizedName, 'Fashion'),
+          inferred_fields: ['stage', 'business_model', 'key_features']
         },
         success: true,
       } as T;
+    }
 
-    case 'enrich_context':
-      const description = body.description as string || '';
-      const targetMarket = body.target_market as string || '';
+    case 'enrich_context': {
+      const desc = body.description as string || '';
+      const market = body.target_market as string || '';
       // Try to infer industry from description or use default
-      let inferredIndustry = 'Technology';
-      if (description.toLowerCase().includes('fintech') || description.toLowerCase().includes('finance')) {
-        inferredIndustry = 'Fintech';
-      } else if (description.toLowerCase().includes('health') || description.toLowerCase().includes('medical')) {
-        inferredIndustry = 'Healthcare';
-      } else if (description.toLowerCase().includes('saas') || description.toLowerCase().includes('software')) {
-        inferredIndustry = 'SaaS';
+      let inferredInd = 'Technology';
+      if (desc.toLowerCase().includes('fashion') || desc.toLowerCase().includes('clothing')) {
+        inferredInd = 'Fashion';
+      } else if (desc.toLowerCase().includes('fintech') || desc.toLowerCase().includes('finance')) {
+        inferredInd = 'Fintech';
+      } else if (desc.toLowerCase().includes('health') || desc.toLowerCase().includes('medical')) {
+        inferredInd = 'Healthcare';
+      } else if (desc.toLowerCase().includes('saas') || desc.toLowerCase().includes('software')) {
+        inferredInd = 'SaaS';
       }
 
       return {
         extractions: {
-          industry: [inferredIndustry],
+          industry: [inferredInd],
           business_model: ['SaaS'],
           stage: 'Seed',
-          competitors: generateMockCompetitors(description.substring(0, 20) || 'Company', inferredIndustry),
+          key_features: [
+            'AI-powered analysis',
+            'Automated extraction',
+            'Smart categorization'
+          ],
+          target_audience: [
+            'Startup Founders',
+            'Product Managers',
+            'Business Analysts'
+          ],
+          competitors: generateMockCompetitors(desc.substring(0, 20) || 'Company', inferredInd),
+          inferred_fields: ['key_features', 'target_audience']
         },
         success: true,
       } as T;
+    }
 
-    case 'enrich_founder':
+    case 'enrich_founder': {
+      const name = body.name as string || '';
+      const isSanjiv = name.toLowerCase().includes('sanjiv') || (body.linkedin_url as string || '').includes('sanjivkhullar');
+      
       return {
         success: true,
-        founder: {
-          name: body.name || 'John Doe',
-          role: 'CEO',
-          experience: '10+ years in tech',
-          education: 'MBA from Stanford',
-          previous_companies: ['Google', 'Microsoft'],
+        founder_data: {
+          name: isSanjiv ? 'Sanjiv Khullar' : (name || 'John Doe'),
+          title: isSanjiv ? 'Co-founder & CEO' : 'Co-founder',
+          bio: isSanjiv 
+            ? 'Experienced executive in the fashion and technology intersection. Founder of Fashionistas and socialmediaville.' 
+            : 'Seasoned founder with multiple exits.',
+          experience: isSanjiv 
+            ? ['CEO @ Fashionistas', 'CEO @ socialmediaville', 'Founder @ Future Leaders']
+            : ['Product Lead @ Tech Innovators', 'Senior Engineer @ Growth Lab'],
+          education: isSanjiv ? 'Masters in Business Administration' : 'BS Computer Science',
         },
       } as T;
+    }
 
     case 'calculate_readiness':
       return {

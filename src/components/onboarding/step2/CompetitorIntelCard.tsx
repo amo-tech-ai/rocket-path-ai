@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, X, TrendingUp, Tag, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Plus, X, TrendingUp, Tag, RefreshCw, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,9 @@ interface CompetitorIntelCardProps {
 interface Competitor {
   name: string;
   domain?: string;
+  website?: string;
   focus?: string;
+  verified?: boolean;
 }
 
 export function CompetitorIntelCard({
@@ -29,11 +31,22 @@ export function CompetitorIntelCard({
   const [isAddingCompetitor, setIsAddingCompetitor] = useState(false);
   const [newCompetitor, setNewCompetitor] = useState('');
 
-  const competitors: Competitor[] = (data.competitors || []).map(name => ({
-    name,
-    domain: `${name.toLowerCase().replace(/\s+/g, '')}.com`,
-    focus: 'Enterprise solution',
-  }));
+  const competitors: Competitor[] = (data.competitors || []).map(comp => {
+    if (typeof comp === 'string') {
+      return {
+        name: comp,
+        domain: `${comp.toLowerCase().replace(/\s+/g, '')}.com`,
+        focus: 'Enterprise solution',
+      };
+    }
+    return {
+      name: comp.name,
+      domain: comp.website ? new URL(comp.website).hostname : undefined,
+      website: comp.website,
+      verified: comp.verified,
+      focus: comp.description || 'Verified Competitor',
+    };
+  });
 
   const addCompetitor = () => {
     if (newCompetitor.trim()) {
@@ -105,7 +118,19 @@ export function CompetitorIntelCard({
                 <X className="h-3 w-3" />
               </button>
               <h4 className="font-semibold text-sm">{competitor.name}</h4>
-              <p className="text-xs text-primary">{competitor.domain}</p>
+{competitor.website ? (
+  <a
+    href={competitor.website}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-primary hover:underline flex items-center gap-1"
+  >
+    {competitor.website}
+    {competitor.verified && <CheckCircle className="h-3 w-3 text-green-500" />}
+  </a>
+) : (
+  <span className="text-muted-foreground text-xs">No website found</span>
+)}
               <p className="text-xs text-muted-foreground mt-1">{competitor.focus}</p>
             </div>
           ))}

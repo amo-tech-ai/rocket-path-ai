@@ -26,8 +26,8 @@ interface ChatRequest {
 const MODEL_CONFIG = {
   chat: { provider: 'gemini', model: 'gemini-3-flash-preview' },
   public_chat: { provider: 'gemini', model: 'gemini-3-flash-preview' },
-  prioritize_tasks: { provider: 'anthropic', model: 'claude-sonnet-4-5' },
-  generate_tasks: { provider: 'anthropic', model: 'claude-haiku-4-5' },
+  prioritize_tasks: { provider: 'anthropic', model: 'claude-sonnet-4-5-20250929' },
+  generate_tasks: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' },
   extract_profile: { provider: 'gemini', model: 'gemini-3-flash-preview' },
   stage_guidance: { provider: 'gemini', model: 'gemini-3-flash-preview' },
 } as const;

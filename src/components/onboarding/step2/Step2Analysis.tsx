@@ -47,9 +47,15 @@ export function Step2Analysis({
     
   const mergedData: WizardFormData = {
     ...data,
+    company_name: data.company_name || (extractions.company_name as string) || '',
+    description: data.description || (extractions.description as string) || '',
     key_features: data.key_features?.length ? data.key_features : (extractions.key_features as string[]) || [],
     target_customers: data.target_customers?.length ? data.target_customers : targetAudienceArray,
-    competitors: data.competitors?.length ? data.competitors : (Array.isArray(extractions.competitors) ? (extractions.competitors as Array<{name: string}>).map(c => typeof c === 'string' ? c : c.name) : []),
+    competitors: data.competitors?.length 
+      ? data.competitors 
+      : (Array.isArray(extractions.competitors) 
+          ? (extractions.competitors as Array<any>).map(c => typeof c === 'string' ? c : { ...c }) 
+          : []),
     tagline: data.tagline || (extractions.unique_value_proposition as string) || (extractions.tagline as string) || '',
   };
 
@@ -92,7 +98,7 @@ export function Step2Analysis({
 
       {/* Section 1: Startup Overview */}
       <StartupOverviewCard
-        data={data}
+        data={mergedData}
         onUpdate={onUpdate}
         onEnhance={onEnhanceField}
         isEnhancing={isEnhancing}

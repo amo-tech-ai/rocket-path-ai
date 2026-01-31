@@ -142,7 +142,7 @@ export function FounderIdentityCard({
                     </div>
                   )}
                   
-                  {/* Experience Summary - Mock Data */}
+                  {/* Experience Summary */}
                   {founder.enriched && (
                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/30">
                       <div>
@@ -150,14 +150,18 @@ export function FounderIdentityCard({
                           Experience Summary
                         </span>
                         <div className="mt-1 space-y-1">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Briefcase className="h-3 w-3 text-muted-foreground" />
-                            <span><strong>Product Lead</strong> @ Adobe</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Briefcase className="h-3 w-3 text-muted-foreground" />
-                            <span><strong>Senior PM</strong> @ Figma</span>
-                          </div>
+                          {founder.experience && founder.experience.length > 0 ? (
+                            founder.experience.map((exp, i) => (
+                              <div key={i} className="flex items-center gap-2 text-sm">
+                                <Briefcase className="h-3 w-3 text-muted-foreground" />
+                                <span>{exp}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground italic">
+                              No experience details found.
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div>
@@ -166,7 +170,7 @@ export function FounderIdentityCard({
                         </span>
                         <div className="mt-1 flex items-center gap-2 text-sm">
                           <GraduationCap className="h-3 w-3 text-muted-foreground" />
-                          <span>Stanford University, BS Computer Science</span>
+                          <span>{founder.education || 'Not specified'}</span>
                         </div>
                       </div>
                     </div>
