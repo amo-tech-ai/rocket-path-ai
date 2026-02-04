@@ -117,6 +117,47 @@ function generateDefaultOptions(type: string) {
 
 // Universal questions for any industry/stage
 function getUniversalQuestions(stage: string): DynamicQuestion[] {
+  // Task 09: Canvas-specific questions for Lean Canvas generation
+  const canvasQuestions: DynamicQuestion[] = [
+    {
+      id: 'q_existing_alternatives',
+      text: 'How do your target customers solve this problem today?',
+      type: 'text',
+      topic: 'competition',
+      priority: 'high',
+      why_matters: 'Understanding existing alternatives helps position your unique value.',
+      industry_specific: false,
+    },
+    {
+      id: 'q_channels',
+      text: 'How will customers find your product?',
+      type: 'multi_select',
+      topic: 'channels',
+      priority: 'high',
+      why_matters: 'Go-to-market channels determine how fast you can grow.',
+      industry_specific: false,
+      options: [
+        { id: 'ch_linkedin', text: 'LinkedIn', emoji: '💼' },
+        { id: 'ch_email', text: 'Cold email', emoji: '📧' },
+        { id: 'ch_content', text: 'Content marketing', emoji: '📝' },
+        { id: 'ch_communities', text: 'Communities', emoji: '👥' },
+        { id: 'ch_referrals', text: 'Referrals', emoji: '🤝' },
+        { id: 'ch_ads', text: 'Paid ads', emoji: '📣' },
+        { id: 'ch_events', text: 'Events', emoji: '🎪' },
+        { id: 'ch_partnerships', text: 'Partnerships', emoji: '🤝' },
+      ],
+    },
+    {
+      id: 'q_why_now',
+      text: 'Why you, and why now?',
+      type: 'text',
+      topic: 'advantage',
+      priority: 'high',
+      why_matters: 'Timing and unfair advantage are key to investment decisions.',
+      industry_specific: false,
+    },
+  ];
+
   const ideaQuestions: DynamicQuestion[] = [
     {
       id: 'q1_problem',
@@ -148,6 +189,8 @@ function getUniversalQuestions(stage: string): DynamicQuestion[] {
         { id: 'a4', text: '20+ conversations' },
       ],
     },
+    // Insert canvas questions here for Idea stage
+    ...canvasQuestions,
     {
       id: 'q3_competition',
       text: 'How do you differentiate from existing solutions?',

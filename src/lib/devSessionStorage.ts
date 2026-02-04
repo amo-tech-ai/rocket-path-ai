@@ -27,6 +27,8 @@ export function getDevSession(): WizardSession | null {
       extracted_traction: data.extracted_traction || null,
       extracted_funding: data.extracted_funding || null,
       profile_strength: data.profile_strength || null,
+      interview_answers: data.interview_answers || [],
+      interview_progress: data.interview_progress || 0,
       started_at: data.started_at || new Date().toISOString(),
       completed_at: data.completed_at || null,
     };
@@ -59,6 +61,8 @@ export function saveDevSession(session: Partial<WizardSession>): string {
     extracted_traction: session.extracted_traction ?? existing?.extracted_traction ?? null,
     extracted_funding: session.extracted_funding ?? existing?.extracted_funding ?? null,
     profile_strength: session.profile_strength ?? existing?.profile_strength ?? null,
+    interview_answers: session.interview_answers ?? existing?.interview_answers ?? [],
+    interview_progress: session.interview_progress ?? existing?.interview_progress ?? 0,
     started_at: existing?.started_at ?? new Date().toISOString(),
     completed_at: session.completed_at ?? existing?.completed_at ?? null,
   };

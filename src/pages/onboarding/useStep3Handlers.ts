@@ -120,7 +120,7 @@ export function useStep3Handlers({
       question_id: questionId,
       answer_id: answerId,
       answer_text: answerText,
-      timestamp: new Date().toISOString(),
+      answered_at: new Date().toISOString(),
     };
     
     // Optimistic local state update

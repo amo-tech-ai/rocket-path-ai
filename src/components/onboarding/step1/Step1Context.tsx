@@ -1,3 +1,8 @@
+/**
+ * Step1Context Component
+ * Task 09: Canvas Fields - Added Problem and Solution inputs
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { WizardFormData, Founder } from '@/hooks/useWizardSession';
 import { validateStep1, getMissingFields, Step1ValidationErrors } from '@/lib/step1Schema';
@@ -6,6 +11,8 @@ import { validateStep1, getMissingFields, Step1ValidationErrors } from '@/lib/st
 import ValidationSummary from './ValidationSummary';
 import CompanyNameInput from './CompanyNameInput';
 import DescriptionInput from './DescriptionInput';
+import ProblemInput from './ProblemInput';
+import SolutionInput from './SolutionInput';
 import TargetMarketInput from './TargetMarketInput';
 import URLInput from './URLInput';
 import LinkedInInput from './LinkedInInput';
@@ -53,6 +60,8 @@ export function Step1Context({
     const validationData = {
       company_name: data.company_name || '',
       description: data.description || '',
+      problem: data.problem || '',
+      solution: data.solution || '',
       target_market: data.target_market || '',
       stage: data.stage || '',
       business_model: data.business_model || [],
@@ -65,7 +74,7 @@ export function Step1Context({
     const result = validateStep1(validationData);
     console.log('[Step1Context] Validation result:', result);
     return result;
-  }, [data.company_name, data.description, data.target_market, data.stage, data.business_model, data.industry, data.website_url, data.linkedin_url]);
+  }, [data.company_name, data.description, data.problem, data.solution, data.target_market, data.stage, data.business_model, data.industry, data.website_url, data.linkedin_url]);
 
   // Notify parent of validation changes
   useEffect(() => {
@@ -154,6 +163,32 @@ export function Step1Context({
         onEnrich={onEnrichContext}
         isEnriching={isEnrichingContext}
         error={showErrors && touched.description ? validation.errors.description : undefined}
+      />
+
+      {/* Task 09: Canvas Fields - Problem */}
+      <ProblemInput
+        value={data.problem || ''}
+        onChange={(value) => {
+          updateData({ problem: value });
+          setTouched((prev) => ({ ...prev, problem: true }));
+        }}
+        onBlur={() => handleBlur('problem')}
+        error={validation.errors.problem}
+        touched={touched.problem}
+        showError={showErrors}
+      />
+
+      {/* Task 09: Canvas Fields - Solution */}
+      <SolutionInput
+        value={data.solution || ''}
+        onChange={(value) => {
+          updateData({ solution: value });
+          setTouched((prev) => ({ ...prev, solution: true }));
+        }}
+        onBlur={() => handleBlur('solution')}
+        error={validation.errors.solution}
+        touched={touched.solution}
+        showError={showErrors}
       />
 
       {/* Target Market */}

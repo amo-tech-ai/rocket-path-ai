@@ -96,13 +96,13 @@ describe('devSessionStorage', () => {
       saveDevSession({
         current_step: 2,
         status: 'in_progress',
-        form_data: { test: 'data' },
+        form_data: { company_name: 'Test Company' },
       });
 
       const session = getDevSession();
       expect(session).toBeTruthy();
       expect(session?.current_step).toBe(2);
-      expect(session?.form_data).toEqual({ test: 'data' });
+      expect(session?.form_data).toEqual({ company_name: 'Test Company' });
     });
   });
 
