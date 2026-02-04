@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ValidatorLayout from '@/components/validator/ValidatorLayout';
@@ -23,7 +24,8 @@ import {
   Sparkles,
   BarChart3,
   FileText,
-  ChevronLeft
+  ChevronLeft,
+  MessageSquare
 } from 'lucide-react';
 import { ValidationReportType } from '@/types/validation-report';
 
@@ -51,6 +53,8 @@ const MODE_INFO = {
 };
 
 export default function Validator() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { data: startup, isLoading: startupLoading } = useStartup();
   const [activeMode, setActiveMode] = useState<ValidationMode>('deep');
   const [showReport, setShowReport] = useState(false);
@@ -64,6 +68,13 @@ export default function Validator() {
     isGenerating,
     generateReport,
   } = useValidationReport(startup?.id);
+
+  // Check for showReport query param (from chat navigation)
+  useEffect(() => {
+    if (searchParams.get('showReport') === 'true' && report) {
+      setShowReport(true);
+    }
+  }, [searchParams, report]);
 
   // Simulate phase progression during generation
   useEffect(() => {
@@ -249,31 +260,44 @@ export default function Validator() {
             })}
           </div>
 
-          {/* Generate Button */}
-          <Button 
-            onClick={() => generateReport(activeMode as ValidationReportType)}
-            disabled={isGenerating || !startup}
-            className="w-full md:w-auto"
-            size="lg"
-          >
-            {isGenerating ? (
-              <>
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  className="w-4 h-4 mr-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                </motion.div>
-                Generating Report...
-              </>
-            ) : (
-              <>
-                Generate {MODE_INFO[activeMode].title}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3">
+            {/* Chat Validate Button */}
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate('/validate')}
+              className="gap-2"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Validate with Chat
+            </Button>
+
+            {/* Generate Button */}
+            <Button 
+              onClick={() => generateReport(activeMode as ValidationReportType)}
+              disabled={isGenerating || !startup}
+              size="lg"
+            >
+              {isGenerating ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="w-4 h-4 mr-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </motion.div>
+                  Generating Report...
+                </>
+              ) : (
+                <>
+                  Generate {MODE_INFO[activeMode].title}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
 
           {/* Generation Progress */}
           {isGenerating && (
@@ -413,9 +437,30 @@ export default function Validator() {
                 <FileText className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-lg font-medium text-foreground mb-2">Ready to validate your idea?</h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                Select a validation mode above and click generate to get a comprehensive 14-section AI-powered report with TAM/SAM/SOM analysis, factor scores, and actionable recommendations.
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                Describe your startup in chat or select a validation mode above to get a comprehensive 14-section AI-powered report.
               </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  onClick={() => navigate('/validate')}
+                  variant="default"
+                  size="lg"
+                  className="gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Start with Chat
+                </Button>
+                <Button
+                  onClick={() => generateReport('deep')}
+                  variant="outline"
+                  size="lg"
+                  disabled={!startup}
+                  className="gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate Report
+                </Button>
+              </div>
             </motion.div>
           )}
 
