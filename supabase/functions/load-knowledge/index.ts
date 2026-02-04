@@ -85,10 +85,10 @@ serve(async (req) => {
       // Generate embedding for query
       const embedding = await generateEmbedding(query, openaiKey);
 
-      // Search using the function
+      // Search using the function - use lower threshold for better recall
       const { data: results, error: searchError } = await supabase.rpc('search_knowledge', {
         query_embedding: embedding,
-        match_threshold: 0.7,
+        match_threshold: 0.5,
         match_count: 5,
         filter_category: null,
         filter_industry: null,
