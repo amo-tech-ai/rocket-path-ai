@@ -5620,8 +5620,11 @@ export type Database = {
           report_type: string
           run_id: string
           score: number | null
+          session_id: string | null
           summary: string | null
           updated_at: string | null
+          verification_json: Json | null
+          verified: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -5631,8 +5634,11 @@ export type Database = {
           report_type: string
           run_id: string
           score?: number | null
+          session_id?: string | null
           summary?: string | null
           updated_at?: string | null
+          verification_json?: Json | null
+          verified?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -5642,8 +5648,11 @@ export type Database = {
           report_type?: string
           run_id?: string
           score?: number | null
+          session_id?: string | null
           summary?: string | null
           updated_at?: string | null
+          verification_json?: Json | null
+          verified?: boolean | null
         }
         Relationships: [
           {
@@ -5651,6 +5660,13 @@ export type Database = {
             columns: ["run_id"]
             isOneToOne: false
             referencedRelation: "validation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_reports_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "validator_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -5906,6 +5922,113 @@ export type Database = {
             columns: ["run_id"]
             isOneToOne: false
             referencedRelation: "validation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validator_runs: {
+        Row: {
+          agent_name: string
+          citations: Json | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          input_json: Json | null
+          model_used: string
+          output_json: Json | null
+          session_id: string
+          started_at: string | null
+          status: string
+          tool_used: Json | null
+        }
+        Insert: {
+          agent_name: string
+          citations?: Json | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          input_json?: Json | null
+          model_used?: string
+          output_json?: Json | null
+          session_id: string
+          started_at?: string | null
+          status?: string
+          tool_used?: Json | null
+        }
+        Update: {
+          agent_name?: string
+          citations?: Json | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          input_json?: Json | null
+          model_used?: string
+          output_json?: Json | null
+          session_id?: string
+          started_at?: string | null
+          status?: string
+          tool_used?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validator_runs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "validator_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validator_sessions: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          input_text: string
+          startup_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text: string
+          startup_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_text?: string
+          startup_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validator_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "validator_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
