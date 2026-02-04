@@ -1,6 +1,6 @@
 /**
  * useKnowledgeSearch Hook
- * Semantic search across knowledge chunks for RAG
+ * Semantic search across knowledge chunks using OpenAI text-embedding-3-small
  */
 
 import { useCallback, useState } from 'react';
@@ -28,6 +28,7 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
         throw new Error('Not authenticated');
       }
       
+      // Call the ai-chat edge function with search_knowledge action
       const { data, error } = await supabase.functions.invoke('ai-chat', {
         body: {
           action: 'search_knowledge',
@@ -43,11 +44,26 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
       
       if (error) throw error;
       
+      // Map response to typed results
+      const mappedResults: KnowledgeSearchResult[] = (data.results || []).map((r: {
+        id: string;
+        content: string;
+        source: string;
+        confidence: 'high' | 'medium' | 'low';
+        similarity: number;
+      }) => ({
+        id: r.id,
+        content: r.content,
+        source: r.source,
+        confidence: r.confidence as 'high' | 'medium' | 'low',
+        similarity: r.similarity,
+      }));
+      
       const context: RAGContext = {
-        chunks: data.results || [],
+        chunks: mappedResults,
         query: request.query,
-        totalMatches: data.results?.length || 0,
-        averageSimilarity: data.results?.reduce((acc: number, r: KnowledgeSearchResult) => acc + r.similarity, 0) / (data.results?.length || 1) || 0,
+        totalMatches: mappedResults.length,
+        averageSimilarity: mappedResults.reduce((acc, r) => acc + r.similarity, 0) / (mappedResults.length || 1),
       };
       
       return context;
