@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.workflow-trigger]
 verify_jwt = false
+
+[functions.load-knowledge]
+verify_jwt = false
