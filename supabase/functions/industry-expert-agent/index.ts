@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface IndustryRequest {
-  action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors' | 'get_validation_history';
+  action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors' | 'get_validation_history' | 'generate_validation_report';
   industry?: string;
   startup_id?: string;
   category?: string;
@@ -18,6 +18,8 @@ interface IndustryRequest {
   canvas_data?: Record<string, unknown>;
   pitch_data?: Record<string, unknown>;
   limit?: number;
+  report_type?: 'quick' | 'deep' | 'investor';
+  validation_type?: 'quick' | 'deep' | 'investor';
 }
 
 // Model configuration - using Gemini 3 Flash for speed
@@ -53,7 +55,7 @@ serve(async (req) => {
     }
 
     const body: IndustryRequest = await req.json();
-    const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data } = body;
+    const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data, report_type, validation_type } = body;
 
     console.log(`[industry-expert-agent] Action: ${action}, Industry: ${industry}, User: ${user.id}`);
 
@@ -92,6 +94,11 @@ serve(async (req) => {
       // Task 30: Add get_validation_history action
       case 'get_validation_history':
         result = await getValidationHistory(supabase, startup_id, body.limit);
+        break;
+
+      // Task 106: Generate full 14-section validation report
+      case 'generate_validation_report':
+        result = await generateValidationReport(supabase, startup_id, report_type || validation_type || 'quick', user.id);
         break;
 
       default:
@@ -573,34 +580,241 @@ async function getValidationHistory(
     return { error: 'startup_id is required' };
   }
 
-  // Query validation runs from ai_runs table
-  const { data: runs, error } = await supabase
-    .from('ai_runs')
-    .select('id, created_at, request_metadata, response_metadata, action')
-    .eq('startup_id', startupId)
-    .in('action', ['validate_canvas', 'pitch_feedback', 'calculate_score'])
+  // Query validation reports
+  const { data: reports, error } = await supabase
+    .from('validation_reports')
+    .select('id, created_at, report_type, score, summary')
+    .eq('run_id', startupId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) {
     console.error('[industry-expert-agent] Error fetching validation history:', error);
-    throw error;
+    // Fallback to ai_runs if validation_reports doesn't exist
+    const { data: runs, error: runsError } = await supabase
+      .from('ai_runs')
+      .select('id, created_at, request_metadata, response_metadata, action')
+      .eq('startup_id', startupId)
+      .in('action', ['validate_canvas', 'generate_validation_report'])
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (runsError) throw runsError;
+    
+    // deno-lint-ignore no-explicit-any
+    const history = (runs || []).map((run: any) => ({
+      id: run.id,
+      validation_type: run.request_metadata?.report_type || 'quick',
+      score: run.response_metadata?.overall_score ?? 0,
+      created_at: run.created_at,
+    }));
+    
+    return { history };
   }
 
-  // Transform runs to consistent format
   // deno-lint-ignore no-explicit-any
-  const history = (runs || []).map((run: any) => ({
-    id: run.id,
-    date: run.created_at,
-    action: run.action,
-    score: run.response_metadata?.total_score ?? 
-           run.response_metadata?.overall_score ?? 
-           run.response_metadata?.validation?.overall_score ?? null,
-    summary: run.response_metadata?.summary ?? 
-             run.response_metadata?.feedback?.investment_readiness ?? null,
-    breakdown: run.response_metadata?.breakdown ?? 
-               run.response_metadata?.sections ?? null,
+  const history = (reports || []).map((r: any) => ({
+    id: r.id,
+    validation_type: r.report_type || 'quick',
+    score: r.score || 0,
+    created_at: r.created_at,
   }));
 
-  return { runs: history, count: history.length };
+  return { history };
+}
+
+// Task 106: Generate full 14-section validation report
+// deno-lint-ignore no-explicit-any
+async function generateValidationReport(
+  supabase: any,
+  startupId?: string,
+  reportType: 'quick' | 'deep' | 'investor' = 'quick',
+  userId?: string
+) {
+  if (!startupId) {
+    return { error: 'startup_id is required' };
+  }
+
+  const startTime = Date.now();
+
+  // Get startup data
+  const { data: startup, error: startupError } = await supabase
+    .from('startups')
+    .select('*')
+    .eq('id', startupId)
+    .single();
+
+  if (startupError || !startup) {
+    return { error: 'Startup not found' };
+  }
+
+  // Get industry context
+  const { data: packData } = await supabase
+    .rpc('get_industry_ai_context', { p_industry: startup.industry || 'saas' });
+
+  // deno-lint-ignore no-explicit-any
+  const pack = packData as Record<string, any> | null;
+
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+
+  // Build comprehensive startup context
+  const startupContext = {
+    name: startup.name,
+    description: startup.description,
+    industry: startup.industry,
+    stage: startup.stage,
+    problem: startup.problem,
+    solution: startup.solution,
+    unique_value: startup.unique_value,
+    customer_segments: startup.customer_segments,
+    channels: startup.channels,
+    revenue_streams: startup.revenue_streams,
+    key_metrics: startup.key_metrics,
+    unfair_advantage: startup.unfair_advantage,
+    team_size: startup.team_size,
+    website: startup.website,
+    founding_date: startup.founding_date,
+  };
+
+  const systemPrompt = `You are a ${reportType === 'investor' ? 'venture capital analyst' : 'expert startup advisor'} for the ${pack?.display_name || startup.industry || 'technology'} industry.
+
+${reportType === 'investor' ? 'Evaluate this startup as if you are a VC doing due diligence.' : 'Help the founder understand their startup\'s strengths and weaknesses.'}
+
+Industry benchmarks: ${JSON.stringify(pack?.benchmarks || {})}
+Common mistakes: ${JSON.stringify(pack?.common_mistakes || [])}
+Success patterns: ${JSON.stringify(pack?.success_stories || [])}
+Investor expectations: ${JSON.stringify(pack?.investor_expectations || {})}
+
+Generate a comprehensive ${reportType === 'quick' ? '5-section' : '14-section'} validation report.
+
+Return JSON with this exact structure:
+{
+  "overall_score": <number 0-100>,
+  "verdict": "<go|caution|no_go>",
+  "executive_summary": "<2-3 sentence summary>",
+  "dimension_scores": {
+    "problemClarity": <0-100>,
+    "solutionStrength": <0-100>,
+    "marketSize": <0-100>,
+    "competition": <0-100>,
+    "businessModel": <0-100>,
+    "teamFit": <0-100>,
+    "timing": <0-100>
+  },
+  "market_sizing": {
+    "tam": <number in USD>,
+    "sam": <number in USD>,
+    "som": <number in USD>,
+    "methodology": "<brief methodology>",
+    "growth_rate": <annual growth percentage>
+  },
+  "highlights": ["<strength 1>", "<strength 2>", "<strength 3>"],
+  "red_flags": ["<concern 1>", "<concern 2>"],
+  "market_factors": [
+    {"name": "Market Size", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Growth Rate", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Competition", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Timing", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"}
+  ],
+  "execution_factors": [
+    {"name": "Team", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Product", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Go-to-Market", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"},
+    {"name": "Unit Economics", "score": <1-10>, "description": "<detail>", "status": "<strong|moderate|weak>"}
+  ],
+  "sections": [
+    {"number": 1, "title": "Executive Summary", "content": "<markdown content>", "score": null},
+    {"number": 2, "title": "Problem Analysis", "content": "<markdown content>", "score": <1-10>},
+    {"number": 3, "title": "Solution Assessment", "content": "<markdown content>", "score": <1-10>},
+    {"number": 4, "title": "Market Size", "content": "<markdown content>", "score": <1-10>},
+    {"number": 5, "title": "Competition", "content": "<markdown content>", "score": <1-10>},
+    {"number": 6, "title": "Business Model", "content": "<markdown content>", "score": <1-10>},
+    {"number": 7, "title": "Go-to-Market", "content": "<markdown content>", "score": <1-10>},
+    {"number": 8, "title": "Team Assessment", "content": "<markdown content>", "score": <1-10>},
+    {"number": 9, "title": "Timing Analysis", "content": "<markdown content>", "score": <1-10>},
+    {"number": 10, "title": "Risk Assessment", "content": "<markdown content>", "score": <1-10>},
+    {"number": 11, "title": "Financial Projections", "content": "<markdown content>", "score": <1-10>},
+    {"number": 12, "title": "Validation Status", "content": "<markdown content>", "score": <1-10>},
+    {"number": 13, "title": "Recommendations", "content": "<markdown content>", "score": null},
+    {"number": 14, "title": "Appendix", "content": "<sources and methodology>", "score": null}
+  ],
+  "benchmarks": {
+    "industry": "${startup.industry || 'Technology'}",
+    "average_score": 65,
+    "top_performers": 85,
+    "percentile": <calculated percentile>
+  }
+}
+
+Be specific, data-driven, and actionable. Use industry-specific terminology and benchmarks.`;
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}` }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        },
+        tools: [{ google_search: {} }]
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[industry-expert-agent] Gemini error:', response.status, errorText);
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+  const generationTime = Date.now() - startTime;
+
+  try {
+    const report = JSON.parse(resultText);
+
+    // Save report to database
+    const { data: savedReport, error: saveError } = await supabase
+      .from('validation_reports')
+      .insert({
+        run_id: startupId,
+        report_type: reportType,
+        score: report.overall_score,
+        summary: report.executive_summary,
+        details: report,
+        key_findings: [...(report.highlights || []), ...(report.red_flags || [])],
+      })
+      .select()
+      .single();
+
+    if (saveError) {
+      console.error('[industry-expert-agent] Error saving report:', saveError);
+    }
+
+    return {
+      report: {
+        id: savedReport?.id || crypto.randomUUID(),
+        ...report,
+        report_type: reportType,
+        generation_time_ms: generationTime,
+        created_at: new Date().toISOString(),
+      }
+    };
+  } catch (parseError) {
+    console.error('[industry-expert-agent] Parse error:', parseError, 'Raw:', resultText);
+    return { 
+      error: 'Failed to parse report',
+      raw: resultText.substring(0, 500)
+    };
+  }
 }

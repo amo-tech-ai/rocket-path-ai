@@ -3,13 +3,13 @@
  * 3-panel layout with Coach Chat integration and full report viewer
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import ValidatorLayout from '@/components/validator/ValidatorLayout';
 import { useStartup } from '@/hooks/useDashboardData';
 import { useValidationReport } from '@/hooks/useValidationReport';
-import { ValidationReportViewer } from '@/components/validation-report';
+import { ValidationReportViewer, GenerationProgress } from '@/components/validation-report';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,19 +33,19 @@ const MODE_INFO = {
   quick: { 
     icon: Zap, 
     title: 'Quick Validate', 
-    duration: '~3 min',
+    duration: '~30 sec',
     description: 'Fast overview of your startup readiness'
   },
   deep: { 
     icon: Search, 
     title: 'Deep Validate', 
-    duration: '~15 min',
+    duration: '~60 sec',
     description: 'Comprehensive 14-section analysis'
   },
   investor: { 
     icon: Users, 
     title: 'Investor Lens', 
-    duration: '~10 min',
+    duration: '~45 sec',
     description: 'See your startup through VC eyes'
   },
 };
@@ -54,6 +54,7 @@ export default function Validator() {
   const { data: startup, isLoading: startupLoading } = useStartup();
   const [activeMode, setActiveMode] = useState<ValidationMode>('deep');
   const [showReport, setShowReport] = useState(false);
+  const [generationPhase, setGenerationPhase] = useState(0);
   
   const { 
     report,
@@ -63,6 +64,20 @@ export default function Validator() {
     isGenerating,
     generateReport,
   } = useValidationReport(startup?.id);
+
+  // Simulate phase progression during generation
+  useEffect(() => {
+    if (!isGenerating) {
+      setGenerationPhase(0);
+      return;
+    }
+    
+    const phaseInterval = setInterval(() => {
+      setGenerationPhase(prev => Math.min(prev + 1, 4));
+    }, 8000); // Progress every 8 seconds
+    
+    return () => clearInterval(phaseInterval);
+  }, [isGenerating]);
 
   // Right panel with intelligence
   const rightPanel = (
@@ -259,6 +274,15 @@ export default function Validator() {
               </>
             )}
           </Button>
+
+          {/* Generation Progress */}
+          {isGenerating && (
+            <GenerationProgress
+              isGenerating={isGenerating}
+              currentPhase={generationPhase}
+              reportType={activeMode}
+            />
+          )}
 
           {/* Existing Report Preview */}
           <AnimatePresence mode="wait">

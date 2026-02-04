@@ -9,3 +9,4 @@ export { default as FactorsBreakdownCard } from './FactorsBreakdownCard';
 export { default as SectionNavigation } from './SectionNavigation';
 export { default as ReportSectionContent } from './ReportSectionContent';
 export { default as ValidationReportViewer } from './ValidationReportViewer';
+export { default as GenerationProgress } from './GenerationProgress';
