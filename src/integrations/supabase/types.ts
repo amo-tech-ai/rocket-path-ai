@@ -85,6 +85,7 @@ export type Database = {
           importance: string | null
           is_system_generated: boolean | null
           metadata: Json | null
+          org_id: string | null
           project_id: string | null
           startup_id: string
           task_id: string | null
@@ -104,6 +105,7 @@ export type Database = {
           importance?: string | null
           is_system_generated?: boolean | null
           metadata?: Json | null
+          org_id?: string | null
           project_id?: string | null
           startup_id: string
           task_id?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           importance?: string | null
           is_system_generated?: boolean | null
           metadata?: Json | null
+          org_id?: string | null
           project_id?: string | null
           startup_id?: string
           task_id?: string | null
@@ -152,11 +155,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activities_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activities_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "activities_startup_id_fkey"
@@ -333,6 +350,13 @@ export type Database = {
             foreignKeyName: "ai_runs_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "ai_runs_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -341,6 +365,82 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assumptions: {
+        Row: {
+          ai_extracted: boolean | null
+          created_at: string | null
+          extraction_confidence: number | null
+          id: string
+          impact_score: number
+          lean_canvas_id: string | null
+          notes: string | null
+          priority_score: number | null
+          source_block: Database["public"]["Enums"]["assumption_source"]
+          startup_id: string
+          statement: string
+          status: Database["public"]["Enums"]["assumption_status"]
+          tested_at: string | null
+          uncertainty_score: number
+          updated_at: string | null
+        }
+        Insert: {
+          ai_extracted?: boolean | null
+          created_at?: string | null
+          extraction_confidence?: number | null
+          id?: string
+          impact_score?: number
+          lean_canvas_id?: string | null
+          notes?: string | null
+          priority_score?: number | null
+          source_block: Database["public"]["Enums"]["assumption_source"]
+          startup_id: string
+          statement: string
+          status?: Database["public"]["Enums"]["assumption_status"]
+          tested_at?: string | null
+          uncertainty_score?: number
+          updated_at?: string | null
+        }
+        Update: {
+          ai_extracted?: boolean | null
+          created_at?: string | null
+          extraction_confidence?: number | null
+          id?: string
+          impact_score?: number
+          lean_canvas_id?: string | null
+          notes?: string | null
+          priority_score?: number | null
+          source_block?: Database["public"]["Enums"]["assumption_source"]
+          startup_id?: string
+          statement?: string
+          status?: Database["public"]["Enums"]["assumption_status"]
+          tested_at?: string | null
+          uncertainty_score?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assumptions_lean_canvas_id_fkey"
+            columns: ["lean_canvas_id"]
+            isOneToOne: false
+            referencedRelation: "lean_canvases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assumptions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "assumptions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -416,6 +516,13 @@ export type Database = {
             foreignKeyName: "audit_log_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "audit_log_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -469,6 +576,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "chat_messages"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_facts_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "chat_facts_startup_id_fkey"
@@ -649,6 +763,13 @@ export type Database = {
             foreignKeyName: "chat_sessions_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "chat_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -751,6 +872,13 @@ export type Database = {
             foreignKeyName: "communications_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "communications_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -842,6 +970,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "competitor_profiles_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
           {
             foreignKeyName: "competitor_profiles_startup_id_fkey"
             columns: ["startup_id"]
@@ -978,6 +1113,13 @@ export type Database = {
             foreignKeyName: "contacts_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "contacts_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -1012,6 +1154,225 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      customer_forces: {
+        Row: {
+          ai_generated: boolean | null
+          category: string | null
+          created_at: string | null
+          description: string
+          display_order: number | null
+          force_type: Database["public"]["Enums"]["force_type"]
+          id: string
+          is_validated: boolean | null
+          segment_id: string
+          source: string | null
+          source_interview_id: string | null
+          strength: number
+          updated_at: string | null
+          validated_at: string | null
+          validation_notes: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description: string
+          display_order?: number | null
+          force_type: Database["public"]["Enums"]["force_type"]
+          id?: string
+          is_validated?: boolean | null
+          segment_id: string
+          source?: string | null
+          source_interview_id?: string | null
+          strength?: number
+          updated_at?: string | null
+          validated_at?: string | null
+          validation_notes?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string
+          display_order?: number | null
+          force_type?: Database["public"]["Enums"]["force_type"]
+          id?: string
+          is_validated?: boolean | null
+          segment_id?: string
+          source?: string | null
+          source_interview_id?: string | null
+          strength?: number
+          updated_at?: string | null
+          validated_at?: string | null
+          validation_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_forces_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_forces_balance"
+            referencedColumns: ["segment_id"]
+          },
+          {
+            foreignKeyName: "customer_forces_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_segments: {
+        Row: {
+          ai_confidence: number | null
+          ai_generated: boolean | null
+          behaviors: Json | null
+          created_at: string | null
+          current_solutions: string[] | null
+          demographics: Json | null
+          description: string | null
+          desired_outcome: string | null
+          firmographics: Json | null
+          id: string
+          interview_count: number | null
+          is_early_adopter: boolean | null
+          is_primary: boolean | null
+          name: string
+          pain_points: string[] | null
+          priority: number | null
+          psychographics: Json | null
+          segment_type: Database["public"]["Enums"]["segment_type"]
+          startup_id: string
+          switching_barriers: string[] | null
+          trigger_event: string | null
+          updated_at: string | null
+          validated_at: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_generated?: boolean | null
+          behaviors?: Json | null
+          created_at?: string | null
+          current_solutions?: string[] | null
+          demographics?: Json | null
+          description?: string | null
+          desired_outcome?: string | null
+          firmographics?: Json | null
+          id?: string
+          interview_count?: number | null
+          is_early_adopter?: boolean | null
+          is_primary?: boolean | null
+          name: string
+          pain_points?: string[] | null
+          priority?: number | null
+          psychographics?: Json | null
+          segment_type?: Database["public"]["Enums"]["segment_type"]
+          startup_id: string
+          switching_barriers?: string[] | null
+          trigger_event?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_generated?: boolean | null
+          behaviors?: Json | null
+          created_at?: string | null
+          current_solutions?: string[] | null
+          demographics?: Json | null
+          description?: string | null
+          desired_outcome?: string | null
+          firmographics?: Json | null
+          id?: string
+          interview_count?: number | null
+          is_early_adopter?: boolean | null
+          is_primary?: boolean | null
+          name?: string
+          pain_points?: string[] | null
+          priority?: number | null
+          psychographics?: Json | null
+          segment_type?: Database["public"]["Enums"]["segment_type"]
+          startup_id?: string
+          switching_barriers?: string[] | null
+          trigger_event?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_segments_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "customer_segments_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_focus_recommendations: {
+        Row: {
+          action_completed_at: string | null
+          computed_at: string
+          created_at: string
+          expires_at: string
+          id: string
+          primary_action: Json
+          scoring_breakdown: Json | null
+          secondary_actions: Json | null
+          signal_weights: Json | null
+          skipped_at: string | null
+          startup_id: string
+        }
+        Insert: {
+          action_completed_at?: string | null
+          computed_at?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          primary_action: Json
+          scoring_breakdown?: Json | null
+          secondary_actions?: Json | null
+          signal_weights?: Json | null
+          skipped_at?: string | null
+          startup_id: string
+        }
+        Update: {
+          action_completed_at?: string | null
+          computed_at?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          primary_action?: Json
+          scoring_breakdown?: Json | null
+          secondary_actions?: Json | null
+          signal_weights?: Json | null
+          skipped_at?: string | null
+          startup_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_focus_recommendations_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "daily_focus_recommendations_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deals: {
         Row: {
@@ -1090,6 +1451,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "deals_startup_id_fkey"
@@ -1280,6 +1648,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "documents_startup_id_fkey"
@@ -2075,7 +2450,175 @@ export type Database = {
             foreignKeyName: "events_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      experiment_results: {
+        Row: {
+          ai_analyzed: boolean | null
+          ai_insights: Json | null
+          confidence: number | null
+          created_at: string | null
+          data: Json
+          experiment_id: string
+          id: string
+          participant_id: string | null
+          raw_notes: string | null
+          recorded_at: string | null
+          recorded_by: string | null
+          result_type: string
+          sentiment: string | null
+          source: string | null
+          summary: string | null
+          supports_hypothesis: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_analyzed?: boolean | null
+          ai_insights?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          data?: Json
+          experiment_id: string
+          id?: string
+          participant_id?: string | null
+          raw_notes?: string | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          result_type: string
+          sentiment?: string | null
+          source?: string | null
+          summary?: string | null
+          supports_hypothesis?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_analyzed?: boolean | null
+          ai_insights?: Json | null
+          confidence?: number | null
+          created_at?: string | null
+          data?: Json
+          experiment_id?: string
+          id?: string
+          participant_id?: string | null
+          raw_notes?: string | null
+          recorded_at?: string | null
+          recorded_by?: string | null
+          result_type?: string
+          sentiment?: string | null
+          source?: string | null
+          summary?: string | null
+          supports_hypothesis?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiment_results_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      experiments: {
+        Row: {
+          actual_sample_size: number | null
+          ai_designed: boolean | null
+          ai_suggestions: Json | null
+          assumption_id: string
+          completed_at: string | null
+          confidence_level: number | null
+          created_at: string | null
+          experiment_type: Database["public"]["Enums"]["experiment_type"]
+          hypothesis: string
+          id: string
+          metadata: Json | null
+          method: string | null
+          notes: string | null
+          outcome: string | null
+          planned_end_date: string | null
+          planned_start_date: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["experiment_status"]
+          success_criteria: string
+          summary: string | null
+          target_sample_size: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          actual_sample_size?: number | null
+          ai_designed?: boolean | null
+          ai_suggestions?: Json | null
+          assumption_id: string
+          completed_at?: string | null
+          confidence_level?: number | null
+          created_at?: string | null
+          experiment_type: Database["public"]["Enums"]["experiment_type"]
+          hypothesis: string
+          id?: string
+          metadata?: Json | null
+          method?: string | null
+          notes?: string | null
+          outcome?: string | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["experiment_status"]
+          success_criteria: string
+          summary?: string | null
+          target_sample_size?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          actual_sample_size?: number | null
+          ai_designed?: boolean | null
+          ai_suggestions?: Json | null
+          assumption_id?: string
+          completed_at?: string | null
+          confidence_level?: number | null
+          created_at?: string | null
+          experiment_type?: Database["public"]["Enums"]["experiment_type"]
+          hypothesis?: string
+          id?: string
+          metadata?: Json | null
+          method?: string | null
+          notes?: string | null
+          outcome?: string | null
+          planned_end_date?: string | null
+          planned_start_date?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["experiment_status"]
+          success_criteria?: string
+          summary?: string | null
+          target_sample_size?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "experiments_assumption_id_fkey"
+            columns: ["assumption_id"]
+            isOneToOne: false
+            referencedRelation: "assumption_evidence"
+            referencedColumns: ["assumption_id"]
+          },
+          {
+            foreignKeyName: "experiments_assumption_id_fkey"
+            columns: ["assumption_id"]
+            isOneToOne: false
+            referencedRelation: "assumptions"
             referencedColumns: ["id"]
           },
         ]
@@ -2163,6 +2706,13 @@ export type Database = {
           uploaded_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "file_uploads_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
           {
             foreignKeyName: "file_uploads_startup_id_fkey"
             columns: ["startup_id"]
@@ -2457,6 +3007,221 @@ export type Database = {
           },
         ]
       }
+      interview_insights: {
+        Row: {
+          ai_model: string | null
+          confidence: number
+          created_at: string | null
+          extraction_prompt_version: string | null
+          id: string
+          importance: number | null
+          insight: string
+          insight_type: Database["public"]["Enums"]["insight_type"]
+          interview_id: string
+          is_dismissed: boolean | null
+          is_validated: boolean | null
+          linked_assumption_ids: string[] | null
+          quote_timestamp: string | null
+          sentiment: string | null
+          source_quote: string | null
+          supports_assumptions: boolean | null
+          tags: string[] | null
+          updated_at: string | null
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          ai_model?: string | null
+          confidence?: number
+          created_at?: string | null
+          extraction_prompt_version?: string | null
+          id?: string
+          importance?: number | null
+          insight: string
+          insight_type: Database["public"]["Enums"]["insight_type"]
+          interview_id: string
+          is_dismissed?: boolean | null
+          is_validated?: boolean | null
+          linked_assumption_ids?: string[] | null
+          quote_timestamp?: string | null
+          sentiment?: string | null
+          source_quote?: string | null
+          supports_assumptions?: boolean | null
+          tags?: string[] | null
+          updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          ai_model?: string | null
+          confidence?: number
+          created_at?: string | null
+          extraction_prompt_version?: string | null
+          id?: string
+          importance?: number | null
+          insight?: string
+          insight_type?: Database["public"]["Enums"]["insight_type"]
+          interview_id?: string
+          is_dismissed?: boolean | null
+          is_validated?: boolean | null
+          linked_assumption_ids?: string[] | null
+          quote_timestamp?: string | null
+          sentiment?: string | null
+          source_quote?: string | null
+          supports_assumptions?: boolean | null
+          tags?: string[] | null
+          updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_insights_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interviews: {
+        Row: {
+          ai_analyzed: boolean | null
+          ai_analyzed_at: string | null
+          ai_key_quotes: Json | null
+          ai_sentiment: string | null
+          ai_summary: string | null
+          conducted_at: string | null
+          conducted_by: string | null
+          created_at: string | null
+          duration_minutes: number | null
+          experiment_id: string | null
+          id: string
+          interview_guide_id: string | null
+          interview_type: Database["public"]["Enums"]["interview_type"]
+          interviewee_company: string | null
+          interviewee_email: string | null
+          interviewee_name: string | null
+          interviewee_role: string | null
+          is_anonymous: boolean | null
+          location: string | null
+          notes: string | null
+          questions_used: Json | null
+          raw_notes: string | null
+          recording_consent: boolean | null
+          recording_url: string | null
+          scheduled_at: string | null
+          segment_id: string | null
+          startup_id: string
+          status: Database["public"]["Enums"]["interview_status"]
+          summary: string | null
+          transcript: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_analyzed?: boolean | null
+          ai_analyzed_at?: string | null
+          ai_key_quotes?: Json | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          conducted_at?: string | null
+          conducted_by?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          experiment_id?: string | null
+          id?: string
+          interview_guide_id?: string | null
+          interview_type?: Database["public"]["Enums"]["interview_type"]
+          interviewee_company?: string | null
+          interviewee_email?: string | null
+          interviewee_name?: string | null
+          interviewee_role?: string | null
+          is_anonymous?: boolean | null
+          location?: string | null
+          notes?: string | null
+          questions_used?: Json | null
+          raw_notes?: string | null
+          recording_consent?: boolean | null
+          recording_url?: string | null
+          scheduled_at?: string | null
+          segment_id?: string | null
+          startup_id: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          summary?: string | null
+          transcript?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_analyzed?: boolean | null
+          ai_analyzed_at?: string | null
+          ai_key_quotes?: Json | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          conducted_at?: string | null
+          conducted_by?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          experiment_id?: string | null
+          id?: string
+          interview_guide_id?: string | null
+          interview_type?: Database["public"]["Enums"]["interview_type"]
+          interviewee_company?: string | null
+          interviewee_email?: string | null
+          interviewee_name?: string | null
+          interviewee_role?: string | null
+          is_anonymous?: boolean | null
+          location?: string | null
+          notes?: string | null
+          questions_used?: Json | null
+          raw_notes?: string | null
+          recording_consent?: boolean | null
+          recording_url?: string | null
+          scheduled_at?: string | null
+          segment_id?: string | null
+          startup_id?: string
+          status?: Database["public"]["Enums"]["interview_status"]
+          summary?: string | null
+          transcript?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_forces_balance"
+            referencedColumns: ["segment_id"]
+          },
+          {
+            foreignKeyName: "interviews_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interviews_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "interviews_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investors: {
         Row: {
           check_size_max: number | null
@@ -2553,10 +3318,177 @@ export type Database = {
             foreignKeyName: "investors_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "investors_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
+      }
+      jobs_to_be_done: {
+        Row: {
+          ai_generated: boolean | null
+          created_at: string | null
+          current_satisfaction: number | null
+          expected_outcome: string
+          frequency: string | null
+          id: string
+          importance: number | null
+          interview_count: number | null
+          is_validated: boolean | null
+          job_statement: string | null
+          job_type: Database["public"]["Enums"]["job_type"]
+          motivation: string
+          opportunity_score: number | null
+          priority: number | null
+          related_functional_job_id: string | null
+          segment_id: string
+          situation: string
+          source: string | null
+          source_interview_id: string | null
+          updated_at: string | null
+          validated_at: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          current_satisfaction?: number | null
+          expected_outcome: string
+          frequency?: string | null
+          id?: string
+          importance?: number | null
+          interview_count?: number | null
+          is_validated?: boolean | null
+          job_statement?: string | null
+          job_type: Database["public"]["Enums"]["job_type"]
+          motivation: string
+          opportunity_score?: number | null
+          priority?: number | null
+          related_functional_job_id?: string | null
+          segment_id: string
+          situation: string
+          source?: string | null
+          source_interview_id?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          created_at?: string | null
+          current_satisfaction?: number | null
+          expected_outcome?: string
+          frequency?: string | null
+          id?: string
+          importance?: number | null
+          interview_count?: number | null
+          is_validated?: boolean | null
+          job_statement?: string | null
+          job_type?: Database["public"]["Enums"]["job_type"]
+          motivation?: string
+          opportunity_score?: number | null
+          priority?: number | null
+          related_functional_job_id?: string | null
+          segment_id?: string
+          situation?: string
+          source?: string | null
+          source_interview_id?: string | null
+          updated_at?: string | null
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_to_be_done_related_functional_job_id_fkey"
+            columns: ["related_functional_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_to_be_done"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_to_be_done_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_forces_balance"
+            referencedColumns: ["segment_id"]
+          },
+          {
+            foreignKeyName: "jobs_to_be_done_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_chunks: {
+        Row: {
+          category: string
+          confidence: string
+          content: string
+          created_at: string
+          embedding: string
+          fetch_count: number
+          id: string
+          industry: string | null
+          last_fetched_at: string | null
+          region: string | null
+          sample_size: number | null
+          source: string
+          source_type: string
+          source_url: string | null
+          stage: string | null
+          subcategory: string | null
+          tags: string[] | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          category: string
+          confidence?: string
+          content: string
+          created_at?: string
+          embedding: string
+          fetch_count?: number
+          id?: string
+          industry?: string | null
+          last_fetched_at?: string | null
+          region?: string | null
+          sample_size?: number | null
+          source: string
+          source_type: string
+          source_url?: string | null
+          stage?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          category?: string
+          confidence?: string
+          content?: string
+          created_at?: string
+          embedding?: string
+          fetch_count?: number
+          id?: string
+          industry?: string | null
+          last_fetched_at?: string | null
+          region?: string | null
+          sample_size?: number | null
+          source?: string
+          source_type?: string
+          source_url?: string | null
+          stage?: string | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
       }
       lean_canvases: {
         Row: {
@@ -2632,6 +3564,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "playbook_runs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lean_canvases_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "lean_canvases_startup_id_fkey"
@@ -2787,6 +3726,114 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "hosted_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_snapshots: {
+        Row: {
+          activities_this_week: number
+          ai_runs_this_week: number
+          canvas_completion_pct: number
+          contacts_this_week: number
+          contacts_total: number
+          created_at: string
+          deals_active: number
+          deals_total: number
+          deals_value_total: number
+          deals_won: number
+          documents_total: number
+          engagement_score: number | null
+          experiments_completed: number
+          experiments_total: number
+          health_score: number | null
+          id: string
+          interviews_total: number
+          momentum_score: number | null
+          pitch_deck_slides: number
+          raw_metrics: Json
+          snapshot_date: string
+          snapshot_type: string
+          startup_id: string
+          tasks_completed: number
+          tasks_in_progress: number
+          tasks_overdue: number
+          tasks_total: number
+          validation_score: number | null
+        }
+        Insert: {
+          activities_this_week?: number
+          ai_runs_this_week?: number
+          canvas_completion_pct?: number
+          contacts_this_week?: number
+          contacts_total?: number
+          created_at?: string
+          deals_active?: number
+          deals_total?: number
+          deals_value_total?: number
+          deals_won?: number
+          documents_total?: number
+          engagement_score?: number | null
+          experiments_completed?: number
+          experiments_total?: number
+          health_score?: number | null
+          id?: string
+          interviews_total?: number
+          momentum_score?: number | null
+          pitch_deck_slides?: number
+          raw_metrics?: Json
+          snapshot_date?: string
+          snapshot_type?: string
+          startup_id: string
+          tasks_completed?: number
+          tasks_in_progress?: number
+          tasks_overdue?: number
+          tasks_total?: number
+          validation_score?: number | null
+        }
+        Update: {
+          activities_this_week?: number
+          ai_runs_this_week?: number
+          canvas_completion_pct?: number
+          contacts_this_week?: number
+          contacts_total?: number
+          created_at?: string
+          deals_active?: number
+          deals_total?: number
+          deals_value_total?: number
+          deals_won?: number
+          documents_total?: number
+          engagement_score?: number | null
+          experiments_completed?: number
+          experiments_total?: number
+          health_score?: number | null
+          id?: string
+          interviews_total?: number
+          momentum_score?: number | null
+          pitch_deck_slides?: number
+          raw_metrics?: Json
+          snapshot_date?: string
+          snapshot_type?: string
+          startup_id?: string
+          tasks_completed?: number
+          tasks_in_progress?: number
+          tasks_overdue?: number
+          tasks_total?: number
+          validation_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metric_snapshots_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "metric_snapshots_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -3133,6 +4180,13 @@ export type Database = {
             foreignKeyName: "pitch_decks_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "pitch_decks_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -3182,6 +4236,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "playbook_runs_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
           {
             foreignKeyName: "playbook_runs_startup_id_fkey"
             columns: ["startup_id"]
@@ -3308,6 +4369,13 @@ export type Database = {
             foreignKeyName: "projects_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "projects_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -3403,6 +4471,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "prompt_packs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prompt_pack_runs_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "prompt_pack_runs_startup_id_fkey"
@@ -3643,6 +4718,13 @@ export type Database = {
             foreignKeyName: "proposed_actions_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "proposed_actions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -3851,6 +4933,57 @@ export type Database = {
           },
         ]
       }
+      startup_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          joined_at: string | null
+          role: string
+          startup_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string
+          startup_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          joined_at?: string | null
+          role?: string
+          startup_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_members_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "startup_members_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       startups: {
         Row: {
           ai_summary: string | null
@@ -4045,10 +5178,13 @@ export type Database = {
           phase: string | null
           priority: string | null
           project_id: string | null
+          source: string | null
           startup_id: string
           status: string | null
           tags: string[] | null
           title: string
+          trigger_rule_id: string | null
+          trigger_score: number | null
           updated_at: string | null
         }
         Insert: {
@@ -4068,10 +5204,13 @@ export type Database = {
           phase?: string | null
           priority?: string | null
           project_id?: string | null
+          source?: string | null
           startup_id: string
           status?: string | null
           tags?: string[] | null
           title: string
+          trigger_rule_id?: string | null
+          trigger_score?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -4091,10 +5230,13 @@ export type Database = {
           phase?: string | null
           priority?: string | null
           project_id?: string | null
+          source?: string | null
           startup_id?: string
           status?: string | null
           tags?: string[] | null
           title?: string
+          trigger_rule_id?: string | null
+          trigger_score?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -4139,6 +5281,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
           },
           {
             foreignKeyName: "tasks_startup_id_fkey"
@@ -4210,6 +5359,242 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      validation_assessments: {
+        Row: {
+          answers_received: Json | null
+          assessed_at: string
+          assessed_by: string | null
+          confidence: string | null
+          created_at: string
+          dimension: string
+          evidence: Json | null
+          feedback: string | null
+          id: string
+          questions_asked: Json | null
+          score: number
+          session_id: string
+        }
+        Insert: {
+          answers_received?: Json | null
+          assessed_at?: string
+          assessed_by?: string | null
+          confidence?: string | null
+          created_at?: string
+          dimension: string
+          evidence?: Json | null
+          feedback?: string | null
+          id?: string
+          questions_asked?: Json | null
+          score: number
+          session_id: string
+        }
+        Update: {
+          answers_received?: Json | null
+          assessed_at?: string
+          assessed_by?: string | null
+          confidence?: string | null
+          created_at?: string
+          dimension?: string
+          evidence?: Json | null
+          feedback?: string | null
+          id?: string
+          questions_asked?: Json | null
+          score?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_assessments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "validation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_campaigns: {
+        Row: {
+          campaign_name: string | null
+          campaign_type: string
+          constraint_explanation: string | null
+          constraint_type: string
+          created_at: string
+          duration_days: number
+          end_date: string | null
+          goal: string
+          id: string
+          learnings: Json | null
+          outcome: string | null
+          outcome_notes: string | null
+          session_id: string
+          start_date: string | null
+          status: string
+          success_metrics: Json | null
+          target_value: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_name?: string | null
+          campaign_type: string
+          constraint_explanation?: string | null
+          constraint_type: string
+          created_at?: string
+          duration_days?: number
+          end_date?: string | null
+          goal: string
+          id?: string
+          learnings?: Json | null
+          outcome?: string | null
+          outcome_notes?: string | null
+          session_id: string
+          start_date?: string | null
+          status?: string
+          success_metrics?: Json | null
+          target_value?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_name?: string | null
+          campaign_type?: string
+          constraint_explanation?: string | null
+          constraint_type?: string
+          created_at?: string
+          duration_days?: number
+          end_date?: string | null
+          goal?: string
+          id?: string
+          learnings?: Json | null
+          outcome?: string | null
+          outcome_notes?: string | null
+          session_id?: string
+          start_date?: string | null
+          status?: string
+          success_metrics?: Json | null
+          target_value?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_campaigns_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "validation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_conversations: {
+        Row: {
+          citations: Json | null
+          content: string
+          created_at: string
+          id: string
+          model_used: string | null
+          phase: string | null
+          role: string
+          session_id: string
+          tokens_used: number | null
+          tool_calls: Json | null
+        }
+        Insert: {
+          citations?: Json | null
+          content: string
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          phase?: string | null
+          role: string
+          session_id: string
+          tokens_used?: number | null
+          tool_calls?: Json | null
+        }
+        Update: {
+          citations?: Json | null
+          content?: string
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          phase?: string | null
+          role?: string
+          session_id?: string
+          tokens_used?: number | null
+          tool_calls?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_conversations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "validation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_experiments: {
+        Row: {
+          actual_value: number | null
+          baseline_value: number | null
+          completed_at: string | null
+          created_at: string
+          evidence: Json | null
+          hypothesis: string
+          id: string
+          learning: string | null
+          method: string | null
+          result: string | null
+          sprint_id: string
+          started_at: string | null
+          status: string
+          success_criteria: string | null
+          target_metric: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_value?: number | null
+          baseline_value?: number | null
+          completed_at?: string | null
+          created_at?: string
+          evidence?: Json | null
+          hypothesis: string
+          id?: string
+          learning?: string | null
+          method?: string | null
+          result?: string | null
+          sprint_id: string
+          started_at?: string | null
+          status?: string
+          success_criteria?: string | null
+          target_metric?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_value?: number | null
+          baseline_value?: number | null
+          completed_at?: string | null
+          created_at?: string
+          evidence?: Json | null
+          hypothesis?: string
+          id?: string
+          learning?: string | null
+          method?: string | null
+          result?: string | null
+          sprint_id?: string
+          started_at?: string | null
+          status?: string
+          success_criteria?: string | null
+          target_metric?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_experiments_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "validation_sprints"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       validation_reports: {
         Row: {
@@ -4317,7 +5702,154 @@ export type Database = {
             foreignKeyName: "validation_runs_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "validation_runs_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_interaction_at: string | null
+          phase: string
+          started_at: string
+          startup_id: string
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_interaction_at?: string | null
+          phase?: string
+          started_at?: string
+          startup_id: string
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_interaction_at?: string | null
+          phase?: string
+          started_at?: string
+          startup_id?: string
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "validation_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_sprints: {
+        Row: {
+          actions_taken: Json | null
+          campaign_id: string
+          completed_at: string | null
+          created_at: string
+          decision: string | null
+          decision_rationale: string | null
+          experiment_design: string | null
+          hypothesis: string | null
+          id: string
+          learnings: Json | null
+          method: string | null
+          metrics_achieved: Json | null
+          next_steps: Json | null
+          notes: string | null
+          outcomes: Json | null
+          pdca_step: string
+          purpose: string
+          results: Json | null
+          sprint_number: number
+          started_at: string | null
+          status: string
+          success: boolean | null
+          success_criteria: string | null
+          updated_at: string
+        }
+        Insert: {
+          actions_taken?: Json | null
+          campaign_id: string
+          completed_at?: string | null
+          created_at?: string
+          decision?: string | null
+          decision_rationale?: string | null
+          experiment_design?: string | null
+          hypothesis?: string | null
+          id?: string
+          learnings?: Json | null
+          method?: string | null
+          metrics_achieved?: Json | null
+          next_steps?: Json | null
+          notes?: string | null
+          outcomes?: Json | null
+          pdca_step?: string
+          purpose: string
+          results?: Json | null
+          sprint_number: number
+          started_at?: string | null
+          status?: string
+          success?: boolean | null
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actions_taken?: Json | null
+          campaign_id?: string
+          completed_at?: string | null
+          created_at?: string
+          decision?: string | null
+          decision_rationale?: string | null
+          experiment_design?: string | null
+          hypothesis?: string | null
+          id?: string
+          learnings?: Json | null
+          method?: string | null
+          metrics_achieved?: Json | null
+          next_steps?: Json | null
+          notes?: string | null
+          outcomes?: Json | null
+          pdca_step?: string
+          purpose?: string
+          results?: Json | null
+          sprint_number?: number
+          started_at?: string | null
+          status?: string
+          success?: boolean | null
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_sprints_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "validation_campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -4507,6 +6039,13 @@ export type Database = {
             foreignKeyName: "wizard_sessions_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "wizard_sessions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -4519,8 +6058,441 @@ export type Database = {
           },
         ]
       }
+      workflow_actions: {
+        Row: {
+          action_type: string
+          conditions: Json
+          config: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          on_error: string
+          step_order: number
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          action_type?: string
+          conditions?: Json
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          on_error?: string
+          step_order?: number
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          action_type?: string
+          conditions?: Json
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          on_error?: string
+          step_order?: number
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_actions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_activity_log: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          org_id: string | null
+          rule_id: string | null
+          score_value: number | null
+          source: string
+          startup_id: string | null
+          task_id: string | null
+          threshold_value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          org_id?: string | null
+          rule_id?: string | null
+          score_value?: number | null
+          source: string
+          startup_id?: string | null
+          task_id?: string | null
+          threshold_value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          org_id?: string | null
+          rule_id?: string | null
+          score_value?: number | null
+          source?: string
+          startup_id?: string | null
+          task_id?: string | null
+          threshold_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_activity_log_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_activity_log_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "workflow_activity_log_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_activity_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          priority: number
+          scheduled_for: string
+          status: string
+          trigger_id: string | null
+          trigger_payload: Json
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          priority?: number
+          scheduled_for?: string
+          status?: string
+          trigger_id?: string | null
+          trigger_payload?: Json
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          priority?: number
+          scheduled_for?: string
+          status?: string
+          trigger_id?: string | null
+          trigger_payload?: Json
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_queue_trigger_id_fkey"
+            columns: ["trigger_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_triggers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_queue_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_runs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          duration_ms: number | null
+          error_message: string | null
+          error_step: number | null
+          id: string
+          queue_id: string | null
+          results: Json
+          started_at: string
+          status: string
+          trigger_id: string | null
+          trigger_payload: Json
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          duration_ms?: number | null
+          error_message?: string | null
+          error_step?: number | null
+          id?: string
+          queue_id?: string | null
+          results?: Json
+          started_at?: string
+          status?: string
+          trigger_id?: string | null
+          trigger_payload?: Json
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          duration_ms?: number | null
+          error_message?: string | null
+          error_step?: number | null
+          id?: string
+          queue_id?: string | null
+          results?: Json
+          started_at?: string
+          status?: string
+          trigger_id?: string | null
+          trigger_payload?: Json
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_runs_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_trigger_id_fkey"
+            columns: ["trigger_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_triggers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_runs_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_triggers: {
+        Row: {
+          conditions: Json
+          created_at: string
+          event_name: string | null
+          id: string
+          is_active: boolean
+          schedule_cron: string | null
+          trigger_type: string
+          updated_at: string
+          webhook_path: string | null
+          workflow_id: string
+        }
+        Insert: {
+          conditions?: Json
+          created_at?: string
+          event_name?: string | null
+          id?: string
+          is_active?: boolean
+          schedule_cron?: string | null
+          trigger_type?: string
+          updated_at?: string
+          webhook_path?: string | null
+          workflow_id: string
+        }
+        Update: {
+          conditions?: Json
+          created_at?: string
+          event_name?: string | null
+          id?: string
+          is_active?: boolean
+          schedule_cron?: string | null
+          trigger_type?: string
+          updated_at?: string
+          webhook_path?: string | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_triggers_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          failure_count: number
+          id: string
+          last_run_at: string | null
+          max_retries: number
+          name: string
+          org_id: string
+          retry_delay_seconds: number
+          run_count: number
+          startup_id: string | null
+          status: string
+          success_count: number
+          timeout_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          failure_count?: number
+          id?: string
+          last_run_at?: string | null
+          max_retries?: number
+          name: string
+          org_id: string
+          retry_delay_seconds?: number
+          run_count?: number
+          startup_id?: string | null
+          status?: string
+          success_count?: number
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          failure_count?: number
+          id?: string
+          last_run_at?: string | null
+          max_retries?: number
+          name?: string
+          org_id?: string
+          retry_delay_seconds?: number
+          run_count?: number
+          startup_id?: string | null
+          status?: string
+          success_count?: number
+          timeout_seconds?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflows_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "workflows_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
+      assumption_evidence: {
+        Row: {
+          assumption_id: string | null
+          assumption_statement: string | null
+          assumption_status:
+            | Database["public"]["Enums"]["assumption_status"]
+            | null
+          avg_confidence: number | null
+          interview_ids: string[] | null
+          neutral_insights: number | null
+          refuting_insights: number | null
+          startup_id: string | null
+          supporting_insights: number | null
+          total_insights: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assumptions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "assumptions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           all_day: boolean | null
@@ -4620,7 +6592,84 @@ export type Database = {
             foreignKeyName: "events_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_forces_balance: {
+        Row: {
+          friction_total: number | null
+          inertia_total: number | null
+          net_force_balance: number | null
+          pull_total: number | null
+          push_total: number | null
+          segment_id: string | null
+          segment_name: string | null
+          startup_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_segments_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "customer_segments_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_metrics: {
+        Row: {
+          activities_this_week: number | null
+          activities_total: number | null
+          canvas_completion_pct: number | null
+          canvas_count: number | null
+          contacts_this_week: number | null
+          contacts_total: number | null
+          deal_win_rate: number | null
+          deals_active: number | null
+          deals_total: number | null
+          deals_total_value: number | null
+          deals_won: number | null
+          experiments_completed: number | null
+          experiments_total: number | null
+          health_score: number | null
+          interviews_this_week: number | null
+          interviews_total: number | null
+          org_id: string | null
+          pitch_deck_count: number | null
+          pitch_deck_slides: number | null
+          refreshed_at: string | null
+          startup_id: string | null
+          startup_name: string | null
+          task_completion_rate: number | null
+          tasks_completed: number | null
+          tasks_in_progress: number | null
+          tasks_overdue: number | null
+          tasks_total: number | null
+          validation_active: boolean | null
+          validation_score: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startups_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -4795,6 +6844,13 @@ export type Database = {
             foreignKeyName: "events_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "events_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
             referencedRelation: "startups"
             referencedColumns: ["id"]
           },
@@ -4813,6 +6869,10 @@ export type Database = {
           p_weights?: Json
         }
         Returns: number
+      }
+      capture_metric_snapshot: {
+        Args: { p_startup_id: string }
+        Returns: string
       }
       check_condition_rules: {
         Args: { p_payload: Json; p_rules: Json }
@@ -4861,6 +6921,16 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_conversation_history: {
+        Args: { p_limit?: number; p_session_id: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          phase: string
+          role: string
+        }[]
+      }
       get_current_canvas: {
         Args: { p_startup_id: string }
         Returns: {
@@ -4876,6 +6946,41 @@ export type Database = {
           unique_value_proposition: string
           validation_score: number
         }[]
+      }
+      get_current_sprint: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          actions_taken: Json | null
+          campaign_id: string
+          completed_at: string | null
+          created_at: string
+          decision: string | null
+          decision_rationale: string | null
+          experiment_design: string | null
+          hypothesis: string | null
+          id: string
+          learnings: Json | null
+          method: string | null
+          metrics_achieved: Json | null
+          next_steps: Json | null
+          notes: string | null
+          outcomes: Json | null
+          pdca_step: string
+          purpose: string
+          results: Json | null
+          sprint_number: number
+          started_at: string | null
+          status: string
+          success: boolean | null
+          success_criteria: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_sprints"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       get_industry_ai_context: { Args: { p_industry: string }; Returns: Json }
       get_industry_playbook: {
@@ -4913,6 +7018,18 @@ export type Database = {
       get_industry_questions: {
         Args: { p_context?: string; p_industry: string; p_stage?: string }
         Returns: Json
+      }
+      get_knowledge_stats: { Args: never; Returns: Json }
+      get_metric_trends: {
+        Args: { p_days?: number; p_startup_id: string }
+        Returns: {
+          contacts_total: number
+          deals_won: number
+          health_score: number
+          snapshot_date: string
+          tasks_completed: number
+          validation_score: number
+        }[]
       }
       get_next_pack_step: {
         Args: { p_current_step_order?: number; p_pack_id: string }
@@ -4970,7 +7087,27 @@ export type Database = {
           title: string
         }[]
       }
+      get_pending_workflow_queue: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          id: string
+          trigger_id: string
+          trigger_payload: Json
+          workflow_id: string
+        }[]
+      }
       get_pitch_deck_with_slides: { Args: { p_deck_id: string }; Returns: Json }
+      get_sprint_experiments: {
+        Args: { p_sprint_id: string }
+        Returns: {
+          hypothesis: string
+          id: string
+          learning: string
+          result: string
+          status: string
+        }[]
+      }
       get_user_org_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
@@ -4986,13 +7123,27 @@ export type Database = {
           verdict: string
         }[]
       }
+      get_validation_scores: { Args: { p_session_id: string }; Returns: Json }
       get_validation_verdict: { Args: { p_score: number }; Returns: string }
+      get_workflows_for_event: {
+        Args: { p_event_name: string; p_org_id: string }
+        Returns: {
+          conditions: Json
+          trigger_id: string
+          workflow_id: string
+          workflow_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_knowledge_fetch: {
+        Args: { chunk_ids: string[] }
+        Returns: undefined
       }
       increment_template_usage: {
         Args: { template_id: string }
@@ -5032,6 +7183,7 @@ export type Database = {
         }
         Returns: Json
       }
+      refresh_dashboard_metrics: { Args: never; Returns: undefined }
       search_best_pack: {
         Args: {
           p_industry?: string
@@ -5049,6 +7201,28 @@ export type Database = {
           slug: string
           step_count: number
           title: string
+        }[]
+      }
+      search_knowledge: {
+        Args: {
+          filter_category?: string
+          filter_industry?: string
+          filter_year_min?: number
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          category: string
+          confidence: string
+          content: string
+          id: string
+          sample_size: number
+          similarity: number
+          source: string
+          source_type: string
+          tags: string[]
+          year: number
         }[]
       }
       search_prompt_packs: {
@@ -5091,6 +7265,15 @@ export type Database = {
       user_org_id: { Args: never; Returns: string }
     }
     Enums: {
+      action_type:
+        | "create_task"
+        | "send_notification"
+        | "update_record"
+        | "call_api"
+        | "send_email"
+        | "ai_generate"
+        | "delay"
+        | "condition"
       activity_type:
         | "task_created"
         | "task_updated"
@@ -5149,6 +7332,22 @@ export type Database = {
         | "published"
         | "failed"
         | "archived"
+      assumption_source:
+        | "problem"
+        | "solution"
+        | "unique_value_proposition"
+        | "unfair_advantage"
+        | "customer_segments"
+        | "channels"
+        | "revenue_streams"
+        | "cost_structure"
+        | "key_metrics"
+      assumption_status:
+        | "untested"
+        | "testing"
+        | "validated"
+        | "invalidated"
+        | "obsolete"
       attendee_type:
         | "general"
         | "vip"
@@ -5167,6 +7366,20 @@ export type Database = {
         | "attending"
         | "attended"
         | "not_attending"
+      coach_phase:
+        | "onboarding"
+        | "assessment"
+        | "constraint"
+        | "campaign_setup"
+        | "sprint_planning"
+        | "sprint_execution"
+        | "cycle_review"
+      confidence_level: "high" | "medium" | "low"
+      constraint_type:
+        | "acquisition"
+        | "monetization"
+        | "retention"
+        | "scalability"
       event_asset_type:
         | "social_post"
         | "email"
@@ -5232,6 +7445,26 @@ export type Database = {
         | "meetup"
         | "webinar"
         | "hackathon"
+      experiment_status:
+        | "designed"
+        | "recruiting"
+        | "running"
+        | "collecting"
+        | "analyzing"
+        | "completed"
+        | "paused"
+        | "cancelled"
+      experiment_type:
+        | "customer_interview"
+        | "survey"
+        | "landing_page"
+        | "prototype_test"
+        | "concierge"
+        | "wizard_of_oz"
+        | "smoke_test"
+        | "a_b_test"
+        | "fake_door"
+        | "other"
       feature_context:
         | "onboarding"
         | "lean_canvas"
@@ -5241,7 +7474,52 @@ export type Database = {
         | "validator"
         | "gtm_planning"
         | "fundraising"
+      force_type: "push" | "pull" | "inertia" | "friction"
       funding_stage: "pre_seed" | "seed" | "series_a" | "series_b" | "growth"
+      insight_type:
+        | "pain_point"
+        | "desired_outcome"
+        | "current_behavior"
+        | "switching_trigger"
+        | "objection"
+        | "feature_request"
+        | "competitor_mention"
+        | "pricing_feedback"
+        | "aha_moment"
+        | "job_to_be_done"
+        | "quote"
+        | "other"
+      interview_status:
+        | "scheduled"
+        | "completed"
+        | "transcribed"
+        | "analyzed"
+        | "cancelled"
+        | "no_show"
+      interview_type:
+        | "problem_discovery"
+        | "solution_validation"
+        | "usability_test"
+        | "customer_development"
+        | "sales_call"
+        | "support_call"
+        | "other"
+      job_type: "functional" | "emotional" | "social"
+      knowledge_source_type:
+        | "deloitte"
+        | "bcg"
+        | "pwc"
+        | "mckinsey"
+        | "cb_insights"
+        | "gartner"
+        | "forrester"
+        | "harvard_business_review"
+        | "mit_sloan"
+        | "yc_research"
+        | "a16z"
+        | "sequoia"
+        | "internal"
+        | "other"
       media_pass_status: "yes" | "no" | "unclear"
       message_channel: "whatsapp" | "sms" | "email" | "in_app"
       message_direction: "inbound" | "outbound"
@@ -5272,6 +7550,7 @@ export type Database = {
         | "pricing"
         | "hiring"
         | "funding"
+      pdca_step: "plan" | "do" | "check" | "act"
       pitch_deck_status:
         | "draft"
         | "in_progress"
@@ -5296,6 +7575,15 @@ export type Database = {
         | "cancelled"
         | "no_show"
       run_status: "pending" | "running" | "completed" | "failed" | "cancelled"
+      segment_type:
+        | "early_adopter"
+        | "mainstream"
+        | "enterprise"
+        | "smb"
+        | "consumer"
+        | "prosumer"
+        | "developer"
+        | "other"
       slide_type:
         | "title"
         | "problem"
@@ -5359,6 +7647,7 @@ export type Database = {
         | "general"
         | "custom"
       ticket_cost_tier: "free" | "low" | "medium" | "high" | "premium"
+      trigger_type: "event" | "schedule" | "webhook" | "manual"
       validation_verdict: "go" | "conditional" | "pivot" | "no_go"
       venue_status:
         | "researching"
@@ -5369,6 +7658,7 @@ export type Database = {
         | "booked"
         | "cancelled"
         | "rejected"
+      workflow_status: "draft" | "active" | "paused" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5496,6 +7786,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      action_type: [
+        "create_task",
+        "send_notification",
+        "update_record",
+        "call_api",
+        "send_email",
+        "ai_generate",
+        "delay",
+        "condition",
+      ],
       activity_type: [
         "task_created",
         "task_updated",
@@ -5557,6 +7857,24 @@ export const Constants = {
         "failed",
         "archived",
       ],
+      assumption_source: [
+        "problem",
+        "solution",
+        "unique_value_proposition",
+        "unfair_advantage",
+        "customer_segments",
+        "channels",
+        "revenue_streams",
+        "cost_structure",
+        "key_metrics",
+      ],
+      assumption_status: [
+        "untested",
+        "testing",
+        "validated",
+        "invalidated",
+        "obsolete",
+      ],
       attendee_type: [
         "general",
         "vip",
@@ -5576,6 +7894,22 @@ export const Constants = {
         "attending",
         "attended",
         "not_attending",
+      ],
+      coach_phase: [
+        "onboarding",
+        "assessment",
+        "constraint",
+        "campaign_setup",
+        "sprint_planning",
+        "sprint_execution",
+        "cycle_review",
+      ],
+      confidence_level: ["high", "medium", "low"],
+      constraint_type: [
+        "acquisition",
+        "monetization",
+        "retention",
+        "scalability",
       ],
       event_asset_type: [
         "social_post",
@@ -5647,6 +7981,28 @@ export const Constants = {
         "webinar",
         "hackathon",
       ],
+      experiment_status: [
+        "designed",
+        "recruiting",
+        "running",
+        "collecting",
+        "analyzing",
+        "completed",
+        "paused",
+        "cancelled",
+      ],
+      experiment_type: [
+        "customer_interview",
+        "survey",
+        "landing_page",
+        "prototype_test",
+        "concierge",
+        "wizard_of_oz",
+        "smoke_test",
+        "a_b_test",
+        "fake_door",
+        "other",
+      ],
       feature_context: [
         "onboarding",
         "lean_canvas",
@@ -5657,7 +8013,56 @@ export const Constants = {
         "gtm_planning",
         "fundraising",
       ],
+      force_type: ["push", "pull", "inertia", "friction"],
       funding_stage: ["pre_seed", "seed", "series_a", "series_b", "growth"],
+      insight_type: [
+        "pain_point",
+        "desired_outcome",
+        "current_behavior",
+        "switching_trigger",
+        "objection",
+        "feature_request",
+        "competitor_mention",
+        "pricing_feedback",
+        "aha_moment",
+        "job_to_be_done",
+        "quote",
+        "other",
+      ],
+      interview_status: [
+        "scheduled",
+        "completed",
+        "transcribed",
+        "analyzed",
+        "cancelled",
+        "no_show",
+      ],
+      interview_type: [
+        "problem_discovery",
+        "solution_validation",
+        "usability_test",
+        "customer_development",
+        "sales_call",
+        "support_call",
+        "other",
+      ],
+      job_type: ["functional", "emotional", "social"],
+      knowledge_source_type: [
+        "deloitte",
+        "bcg",
+        "pwc",
+        "mckinsey",
+        "cb_insights",
+        "gartner",
+        "forrester",
+        "harvard_business_review",
+        "mit_sloan",
+        "yc_research",
+        "a16z",
+        "sequoia",
+        "internal",
+        "other",
+      ],
       media_pass_status: ["yes", "no", "unclear"],
       message_channel: ["whatsapp", "sms", "email", "in_app"],
       message_direction: ["inbound", "outbound"],
@@ -5691,6 +8096,7 @@ export const Constants = {
         "hiring",
         "funding",
       ],
+      pdca_step: ["plan", "do", "check", "act"],
       pitch_deck_status: [
         "draft",
         "in_progress",
@@ -5718,6 +8124,16 @@ export const Constants = {
         "no_show",
       ],
       run_status: ["pending", "running", "completed", "failed", "cancelled"],
+      segment_type: [
+        "early_adopter",
+        "mainstream",
+        "enterprise",
+        "smb",
+        "consumer",
+        "prosumer",
+        "developer",
+        "other",
+      ],
       slide_type: [
         "title",
         "problem",
@@ -5787,6 +8203,7 @@ export const Constants = {
         "custom",
       ],
       ticket_cost_tier: ["free", "low", "medium", "high", "premium"],
+      trigger_type: ["event", "schedule", "webhook", "manual"],
       validation_verdict: ["go", "conditional", "pivot", "no_go"],
       venue_status: [
         "researching",
@@ -5798,6 +8215,7 @@ export const Constants = {
         "cancelled",
         "rejected",
       ],
+      workflow_status: ["draft", "active", "paused", "archived"],
     },
   },
 } as const

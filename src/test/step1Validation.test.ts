@@ -13,7 +13,7 @@ describe('step1Validation', () => {
         company_name: 'Test Company',
         description: 'A test company description that is long enough',
         target_market: 'Enterprise',
-        industry: 'Technology',
+        industry: ['Technology'],
         business_model: ['SaaS'],
         stage: 'Seed',
       };
