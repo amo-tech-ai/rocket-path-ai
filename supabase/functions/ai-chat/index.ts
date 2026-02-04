@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { handleCoachMode, getWelcomeMessage } from "./coach/index.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,9 @@ interface ChatRequest {
   message?: string;
   session_id?: string;
   room_id?: string;
-  mode?: 'public' | 'authenticated';
-  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance';
+  mode?: 'public' | 'authenticated' | 'coach';
+  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance' | 'coach';
+  startupId?: string;
   context?: {
     screen?: string;
     startup_id?: string;
@@ -98,12 +100,65 @@ serve(async (req) => {
       room_id, 
       mode = user ? 'authenticated' : 'public',
       action = 'chat', 
+      startupId,
       context, 
       stream = false 
     } = body;
 
     const isPublicMode = mode === 'public' || !user;
+    const isCoachMode = mode === 'coach' || action === 'coach';
     const userMessage = message || messages?.[messages.length - 1]?.content;
+    
+    // Handle coach mode
+    if (isCoachMode && user) {
+      const effectiveStartupId = startupId || context?.startup_id;
+      
+      if (!effectiveStartupId) {
+        return new Response(
+          JSON.stringify({ error: 'startupId is required for coach mode' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log(`[AI Chat] Coach mode for startup ${effectiveStartupId}`);
+      
+      // Handle initial greeting
+      if (!userMessage || userMessage.toLowerCase() === 'start') {
+        // Get startup name for personalized welcome
+        const { data: startupData } = await supabase
+          .from('startups')
+          .select('name')
+          .eq('id', effectiveStartupId)
+          .single();
+        
+        const welcomeMessage = getWelcomeMessage(startupData?.name);
+        
+        return new Response(
+          JSON.stringify({
+            message: welcomeMessage,
+            phase: 'onboarding',
+            progress: { phase: 'onboarding', step: 1, totalSteps: 3, percentage: 0 },
+            suggestedActions: ['Tell me about my startup', 'Let\'s get started'],
+            mode: 'coach',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const coachResponse = await handleCoachMode(supabase, {
+        message: userMessage,
+        startupId: effectiveStartupId,
+        userId: user.id,
+      });
+      
+      return new Response(
+        JSON.stringify({
+          ...coachResponse,
+          mode: 'coach',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     if (!userMessage) {
       return new Response(
