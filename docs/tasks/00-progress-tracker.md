@@ -27,7 +27,7 @@
 | **Onboarding Wizard** | 🟢 | 100% | 8/8 | 0 |
 | **Playbook System** | 🟢 | 100% | 4/4 | 0 |
 | **Coach Tables** | 🟢 | 100% | — | 0 ✅ |
-| **Coach System (09-16)** | 🟡 | 12% | 1/8 | None |
+| **Coach System (09-16)** | 🟡 | 38% | 3/8 | None |
 | **Validator Platform (18-20)** | 🔴 | 0% | 0/3 | Schema |
 | **Growth Tools (21-25)** | 🔴 | 0% | 0/5 | Schema |
 | **Wireframes (26)** | 🟢 | 100% | 1/1 | 0 |
@@ -99,8 +99,8 @@ flowchart TB
 | 07 | `07-global-ai-assistant.md` | Global AI (Atlas) | P1 | 🟢 Complete | 100% | 03 | Core |
 | 08 | `08-gaps-blockers-analysis.md` | Gaps Analysis | P2 | 🟢 Complete | 100% | — | Core |
 | **09** | `09-canvas-fields.md` | **Canvas Fields** | P0 | 🟢 Complete | 100% | — | Coach |
-| **10** | `10-coach-ai.md` | **Coach AI** | P0 | 🔴 Not Started | 0% | 09 | Coach |
-| **11** | `11-coach-ui.md` | **Coach UI** | P0 | 🔴 Not Started | 0% | 10 | Coach |
+| **10** | `10-coach-ai.md` | **Coach AI** | P0 | 🟢 Complete | 100% | 09 | Coach |
+| **11** | `11-coach-ui.md` | **Coach UI** | P0 | 🟢 Complete | 100% | 10 | Coach |
 | **12** | `12-coach-sync.md` | **Coach Sync** | P1 | 🔴 Not Started | 0% | 10, 11 | Coach |
 | **13** | `13-vector-db.md` | **Vector DB** | P0 | 🔴 Not Started | 0% | — | Coach |
 | **14** | `14-validation-report.md` | **Validation Report** | P0 | 🔴 Not Started | 0% | 13 | Coach |
