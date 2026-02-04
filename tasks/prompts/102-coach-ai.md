@@ -1,4 +1,6 @@
-# 102 - Startup Coach Backend (ai-chat Extension)
+# 102 - Coach AI
+
+> Expert persona + industry knowledge + phase handlers
 
 ---
 
@@ -15,8 +17,8 @@
 
 ```yaml
 ---
-task_id: 102-VAL
-title: Startup Coach Backend
+task_id: 102-coach-ai
+title: Coach AI
 diagram_ref: startup-coach-design
 phase: MVP
 priority: P0

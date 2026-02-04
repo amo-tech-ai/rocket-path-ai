@@ -1,4 +1,6 @@
-# 101 - Startup Coach Database & State Machine
+# 101 - Coach Tables
+
+> Database tables for coach memory and state machine
 
 ---
 
@@ -15,8 +17,8 @@
 
 ```yaml
 ---
-task_id: 101-VAL
-title: Startup Coach Database & State Machine
+task_id: 101-coach-tables
+title: Coach Tables
 diagram_ref: startup-coach-design
 phase: MVP
 priority: P0

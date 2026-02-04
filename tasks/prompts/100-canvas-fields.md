@@ -1,22 +1,41 @@
-# 100 - Onboarding Canvas Fields Enhancement
+# 100 - Canvas Fields
+
+> Add 6 essential questions to capture Lean Canvas data
 
 ---
 
 | Aspect | Details |
 |--------|---------|
-| **Screens** | Onboarding Step 1 (Context), Step 3 (Interview) |
-| **Features** | New form fields, interview questions, canvas-ready data |
-| **Agents** | onboarding-agent |
-| **Edge Functions** | /onboarding-agent |
+| **Screens** | Onboarding Wizard (Steps 1 & 3) OR Chat Coach |
+| **Features** | Problem, Solution, Alternatives, Channels, Why Now |
+| **Agents** | onboarding-agent, ai-chat (coach mode) |
+| **Edge Functions** | /onboarding-agent, /ai-chat |
 | **Use Cases** | Capture data to auto-generate Lean Canvas + Validation Report |
-| **Real-World** | "Founder answers 6 key questions, system generates complete canvas" |
+| **Real-World** | "Founder answers 6 questions → system generates canvas" |
+
+---
+
+## Two Entry Paths
+
+```
+PATH A: Onboarding Wizard          PATH B: Chat Coach
+┌─────────────────────┐            ┌─────────────────────┐
+│ Form-based capture  │            │ Conversational Q&A  │
+│ Steps 1-4           │            │ "Tell me about..."  │
+└─────────┬───────────┘            └─────────┬───────────┘
+          └──────────────┬─────────────────────┘
+                         ↓
+              Lean Canvas + Validation Report
+```
+
+Both paths capture the same 6 questions, just different UX.
 
 ---
 
 ```yaml
 ---
-task_id: 100-ONB
-title: Onboarding Canvas Fields Enhancement
+task_id: 100-canvas-fields
+title: Canvas Fields
 diagram_ref: startup-coach-design
 phase: MVP
 priority: P0
