@@ -4988,12 +4988,14 @@ export type Database = {
         Row: {
           ai_summary: string | null
           business_model: string[] | null
+          channels: string | null
           competitors: string[] | null
           created_at: string | null
           customer_segments: Json | null
           deep_research_report: string | null
           description: string | null
           elevator_pitch: string | null
+          existing_alternatives: string | null
           founders: Json | null
           funding_rounds: Json | null
           github_url: string | null
@@ -5012,6 +5014,7 @@ export type Database = {
           one_liner: string | null
           org_id: string
           pricing_model: string | null
+          problem: string | null
           problem_one_liner: string | null
           problem_statement: string | null
           profile_strength: number | null
@@ -5020,6 +5023,7 @@ export type Database = {
           readiness_score: number | null
           readiness_updated_at: string | null
           sam_size: number | null
+          solution: string | null
           solution_description: string | null
           som_size: number | null
           stage: string | null
@@ -5036,6 +5040,7 @@ export type Database = {
           use_of_funds: string[] | null
           validation_verdict: string | null
           valuation_cap: number | null
+          value_prop: string | null
           website_url: string | null
           why_now: string | null
           year_founded: number | null
@@ -5043,12 +5048,14 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           business_model?: string[] | null
+          channels?: string | null
           competitors?: string[] | null
           created_at?: string | null
           customer_segments?: Json | null
           deep_research_report?: string | null
           description?: string | null
           elevator_pitch?: string | null
+          existing_alternatives?: string | null
           founders?: Json | null
           funding_rounds?: Json | null
           github_url?: string | null
@@ -5067,6 +5074,7 @@ export type Database = {
           one_liner?: string | null
           org_id: string
           pricing_model?: string | null
+          problem?: string | null
           problem_one_liner?: string | null
           problem_statement?: string | null
           profile_strength?: number | null
@@ -5075,6 +5083,7 @@ export type Database = {
           readiness_score?: number | null
           readiness_updated_at?: string | null
           sam_size?: number | null
+          solution?: string | null
           solution_description?: string | null
           som_size?: number | null
           stage?: string | null
@@ -5091,6 +5100,7 @@ export type Database = {
           use_of_funds?: string[] | null
           validation_verdict?: string | null
           valuation_cap?: number | null
+          value_prop?: string | null
           website_url?: string | null
           why_now?: string | null
           year_founded?: number | null
@@ -5098,12 +5108,14 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           business_model?: string[] | null
+          channels?: string | null
           competitors?: string[] | null
           created_at?: string | null
           customer_segments?: Json | null
           deep_research_report?: string | null
           description?: string | null
           elevator_pitch?: string | null
+          existing_alternatives?: string | null
           founders?: Json | null
           funding_rounds?: Json | null
           github_url?: string | null
@@ -5122,6 +5134,7 @@ export type Database = {
           one_liner?: string | null
           org_id?: string
           pricing_model?: string | null
+          problem?: string | null
           problem_one_liner?: string | null
           problem_statement?: string | null
           profile_strength?: number | null
@@ -5130,6 +5143,7 @@ export type Database = {
           readiness_score?: number | null
           readiness_updated_at?: string | null
           sam_size?: number | null
+          solution?: string | null
           solution_description?: string | null
           som_size?: number | null
           stage?: string | null
@@ -5146,6 +5160,7 @@ export type Database = {
           use_of_funds?: string[] | null
           validation_verdict?: string | null
           valuation_cap?: number | null
+          value_prop?: string | null
           website_url?: string | null
           why_now?: string | null
           year_founded?: number | null

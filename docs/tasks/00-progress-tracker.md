@@ -27,7 +27,7 @@
 | **Onboarding Wizard** | 🟢 | 100% | 8/8 | 0 |
 | **Playbook System** | 🟢 | 100% | 4/4 | 0 |
 | **Coach Tables** | 🟢 | 100% | — | 0 ✅ |
-| **Coach System (09-16)** | 🟡 | 10% | 0/8 | None |
+| **Coach System (09-16)** | 🟡 | 12% | 1/8 | None |
 | **Validator Platform (18-20)** | 🔴 | 0% | 0/3 | Schema |
 | **Growth Tools (21-25)** | 🔴 | 0% | 0/5 | Schema |
 | **Wireframes (26)** | 🟢 | 100% | 1/1 | 0 |
@@ -98,7 +98,7 @@ flowchart TB
 | 06 | `06-realtime-chat.md` | Real-time Chat | P1 | 🟢 Complete | 100% | 01 | Core |
 | 07 | `07-global-ai-assistant.md` | Global AI (Atlas) | P1 | 🟢 Complete | 100% | 03 | Core |
 | 08 | `08-gaps-blockers-analysis.md` | Gaps Analysis | P2 | 🟢 Complete | 100% | — | Core |
-| **09** | `09-canvas-fields.md` | **Canvas Fields** | P0 | 🔴 Not Started | 0% | — | Coach |
+| **09** | `09-canvas-fields.md` | **Canvas Fields** | P0 | 🟢 Complete | 100% | — | Coach |
 | **10** | `10-coach-ai.md` | **Coach AI** | P0 | 🔴 Not Started | 0% | 09 | Coach |
 | **11** | `11-coach-ui.md` | **Coach UI** | P0 | 🔴 Not Started | 0% | 10 | Coach |
 | **12** | `12-coach-sync.md` | **Coach Sync** | P1 | 🔴 Not Started | 0% | 10, 11 | Coach |
@@ -470,9 +470,9 @@ gantt
 - [x] Global AI Assistant (Atlas)
 - [x] Playbook context injection
 
-### Coach System 🔴 (Tasks 09-16)
+### Coach System 🟡 (Tasks 09-16)
 
-- [ ] Canvas fields added to onboarding (09)
+- [x] Canvas fields added to onboarding (09) ✅
 - [ ] Coach AI mode in ai-chat (10)
 - [ ] 3-panel Coach UI (11)
 - [ ] Bidirectional sync (12)
