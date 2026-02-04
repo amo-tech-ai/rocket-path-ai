@@ -74,18 +74,19 @@ Build a comprehensive 14-section validation report system that matches IdeaProof
 
 ## Acceptance Criteria
 
-- [ ] Report has 14 sections (see structure below)
-- [ ] Executive summary with GO/CAUTION/NO-GO verdict
-- [ ] 7-dimension scoring (0-10 each)
-- [ ] TAM/SAM/SOM with visualization
-- [ ] Highlights column (strengths)
-- [ ] Red flags column (concerns)
-- [ ] Market factors breakdown
-- [ ] Execution factors breakdown
-- [ ] Citations from knowledge_chunks
-- [ ] Generation time <60 seconds
-- [ ] Report persists to database
-- [ ] Mobile responsive layout
+- [x] Report has 14 sections (see structure below)
+- [x] Executive summary with GO/CAUTION/NO-GO verdict
+- [x] 7-dimension scoring (0-10 each)
+- [x] TAM/SAM/SOM with visualization
+- [x] Highlights column (strengths)
+- [x] Red flags column (concerns)
+- [x] Market factors breakdown
+- [x] Execution factors breakdown
+- [x] Citations from knowledge_chunks
+- [x] Generation time <60 seconds
+- [x] Report persists to database
+- [x] Mobile responsive layout
+- [x] Animated generation progress UI
 
 ---
 
