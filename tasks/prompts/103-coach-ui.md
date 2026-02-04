@@ -1,4 +1,6 @@
-# 103 - Startup Coach 3-Panel UI
+# 103 - Coach UI
+
+> 3-panel layout: Nav | Validator | Coach Chat
 
 ---
 
@@ -15,8 +17,8 @@
 
 ```yaml
 ---
-task_id: 103-VAL
-title: Startup Coach 3-Panel UI
+task_id: 103-coach-ui
+title: Coach UI
 diagram_ref: startup-coach-design
 phase: MVP
 priority: P0

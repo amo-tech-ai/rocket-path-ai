@@ -1,4 +1,6 @@
-# 104 - Startup Coach Sync & Polish
+# 104 - Coach Sync
+
+> Bidirectional sync between Validator and Coach panels
 
 ---
 
@@ -15,8 +17,8 @@
 
 ```yaml
 ---
-task_id: 104-VAL
-title: Startup Coach Sync & Polish
+task_id: 104-coach-sync
+title: Coach Sync
 diagram_ref: startup-coach-design
 phase: MVP
 priority: P1
