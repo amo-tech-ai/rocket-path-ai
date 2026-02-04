@@ -7,14 +7,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// OpenAI Embeddings API
+const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
+
 interface ChatRequest {
   messages?: Array<{ role: string; content: string }>;
   message?: string;
   session_id?: string;
   room_id?: string;
   mode?: 'public' | 'authenticated' | 'coach';
-  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance' | 'coach';
+  action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance' | 'coach' | 'search_knowledge';
   startupId?: string;
+  query?: string;
+  matchThreshold?: number;
+  matchCount?: number;
+  category?: string;
   context?: {
     screen?: string;
     startup_id?: string;
@@ -101,9 +108,72 @@ serve(async (req) => {
       mode = user ? 'authenticated' : 'public',
       action = 'chat', 
       startupId,
+      query,
+      matchThreshold,
+      matchCount,
+      category,
       context, 
       stream = false 
     } = body;
+
+    // Handle search_knowledge action
+    if (action === 'search_knowledge') {
+      if (!user) {
+        return new Response(
+          JSON.stringify({ error: 'Authentication required for knowledge search' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const searchQuery = query || message;
+      if (!searchQuery) {
+        return new Response(
+          JSON.stringify({ error: 'Query is required for knowledge search' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      console.log(`[AI Chat] Knowledge search: "${searchQuery.substring(0, 100)}..."`);
+      
+      try {
+        // Generate embedding using OpenAI
+        const embedding = await generateOpenAIEmbedding(searchQuery);
+        
+        // Search knowledge chunks using the embedding
+        const { data: results, error: searchError } = await supabase.rpc('search_knowledge', {
+          query_embedding: embedding,
+          match_threshold: matchThreshold || 0.75,
+          match_count: matchCount || 5,
+          filter_category: category || null,
+          filter_industry: null,
+        });
+        
+        if (searchError) {
+          console.error('[AI Chat] Knowledge search error:', searchError);
+          throw searchError;
+        }
+        
+        console.log(`[AI Chat] Found ${results?.length || 0} knowledge chunks`);
+        
+        return new Response(
+          JSON.stringify({
+            results: results || [],
+            query: searchQuery,
+            totalMatches: results?.length || 0,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (embeddingError) {
+        console.error('[AI Chat] Embedding generation error:', embeddingError);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to generate embedding', 
+            details: embeddingError instanceof Error ? embeddingError.message : 'Unknown error' 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     const isPublicMode = mode === 'public' || !user;
     const isCoachMode = mode === 'coach' || action === 'coach';
@@ -585,4 +655,50 @@ function extractSuggestedActions(
   }
   
   return actions.slice(0, 3);
+}
+
+// Generate embedding using OpenAI text-embedding-3-small (1536 dimensions)
+async function generateOpenAIEmbedding(text: string): Promise<number[]> {
+  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+  
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+
+  const cleanedText = text.replace(/\n/g, ' ').trim();
+  
+  if (!cleanedText) {
+    throw new Error('Text cannot be empty');
+  }
+
+  const response = await fetch(OPENAI_EMBEDDINGS_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: cleanedText,
+      encoding_format: 'float',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[OpenAI Embeddings] API error ${response.status}:`, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    if (response.status === 401) {
+      throw new Error('Invalid OpenAI API key');
+    }
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(`[OpenAI Embeddings] Generated embedding, tokens: ${data.usage?.total_tokens || 'N/A'}`);
+  
+  return data.data[0].embedding;
 }

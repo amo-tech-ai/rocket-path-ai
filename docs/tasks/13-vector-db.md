@@ -24,7 +24,8 @@ phase: MVP
 priority: P0
 status: Not Started
 skill: /supabase
-ai_model: text-embedding-004
+ai_model: text-embedding-3-small
+embedding_dimensions: 1536
 subagents: [supabase-expert, code-reviewer]
 edge_function: ai-chat
 schema_tables: [knowledge_chunks]
@@ -100,14 +101,17 @@ Set up pgvector extension and create the `knowledge_chunks` table to store embed
 |--------|------|-------------|
 | id | uuid | PK, default gen_random_uuid() |
 | content | text | NOT NULL |
-| embedding | vector(768) | NOT NULL |
+| embedding | vector(1536) | NULLABLE (OpenAI text-embedding-3-small) |
 | source | text | NOT NULL |
 | source_type | text | CHECK IN ('deloitte', 'bcg', 'pwc', 'mckinsey', 'cb_insights', 'gartner') |
 | year | integer | NOT NULL |
 | sample_size | integer | |
 | confidence | text | CHECK IN ('high', 'medium', 'low') |
 | category | text | NOT NULL |
+| industry | text | |
 | tags | text[] | |
+| fetch_count | integer | DEFAULT 0 |
+| last_fetched_at | timestamptz | |
 | created_at | timestamptz | default now() |
 
 ### Index
@@ -154,15 +158,25 @@ WITH (m = 16, ef_construction = 64);
 ## Embedding Pipeline
 
 ```typescript
-// supabase/functions/_shared/embeddings.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// supabase/functions/ai-chat/index.ts - generateOpenAIEmbedding()
+async function generateOpenAIEmbedding(text: string): Promise<number[]> {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  
+  const response = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "text-embedding-3-small",
+      input: text.replace(/\n/g, " ").trim(),
+      encoding_format: "float",
+    }),
+  });
 
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY")!);
-  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-
-  const result = await model.embedContent(text);
-  return result.embedding.values;
+  const data = await response.json();
+  return data.data[0].embedding; // 1536 dimensions
 }
 ```
 

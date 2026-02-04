@@ -3430,7 +3430,7 @@ export type Database = {
           confidence: string
           content: string
           created_at: string
-          embedding: string
+          embedding: string | null
           fetch_count: number
           id: string
           industry: string | null
@@ -3451,7 +3451,7 @@ export type Database = {
           confidence?: string
           content: string
           created_at?: string
-          embedding: string
+          embedding?: string | null
           fetch_count?: number
           id?: string
           industry?: string | null
@@ -3472,7 +3472,7 @@ export type Database = {
           confidence?: string
           content?: string
           created_at?: string
-          embedding?: string
+          embedding?: string | null
           fetch_count?: number
           id?: string
           industry?: string | null
@@ -7222,7 +7222,6 @@ export type Database = {
         Args: {
           filter_category?: string
           filter_industry?: string
-          filter_year_min?: number
           match_count?: number
           match_threshold?: number
           query_embedding: string
@@ -7232,11 +7231,10 @@ export type Database = {
           confidence: string
           content: string
           id: string
-          sample_size: number
+          industry: string
           similarity: number
           source: string
           source_type: string
-          tags: string[]
           year: number
         }[]
       }
