@@ -40,6 +40,7 @@ import PitchDeckGenerating from "./pages/PitchDeckGenerating";
 import AIChat from "./pages/AIChat";
 import Analytics from "./pages/Analytics";
 import Validator from "./pages/Validator";
+import ValidateIdea from "./pages/ValidateIdea";
 
 const queryClient = new QueryClient();
 
@@ -245,6 +246,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Validator />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/validate"
+              element={
+                <ProtectedRoute>
+                  <ValidateIdea />
                 </ProtectedRoute>
               }
             />

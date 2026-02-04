@@ -20,6 +20,12 @@ interface IndustryRequest {
   limit?: number;
   report_type?: 'quick' | 'deep' | 'investor';
   validation_type?: 'quick' | 'deep' | 'investor';
+  // Chat-to-validation context from ValidatorChat component
+  chat_context?: {
+    messages?: Array<{ role: string; content: string }>;
+    extracted_data?: Record<string, string>;
+    idea_description?: string;
+  };
 }
 
 // Model configuration - using Gemini 3 Flash for speed
@@ -55,7 +61,7 @@ serve(async (req) => {
     }
 
     const body: IndustryRequest = await req.json();
-    const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data, report_type, validation_type } = body;
+    const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data, report_type, validation_type, chat_context } = body;
 
     console.log(`[industry-expert-agent] Action: ${action}, Industry: ${industry}, User: ${user.id}`);
 
@@ -98,7 +104,7 @@ serve(async (req) => {
 
       // Task 106: Generate full 14-section validation report
       case 'generate_validation_report':
-        result = await generateValidationReport(supabase, startup_id, report_type || validation_type || 'quick', user.id);
+        result = await generateValidationReport(supabase, startup_id, report_type || validation_type || 'quick', user.id, chat_context);
         break;
 
       default:
@@ -629,7 +635,8 @@ async function generateValidationReport(
   supabase: any,
   startupId?: string,
   reportType: 'quick' | 'deep' | 'investor' = 'quick',
-  userId?: string
+  userId?: string,
+  chatContext?: { messages?: Array<{ role: string; content: string }>; extracted_data?: Record<string, string>; idea_description?: string }
 ) {
   if (!startupId) {
     return { error: 'startup_id is required' };
@@ -660,16 +667,16 @@ async function generateValidationReport(
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  // Build comprehensive startup context
+  // Build comprehensive startup context - merge with chat data if available
   const startupContext = {
     name: startup.name,
-    description: startup.description,
+    description: chatContext?.idea_description || startup.description,
     industry: startup.industry,
     stage: startup.stage,
-    problem: startup.problem,
+    problem: chatContext?.extracted_data?.idea || startup.problem,
     solution: startup.solution,
-    unique_value: startup.unique_value,
-    customer_segments: startup.customer_segments,
+    unique_value: chatContext?.extracted_data?.differentiation || startup.unique_value,
+    customer_segments: chatContext?.extracted_data?.customer || startup.customer_segments,
     channels: startup.channels,
     revenue_streams: startup.revenue_streams,
     key_metrics: startup.key_metrics,
@@ -677,7 +684,12 @@ async function generateValidationReport(
     team_size: startup.team_size,
     website: startup.website,
     founding_date: startup.founding_date,
+    existing_alternatives: chatContext?.extracted_data?.alternatives || null,
+    validation_evidence: chatContext?.extracted_data?.validation || null,
   };
+
+  // Include chat transcript for richer context
+  const chatTranscript = chatContext?.messages?.map(m => `${m.role}: ${m.content}`).join('\n\n') || '';
 
   const systemPrompt = `You are a ${reportType === 'investor' ? 'venture capital analyst' : 'expert startup advisor'} for the ${pack?.display_name || startup.industry || 'technology'} industry.
 
@@ -751,13 +763,17 @@ Return JSON with this exact structure:
 
 Be specific, data-driven, and actionable. Use industry-specific terminology and benchmarks.`;
 
+  const userPrompt = chatTranscript 
+    ? `Generate a ${reportType} validation report for this startup based on the founder's own description:\n\n**Chat Transcript:**\n${chatTranscript}\n\n**Startup Profile:**\n${JSON.stringify(startupContext, null, 2)}`
+    : `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}`;
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}` }] }],
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: {
           temperature: 0.6,
