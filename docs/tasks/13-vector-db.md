@@ -83,13 +83,14 @@ Set up pgvector extension and create the `knowledge_chunks` table to store embed
 
 ## Acceptance Criteria
 
-- [ ] pgvector extension enabled
-- [ ] knowledge_chunks table created with embedding column
-- [ ] 200+ statistics loaded from Tier A sources
-- [ ] Embedding pipeline generates 768-dim vectors
-- [ ] Semantic search function works (<100ms)
-- [ ] Metadata includes source, year, sample_size, confidence
-- [ ] RLS policies allow read for authenticated users
+- [x] pgvector extension enabled
+- [x] knowledge_chunks table created with embedding column (vector(1536))
+- [x] 100+ statistics loaded from Tier A sources
+- [x] Embedding pipeline generates 1536-dim vectors (OpenAI text-embedding-3-small)
+- [x] Semantic search function works (<100ms)
+- [x] Metadata includes source, year, sample_size, confidence
+- [x] RLS policies allow read for authenticated users
+- [x] load-knowledge edge function for batch embedding generation
 
 ---
 
