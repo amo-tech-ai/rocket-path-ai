@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AuthError } from '@supabase/supabase-js';
 import { invokeAgent } from '../hooks/onboarding/invokeAgent';
 
 // Mock Supabase
@@ -30,10 +31,11 @@ describe('invokeAgent', () => {
       data: { session: null },
       error: null,
     });
-    // When real API is forced and there is no session, refreshSession is called; mock it so destructuring doesn't throw
+    // Create a proper AuthError instance
+    const authError = new AuthError('no session', 401, 'session_not_found');
     vi.mocked(supabase.auth.refreshSession).mockResolvedValue({
       data: { session: null, user: null },
-      error: { message: 'no session', name: 'AuthSessionMissing', status: 401 },
+      error: authError,
     });
 
     // With no session and refresh failing, invokeAgent throws (real API path)
