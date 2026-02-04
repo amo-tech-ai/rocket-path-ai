@@ -1,6 +1,7 @@
 /**
  * useCoachSession Hook
  * Manages coach chat session state and API integration
+ * With bidirectional sync support
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -13,10 +14,13 @@ import type {
   ValidationPhase,
   ValidationSession 
 } from '@/types/coach';
+import type { HighlightableElement } from '@/contexts/CoachSyncContext';
 
 interface UseCoachSessionOptions {
   startupId: string;
   onError?: (error: Error) => void;
+  onHighlight?: (type: HighlightableElement, id: string) => void;
+  onScoreUpdate?: (dimension: string, score: number) => void;
 }
 
 interface UseCoachSessionReturn {
@@ -31,9 +35,10 @@ interface UseCoachSessionReturn {
   phase: ValidationPhase;
   startSession: () => Promise<void>;
   clearMessages: () => void;
+  explainElement: (type: HighlightableElement, id: string) => Promise<void>;
 }
 
-export function useCoachSession({ startupId, onError }: UseCoachSessionOptions): UseCoachSessionReturn {
+export function useCoachSession({ startupId, onError, onHighlight, onScoreUpdate }: UseCoachSessionOptions): UseCoachSessionReturn {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [suggestedActions, setSuggestedActions] = useState<string[]>([]);
@@ -152,6 +157,19 @@ export function useCoachSession({ startupId, onError }: UseCoachSessionOptions):
       setProgress(response.progress);
       setPhase(response.phase);
       
+      // Handle score updates from response
+      if (response.stateUpdate?.assessmentScores && onScoreUpdate) {
+        Object.entries(response.stateUpdate.assessmentScores).forEach(([dim, score]) => {
+          onScoreUpdate(dim, score);
+        });
+      }
+      
+      // Handle element highlights from response
+      if (response.stateUpdate?.highlightElement && onHighlight) {
+        const highlightElement = response.stateUpdate.highlightElement;
+        onHighlight(highlightElement.type as HighlightableElement, highlightElement.id);
+      }
+      
       // Invalidate session query to refresh data
       queryClient.invalidateQueries({ queryKey: ['coach-session', startupId] });
     },
@@ -198,6 +216,12 @@ export function useCoachSession({ startupId, onError }: UseCoachSessionOptions):
     setMessages([]);
     setSuggestedActions([]);
   }, []);
+  
+  // Explain an element (triggered from Main panel click)
+  const explainElement = useCallback(async (type: HighlightableElement, id: string) => {
+    const explainPrompt = `Explain the ${type} "${id}" in more detail. What does it mean for my startup and what should I do about it?`;
+    await sendMessage(explainPrompt);
+  }, [sendMessage]);
 
   return {
     session,
@@ -211,6 +235,7 @@ export function useCoachSession({ startupId, onError }: UseCoachSessionOptions):
     phase,
     startSession,
     clearMessages,
+    explainElement,
   };
 }
 

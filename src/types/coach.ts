@@ -27,12 +27,21 @@ export interface ProgressInfo {
   percentage: number;
 }
 
+export interface StateUpdate {
+  assessmentScores?: Record<string, number>;
+  highlightElement?: {
+    type: string;
+    id: string;
+  };
+  [key: string]: unknown;
+}
+
 export interface CoachResponse {
   message: string;
   phase: ValidationPhase;
   progress: ProgressInfo;
   suggestedActions: string[];
-  stateUpdate?: Record<string, unknown>;
+  stateUpdate?: StateUpdate;
   mode: 'coach';
 }
 
