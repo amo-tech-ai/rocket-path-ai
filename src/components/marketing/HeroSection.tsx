@@ -156,23 +156,23 @@ const HeroSection = () => {
         )}
       </AnimatePresence>
 
-      <div className="container-marketing max-w-4xl text-center">
+      <div className="container-marketing max-w-5xl text-center px-4">
         {/* Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-12 tracking-tight"
+          className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-8 md:mb-12 tracking-tight"
         >
           From idea to execution.
         </motion.h1>
 
-        {/* Chat Card */}
+        {/* Chat Card - Wider layout */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-card border border-border rounded-2xl p-6 md:p-8 shadow-lg max-w-2xl mx-auto"
+          className="bg-card border border-border rounded-2xl p-6 md:p-10 lg:p-12 shadow-xl w-full max-w-3xl mx-auto"
         >
           {/* System Ready Label */}
           <div className="flex items-center gap-2 mb-4">
@@ -190,18 +190,18 @@ const HeroSection = () => {
             I'll help turn it into a clear plan.
           </p>
 
-          {/* Input Area */}
+          {/* Input Area - Larger */}
           <div className="relative">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="I'm thinking about building..."
+              placeholder="I'm building an AI tool that helps small restaurants predict their weekly inventory needs based on historical sales, weather, and local events..."
               disabled={isProcessing}
               className={cn(
-                "min-h-[100px] resize-none border-0 bg-transparent p-0",
-                "text-base md:text-lg placeholder:text-muted-foreground/50",
-                "focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+                "min-h-[140px] md:min-h-[160px] resize-none border-0 bg-transparent p-0",
+                "text-base md:text-lg lg:text-xl placeholder:text-muted-foreground/40",
+                "focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed",
               )}
             />
           </div>

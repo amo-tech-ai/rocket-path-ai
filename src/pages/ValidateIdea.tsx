@@ -106,9 +106,9 @@ export default function ValidateIdea() {
         </motion.p>
       </motion.div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
-        <div className="flex-1 bg-card/30 rounded-t-2xl border border-border border-b-0 mt-4 mx-4 overflow-hidden">
+      {/* Main Chat Area - Full width layout */}
+      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full px-4">
+        <div className="flex-1 bg-card/30 rounded-2xl border border-border mt-4 mb-2 overflow-hidden shadow-sm">
           {startup?.id ? (
             <ValidatorChat
               startupId={startup.id}
