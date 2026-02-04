@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 interface ValidatorChatProps {
   startupId: string;
   onValidationComplete?: (reportId: string) => void;
+  initialIdea?: string;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -40,10 +41,12 @@ const FOLLOW_UP_QUESTIONS = [
 export default function ValidatorChat({
   startupId,
   onValidationComplete,
+  initialIdea,
 }: ValidatorChatProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const initialIdeaProcessed = useRef(false);
   
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
@@ -61,6 +64,36 @@ export default function ValidatorChat({
   // Check if we have enough info to generate
   const userMessages = messages.filter(m => m.role === 'user');
   const canGenerate = userMessages.length >= 1;
+
+  // Process initial idea from homepage if provided
+  useEffect(() => {
+    if (initialIdea && !initialIdeaProcessed.current) {
+      initialIdeaProcessed.current = true;
+      
+      // Add the user's idea as a message
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: initialIdea,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      setExtractedData({ idea: initialIdea });
+      
+      // Show ready message after a short delay
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `Great idea! I've captured your startup concept.
+
+**Ready to analyze?** Click **Generate** to get your comprehensive validation report, or tell me more about your target customers and solution.`,
+          timestamp: new Date(),
+        }]);
+      }, 1000);
+    }
+  }, [initialIdea]);
 
   // Add AI message with typing effect
   const addAIMessage = useCallback((content: string) => {

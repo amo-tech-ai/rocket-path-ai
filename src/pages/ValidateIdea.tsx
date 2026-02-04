@@ -15,7 +15,20 @@ export default function ValidateIdea() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: startup, isLoading } = useStartup();
+  const [initialIdea, setInitialIdea] = useState<string | undefined>();
   
+  // Check for pending idea from homepage
+  useEffect(() => {
+    const hasIdea = searchParams.get('hasIdea') === 'true';
+    if (hasIdea) {
+      const pendingIdea = sessionStorage.getItem('pendingIdea');
+      if (pendingIdea) {
+        setInitialIdea(pendingIdea);
+        sessionStorage.removeItem('pendingIdea');
+      }
+    }
+  }, [searchParams]);
+
   // Handle validation complete
   const handleValidationComplete = (reportId: string) => {
     navigate(`/validator?showReport=true&reportId=${reportId}`);
@@ -100,6 +113,7 @@ export default function ValidateIdea() {
             <ValidatorChat
               startupId={startup.id}
               onValidationComplete={handleValidationComplete}
+              initialIdea={initialIdea}
             />
           ) : (
             <div className="h-full flex items-center justify-center">
