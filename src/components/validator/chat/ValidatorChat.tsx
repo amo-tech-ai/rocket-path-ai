@@ -230,22 +230,25 @@ Click **Generate** when you're ready, or tell me more details.`);
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="font-semibold text-foreground">Idea Validator</h2>
               <p className="text-xs text-muted-foreground">
-                {canGenerate ? 'Ready to generate' : 'Tell me about your idea'}
+                {canGenerate ? '✓ Ready to generate your 14-section report' : 'Describe your startup idea to begin'}
               </p>
             </div>
+            {canGenerate && (
+              <div className="w-2 h-2 rounded-full bg-sage animate-pulse" />
+            )}
           </div>
         </div>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-4 max-w-2xl mx-auto">
+        {/* Messages - Wider container */}
+        <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollRef}>
+          <div className="space-y-4 max-w-3xl mx-auto">
             {messages.map((message) => (
               <ValidatorChatMessage
                 key={message.id}
@@ -268,15 +271,15 @@ Click **Generate** when you're ready, or tell me more details.`);
           </div>
         </ScrollArea>
 
-        {/* Input Area */}
-        <div className="flex-shrink-0 p-4 border-t border-border bg-background/50 backdrop-blur-sm">
-          <div className="max-w-2xl mx-auto">
+        {/* Input Area - Wider */}
+        <div className="flex-shrink-0 p-4 md:p-6 border-t border-border bg-background/50 backdrop-blur-sm">
+          <div className="max-w-3xl mx-auto">
             <ValidatorChatInput
               onSendMessage={handleSendMessage}
               onGenerate={handleGenerate}
               isProcessing={isProcessing}
               canGenerate={canGenerate}
-              placeholder="I'm thinking about building..."
+              placeholder="Describe your startup idea in detail..."
             />
           </div>
         </div>

@@ -28,139 +28,227 @@ Complete chat-based validator flow where users describe their startup idea in co
 ## Real-World Example
 
 **Sarah's Journey:**
-1. Clicks "Validate My Idea" → Chat opens
-2. Types: "AI tool for small restaurants to predict inventory"
-3. Coach asks about target customers and alternatives
-4. Clicks "Generate" → 4-phase animation (3-4 seconds)
-5. Lands on full report: 72/100, "CAUTION", TAM: $12B
+1. Visits homepage → Types in the wider chat card: "AI tool for small restaurants to predict inventory"
+2. Clicks "Generate" → 4-phase animation plays (3-4 seconds)
+3. If logged in → Redirects to `/validate?hasIdea=true`
+4. Chat resumes → AI coach asks follow-up questions about customers
+5. Clicks "Generate" → Processing animation overlay (30-60 seconds)
+6. Lands on full report: 72/100, "CAUTION", TAM: $12B
 
 ---
 
 ## Success Criteria
 
-- [x] Chat interface captures startup description
+- [x] Chat interface captures startup description (wider layout)
 - [x] AI coach sends follow-up questions
 - [x] 4-phase processing animation displays
 - [x] Auto-navigation to validator report
 - [x] Report sections populated from chat data
 - [x] Mobile responsive design
 - [x] Edge function handles chat context
+- [x] Gemini 3 with Google Search grounding for real-time data
 
 ---
 
 ## Files Created/Modified
 
 ### New Components
-- `src/components/validator/chat/ValidatorChat.tsx` - Main chat component
+- `src/components/validator/chat/ValidatorChat.tsx` - Main chat component (wider layout)
 - `src/components/validator/chat/ValidatorChatInput.tsx` - Input with suggestions
 - `src/components/validator/chat/ValidatorChatMessage.tsx` - Message bubbles
 - `src/components/validator/chat/ValidatorProcessingAnimation.tsx` - 4-phase animation
 - `src/components/validator/chat/index.ts` - Exports
 
+### Modified Components
+- `src/components/marketing/HeroSection.tsx` - Wider chat card, improved placeholder
+
 ### New Pages
-- `src/pages/ValidateIdea.tsx` - Chat-based validation page
+- `src/pages/ValidateIdea.tsx` - Chat-based validation page (wider container)
 
 ### Modified Files
 - `src/App.tsx` - Added `/validate` route
 - `src/pages/Validator.tsx` - Added chat navigation, improved UX
-- `supabase/functions/industry-expert-agent/index.ts` - Chat context support
+- `supabase/functions/industry-expert-agent/index.ts` - Gemini 3 + Google Search grounding
 
 ---
 
-## Architecture
+## Complete Workflow Architecture
 
 ```mermaid
 graph TD
-    subgraph Entry
-        A[User clicks Validate] --> B[Chat Interface Opens]
+    subgraph "1. Homepage Entry"
+        A[User visits /] --> B[Wider Chat Card Input]
+        B --> C{User enters idea?}
+        C -->|Yes| D[Click Generate]
+        D --> E{Authenticated?}
     end
     
-    subgraph Conversation
-        B --> C[AI Coach Greeting]
-        C --> D[User Describes Idea]
-        D --> E{Enough Info?}
-        E -->|No| F[AI Asks Follow-up]
-        F --> D
-        E -->|Yes| G[AI Confirms Ready]
-        G --> H[User Clicks Generate]
+    subgraph "2. Auth Flow"
+        E -->|No| F[Store idea in sessionStorage]
+        F --> G[Redirect to /login]
+        G --> H[User logs in]
+        H --> I[Redirect to /validate?hasIdea=true]
+        E -->|Yes| J[4-phase animation]
+        J --> I
     end
     
-    subgraph Processing
-        H --> I[Phase 1: Analyzing]
-        I --> J[Phase 2: Researching]
-        J --> K[Phase 3: Scoring]
-        K --> L[Phase 4: Complete]
+    subgraph "3. Chat Conversation"
+        I --> K[ValidatorChat loads]
+        K --> L[Retrieve pendingIdea from sessionStorage]
+        L --> M[Auto-add idea as user message]
+        M --> N[AI responds with confirmation]
+        N --> O{User adds more context?}
+        O -->|Yes| P[AI asks follow-up questions]
+        P --> O
+        O -->|No| Q[User clicks Generate]
     end
     
-    subgraph Results
-        L --> M[Navigate to /validator]
-        M --> N[14 Sections Populated]
-        N --> O[User Explores/Acts]
+    subgraph "4. Processing Pipeline"
+        Q --> R[Processing Animation Overlay]
+        R --> S[Phase 1: Analyzing - 10s]
+        S --> T[Phase 2: Researching - 10s]
+        T --> U[Phase 3: Scoring - 10s]
+        U --> V[Phase 4: Complete - 5s]
+        V --> W[Call industry-expert-agent]
+    end
+    
+    subgraph "5. Report Generation"
+        W --> X[Gemini 3 Pro + Google Search]
+        X --> Y[Generate 14-section JSON]
+        Y --> Z[Save to validation_reports table]
+        Z --> AA[Navigate to /validator?showReport=true]
+        AA --> AB[ValidationReportViewer displays]
     end
 ```
 
 ---
 
-## Data Flow
+## Data Flow Sequence
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant C as ValidatorChat
+    participant H as HeroSection
+    participant VC as ValidatorChat
+    participant SS as SessionStorage
     participant A as industry-expert-agent
-    participant DB as Database
-    participant R as ReportViewer
+    participant G as Gemini 3 Pro
+    participant DB as Supabase
+    participant R as ValidationReportViewer
     
-    U->>C: Describes startup idea
-    C->>C: Extract structured data
-    U->>C: Click Generate
-    C->>A: POST generate_validation_report
-    A->>A: Merge chat context with startup
-    A->>A: Call Gemini with Google Search
-    A->>DB: Save validation_report
-    A->>C: Return report data
-    C->>R: Navigate with showReport=true
-    R->>U: Display 14-section report
+    U->>H: Types startup idea
+    U->>H: Clicks Generate
+    H->>H: Check auth.uid()
+    
+    alt Not authenticated
+        H->>SS: Store pendingIdea
+        H->>U: Redirect to /login
+        U->>H: Complete login
+        H->>U: Redirect /validate?hasIdea=true
+    end
+    
+    U->>VC: Load chat page
+    VC->>SS: Get pendingIdea
+    SS-->>VC: Return idea text
+    VC->>VC: Add as user message
+    VC->>U: Display AI confirmation
+    
+    U->>VC: Optional: Add more context
+    VC->>U: AI asks follow-up
+    
+    U->>VC: Click Generate button
+    VC->>VC: Show ProcessingAnimation
+    VC->>A: POST generate_validation_report
+    
+    Note over A: Merge chat_context with startup profile
+    
+    A->>DB: Get startup data
+    DB-->>A: Return profile
+    
+    A->>G: Generate with Google Search grounding
+    G->>G: Search real-time market data
+    G-->>A: Return 14-section JSON
+    
+    A->>DB: Insert validation_report
+    DB-->>A: Return report ID
+    A-->>VC: Return report data
+    
+    VC->>R: Navigate with showReport=true
+    R->>U: Display full 14-section report
 ```
 
 ---
 
-## API Changes
+## Agent Schema Mapping
+
+| Chat Data Field | Edge Function Key | Startup Table Column | AI Report Section |
+|-----------------|-------------------|---------------------|-------------------|
+| `idea` | `chat_context.extracted_data.idea` | `problem` | Problem Analysis |
+| `customer` | `chat_context.extracted_data.customer` | `customer_segments` | Market Size |
+| `alternatives` | `chat_context.extracted_data.alternatives` | N/A | Competition |
+| `differentiation` | `chat_context.extracted_data.differentiation` | `unique_value` | Solution Assessment |
+| `validation` | `chat_context.extracted_data.validation` | N/A | Validation Status |
+| Full transcript | `chat_context.idea_description` | `description` | Executive Summary |
+
+---
+
+## Gemini 3 Features Used
+
+| Feature | Implementation | Purpose |
+|---------|---------------|---------|
+| `google_search` tool | `tools: [{ googleSearch: {} }]` | Real-time market data, competitor intel |
+| Structured output | `responseMimeType: 'application/json'` | Guaranteed 14-section JSON format |
+| System instruction | `systemInstruction.parts` | Industry-specific advisor persona |
+| Safety settings | All thresholds `BLOCK_NONE` | Avoid false positives on business content |
+
+---
+
+## Edge Function Actions
 
 ### industry-expert-agent
 
-Added `chat_context` parameter to `generate_validation_report` action:
-
-```typescript
-interface ChatContext {
-  messages?: Array<{ role: string; content: string }>;
-  extracted_data?: Record<string, string>;
-  idea_description?: string;
-}
-
-// Usage
-{
-  action: 'generate_validation_report',
-  startup_id: 'uuid',
-  report_type: 'deep',
-  chat_context: {
-    messages: [...],
-    extracted_data: { idea: '...', customer: '...' },
-    idea_description: 'Full transcript'
-  }
-}
-```
-
-The edge function merges chat data with existing startup profile for richer AI context.
+| Action | Description | Gemini Model | Tools |
+|--------|-------------|--------------|-------|
+| `generate_validation_report` | Full 14-section report | gemini-3-pro-preview | Google Search |
+| `get_validation_history` | Fetch past reports | N/A | N/A |
+| `coach_answer` | Real-time interview coaching | gemini-3-pro-preview | None |
+| `validate_canvas` | Lean Canvas risk assessment | gemini-3-pro-preview | Google Search |
 
 ---
 
-## Testing
+## Testing Checklist
 
-1. Navigate to `/validate` when authenticated
-2. Type a startup idea description
-3. Answer 1-2 follow-up questions
-4. Click "Generate" button
-5. Observe 4-phase animation (~4 seconds)
-6. Verify automatic navigation to `/validator?showReport=true`
-7. Confirm 14-section report is populated
+1. ✅ Navigate to `/` → See wider chat card
+2. ✅ Enter startup idea (10+ chars) → Generate button enables
+3. ✅ Click Generate (logged out) → Redirect to login with return URL
+4. ✅ After login → Redirect to `/validate?hasIdea=true`
+5. ✅ Chat shows idea pre-populated → AI asks follow-up
+6. ✅ Click Generate → 4-phase overlay (30-60 seconds)
+7. ✅ Auto-navigate to `/validator?showReport=true`
+8. ✅ 14-section report populated with chat context
+
+---
+
+## Production Verification
+
+```bash
+# Deploy edge function
+supabase functions deploy industry-expert-agent
+
+# Check logs
+supabase functions logs industry-expert-agent --tail
+
+# Test curl
+curl -X POST "$SUPABASE_URL/functions/v1/industry-expert-agent" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "generate_validation_report",
+    "startup_id": "uuid",
+    "report_type": "deep",
+    "chat_context": {
+      "idea_description": "AI inventory prediction for restaurants",
+      "extracted_data": { "idea": "...", "customer": "..." }
+    }
+  }'
+```
