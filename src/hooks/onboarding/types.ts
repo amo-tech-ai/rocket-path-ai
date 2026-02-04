@@ -99,6 +99,14 @@ export interface WizardFormData {
   competitors?: (string | { name: string; website?: string; description?: string; verified?: boolean })[];
   founders?: Founder[];
 
+  // Task 09: Canvas Fields - Lean Canvas data capture
+  problem?: string;
+  solution?: string;
+  existing_alternatives?: string;
+  channels?: string;
+  value_prop?: string;
+  why_now?: string;
+
   // Step 2: Analysis (read from session)
   readiness_score?: ReadinessScore | null;
   url_insights?: Record<string, unknown> | null;

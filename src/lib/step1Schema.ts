@@ -1,3 +1,8 @@
+/**
+ * Step 1 Validation Schema
+ * Task 09: Canvas Fields - Added problem and solution fields
+ */
+
 import { z } from 'zod';
 
 export const step1Schema = z.object({
@@ -9,6 +14,20 @@ export const step1Schema = z.object({
     .string()
     .min(1, 'Description is required')
     .max(2000, 'Description must be less than 2000 characters'),
+  // Task 09: Canvas Fields - Problem statement
+  problem: z
+    .string()
+    .min(20, 'Please describe the problem in more detail (min 20 characters)')
+    .max(1000, 'Problem must be less than 1000 characters')
+    .optional()
+    .or(z.literal('')),
+  // Task 09: Canvas Fields - Solution approach
+  solution: z
+    .string()
+    .min(20, 'Please describe your solution in more detail (min 20 characters)')
+    .max(1000, 'Solution must be less than 1000 characters')
+    .optional()
+    .or(z.literal('')),
   target_market: z
     .string()
     .min(10, 'Target market must be at least 10 characters')
@@ -32,6 +51,8 @@ export type Step1FormData = z.infer<typeof step1Schema>;
 export interface Step1ValidationErrors {
   company_name?: string;
   description?: string;
+  problem?: string;
+  solution?: string;
   target_market?: string;
   stage?: string;
   business_model?: string;
@@ -47,6 +68,8 @@ export function validateStep1(data: Partial<Step1FormData>): {
   const result = step1Schema.safeParse({
     company_name: data.company_name || '',
     description: data.description || '',
+    problem: data.problem || '',
+    solution: data.solution || '',
     target_market: data.target_market || '',
     stage: data.stage || '',
     business_model: data.business_model || [],
@@ -74,6 +97,8 @@ export function getMissingFields(errors: Step1ValidationErrors): string[] {
   const fieldLabels: Record<keyof Step1ValidationErrors, string> = {
     company_name: 'Company name',
     description: 'Description',
+    problem: 'Problem statement',
+    solution: 'Solution',
     target_market: 'Target market',
     stage: 'Stage',
     business_model: 'Business model',
