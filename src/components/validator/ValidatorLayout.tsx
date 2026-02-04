@@ -1,14 +1,16 @@
 /**
  * Validator Layout
  * 3-panel layout: Nav | Main Content | Coach Chat
+ * With bidirectional sync between panels
  */
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { MessageSquare, PanelRightClose, PanelRightOpen, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
+import { CoachSyncProvider, useCoachSync } from '@/contexts/CoachSyncContext';
 import CoachPanel from '@/components/coach/CoachPanel';
 
 interface ValidatorLayoutProps {
@@ -16,9 +18,10 @@ interface ValidatorLayoutProps {
   startupId?: string;
 }
 
-export default function ValidatorLayout({ children, startupId }: ValidatorLayoutProps) {
+function ValidatorLayoutInner({ children, startupId }: ValidatorLayoutProps) {
   const [isCoachOpen, setIsCoachOpen] = useState(true);
   const [isCoachMinimized, setIsCoachMinimized] = useState(false);
+  const { isConnected } = useCoachSync();
   
   const isDesktop = useMediaQuery('(min-width: 1200px)');
   const isTablet = useMediaQuery('(min-width: 768px)');
@@ -86,6 +89,9 @@ export default function ValidatorLayout({ children, startupId }: ValidatorLayout
             className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 transition-transform z-50"
           >
             <MessageSquare className="w-6 h-6" />
+            {!isConnected && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full" />
+            )}
           </motion.button>
         )}
 
@@ -99,6 +105,17 @@ export default function ValidatorLayout({ children, startupId }: ValidatorLayout
           >
             {isCoachOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </Button>
+        )}
+
+        {/* Connection Status (Desktop) */}
+        {startupId && isCoachOpen && !isCoachMinimized && (
+          <div className="fixed right-[412px] top-32 z-40">
+            {isConnected ? (
+              <Wifi className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-destructive" />
+            )}
+          </div>
         )}
       </div>
     );
@@ -203,5 +220,14 @@ export default function ValidatorLayout({ children, startupId }: ValidatorLayout
         </motion.button>
       )}
     </div>
+  );
+}
+
+// Wrap with CoachSyncProvider
+export default function ValidatorLayout(props: ValidatorLayoutProps) {
+  return (
+    <CoachSyncProvider>
+      <ValidatorLayoutInner {...props} />
+    </CoachSyncProvider>
   );
 }
