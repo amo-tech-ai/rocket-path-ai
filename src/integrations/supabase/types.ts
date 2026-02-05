@@ -5618,7 +5618,7 @@ export type Database = {
           id: string
           key_findings: string[] | null
           report_type: string
-          run_id: string
+          run_id: string | null
           score: number | null
           session_id: string | null
           summary: string | null
@@ -5632,7 +5632,7 @@ export type Database = {
           id?: string
           key_findings?: string[] | null
           report_type: string
-          run_id: string
+          run_id?: string | null
           score?: number | null
           session_id?: string | null
           summary?: string | null
@@ -5646,7 +5646,7 @@ export type Database = {
           id?: string
           key_findings?: string[] | null
           report_type?: string
-          run_id?: string
+          run_id?: string | null
           score?: number | null
           session_id?: string | null
           summary?: string | null
@@ -5655,13 +5655,6 @@ export type Database = {
           verified?: boolean | null
         }
         Relationships: [
-          {
-            foreignKeyName: "validation_reports_run_id_fkey"
-            columns: ["run_id"]
-            isOneToOne: false
-            referencedRelation: "validation_runs"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "validation_reports_session_id_fkey"
             columns: ["session_id"]
