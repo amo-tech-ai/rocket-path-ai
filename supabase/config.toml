@@ -50,3 +50,12 @@ verify_jwt = false
 
 [functions.load-knowledge]
 verify_jwt = false
+
+[functions.validator-start]
+verify_jwt = false
+
+[functions.validator-status]
+verify_jwt = false
+
+[functions.validator-regenerate]
+verify_jwt = false

@@ -401,6 +401,45 @@
      .eq('session_id', sessionId)
      .eq('agent_name', agentName);
  }
+
+// Helper to calculate duration and update run with it
+async function completeRun(
+  supabase: SupabaseClient,
+  sessionId: string,
+  agentName: string,
+  status: 'ok' | 'partial' | 'failed',
+  output?: unknown,
+  citations?: unknown[],
+  error?: string
+) {
+  // First get the started_at timestamp
+  const { data: run } = await supabase
+    .from('validator_runs')
+    .select('started_at')
+    .eq('session_id', sessionId)
+    .eq('agent_name', agentName)
+    .single();
+  
+  const now = new Date();
+  const startedAt = run?.started_at ? new Date(run.started_at) : now;
+  const durationMs = now.getTime() - startedAt.getTime();
+  
+  const update: Record<string, unknown> = {
+    status,
+    finished_at: now.toISOString(),
+    duration_ms: durationMs,
+  };
+  
+  if (output) update.output_json = output;
+  if (citations) update.citations = citations;
+  if (error) update.error_message = error;
+
+  await supabase
+    .from('validator_runs')
+    .update(update)
+    .eq('session_id', sessionId)
+    .eq('agent_name', agentName);
+}
  
  // ============================================================================
  // Agent 1: Extractor
@@ -437,11 +476,11 @@
      );
  
      const profile = JSON.parse(text) as StartupProfile;
-     await updateRunStatus(supabase, sessionId, agentName, 'ok', profile);
+    await completeRun(supabase, sessionId, agentName, 'ok', profile);
      return profile;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -480,7 +519,7 @@
      );
  
      const research = JSON.parse(text) as MarketResearch;
-     await updateRunStatus(
+    await completeRun(
        supabase, sessionId, agentName,
        searchGrounding ? 'ok' : 'partial',
        research,
@@ -489,7 +528,7 @@
      return research;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -544,7 +583,7 @@
      );
  
      const analysis = JSON.parse(text) as CompetitorAnalysis;
-     await updateRunStatus(
+    await completeRun(
        supabase, sessionId, agentName,
        searchGrounding ? 'ok' : 'partial',
        analysis,
@@ -553,7 +592,7 @@
      return analysis;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -616,11 +655,11 @@
      );
  
      const scoring = JSON.parse(text) as ScoringResult;
-     await updateRunStatus(supabase, sessionId, agentName, 'ok', scoring);
+    await completeRun(supabase, sessionId, agentName, 'ok', scoring);
      return scoring;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -684,11 +723,11 @@
      );
  
      const plan = JSON.parse(text) as MVPPlan;
-     await updateRunStatus(supabase, sessionId, agentName, 'ok', plan);
+    await completeRun(supabase, sessionId, agentName, 'ok', plan);
      return plan;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -746,11 +785,11 @@
      );
  
      const report = JSON.parse(text) as ValidatorReport;
-     await updateRunStatus(supabase, sessionId, agentName, 'ok', report);
+    await completeRun(supabase, sessionId, agentName, 'ok', report);
      return report;
    } catch (e) {
      const msg = e instanceof Error ? e.message : 'Unknown error';
-     await updateRunStatus(supabase, sessionId, agentName, 'failed', null, [], msg);
+    await completeRun(supabase, sessionId, agentName, 'failed', null, [], msg);
      return null;
    }
  }
@@ -799,7 +838,7 @@
        warnings: ['Report composition failed'],
        section_mappings: sectionMappings,
      };
-     await updateRunStatus(supabase, sessionId, agentName, 'ok', result);
+    await completeRun(supabase, sessionId, agentName, 'ok', result);
      return result;
    }
  
@@ -834,6 +873,6 @@
      section_mappings: sectionMappings,
    };
  
-   await updateRunStatus(supabase, sessionId, agentName, 'ok', result);
+  await completeRun(supabase, sessionId, agentName, 'ok', result);
    return result;
  }
