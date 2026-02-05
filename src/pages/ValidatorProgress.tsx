@@ -80,27 +80,34 @@
  
      const fetchStatus = async () => {
        try {
-         const { data, error: fnError } = await supabase.functions.invoke('validator-status', {
-           body: {},
-           headers: {},
-           method: 'GET',
-         });
- 
-         // Use fetch directly for GET request with query params
-         const response = await fetch(
-           `${import.meta.env.VITE_SUPABASE_URL || 'https://xuzltyehidpgwxwjgacd.supabase.co'}/functions/v1/validator-status?session_id=${sessionId}`,
-           {
-             method: 'GET',
-             headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-             },
-           }
-         );
- 
-         if (!response.ok) throw new Error('Failed to fetch status');
-         
-         const result = await response.json();
+        // Use supabase.functions.invoke with body containing session_id
+        // The edge function reads session_id from URL params, so we need direct fetch
+        const session = await supabase.auth.getSession();
+        const token = session.data.session?.access_token;
+        
+        if (!token) {
+          setError('Not authenticated');
+          return;
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/validator-status?session_id=${sessionId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Status ${response.status}`);
+        }
+        
+        const result = await response.json();
          setStatus(result);
  
          // Stop polling when complete
@@ -109,7 +116,7 @@
          }
        } catch (e) {
          console.error('Status fetch error:', e);
-         setError('Failed to fetch pipeline status');
+        setError(e instanceof Error ? e.message : 'Failed to fetch pipeline status');
        }
      };
  
