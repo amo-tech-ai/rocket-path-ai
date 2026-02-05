@@ -153,6 +153,7 @@ export function usePromptPack(options: UsePromptPackOptions = {}) {
           stage,
           context: {
             ...initialContext,
+            startup_id: startupId,
             featureContext: module,
             industry,
             stage,

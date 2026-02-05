@@ -7,8 +7,8 @@ import { AITaskSuggestions } from '@/components/tasks/AITaskSuggestions';
 import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { TasksAIPanel } from '@/components/tasks/TasksAIPanel';
 import { EmbeddedChatPanel } from '@/components/chat/EmbeddedChatPanel';
-import { 
-  useAllTasks, 
+import {
+  useAllTasks,
   useCreateTask,
   useUpdateTask,
   useDeleteTask,
@@ -18,6 +18,7 @@ import {
 import { useStartup } from '@/hooks/useDashboardData';
 import { useAllProjects } from '@/hooks/useProjects';
 import { useTaskCrossTabSync } from '@/hooks/useCrossTabSync';
+import { useFirstTaskCompletion } from '@/hooks/useFirstTaskCompletion';
 import { 
   CheckSquare, 
   Plus, 
@@ -68,6 +69,17 @@ const Tasks = () => {
   
   // Cross-tab synchronization
   const { broadcastTaskChange } = useTaskCrossTabSync();
+
+  // First task completion celebration
+  const [taskJustCompleted, setTaskJustCompleted] = useState(false);
+  const { hasCompletedFirstTask } = useFirstTaskCompletion(taskJustCompleted, {
+    onUnlock: () => {
+      toast.success("Dashboard Unlocked!", {
+        description: "You've completed your first task. Full dashboard is now available.",
+      });
+    },
+  });
+
   // Dialog states
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
@@ -160,6 +172,14 @@ const Tasks = () => {
   const handleStatusChange = async (taskId: string, status: string) => {
     try {
       await updateTaskStatus.mutateAsync({ id: taskId, status });
+
+      // Trigger first task completion celebration
+      if (status === 'completed' && !hasCompletedFirstTask) {
+        setTaskJustCompleted(true);
+        // Reset after celebration triggers
+        setTimeout(() => setTaskJustCompleted(false), 100);
+      }
+
       // Update selectedTask if it's the one being changed
       if (selectedTask?.id === taskId) {
         setSelectedTask({ ...selectedTask, status });

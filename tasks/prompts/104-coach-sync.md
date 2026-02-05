@@ -28,7 +28,7 @@ ai_model: -
 subagents: [frontend-designer, code-reviewer, performance-optimizer]
 edge_function: -
 schema_tables: []
-depends_on: [101-VAL, 102-VAL, 103-VAL]
+depends_on: [101-coach-tables, 102-coach-ai, 103-coach-ui]
 ---
 ```
 
@@ -300,6 +300,238 @@ const handleExplainError = (error: Error) => {
     description: "Try clicking again or ask the coach directly.",
     variant: "destructive"
   });
+};
+```
+
+---
+
+## Sync Error Recovery
+
+### Error Types and Recovery Strategies
+
+| Error Type | Detection | Recovery Strategy |
+|------------|-----------|-------------------|
+| Network timeout | Request exceeds 10s | Retry with exponential backoff (1s, 2s, 4s) |
+| API 500 error | Response status 500 | Retry once, then show fallback UI |
+| WebSocket disconnect | `onclose` event | Auto-reconnect with backoff, queue pending syncs |
+| State mismatch | Version conflict | Fetch fresh state from server |
+| Realtime subscription lost | Channel error | Resubscribe, refetch last 5 updates |
+| Coach unresponsive | No response in 15s | Show "Coach is thinking..." then timeout message |
+
+### Recovery Implementation
+
+```typescript
+// src/hooks/useSyncRecovery.ts
+
+interface SyncRecoveryOptions {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
+}
+
+const DEFAULT_OPTIONS: SyncRecoveryOptions = {
+  maxRetries: 3,
+  baseDelay: 1000,
+  maxDelay: 8000
+};
+
+export function useSyncRecovery(options = DEFAULT_OPTIONS) {
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRecovering, setIsRecovering] = useState(false);
+
+  const withRetry = async <T>(
+    operation: () => Promise<T>,
+    onFinalFailure?: () => void
+  ): Promise<T | null> => {
+    setIsRecovering(true);
+
+    for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+      try {
+        const result = await operation();
+        setRetryCount(0);
+        setIsRecovering(false);
+        return result;
+      } catch (error) {
+        setRetryCount(attempt + 1);
+
+        if (attempt < options.maxRetries) {
+          const delay = Math.min(
+            options.baseDelay * Math.pow(2, attempt),
+            options.maxDelay
+          );
+          await sleep(delay);
+        }
+      }
+    }
+
+    setIsRecovering(false);
+    onFinalFailure?.();
+    return null;
+  };
+
+  return { withRetry, retryCount, isRecovering };
+}
+```
+
+### WebSocket Reconnection
+
+```typescript
+// src/hooks/useRealtimeSync.ts
+
+export function useRealtimeSync(sessionId: string) {
+  const [connectionState, setConnectionState] = useState<'connected' | 'reconnecting' | 'disconnected'>('disconnected');
+  const pendingUpdates = useRef<SyncUpdate[]>([]);
+
+  const reconnect = useCallback(async () => {
+    setConnectionState('reconnecting');
+
+    const channel = supabase
+      .channel(`coach:${sessionId}`)
+      .on('broadcast', { event: 'sync' }, handleSync)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionState('connected');
+          // Flush pending updates
+          pendingUpdates.current.forEach(update => processSyncUpdate(update));
+          pendingUpdates.current = [];
+        }
+      });
+
+    // Set timeout for reconnection
+    setTimeout(() => {
+      if (connectionState === 'reconnecting') {
+        setConnectionState('disconnected');
+        toast({
+          title: "Connection lost",
+          description: "Changes may not sync. Refresh to reconnect.",
+          action: <Button onClick={reconnect}>Retry</Button>
+        });
+      }
+    }, 10000);
+  }, [sessionId]);
+
+  // Auto-reconnect on disconnect
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && connectionState === 'disconnected') {
+        reconnect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [connectionState, reconnect]);
+
+  return { connectionState, reconnect };
+}
+```
+
+### State Reconciliation
+
+```typescript
+// When local and server state diverge
+const reconcileState = async (localState: SessionState, serverState: SessionState) => {
+  if (localState.version < serverState.version) {
+    // Server is ahead - accept server state
+    setLocalState(serverState);
+    toast({
+      title: "Synced with latest",
+      description: "Your view has been updated."
+    });
+  } else if (localState.version > serverState.version) {
+    // Local is ahead - push to server
+    await pushStateToServer(localState);
+  } else if (localState.hash !== serverState.hash) {
+    // Same version but different content - conflict
+    toast({
+      title: "Sync conflict detected",
+      description: "Loading latest version...",
+      variant: "warning"
+    });
+    // Fetch fresh and overwrite
+    const fresh = await fetchFreshState(sessionId);
+    setLocalState(fresh);
+  }
+};
+```
+
+### Fallback UI States
+
+```typescript
+// When sync fails, show appropriate fallback
+const SyncStatusIndicator: React.FC<{ state: SyncState }> = ({ state }) => {
+  switch (state) {
+    case 'syncing':
+      return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+    case 'synced':
+      return <Check className="h-4 w-4 text-green-500" />;
+    case 'error':
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sync failed. Click to retry.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    case 'offline':
+      return (
+        <Badge variant="outline" className="text-xs">
+          <WifiOff className="h-3 w-3 mr-1" />
+          Offline
+        </Badge>
+      );
+  }
+};
+```
+
+### Offline Queue
+
+```typescript
+// Queue operations when offline
+const useOfflineQueue = () => {
+  const queue = useRef<PendingOperation[]>([]);
+  const isOnline = useNetworkStatus();
+
+  const enqueue = (operation: PendingOperation) => {
+    if (isOnline) {
+      executeOperation(operation);
+    } else {
+      queue.current.push(operation);
+      toast({
+        title: "Saved offline",
+        description: "Will sync when back online."
+      });
+    }
+  };
+
+  // Flush queue when coming back online
+  useEffect(() => {
+    if (isOnline && queue.current.length > 0) {
+      toast({
+        title: "Syncing...",
+        description: `${queue.current.length} pending changes.`
+      });
+
+      Promise.all(queue.current.map(executeOperation))
+        .then(() => {
+          queue.current = [];
+          toast({ title: "All changes synced" });
+        })
+        .catch(() => {
+          toast({
+            title: "Some changes failed to sync",
+            variant: "destructive"
+          });
+        });
+    }
+  }, [isOnline]);
+
+  return { enqueue, pendingCount: queue.current.length };
 };
 ```
 

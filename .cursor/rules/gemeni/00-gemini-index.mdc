@@ -1,0 +1,72 @@
+---
+description: Gemini AI Rules Index - Reference guide for all Gemini API patterns
+alwaysApply: true
+---
+
+# Gemini AI Rules - Master Index
+
+**Purpose:** Quick reference index for Gemini API patterns. Full details in individual files.
+
+## 📚 Rule Files Reference
+
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `gemini-snippet.mdc` | Quick prompting reference | Daily use, quick lookups |
+| `nano-banana.mdc` | Image generation (generateContent) | Creating images |
+| `function-calling.mdc` | Function calling patterns | Tool/API integration |
+| `structured-output.mdc` | JSON schema responses | Data extraction, structured data |
+| `gemini-prompting.mdc` | Comprehensive prompting guide | Writing effective prompts |
+| `gemeni-3.mdc` | Gemini 3 Pro features | Using Gemini 3 Pro model |
+| `google-search.mdc` | Google Search grounding | Real-time information |
+| `url-context.mdc` | URL context tool | Analyzing web pages |
+| `file-search.mdc` | File Search (RAG) | Knowledge base queries |
+
+## 🚀 Quick Reference
+
+### Image Generation
+**File:** `nano-banana.mdc`
+- Use `generateContent()` NOT `generateImages()`
+- Models: `gemini-2.5-flash-image`, `gemini-3-pro-image-preview`
+- Parse from `response.candidates[0].content.parts`
+
+### Function Calling
+**File:** `function-calling.mdc`
+- 4-step flow: Define → Call → Execute → Return
+- Use `Type` enums for schema
+- Handle `functionCalls` in response
+
+### Structured Output
+**File:** `structured-output.mdc`
+- Use `responseSchema` (not `responseJsonSchema`)
+- Use `Type.OBJECT`, `Type.ARRAY`, etc.
+- Always parse and validate
+
+### Prompting
+**File:** `gemini-snippet.mdc` (quick) or `gemini-prompting.mdc` (full)
+- Always use few-shot examples (2-5)
+- Specify output format
+- Provide context
+
+### Gemini 3 Pro
+**File:** `gemeni-3.mdc`
+- Use `thinkingLevel: 'high'` for complex reasoning
+- Keep temperature at default 1.0
+- Handle thought signatures automatically
+
+## 💡 Usage Pattern
+
+**When implementing Gemini features:**
+1. Check this index for relevant rule file
+2. Reference the specific file for detailed patterns
+3. Follow examples from that file
+
+**Example:**
+```
+Need image generation? → See `nano-banana.mdc`
+Need structured JSON? → See `structured-output.mdc`
+Need function calling? → See `function-calling.mdc`
+```
+
+---
+
+**Note:** Individual rule files contain full examples and patterns. This index provides quick navigation.

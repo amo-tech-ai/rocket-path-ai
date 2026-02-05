@@ -35,15 +35,16 @@ export function TractionFundingCard({
   const funding = sessionFunding || data.extracted_funding || {};
 
   // Check for display values first (set by processAnswer), then fall back to raw values
-  const mrrValue = (traction as any)?.mrr_display ||
-                   (traction as any)?.mrr_range ||
-                   (traction as any)?.current_mrr;
-  const growthValue = (traction as any)?.growth_display ||
-                      (traction as any)?.growth_range ||
-                      (traction as any)?.growth_rate;
-  const usersValue = (traction as any)?.users_display ||
-                     (traction as any)?.users_range ||
-                     (traction as any)?.users;
+  // Display values are already human-readable strings like "Pre-revenue", "$1K - $10K"
+  const mrrDisplay = (traction as any)?.mrr_display;
+  const mrrRange = (traction as any)?.mrr_range || (traction as any)?.current_mrr;
+
+  const growthDisplay = (traction as any)?.growth_display;
+  const growthRange = (traction as any)?.growth_range || (traction as any)?.growth_rate;
+
+  const usersDisplay = (traction as any)?.users_display;
+  const usersRange = (traction as any)?.users_range || (traction as any)?.users;
+
   const pmfValue = (traction as any)?.pmf_display || (traction as any)?.pmf_status;
 
   return (
@@ -72,21 +73,19 @@ export function TractionFundingCard({
               <div>
                 <p className="text-xs text-muted-foreground">MRR</p>
                 <p className="text-sm font-medium">
-                  {mrrValue ?
-                    (typeof mrrValue === 'string' && mrrValue.includes('$') ? mrrValue : parseTractionValue(mrrValue, MRR_LABELS))
-                    : 'Not set'}
+                  {mrrDisplay || (mrrRange ? parseTractionValue(mrrRange, MRR_LABELS) : 'Not set')}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Growth</p>
                 <p className="text-sm font-medium">
-                  {growthValue ? parseTractionValue(growthValue, GROWTH_LABELS) : 'Not set'}
+                  {growthDisplay || (growthRange ? parseTractionValue(growthRange, GROWTH_LABELS) : 'Not set')}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Users</p>
                 <p className="text-sm font-medium">
-                  {usersValue ? parseTractionValue(usersValue, USERS_LABELS) : 'Not set'}
+                  {usersDisplay || (usersRange ? parseTractionValue(usersRange, USERS_LABELS) : 'Not set')}
                 </p>
               </div>
               <div>

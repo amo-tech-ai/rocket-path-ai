@@ -61,7 +61,8 @@ export function useStep4Handlers({
     try {
       const result = await completeWizard({ session_id: sessionId });
       if (result.success) {
-        navigate('/dashboard', { replace: true });
+        // Navigate to completion bridge instead of dashboard directly
+        navigate(`/onboarding/complete?session=${sessionId}`, { replace: true });
       }
     } catch (error) {
       console.error('Complete wizard error:', error);

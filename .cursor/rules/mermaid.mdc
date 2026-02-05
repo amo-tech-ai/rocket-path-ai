@@ -1,0 +1,482 @@
+---
+alwaysApply: true
+---
+### Class Diagrams
+**When to Use:**
+- Object-oriented design
+- System architecture (classes/modules)
+- Database schema design
+- API structure documentation
+- Inheritance hierarchies
+
+**Basic Syntax:**
+```mermaid
+classDiagram
+    class Animal {
+        +int age
+        +String gender
+        +isMammal()
+        +mate()
+    }
+    class Duck {
+        +String beakColor
+        +swim()
+        +quack()
+    }
+    Animal <|-- Duck
+```
+
+**Key Features:**
+- Visibility: `+` public, `-` private, `#` protected, `~` package
+- Relationships: `<|--` inheritance, `*--` composition, `o--` aggregation, `-->` association
+- Methods: `()` indicates method, return type after space
+- Generics: `~Type~` for generic types
+- Annotations: `<<Interface>>`, `<<Abstract>>`, `<<Service>>`
+
+**Common Patterns:**
+```mermaid
+classDiagram
+    class User {
+        +String name
+        +String email
+        +login()
+        +logout()
+    }
+    class Admin {
+        +manageUsers()
+    }
+    User <|-- Admin
+    User "1" --> "*" Order : places
+```
+
+---
+
+### State Diagrams
+**When to Use:**
+- State machines and workflows
+- Component lifecycle
+- Process states
+- UI state management
+- Game state logic
+
+**Basic Syntax:**
+```mermaid
+stateDiagram-v2
+    [*] --> Still
+    Still --> Moving: move
+    Moving --> Still: stop
+    Moving --> Crash: crash
+    Crash --> [*]
+```
+
+**Key Features:**
+- Start/End: `[*]` for start and end states
+- Transitions: `-->` with optional labels
+- Composite states: `state StateName { ... }`
+- Choice: `<<choice>>` for decision points
+- Forks: `<<fork>>` and `<<join>>`
+- Notes: `note right of State: Text`
+- Concurrency: `--` symbol
+
+**Common Patterns:**
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Processing: start
+    Processing --> Success: complete
+    Processing --> Error: fail
+    Success --> [*]
+    Error --> Idle: retry
+```
+
+---
+
+### Entity Relationship Diagrams
+**When to Use:**
+- Database design
+- Data modeling
+- Entity relationships
+- Schema documentation
+- Data structure visualization
+
+**Basic Syntax:**
+```mermaid
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--|{ ORDER_LINE : contains
+    PRODUCT ||--o{ ORDER_LINE : "ordered in"
+    CUSTOMER {
+        string name
+        string email
+    }
+    ORDER {
+        int orderNumber
+        date orderDate
+    }
+```
+
+**Key Features:**
+- Cardinality: `||` exactly one, `}|` one or more, `}o` zero or more, `o|` zero or one
+- Relationships: `--` identifying, `..` non-identifying
+- Attributes: `{ type name }` format
+- Keys: `PK` primary key, `FK` foreign key, `UK` unique key
+- Direction: `TB`, `BT`, `LR`, `RL`
+
+**Common Patterns:**
+```mermaid
+erDiagram
+    USER ||--o{ POST : creates
+    POST ||--|{ COMMENT : has
+    USER ||--o{ COMMENT : writes
+    
+    USER {
+        int id PK
+        string username
+        string email
+    }
+    POST {
+        int id PK
+        int userId FK
+        string title
+        text content
+    }
+```
+
+---
+
+### User Journey Diagrams
+**When to Use:**
+- User experience mapping
+- Customer journey analysis
+- Task completion flows
+- User satisfaction scoring
+- Process evaluation
+
+**Basic Syntax:**
+```mermaid
+journey
+    title User Journey
+    section Discovery
+      Visit website: 5: User
+      Browse products: 4: User
+    section Purchase
+      Add to cart: 5: User
+      Checkout: 3: User
+      Payment: 2: User
+```
+
+**Key Features:**
+- Sections: `section SectionName`
+- Tasks: `Task name: <score>: <actors>`
+- Score: Number 1-5 (satisfaction/importance)
+- Multiple actors supported
+
+**Common Patterns:**
+```mermaid
+journey
+    title Online Shopping Journey
+    section Browse
+      Search products: 5: Customer
+      View details: 4: Customer
+    section Purchase
+      Add to cart: 5: Customer
+      Checkout: 3: Customer
+      Complete payment: 4: Customer
+    section Delivery
+      Track order: 4: Customer
+      Receive package: 5: Customer
+```
+
+---
+
+### Requirement Diagrams
+**When to Use:**
+- Requirements documentation
+- System requirements tracking
+- Requirement relationships
+- Compliance documentation
+- Requirements traceability
+
+**Basic Syntax:**
+```mermaid
+requirementDiagram
+    requirement functional_req {
+        id: 1
+        text: System shall process payments
+        risk: High
+        verifymethod: Test
+    }
+    element payment_system {
+        type: System
+        docref: docs/payment.md
+    }
+    functional_req - satisfies -> payment_system
+```
+
+**Key Features:**
+- Requirement types: `requirement`, `functionalRequirement`, `interfaceRequirement`, `performanceRequirement`, `physicalRequirement`, `designConstraint`
+- Risk levels: `Low`, `Medium`, `High`
+- Verification: `Analysis`, `Inspection`, `Test`, `Demonstration`
+- Relationships: `contains`, `copies`, `derives`, `satisfies`, `verifies`, `refines`, `traces`
+- Elements: `element` for external references
+
+**Common Patterns:**
+```mermaid
+requirementDiagram
+    requirement req1 {
+        id: REQ-001
+        text: System must authenticate users
+        risk: High
+        verifymethod: Test
+    }
+    requirement req2 {
+        id: REQ-002
+        text: System must encrypt passwords
+        risk: High
+        verifymethod: Analysis
+    }
+    req1 - refines -> req2
+```
+
+---
+
+### C4 Diagrams
+**When to Use:**
+- System architecture documentation
+- Container architecture
+- Component architecture
+- Deployment architecture
+- System context visualization
+
+**Basic Syntax:**
+```mermaid
+C4Context
+    title System Context Diagram
+    
+    Person(customer, "Customer")
+    System(system, "E-commerce System")
+    System_Ext(payment, "Payment Gateway")
+    
+    Rel(customer, system, "Uses")
+    Rel(system, payment, "Processes payments")
+```
+
+**Key Features:**
+- Diagram types: `C4Context`, `C4Container`, `C4Component`, `C4Dynamic`, `C4Deployment`
+- Elements: `Person`, `System`, `SystemDb`, `SystemQueue`, `Container`, `Component`, `Deployment_Node`
+- Boundaries: `Enterprise_Boundary`, `System_Boundary`, `Container_Boundary`
+- Relationships: `Rel`, `BiRel` (bidirectional)
+- Styling: `UpdateElementStyle`, `UpdateRelStyle`
+
+**Common Patterns:**
+```mermaid
+C4Container
+    title Container Diagram
+    
+    Person(customer, "Customer")
+    System_Ext(email, "Email Service")
+    
+    Container(web, "Web App", "React")
+    Container(api, "API", "Node.js")
+    ContainerDb(db, "Database", "PostgreSQL")
+    
+    Rel(customer, web, "Uses")
+    Rel(web, api, "API calls")
+    Rel(api, db, "Reads/Writes")
+    Rel(api, email, "Sends emails")
+```
+
+---
+
+### ZenUML (Sequence Diagrams)
+**When to Use:**
+- Alternative sequence diagram syntax
+- More programming-like syntax
+- Complex nested interactions
+- Object-oriented sequence flows
+
+**Basic Syntax:**
+```mermaid
+zenuml
+    User -> API: login()
+    API -> Database: query()
+    Database --> API: result
+    API --> User: response
+```
+
+**Key Features:**
+- Participants: Implicit or explicit with `@Actor`, `@Boundary`, etc.
+- Messages: `->` sync, `-->` async, `new` creation, `@return` reply
+- Nesting: `{}` for nested calls
+- Control flow: `if/else`, `while`, `for`, `loop`, `try/catch/finally`
+- Comments: `// comment` syntax
+
+**Common Patterns:**
+```mermaid
+zenuml
+    Client -> Service: request()
+    {
+        Service -> Validator: validate()
+        Validator --> Service: valid
+        Service -> Database: save()
+        Database --> Service: saved
+    }
+    Service --> Client: success
+```
+
+---
+
+### Block Diagrams
+**When to Use:**
+- System architecture (simple)
+- Network diagrams
+- Process flowcharts (manual layout)
+- Component relationships
+- When you need full control over positioning
+
+**Basic Syntax:**
+```mermaid
+block-beta
+    columns 3
+    block:a:2
+        A
+    end
+    block:b:1
+        B
+    end
+    block:c:1
+        C
+    end
+    a --> b
+    b --> c
+```
+
+**Key Features:**
+- Column control: `columns N` for layout
+- Block width: `block:name:width`
+- Shapes: Standard flowchart shapes available
+- Links: `-->` for connections
+- Space blocks: `space` or `space:N` for spacing
+- Full positioning control (no auto-layout)
+
+**Common Patterns:**
+```mermaid
+block-beta
+    columns 4
+    block:frontend:2
+        Frontend
+    end
+    space:1
+    block:backend:1
+        Backend
+    end
+    frontend --> backend
+```
+
+---
+
+### Architecture Diagrams
+**When to Use:**
+- System architecture visualization (newer feature)
+- High-level system design
+- Component and service architecture
+- Infrastructure diagrams
+
+**Note:** Architecture diagrams are a newer Mermaid feature (marked with 🔥). They provide specialized syntax for architectural visualization. For detailed syntax, refer to the official Mermaid documentation. Common use cases overlap with C4 diagrams and Block diagrams, but Architecture diagrams offer more specialized architectural notation.
+
+**Alternative Approaches:**
+- Use **C4 Diagrams** for multi-level architecture (Context, Container, Component, Deployment)
+- Use **Block Diagrams** for simple architecture with manual layout control
+- Use **Class Diagrams** for object-oriented architecture
+
+---
+
+## Quick Reference: When to Use Each Diagram
+
+| Diagram Type | Primary Use Case | Best For |
+|-------------|------------------|----------|
+| **Flowchart** | Process flows, decision trees | Workflows, algorithms, user flows |
+| **Sequence** | Time-ordered interactions | API calls, system interactions, protocols |
+| **Class** | Object-oriented design | System architecture, OOP, schemas |
+| **State** | State machines | Lifecycles, workflows, UI states |
+| **ER Diagram** | Data modeling | Database design, entity relationships |
+| **User Journey** | UX mapping | Customer journeys, task flows, satisfaction |
+| **Requirement** | Requirements tracking | Documentation, compliance, traceability |
+| **C4** | System architecture | Multi-level architecture documentation |
+| **ZenUML** | Sequence diagrams (alt syntax) | Programming-like sequence flows |
+| **Block** | Simple architecture | Manual layout, network diagrams |
+| **Architecture** | System architecture (new) | High-level system design, infrastructure |
+
+## Common Syntax Patterns
+
+### Comments
+```mermaid
+%% This is a comment
+flowchart TD
+    A --> B %% Inline comment
+```
+
+### Escaping Special Characters
+```mermaid
+flowchart TD
+    A["Node with spaces"]
+    B["Node with (parentheses)"]
+    C["end"] %% Wrap "end" in quotes
+```
+
+### Styling
+```mermaid
+flowchart TD
+    A[Node A]
+    B[Node B]
+    
+    classDef highlight fill:#f9f,stroke:#333,stroke-width:4px
+    class A highlight
+    
+    style B fill:#bbf,stroke:#333
+```
+
+### Subgraphs
+```mermaid
+flowchart TD
+    subgraph Frontend
+        A[React]
+        B[Vue]
+    end
+    subgraph Backend
+        C[API]
+        D[Database]
+    end
+    A --> C
+    B --> C
+```
+
+## Best Practices
+
+1. **Choose the Right Diagram Type**: Match the diagram type to your use case
+2. **Keep It Simple**: Start simple, add complexity as needed
+3. **Use Descriptive Labels**: Clear labels improve readability
+4. **Group Related Elements**: Use subgraphs/composite states for organization
+5. **Consistent Styling**: Use `classDef` for consistent appearance
+6. **Comment Complex Logic**: Use comments to explain non-obvious flows
+7. **Test Incrementally**: Build diagrams incrementally and test frequently
+
+## Common Pitfalls
+
+1. **"end" keyword**: Wrap in quotes: `"end"` or capitalize: `End`
+2. **Special characters**: Use quotes for spaces and special chars: `"node name"`
+3. **Missing declarations**: Always start with diagram type declaration
+4. **Incorrect syntax**: Follow exact syntax for each diagram type
+5. **Over-complexity**: Break complex diagrams into smaller ones
+
+## Integration Notes
+
+- Mermaid diagrams render in Markdown files with ` ```mermaid ` code blocks
+- Many platforms support Mermaid: GitHub, GitLab, Notion, etc.
+- Use Mermaid Live Editor for testing: https://mermaid.live
+- Version compatibility: Check Mermaid version for feature support
+
+---
+
+**Remember**: When in doubt, start with a flowchart for processes, sequence diagrams for interactions, and class diagrams for structure. Choose the diagram type that best represents your data and relationships.
+

@@ -183,35 +183,84 @@ Coach: Uses this in response to user
 
 ### Phase 1: Core (MVP)
 
-| Agent | Edge Function | Status |
-|-------|---------------|--------|
-| Coach | `ai-chat` | Task 102 |
-| Extractor | `onboarding-agent` | Exists |
-| Generator | `lean-canvas-agent` | Enhance |
+| Agent | Edge Function | Status | Work Needed |
+|-------|---------------|--------|-------------|
+| Coach | `ai-chat` | Enhance | Add coach_mode, state machine, phase tracking |
+| Extractor | `onboarding-agent` | ✅ Ready | Already extracts URLs, profiles |
+| Generator | `lean-canvas-agent` | Enhance | Add 7-dimension scoring |
 
-**Timeline:** Tasks 100-104
+**Tasks:** 100-104 (canvas fields, tables, coach AI, UI, sync)
 
 ### Phase 2: Advanced
 
-| Agent | Edge Function | Status |
-|-------|---------------|--------|
-| Pitch | `pitch-deck-agent` | Exists |
-| CRM | `crm-agent` | Exists |
-| Retriever | `ai-chat` + vector | Future |
+| Agent | Edge Function | Status | Work Needed |
+|-------|---------------|--------|-------------|
+| Pitch | `pitch-deck-agent` | ✅ Ready | 17+ actions already exist |
+| CRM | `crm-agent` | ✅ Ready | 15 actions already exist |
+| Retriever | `ai-chat` + vector | Future | Add embeddings, RAG search |
 
 **Timeline:** After MVP validated
 
 ---
 
-## Edge Function Mapping
+## Edge Function Inventory (18 Functions)
 
-| Function | Agent(s) | Actions |
-|----------|----------|---------|
-| `ai-chat` | Coach, Retriever | chat, coach_mode, search |
-| `onboarding-agent` | Extractor | extract_url, extract_profile |
-| `lean-canvas-agent` | Generator | generate_canvas, validate, score |
-| `pitch-deck-agent` | Pitch | generate_deck, refine_slide |
-| `crm-agent` | CRM | match_investors, draft_email |
+### Core Agent Functions
+
+| Function | Status | Actions |
+|----------|--------|---------|
+| `ai-chat` | ✅ Exists | chat, prioritize_tasks, generate_tasks, extract_profile, stage_guidance |
+| `onboarding-agent` | ✅ Exists | extract_url, extract_linkedin, extract_text |
+| `lean-canvas-agent` | ✅ Exists | mapProfile, prefillCanvas, validateCanvas, suggestPivots, extractAssumptions (16+ actions) |
+| `validation-agent` | ✅ Exists | map_assumptions, design_experiment, analyze_interview |
+
+### Advanced Agent Functions
+
+| Function | Status | Actions |
+|----------|--------|---------|
+| `pitch-deck-agent` | ✅ Exists | generateDeck, updateSlide, analyzeSlide, conductMarketResearch (17+ actions) |
+| `crm-agent` | ✅ Exists | enrich_contact, score_lead, generate_email, segment_contacts (15 actions) |
+| `investor-agent` | ✅ Exists | match investors, analyze fit |
+| `documents-agent` | ✅ Exists | generate_document, analyze_document, improve_section |
+
+### Utility Functions (Support)
+
+| Function | Purpose |
+|----------|---------|
+| `industry-expert-agent` | get_industry_context, coach_answer, get_benchmarks, analyze_competitors |
+| `health-scorer` | Calculate 6-dimension health score (problemClarity, solutionFit, marketUnderstanding, tractionProof, teamReadiness, investorReadiness) |
+| `workflow-trigger` | Score-to-task automation (18 trigger rules) |
+| `task-agent` | AI-generated task recommendations |
+| `action-recommender` | Next action suggestions |
+| `insights-generator` | Generate insights from data |
+| `stage-analyzer` | Analyze startup stage |
+| `compute-daily-focus` | Daily focus calculation |
+| `dashboard-metrics` | Dashboard data |
+| `prompt-pack` | Prompt management |
+
+---
+
+## Agent ↔ Function Mapping
+
+| Agent | Primary Function | Supporting Functions |
+|-------|-----------------|---------------------|
+| **Coach** | `ai-chat` | `industry-expert-agent`, `health-scorer`, `workflow-trigger` |
+| **Extractor** | `onboarding-agent` | - |
+| **Generator** | `lean-canvas-agent` | `validation-agent`, `documents-agent` |
+| **Pitch** | `pitch-deck-agent` | - |
+| **CRM** | `crm-agent` | `investor-agent` |
+| **Retriever** | `ai-chat` (future) | - |
+
+---
+
+## What Needs Enhancement
+
+| Function | Enhancement | For Coach |
+|----------|-------------|-----------|
+| `ai-chat` | Add coach_mode with state machine | Phase tracking, PDCA |
+| `lean-canvas-agent` | Add 7-dimension scoring | Validation Report |
+| `health-scorer` | Align with 7 dimensions | Coach uses scores |
+| `workflow-trigger` | Connect to coach sprints | Auto-tasks from coach |
 
 ---
 

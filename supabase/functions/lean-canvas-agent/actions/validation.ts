@@ -5,7 +5,7 @@
 
 import type { BoxKey, ValidationResult, ValidationResponse } from "../types.ts";
 import { CANVAS_BOX_CONFIG } from "../types.ts";
-import { callGemini, extractJSON } from "../ai-utils.ts";
+import { callGemini, extractJSON, logAIRun } from "../ai-utils.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -20,6 +20,15 @@ export async function validateCanvas(
   canvasData: Record<string, unknown>
 ): Promise<ValidationResponse> {
   console.log(`[validateCanvas] Validating canvas for startup ${startupId}`);
+
+  // Get user's org_id for logging
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("org_id")
+    .eq("id", userId)
+    .single();
+
+  const orgId = profile?.org_id || null;
 
   // Fetch startup profile for context
   const { data: startup } = await supabase
@@ -77,8 +86,17 @@ Risk levels:
 - "moderate": Needs testing but not fatal if wrong
 - "low": Low-risk or already validated`;
 
-  const response = await callGemini("google/gemini-3-pro-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<{ results: ValidationResult[] }>(response);
+  const response = await callGemini(
+    "gemini-3-pro-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 2500 }
+  );
+
+  // Log AI run for cost tracking
+  await logAIRun(supabase, userId, orgId, startupId, "validate_canvas", response);
+
+  const parsed = extractJSON<{ results: ValidationResult[] }>(response.text);
 
   if (parsed && Array.isArray(parsed.results)) {
     // Sort by risk level and score

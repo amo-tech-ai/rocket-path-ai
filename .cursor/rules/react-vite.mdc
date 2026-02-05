@@ -1,0 +1,315 @@
+---
+alwaysApply: true
+---
+
+# System Architecture Rules & Standards
+
+**Version:** 1.1.0
+**Status:** ENFORCED
+**Stack:** Vite + React + TypeScript + Tailwind
+
+---
+
+## 🎯 Objective
+To guarantee correct project structure, safe imports, stable builds, predictable routing, and production readiness while eliminating fragile or experimental setups.
+
+## 🧱 Core Stack (Locked)
+*   **Build Tool:** Vite
+*   **Framework:** React
+*   **Language:** TypeScript
+*   **Routing:** React Router
+*   **Styling:** Tailwind CSS (via PostCSS, NO CDN)
+*   **Deployment:** Vercel / Netlify compatible
+
+---
+
+## 🔒 NON-NEGOTIABLE RULES
+
+### 1️⃣ Project Structure
+All application code must reside within the `/src` directory. Configuration files reside at the **project root**.
+
+**Entry Point:** `src/main.tsx`
+**Root Component:** `src/App.tsx`
+
+**Required Directory Tree:**
+```text
+/
+├─ src/
+│   ├─ pages/          # Route components
+│   ├─ components/     # Reusable UI components
+│   ├─ layouts/        # Layout wrappers (MainLayout, AuthLayout)
+│   ├─ routes/         # Router configuration (optional, can use Router.tsx)
+│   ├─ hooks/          # Custom React hooks
+│   ├─ services/       # API and external service logic
+│   ├─ styles/         # Global CSS only (index.css)
+│   ├─ types/          # TypeScript interfaces and types
+│   ├─ contexts/       # React Context providers
+│   ├─ utils/          # Utility functions
+│   ├─ lib/            # Third-party library configs
+│   ├─ App.tsx         # Root app component
+│   └─ main.tsx        # Entry point (REQUIRED)
+├─ public/             # Static assets
+├─ index.html          # HTML entry point (Clean shell only)
+├─ vite.config.ts      # Build configuration
+├─ tailwind.config.js  # Tailwind config (Root level)
+├─ postcss.config.js   # PostCSS config (Root level, REQUIRED)
+└─ tsconfig.json       # TypeScript config (Root level)
+```
+
+❌ **Forbidden:**
+*   Mixed root + src files (no `index.tsx` at root)
+*   Duplicate entry points
+*   Config files buried inside `src/`
+*   Application code outside `src/`
+
+### 2️⃣ Import Rules
+**Allowed:**
+*   Relative imports: `import { Button } from './Button'`
+*   Root alias: `import { Button } from '@/components/Button'` (Mapped to `/src`)
+
+**Forbidden:**
+*   `import ... from 'src/...'`
+*   `import ... from '@/src/...'`
+*   Browser Native Import Maps (in `index.html`)
+*   CDN-based module imports (React, Router, Tailwind)
+*   Dynamic or ambiguous paths
+*   **Node.js Built-ins:** `path`, `fs`, `url`, `crypto`, `process` are strictly forbidden in client-side code (use Vite's `import.meta.env` instead)
+
+### 3️⃣ Vite & TypeScript Configuration Rules
+Vite aliases must match TypeScript paths to prevent type errors.
+
+**1. Vite Config (`vite.config.ts`):**
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'), // MUST map to src, not root
+    },
+  },
+  server: {
+    port: 3000,
+    // CRITICAL: Required for BrowserRouter - Vite must handle all routes client-side
+    historyApiFallback: true,
+  },
+});
+```
+
+**2. TypeScript Config (`tsconfig.json`):**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]  // MUST match Vite alias
+    },
+    "types": ["node"],
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
+```
+
+❌ **Forbidden:**
+*   Browser Import Maps in `index.html`
+*   Runtime dependency resolution hacks
+*   `@` alias mapping to root (`./`) instead of `src`
+*   Mismatched paths between Vite and TypeScript
+
+### 4️⃣ index.html Rules
+*   Minimal HTML shell only.
+*   **NO** JavaScript imports other than `src/main.tsx`.
+*   **NO** React, Router, or Tailwind CDNs.
+*   **NO** Import Maps (`<script type="importmap">`).
+*   **NO** inline Tailwind config scripts.
+
+**Correct `index.html`:**
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FashionOS</title>
+    <!-- Only external fonts/stylesheets allowed -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+### 5️⃣ Styling Rules
+*   Tailwind must be installed via PostCSS/Autoprefixer.
+*   Global styles entry point: `src/styles/index.css`.
+*   Directives required:
+    ```css
+    @tailwind base;
+    @tailwind components;
+    @tailwind utilities;
+    ```
+*   Import global styles **once** in `src/main.tsx`: `import './styles/index.css'`
+*   **PostCSS config required** at root: `postcss.config.js`
+
+**Required `postcss.config.js`:**
+```js
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+```
+
+❌ **Forbidden:**
+*   Tailwind CDN (`<script src="https://cdn.tailwindcss.com"></script>`)
+*   Inline Tailwind config in HTML
+*   Multiple CSS entry points
+*   Missing PostCSS configuration
+
+### 6️⃣ Routing Rules
+*   **Default:** Use `BrowserRouter`.
+*   **Deployments:** Use `BrowserRouter` + SPA rewrite rules for Vercel/Netlify.
+*   **Exception:** Use `HashRouter` **ONLY** if specific static hosting constraints (e.g., GitHub Pages without custom domain) require it.
+*   Layouts must use `<Outlet />`.
+*   A `404` (Not Found) route is mandatory.
+
+**Vercel `vercel.json` (if using BrowserRouter):**
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+**Netlify `_redirects` (if using BrowserRouter):**
+```
+/*    /index.html   200
+```
+
+### 7️⃣ Entry Point Rules
+*   **MUST** use `src/main.tsx` as entry point.
+*   **MUST** reference in `index.html` as `/src/main.tsx`.
+*   **MUST** import `App.tsx` from `src/App.tsx`.
+*   **MUST** import global styles in `main.tsx`.
+
+**Required `src/main.tsx`:**
+```tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './styles/index.css'; // Global styles
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+❌ **Forbidden:**
+*   `index.tsx` at project root
+*   Entry point outside `src/`
+*   Multiple entry points
+
+### 8️⃣ Environment Variables
+*   Use `import.meta.env` exclusively (Vite's env system).
+*   Provide `.env.example` for documentation.
+*   **NEVER** commit `.env` or hardcode secrets.
+*   Validate critical env vars at application startup.
+*   Prefix custom env vars with `VITE_` for client-side access.
+
+**Example:**
+```ts
+const apiUrl = import.meta.env.VITE_API_URL;
+if (!apiUrl) {
+  throw new Error('VITE_API_URL is required');
+}
+```
+
+---
+
+## 🧪 Mandatory Verification Checklist
+Before declaring success, verify the following:
+
+- [ ] `npm run dev` boots cleanly without errors.
+- [ ] `npm run build` succeeds and produces a `dist/` folder.
+- [ ] `tsc --noEmit` (or `npm run typecheck`) passes with zero errors.
+- [ ] No unresolved import warnings.
+- [ ] No console errors in the browser.
+- [ ] Routing works on page refresh (handle SPA rewrite rules).
+- [ ] No duplicate React instances.
+- [ ] **ZERO** CDN or ImportMap usage in production code.
+- [ ] Tailwind classes work (verify PostCSS is processing).
+- [ ] `@` alias resolves correctly (test with `import ... from '@/...'`).
+- [ ] Entry point is `src/main.tsx` (not root `index.tsx`).
+
+---
+
+## 🚨 Failure Handling
+If any of the following occur:
+*   Blank screen
+*   Import resolution errors
+*   CORS errors
+*   Build failures
+*   Tailwind classes not applying
+*   Routing breaks on refresh
+
+**Action:**
+1.  **STOP**
+2.  Identify root cause (usually config or path related).
+3.  Fix configuration or folder structure.
+4.  Re-verify from scratch using the checklist.
+
+**Common Issues:**
+*   **Tailwind not working:** Missing PostCSS config or CSS import
+*   **Import errors:** Mismatched `@` alias between Vite and TypeScript
+*   **Routing broken:** Missing SPA rewrite rules or using wrong router
+*   **Build fails:** Entry point not found (check `index.html` script src)
+
+---
+
+## 📋 Migration Checklist (If Current Project Violates Rules)
+
+If your project currently violates these rules, follow this migration order:
+
+1. **Create `src/main.tsx`** (move logic from root `index.tsx`)
+2. **Update `index.html`** (remove CDNs, Import Maps, change script src to `/src/main.tsx`)
+3. **Create `src/styles/index.css`** (add Tailwind directives)
+4. **Create `postcss.config.js`** (at root)
+5. **Update `vite.config.ts`** (fix `@` alias to map to `src`)
+6. **Update `tsconfig.json`** (fix paths to match Vite)
+7. **Remove root `index.tsx`** (if exists)
+8. **Switch to BrowserRouter** (if using HashRouter unnecessarily)
+9. **Remove Tailwind CDN** (from `index.html`)
+10. **Verify** using checklist above
+
+---
+
+**Final Directive:**
+Do not guess. Do not mix environments. Do not shortcut setup. Always prefer clarity, structure, and verification over speed.

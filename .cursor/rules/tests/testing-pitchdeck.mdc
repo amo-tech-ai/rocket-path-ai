@@ -1,0 +1,1447 @@
+---
+alwaysApply: true
+---
+
+# Testing Pitch Deck Full Cycle - Cursor Rule
+
+## Overview
+
+This rule defines comprehensive testing procedures for the complete pitch deck lifecycle: generation → editing → AI features → presentation → persistence.
+
+**Testing Tools:**
+- **@browser** (Cursor Browser) - Quick visual verification, simple interactions, screenshots
+- **Chrome DevTools MCP** - Performance analysis, advanced debugging, console monitoring, network inspection
+
+**Key Testing Focus:**
+- ✅ Console error detection and diagnosis
+- ✅ Network request monitoring (failed/slow requests)
+- ✅ Performance metrics (load times, rendering)
+- ✅ Visual verification (screenshots at each step)
+- ✅ End-to-end workflow validation
+
+## Browser Testing Strategy
+
+### When to Use Each Tool
+
+**Use Cursor Browser (@browser) for:**
+- Quick navigation and screenshot capture
+- Simple click/type interactions
+- Integrated workflow in Cursor
+- Fast visual verification
+
+**Use Chrome DevTools MCP for:**
+- Performance trace recording and analysis
+- Detailed console error inspection
+- Network request debugging (status, timing, payload)
+- JavaScript evaluation in page context
+- Advanced debugging workflows
+
+### Standard Browser Test Pattern
+
+```typescript
+// 1. Start dev server (if not running)
+// Check: npm run dev is active on port 3000
+
+// 2. Navigate to target URL
+@browser Navigate to http://localhost:3000/pitch-decks/new
+
+// 3. Check console immediately after navigation
+@chrome-devtools list_console_messages
+// Look for: errors, warnings, network failures
+
+// 4. Take screenshot for visual verification
+@browser Take screenshot
+
+// 5. Monitor network requests
+@chrome-devtools list_network_requests
+// Check for: failed requests (4xx, 5xx), slow requests (>1s)
+
+// 6. Perform user interactions
+@browser Click "Generate Deck" button
+@browser Wait for deck generation to complete
+
+// 7. Verify console after interaction
+@chrome-devtools list_console_messages
+// Filter: level='error' for critical issues
+
+// 8. Take screenshot of result
+@browser Take screenshot
+```
+
+### Console Error Detection Workflow
+
+**Step 1: Navigate and Capture Initial State**
+```
+@browser Navigate to http://localhost:3000
+@chrome-devtools list_console_messages
+@chrome-devtools take_screenshot
+```
+
+**Step 2: Filter and Analyze Errors**
+```
+@chrome-devtools list_console_messages
+→ Filter messages by level='error'
+→ Get details: @chrome-devtools get_console_message(id=<error_id>)
+→ Document: error message, stack trace, timestamp
+```
+
+**Step 3: Network Request Correlation**
+```
+@chrome-devtools list_network_requests
+→ Find failed requests (status >= 400)
+→ Get details: @chrome-devtools get_network_request(id=<req_id>)
+→ Check: request payload, response body, timing
+```
+
+**Step 4: Performance Analysis (if needed)**
+```
+@chrome-devtools performance_start_trace
+→ Perform user interaction
+@chrome-devtools performance_stop_trace
+@chrome-devtools performance_analyze_insight
+→ Review: long tasks, layout shifts, slow requests
+```
+
+### Network Request Monitoring
+
+**Critical Checks:**
+- ✅ All API calls return 200 (or expected status)
+- ✅ Edge Function calls complete successfully
+- ✅ No CORS errors
+- ✅ Request timing < 5s for API calls
+- ✅ Request timing < 30s for deck generation
+
+**Quick Network Check:**
+```
+@chrome-devtools list_network_requests
+→ Filter: status >= 400 (failed requests)
+→ Filter: duration > 5000 (slow requests)
+→ Get details for each failure
+```
+
+## Test Cycle Phases
+
+### Phase 1: Deck Generation (Wizard → GeneratingScreen)
+
+**Entry Point:** `/pitch-decks/new` → `WizardSteps.tsx`
+
+**Test Scenarios:**
+
+1. **AI Generation from Business Context**
+   - Input: Business description text
+   - Expected: Navigate to `GeneratingScreen`, show loading states, generate deck with 10-15 slides
+   - Verify: Deck loads in `DeckEditor` with all slides populated
+
+2. **AI Generation from URLs**
+   - Input: Array of brand/company URLs
+   - Expected: Extract context from URLs, generate deck
+   - Verify: Deck reflects information from URLs
+
+3. **Template Selection**
+   - Input: Select template theme
+   - Expected: Generated deck uses selected template styling
+   - Verify: Template applied correctly in editor
+
+4. **Financial Settings**
+   - Input: Funding goal, revenue model, burn rate
+   - Expected: Financial slides include provided data
+   - Verify: Financial projections match inputs
+
+**Test Data:**
+```typescript
+const testBusinessContext = {
+  businessContext: "AI-powered fashion event platform connecting brands with venues",
+  urls: ["https://example-brand.com"],
+  deckType: "seed",
+  theme: "modern",
+  companyDetails: {
+    name: "FashionOS",
+    industry: "Fashion Tech",
+    customerType: "B2B",
+    revenueModel: "Commission",
+    stage: "Seed",
+    traction: "50+ events",
+    focus: "Marketplace",
+    teamSize: "5-10"
+  },
+  financials: {
+    fundingGoal: "500000",
+    industry: "Fashion Tech",
+    revenueModel: "Commission",
+    currentRevenue: "50000",
+    pricePoint: "5000",
+    customerGrowthRate: "20%",
+    costStructure: {
+      burnRate: "30000",
+      marketingBudget: "10000"
+    },
+    timeHorizon: "18 months",
+    currency: "USD"
+  }
+};
+```
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to wizard
+@browser Navigate to http://localhost:3000/pitch-decks/new
+@browser Take screenshot
+@chrome-devtools list_console_messages
+
+# Step 2: Fill wizard form
+@browser Type "AI-powered fashion event platform" in business context field
+@browser Select "seed" from deck type dropdown
+@browser Select "modern" template
+@browser Take screenshot
+
+# Step 3: Check console before generation
+@chrome-devtools list_console_messages
+→ Verify: No errors before submission
+
+# Step 4: Start generation
+@browser Click "Generate Deck" button
+@chrome-devtools list_console_messages
+→ Verify: No immediate errors
+
+# Step 5: Monitor generation
+@browser Wait for "Generating slides..." message
+@chrome-devtools list_network_requests
+→ Monitor: POST /functions/v1/generate-deck
+→ Check: Request timing, status code
+
+# Step 6: Verify success
+@browser Wait for redirect to deck editor
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Check: Any errors during generation?
+
+# Step 7: Network analysis
+@chrome-devtools list_network_requests
+→ Filter failed requests (status >= 400)
+→ Get details for generate-deck call
+→ Verify: Response contains deck data
+```
+
+**Verification Checklist:**
+- [ ] `GeneratingScreen` displays correct AI state messages
+- [ ] **Console: No errors before generation**
+- [ ] **Network: generate-deck request succeeds (200)**
+- [ ] **Network: Request timing < 30 seconds**
+- [ ] `generateFullDeck` service called with correct payload
+- [ ] Edge function `generate-deck` receives payload
+- [ ] Deck ID returned and stored
+- [ ] **Console: No errors during generation**
+- [ ] Navigation to `/pitch-decks/{id}/edit` works
+- [ ] **Screenshot: Deck editor loads successfully**
+- [ ] Deck loads in `DeckEditor` with all slides
+- [ ] **Console: No errors in deck editor**
+- [ ] Slide count matches expected (10-15 slides)
+- [ ] Template theme applied correctly
+
+### Phase 2: Deck Editing (DeckEditor)
+
+**Entry Point:** `/pitch-decks/{id}/edit` → `DeckEditor.tsx`
+
+**Test Scenarios:**
+
+1. **Slide Selection**
+   - Action: Click slide in `SlideOutline`
+   - Expected: `EditorPanel` displays selected slide
+   - Verify: `selectedSlide` state updates correctly
+
+2. **Content Editing**
+   - Action: Edit title/content in `EditorPanel`
+   - Expected: Changes persist in deck state
+   - Verify: `sessionStorage` updated, changes survive refresh
+
+3. **Slide Reordering**
+   - Action: Drag slides in `SlideOutline`
+   - Expected: Slide order updates
+   - Verify: Order persists in deck state
+
+4. **Add/Delete Slides**
+   - Action: Add new slide or delete existing
+   - Expected: Slide count updates
+   - Verify: Changes saved to state
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to deck editor
+@browser Navigate to http://localhost:3000/pitch-decks/{id}/edit
+@browser Take screenshot of full editor
+@chrome-devtools list_console_messages
+
+# Step 2: Test slide selection
+@browser Click second slide in slide outline
+@browser Wait for slide content to update
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Verify: No errors on slide selection
+
+# Step 3: Test content editing
+@browser Click title field in editor panel
+@browser Type "Updated Slide Title"
+@browser Click content field
+@browser Type "Updated slide content"
+@browser Take screenshot
+
+# Step 4: Verify state persistence
+@browser Refresh page
+@browser Wait for editor to reload
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Verify: Deck restored from sessionStorage
+→ Check: No errors on reload
+
+# Step 5: Test sidebar interactions
+@browser Click right sidebar AI tools button
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Verify: No JavaScript errors
+```
+
+**Verification Checklist:**
+- [ ] `DeckEditorContext` provides deck state correctly
+- [ ] **Console: No errors on editor load**
+- [ ] **Screenshot: Editor renders correctly**
+- [ ] Slide selection updates `selectedSlide`
+- [ ] **Console: No errors on slide selection**
+- [ ] Content edits update deck state immediately
+- [ ] **Console: No errors during editing**
+- [ ] `sessionStorage` persists deck on changes
+- [ ] Deck loads from `sessionStorage` on refresh
+- [ ] **Console: No errors on page refresh**
+- [ ] **Screenshot: State restored correctly**
+- [ ] Left sidebar collapse/expand works
+- [ ] Right sidebar AI tools accessible
+- [ ] **Console: No JavaScript errors overall**
+
+### Phase 3: AI Features
+
+#### 3.1 Image Generation
+
+**Component:** `EditorPanel.tsx` → "Generate Image" button
+
+**Test Scenarios:**
+
+1. **Generate Image from Prompt**
+   - Action: Click "Generate Image" on slide with image prompt
+   - Expected: Call `generateSlideImage`, display base64 image
+   - Verify: Image displays, `imageUrl` updated in slide state
+
+2. **Image Generation Error Handling**
+   - Action: Trigger with invalid prompt
+   - Expected: Error message displayed
+   - Verify: Error state handled gracefully
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to slide with image
+@browser Navigate to http://localhost:3000/pitch-decks/{id}/edit
+@browser Click slide that needs image (e.g., Problem slide)
+@browser Take screenshot
+
+# Step 2: Start image generation
+@chrome-devtools list_console_messages
+→ Baseline: Check for existing errors
+
+@browser Click "Generate Image" button
+@browser Wait for loading indicator
+
+# Step 3: Monitor generation
+@chrome-devtools list_network_requests
+→ Watch for: POST /functions/v1/generate-image-preview
+→ Check timing: Should complete in < 10 seconds
+
+@chrome-devtools list_console_messages
+→ Monitor: Any errors during generation?
+
+# Step 4: Verify image display
+@browser Wait for image to appear
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Final check: Any rendering errors?
+
+# Step 5: Network analysis
+@chrome-devtools get_network_request(id=<image-gen-request-id>)
+→ Verify: Status 200
+→ Check: Response contains base64 image data
+→ Review: Request/response timing
+```
+
+**Verification Checklist:**
+- [ ] `generateSlideImage` service called with correct prompt
+- [ ] **Console: No errors before image generation**
+- [ ] **Network: generate-image-preview request sent**
+- [ ] Edge function `generate-image-preview` receives request
+- [ ] **Network: Request completes successfully (200)**
+- [ ] **Network: Response time < 10 seconds**
+- [ ] Base64 image returned and displayed
+- [ ] **Screenshot: Image renders in slide**
+- [ ] Slide `imageUrl` updated with data URI
+- [ ] Loading state shown during generation
+- [ ] **Console: No errors during generation**
+- [ ] **Console: No errors after image display**
+- [ ] Error handling for API failures
+
+#### 3.2 Content Modification (AI Copilot)
+
+**Component:** `AICopilot.tsx` in `RightSidebar`
+
+**Test Scenarios:**
+
+1. **Rewrite Slide Content**
+   - Action: Enter "Make this more investor-focused" in copilot
+   - Expected: Call `modifySlideContent`, update slide title/content
+   - Verify: Changes reflected immediately in editor
+
+2. **Generate Headlines**
+   - Action: Click "Generate Headlines"
+   - Expected: Show 3-5 headline suggestions
+   - Verify: Can apply headline to slide
+
+3. **Generate Financials**
+   - Action: Enter assumptions, click "Generate Financials"
+   - Expected: Financial slide updated with projections
+   - Verify: Numbers formatted correctly
+
+4. **Summarize Bio**
+   - Action: Click "Summarize Bio" on Team slide
+   - Expected: Bio content condensed
+   - Verify: Key information preserved
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Open AI Copilot
+@browser Navigate to http://localhost:3000/pitch-decks/{id}/edit
+@browser Click right sidebar AI tools
+@browser Take screenshot
+
+# Step 2: Test content modification
+@chrome-devtools list_console_messages
+→ Baseline check
+
+@browser Type "Make this more investor-focused" in copilot input
+@browser Click "Generate" button
+
+# Step 3: Monitor AI request
+@chrome-devtools list_network_requests
+→ Watch for: POST /functions/v1/modify-slide-content
+→ Expected timing: < 5 seconds
+
+@chrome-devtools list_console_messages
+→ Monitor: Errors during AI call?
+
+# Step 4: Verify result
+@browser Wait for slide content to update
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Check: Any rendering errors?
+
+# Step 5: Test headline generation
+@browser Click "Generate Headlines" button
+@chrome-devtools list_network_requests
+@browser Wait for suggestions to appear
+@browser Take screenshot
+
+# Step 6: Full error check
+@chrome-devtools list_console_messages
+→ Filter: level='error'
+→ Document any AI-related errors
+```
+
+**Verification Checklist:**
+- [ ] `handleCopilotGenerate` called with user prompt
+- [ ] **Console: No errors before AI call**
+- [ ] **Network: modify-slide-content request sent**
+- [ ] Edge function `modify-slide-content` receives request
+- [ ] **Network: Request completes (200)**
+- [ ] **Network: Response time < 5 seconds**
+- [ ] Slide content updated in deck state
+- [ ] **Screenshot: Content updated in editor**
+- [ ] **Console: No errors during update**
+- [ ] Loading states shown (`isCopilotLoading`)
+- [ ] Error messages displayed (`copilotError`)
+- [ ] **Console: Error handling works if API fails**
+- [ ] Suggestions generated (`copilotSuggestions`)
+- [ ] Headline generation works (`handleGenerateHeadlines`)
+- [ ] **Network: All AI requests succeed**
+- [ ] Financial generation works (`handleGenerateFinancials`)
+
+#### 3.3 Slide Analysis
+
+**Component:** `AnalysisPanel.tsx` in `RightSidebar`
+
+**Test Scenarios:**
+
+1. **Analyze Slide**
+   - Action: Click "Analyze" on selected slide
+   - Expected: Display clarity, impact, tone scores
+   - Verify: Scores between 0-10, feedback text provided
+
+2. **Analysis Loading States**
+   - Action: Trigger analysis
+   - Expected: Loading indicator shown
+   - Verify: Results appear after completion
+
+**Verification Checklist:**
+- [ ] `analyzeSlide` service called
+- [ ] Edge function `analyze-slide` receives request
+- [ ] Analysis results displayed (clarity, impact, tone)
+- [ ] Feedback text shown
+- [ ] Loading state handled
+
+#### 3.4 Research Assistant
+
+**Component:** `ResearchResultPanel.tsx` in `RightSidebar`
+
+**Test Scenarios:**
+
+1. **Web Search Research**
+   - Action: Enter research query
+   - Expected: Google Search results displayed
+   - Verify: Citations included, results relevant
+
+2. **Research Integration**
+   - Action: Apply research to slide
+   - Expected: Content updated with research findings
+   - Verify: Citations preserved
+
+**Verification Checklist:**
+- [ ] Research query sent to service
+- [ ] Google Search tool used (`googleSearch`)
+- [ ] Results displayed with citations
+- [ ] Can apply research to slide content
+
+### Phase 4: Presentation Mode
+
+**Entry Point:** Click "Present" button → `PresentationScreen.tsx`
+
+**Test Scenarios:**
+
+1. **Slide Navigation**
+   - Action: Use arrow keys or buttons
+   - Expected: Navigate between slides
+   - Verify: Current slide index updates correctly
+
+2. **Fullscreen Mode**
+   - Action: Enter presentation mode
+   - Expected: Fullscreen display
+   - Verify: Exit works correctly
+
+3. **Slide Rendering**
+   - Action: View each slide
+   - Expected: All content renders correctly
+   - Verify: Images, charts, tables display
+
+**Verification Checklist:**
+- [ ] `PresentationScreen` loads deck by ID
+- [ ] Slide navigation works (next/prev)
+- [ ] Keyboard shortcuts work (arrow keys, ESC)
+- [ ] Current slide displays correctly
+- [ ] All slide content renders (text, images, charts)
+- [ ] Exit presentation returns to editor
+- [ ] URL updates with slide index
+
+### Phase 5: Persistence & Storage
+
+**Test Scenarios:**
+
+1. **Session Storage**
+   - Action: Edit deck, refresh page
+   - Expected: Deck state restored from `sessionStorage`
+   - Verify: All changes preserved
+
+2. **Database Persistence**
+   - Action: Save deck (if implemented)
+   - Expected: Deck saved to Supabase
+   - Verify: Can reload deck from database
+
+3. **Deck List**
+   - Action: Navigate to `/pitch-decks`
+   - Expected: All decks displayed
+   - Verify: Deck cards show correct info
+
+**Verification Checklist:**
+- [ ] `sessionStorage` saves deck on changes
+- [ ] Deck loads from `sessionStorage` on refresh
+- [ ] `getDecks` service fetches all decks
+- [ ] `getDeckById` fetches specific deck
+- [ ] Deck cards display correctly in `PitchDecks.tsx`
+- [ ] Navigation to edit works from deck list
+
+## End-to-End Test Flow with Browser Tools
+
+### Complete Happy Path with Console & Network Monitoring
+
+1. **Start Wizard**
+   ```
+   @browser Navigate to http://localhost:3000/pitch-decks/new
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   @browser Type "AI-powered fashion event platform" in business context
+   @browser Select "seed" from deck type dropdown
+   @browser Select "modern" template theme
+   @browser Take screenshot
+
+   @chrome-devtools list_console_messages
+   → Verify: No errors before submission
+
+   @browser Click "Generate Deck" button
+   ```
+
+2. **Verify Generation**
+   ```
+   @browser Wait for "Generating slides..." message
+   @browser Take screenshot
+
+   @chrome-devtools list_network_requests
+   → Monitor: POST /functions/v1/generate-deck
+   → Watch: Request status and timing
+
+   @chrome-devtools list_console_messages
+   → Check: Any errors during generation?
+
+   @browser Wait for redirect to /pitch-decks/{id}/edit
+   @browser Take screenshot
+
+   @chrome-devtools list_console_messages
+   → Final check: Any errors in deck editor?
+
+   @chrome-devtools get_network_request(id=<generate-deck-req>)
+   → Verify: Status 200, response contains deck data
+   ```
+
+3. **Edit Deck**
+   ```
+   @browser Click second slide in outline
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   @browser Click title field
+   @browser Type "Updated Slide Title"
+   @browser Click content field
+   @browser Type "Updated content"
+
+   @chrome-devtools list_console_messages
+   → Verify: No errors during editing
+   ```
+
+4. **Test AI Features**
+   ```
+   # Image Generation
+   @browser Click "Generate Image" button
+   @chrome-devtools list_network_requests
+   → Watch: POST /functions/v1/generate-image-preview
+   @browser Wait for image to appear
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   # AI Copilot
+   @browser Click AI Copilot in right sidebar
+   @browser Type "Make this more concise"
+   @browser Click "Generate" button
+   @chrome-devtools list_network_requests
+   → Watch: POST /functions/v1/modify-slide-content
+   @browser Wait for content update
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   # Slide Analysis
+   @browser Click "Analyze Slide"
+   @chrome-devtools list_network_requests
+   → Watch: POST /functions/v1/analyze-slide
+   @browser Wait for analysis results
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   # Network Summary
+   @chrome-devtools list_network_requests
+   → Filter: status >= 400 (failed requests)
+   → Filter: duration > 5000 (slow requests)
+   → Document any issues
+   ```
+
+5. **Present Deck**
+   ```
+   @browser Click "Present" button
+   @browser Take screenshot
+   @chrome-devtools list_console_messages
+
+   @browser Press right arrow key (next slide)
+   @browser Take screenshot
+   @browser Press right arrow key (next slide)
+   @browser Take screenshot
+
+   @browser Press Escape (exit presentation)
+   @chrome-devtools list_console_messages
+   → Verify: No errors during presentation
+   ```
+
+6. **Verify Persistence**
+   ```
+   @browser Refresh page
+   @chrome-devtools list_console_messages
+   → Check: Deck restored from sessionStorage?
+   → Look for: Any storage errors?
+
+   @browser Take screenshot
+   → Verify: Deck state matches pre-refresh
+
+   @chrome-devtools evaluate_script("sessionStorage.getItem('deckEditor_deck')")
+   → Verify: Deck data exists and is valid JSON
+
+   @browser Navigate to /pitch-decks
+   @browser Navigate to /pitch-decks/{id}/edit
+   @chrome-devtools list_console_messages
+   → Verify: Deck still loads correctly
+   ```
+
+### Full Test Session Summary
+
+```
+# Final Verification
+@chrome-devtools list_console_messages
+→ Review ALL console messages
+→ Filter: level='error'
+→ Document: All errors found
+→ Count: Total errors (target: 0)
+
+@chrome-devtools list_network_requests
+→ Review ALL network requests
+→ Filter: status >= 400
+→ Document: All failed requests
+→ Count: Total failures (target: 0)
+
+# Performance Check
+@chrome-devtools performance_start_trace
+@browser Navigate to /pitch-decks/new
+@browser Click "Generate Deck"
+@browser Wait for generation complete
+@chrome-devtools performance_stop_trace
+@chrome-devtools performance_analyze_insight
+→ Review: Long tasks, layout shifts, network bottlenecks
+
+# Visual Verification
+@browser Take screenshot of each major screen:
+  - Landing page
+  - Wizard
+  - GeneratingScreen
+  - DeckEditor (with slides)
+  - Presentation mode
+  - Final result
+
+# Test Report
+Document findings:
+✅ Total console errors: <count>
+✅ Total network failures: <count>
+✅ Performance issues: <list>
+✅ Visual bugs: <list>
+✅ Functional issues: <list>
+   ```
+
+## Edge Cases & Error Handling
+
+### Error Scenarios
+
+1. **API Failures**
+   - Network error during generation
+   - Invalid API key
+   - Rate limiting
+   - Expected: Error message displayed, graceful fallback
+
+2. **Invalid Data**
+   - Empty business context
+   - Invalid URLs
+   - Missing required fields
+   - Expected: Validation errors, prevent submission
+
+3. **State Corruption**
+   - Corrupted `sessionStorage`
+   - Invalid deck structure
+   - Missing slides
+   - Expected: Fallback to default state, error recovery
+
+4. **Concurrent Edits**
+   - Multiple tabs editing same deck
+   - Expected: Last write wins, or conflict resolution
+
+### Empty States
+
+1. **No Decks**
+   - Empty deck list
+   - Expected: "Create First Deck" message
+
+2. **No Slides**
+   - Empty deck
+   - Expected: "Add Slide" prompt
+
+3. **No Content**
+   - Empty slide content
+   - Expected: Placeholder text
+
+## Performance Testing
+
+### Load Times
+
+- [ ] Deck generation completes in <30s
+- [ ] Image generation completes in <10s
+- [ ] Content modification completes in <5s
+- [ ] Analysis completes in <3s
+- [ ] Deck loads in <1s
+
+### State Management
+
+- [ ] No unnecessary re-renders
+- [ ] `useCallback` used for handlers
+- [ ] Context updates don't cause cascading renders
+- [ ] `sessionStorage` writes don't block UI
+
+## Integration Points
+
+### Services to Verify
+
+- `services/ai/deck.ts` - `generateFullDeck`
+- `services/ai/slide.ts` - `modifySlideContent`, `analyzeSlide`
+- `services/ai/image.ts` - `generateSlideImage`
+- `services/ai/research.ts` - Research queries
+- `services/deckService.ts` - `getDecks`, `getDeckById`
+- `services/edgeFunctionService.ts` - Edge function calls
+
+### Edge Functions to Verify
+
+- `generate-deck` - Main deck generation
+- `generate-image-preview` - Image generation
+- `modify-slide-content` - Content modification
+- `analyze-slide` - Slide analysis
+- `research-slide` - Research queries
+
+## Test Data Templates
+
+### Minimal Test Case
+```typescript
+{
+  businessContext: "AI startup",
+  urls: [],
+  deckType: "seed",
+  theme: "modern"
+}
+```
+
+### Complete Test Case
+```typescript
+{
+  businessContext: "AI-powered fashion event platform",
+  urls: ["https://example.com"],
+  deckType: "seed",
+  theme: "modern",
+  companyDetails: { /* full details */ },
+  financials: { /* full financials */ }
+}
+```
+
+## Debugging with Browser Tools
+
+### Console Error Investigation
+
+**Step 1: Capture All Console Messages**
+```
+@chrome-devtools list_console_messages
+→ Save full console log for analysis
+```
+
+**Step 2: Filter by Error Level**
+```
+Filter output:
+- level='error' → Critical issues
+- level='warning' → Potential problems
+- level='log' → Info messages
+```
+
+**Step 3: Get Error Details**
+```
+@chrome-devtools get_console_message(id=<error_id>)
+→ Review: message, stack trace, source location, timestamp
+```
+
+**Step 4: Correlate with Network**
+```
+@chrome-devtools list_network_requests
+→ Find requests around error timestamp
+→ Check: Failed requests that caused error
+```
+
+**Common Console Error Patterns:**
+
+1. **CORS Errors**
+   ```
+   Access to fetch at '...' has been blocked by CORS policy
+   ```
+   - **Fix:** Check Edge Function CORS headers
+   - **Verify:** OPTIONS request returns correct headers
+   - **Test:** `@chrome-devtools get_network_request(id=<options_req>)`
+
+2. **Network Request Failures**
+   ```
+   Failed to fetch
+   TypeError: Failed to fetch
+   ```
+   - **Check:** `@chrome-devtools list_network_requests` for 4xx/5xx
+   - **Verify:** Edge Function is deployed and accessible
+   - **Test:** Direct curl to Edge Function URL
+
+3. **JavaScript Errors**
+   ```
+   TypeError: Cannot read property 'x' of undefined
+   Uncaught ReferenceError: x is not defined
+   ```
+   - **Check:** Stack trace for source file/line
+   - **Verify:** Component renders without errors
+   - **Test:** `@chrome-devtools evaluate_script` to test fix
+
+4. **React Errors**
+   ```
+   Warning: Can't perform a React state update on unmounted component
+   ```
+   - **Check:** useEffect cleanup functions
+   - **Verify:** Component unmounting behavior
+   - **Test:** Navigate away and back to reproduce
+
+### Network Request Debugging
+
+**Step 1: List All Requests**
+```
+@chrome-devtools list_network_requests
+→ Sort by: status, duration, size
+```
+
+**Step 2: Identify Failures**
+```
+Filter requests:
+- status >= 400 → Failed requests
+- duration > 5000 → Slow requests (> 5s)
+- status === 0 → CORS or network errors
+```
+
+**Step 3: Analyze Failed Request**
+```
+@chrome-devtools get_network_request(id=<request_id>)
+→ Review:
+  - Request URL
+  - Request method (GET/POST)
+  - Request headers
+  - Request payload
+  - Response status
+  - Response headers
+  - Response body
+  - Timing breakdown
+```
+
+**Step 4: Test Fix**
+```
+# After fixing Edge Function
+@browser Refresh page
+@chrome-devtools list_network_requests
+→ Verify: Request now succeeds (200)
+→ Check: Response contains expected data
+```
+
+**Common Network Issues:**
+
+1. **500 Internal Server Error**
+   ```
+   POST /functions/v1/generate-deck → 500
+   ```
+   - **Check:** Supabase Edge Function logs
+   - **Verify:** Environment variables set (GEMINI_API_KEY)
+   - **Test:** `supabase functions logs generate-deck`
+
+2. **404 Not Found**
+   ```
+   POST /functions/v1/unknown-function → 404
+   ```
+   - **Check:** Edge Function is deployed
+   - **Verify:** Function name matches code
+   - **Test:** `supabase functions list`
+
+3. **Timeout (No Response)**
+   ```
+   Request pending... (no status code)
+   ```
+   - **Check:** Request duration > 30s
+   - **Verify:** Edge Function isn't hanging
+   - **Test:** Add timeout to fetch call
+
+### Performance Debugging
+
+**Step 1: Start Performance Trace**
+```
+@chrome-devtools performance_start_trace
+```
+
+**Step 2: Perform Action**
+```
+@browser Navigate to /pitch-decks/new
+@browser Click "Generate Deck"
+```
+
+**Step 3: Stop and Analyze**
+```
+@chrome-devtools performance_stop_trace
+@chrome-devtools performance_analyze_insight
+```
+
+**Step 4: Review Insights**
+```
+Look for:
+- Long tasks (> 50ms) → JavaScript blocking main thread
+- Layout shifts (CLS) → Visual instability
+- Slow network requests → API bottlenecks
+- JavaScript execution time → Code optimization needed
+```
+
+**Performance Targets:**
+- Deck generation: < 30 seconds
+- Image generation: < 10 seconds
+- Content modification: < 5 seconds
+- Page load: < 1 second
+
+### Visual Debugging with Screenshots
+
+**Capture Key States:**
+```
+# Initial state
+@browser Navigate to page
+@browser Take screenshot
+
+# Loading state
+@browser Click action button
+@browser Take screenshot
+
+# Success state
+@browser Wait for completion
+@browser Take screenshot
+
+# Error state (if applicable)
+@browser Trigger error
+@browser Take screenshot
+```
+
+**Screenshot Comparison:**
+- Compare with design mockup
+- Verify responsive layout
+- Check for visual regressions
+- Document UI bugs
+
+## Debugging Tips
+
+### Common Issues
+
+1. **Deck not loading**
+   - **Browser Check:**
+     ```
+     @browser Navigate to /pitch-decks/{id}/edit
+     @chrome-devtools list_console_messages
+     → Look for: React errors, fetch failures
+     ```
+   - **Network Check:**
+     ```
+     @chrome-devtools list_network_requests
+     → Verify: getDeckById succeeds
+     ```
+   - Check `DeckEditorContext` provider
+   - Verify deck ID in URL
+   - Check `sessionStorage` for deck data
+   - Verify `getDeckById` service call
+
+2. **AI features not working**
+   - **Console Check:**
+     ```
+     @chrome-devtools list_console_messages
+     → Filter: level='error'
+     → Look for: API key errors, fetch failures
+     ```
+   - **Network Check:**
+     ```
+     @chrome-devtools list_network_requests
+     → Find: POST /functions/v1/generate-deck
+     → Get details: @chrome-devtools get_network_request
+     → Check: status, response body, error message
+     ```
+   - Check API key in environment
+   - Verify edge function deployment
+   - Check network requests in DevTools
+   - Verify service function calls
+   - **Test Edge Function directly:**
+     ```bash
+     curl -X POST http://localhost:54321/functions/v1/generate-deck \
+       -H "Content-Type: application/json" \
+       -d '{"businessContext":"test"}'
+     ```
+
+3. **State not persisting**
+   - **Console Check:**
+     ```
+     @browser Refresh page
+     @chrome-devtools list_console_messages
+     → Look for: sessionStorage errors, parse errors
+     ```
+   - **Storage Check:**
+     ```
+     @chrome-devtools evaluate_script("sessionStorage.getItem('deckEditor_deck')")
+     → Verify: Deck data is stored
+     → Check: JSON is valid
+     ```
+   - Check `sessionStorage` writes
+   - Verify `useEffect` dependencies
+   - Check for state reset on navigation
+
+### Debug Commands
+
+```typescript
+// Check deck state
+console.log(useDeckEditor());
+
+// Check sessionStorage
+console.log(sessionStorage.getItem('deckEditor_deck'));
+
+// Check edge function response
+// Add logging in edgeFunctionService.ts
+```
+
+**Browser Debug Commands:**
+```
+# Evaluate JavaScript in page
+@chrome-devtools evaluate_script("console.log(useDeckEditor())")
+
+# Check sessionStorage
+@chrome-devtools evaluate_script("sessionStorage.getItem('deckEditor_deck')")
+
+# Check network connectivity
+@chrome-devtools list_network_requests
+
+# Monitor console in real-time
+@chrome-devtools list_console_messages
+```
+
+## Success Criteria
+
+A successful test cycle should verify:
+
+- ✅ Complete deck generation from wizard input
+- ✅ All slides editable and changes persist
+- ✅ All AI features functional (images, copilot, analysis, research)
+- ✅ Presentation mode works correctly
+- ✅ State persists across page refreshes
+- ✅ Error handling works gracefully
+- ✅ Performance meets targets (<30s generation, <10s images)
+- ✅ Integration with edge functions works
+- ✅ Database persistence works (if implemented)
+
+## Quick Test Checklist
+
+Run this quick checklist before committing:
+
+### Quick Browser Test (5 minutes)
+
+```
+# 1. Start Application
+npm run dev
+→ Verify: Server running on http://localhost:3000
+
+# 2. Navigate and Check Console
+@browser Navigate to http://localhost:3000
+@chrome-devtools list_console_messages
+→ Verify: No errors on homepage
+
+# 3. Generate Deck
+@browser Navigate to /pitch-decks/new
+@browser Fill wizard (minimal data)
+@browser Click "Generate Deck"
+@chrome-devtools list_network_requests
+→ Verify: generate-deck request succeeds
+@chrome-devtools list_console_messages
+→ Verify: No errors during generation
+
+# 4. Edit Slide Content
+@browser Click slide in outline
+@browser Edit title
+@chrome-devtools list_console_messages
+→ Verify: No errors during editing
+
+# 5. Test AI Feature (Image or Copilot)
+@browser Click "Generate Image" or use AI Copilot
+@chrome-devtools list_network_requests
+→ Verify: AI request succeeds
+@chrome-devtools list_console_messages
+→ Verify: No errors during AI call
+
+# 6. Test Presentation
+@browser Click "Present"
+@browser Navigate slides (arrow keys)
+@browser Press Escape
+@chrome-devtools list_console_messages
+→ Verify: No errors
+
+# 7. Test Persistence
+@browser Refresh page
+@chrome-devtools list_console_messages
+→ Verify: Deck restored, no errors
+
+# 8. Final Check
+@chrome-devtools list_console_messages
+→ Filter: level='error'
+→ Count: Total errors (target: 0)
+
+@chrome-devtools list_network_requests
+→ Filter: status >= 400
+→ Count: Total failures (target: 0)
+```
+
+### Standard Checklist
+
+- [ ] Generate deck from wizard
+- [ ] **Console: No errors during generation**
+- [ ] **Network: generate-deck succeeds (200)**
+- [ ] Edit slide content
+- [ ] **Console: No errors during editing**
+- [ ] Generate image for one slide
+- [ ] **Network: generate-image-preview succeeds**
+- [ ] **Console: No errors during image generation**
+- [ ] Use AI Copilot to modify content
+- [ ] **Network: modify-slide-content succeeds**
+- [ ] Analyze one slide
+- [ ] **Network: analyze-slide succeeds**
+- [ ] Enter presentation mode
+- [ ] **Console: No errors in presentation**
+- [ ] Navigate through slides
+- [ ] Refresh page and verify persistence
+- [ ] **Console: No errors on reload**
+- [ ] **Screenshot: All major screens captured**
+- [ ] Check error handling (disconnect network, test)
+
+### Performance Checklist
+
+- [ ] **Deck generation: < 30 seconds**
+- [ ] **Image generation: < 10 seconds**
+- [ ] **Content modification: < 5 seconds**
+- [ ] **Page load: < 1 second**
+- [ ] **No long tasks (> 50ms) in performance trace**
+- [ ] **No failed network requests**
+- [ ] **No console errors**
+
+### Browser Tools Summary
+
+**Must-Have Checks:**
+1. ✅ `@chrome-devtools list_console_messages` → No errors
+2. ✅ `@chrome-devtools list_network_requests` → All succeed
+3. ✅ `@browser Take screenshot` → Visual verification
+4. ✅ Performance trace → No bottlenecks
+
+---
+
+## Ready-to-Use Testing Prompts
+
+### Prompt 1: Full Deck Generation Test
+```
+Test the pitch deck generation workflow at http://localhost:3000/pitch-decks/new:
+
+1. Navigate to the wizard and take a screenshot
+2. Check console for any errors
+3. Fill the form with: "AI-powered fashion event platform" as business context, select "seed" deck type, and "modern" theme
+4. Monitor the console before clicking "Generate Deck"
+5. Click "Generate Deck" and monitor network requests for the generate-deck API call
+6. Check console messages during generation
+7. Verify the deck editor loads successfully
+8. Take a screenshot of the final result
+9. List all console errors and network failures
+
+Provide a summary of:
+- Total console errors found
+- Network request status for generate-deck
+- Time taken for generation
+- Any issues encountered
+```
+
+### Prompt 2: Console Error Investigation
+```
+Investigate console errors in the pitch deck application at http://localhost:3000:
+
+1. Navigate to /pitch-decks/new
+2. List all console messages
+3. Filter messages by error level
+4. For each error found:
+   - Get detailed error information
+   - Note the stack trace and source file
+   - Correlate with network requests around the same timestamp
+5. Navigate to /pitch-decks/{id}/edit and repeat
+6. Test each AI feature (image generation, copilot, analysis) and check for errors
+
+Provide a report with:
+- Complete list of all errors with timestamps
+- Categorized by: CORS errors, Network errors, JavaScript errors, React errors
+- Suggested fixes for each error
+```
+
+### Prompt 3: Network Request Debugging
+```
+Debug network requests in the pitch deck application at http://localhost:3000:
+
+1. Navigate to the application
+2. List all network requests
+3. Filter for:
+   - Failed requests (status >= 400)
+   - Slow requests (duration > 5000ms)
+   - CORS errors (status = 0)
+4. For each failed request:
+   - Get full request details
+   - Check request payload and headers
+   - Review response body and error message
+   - Note timing breakdown
+5. Test the deck generation flow and monitor all API calls
+
+Provide analysis of:
+- All failed requests with details
+- All slow requests with timing
+- Root cause analysis for each failure
+- Recommended fixes
+```
+
+### Prompt 4: Performance Analysis
+```
+Analyze performance of the pitch deck application at http://localhost:3000:
+
+1. Start a performance trace
+2. Navigate to /pitch-decks/new
+3. Fill wizard and generate a deck
+4. Stop the trace and analyze insights
+5. Look for:
+   - Long tasks (> 50ms)
+   - Layout shifts (CLS)
+   - Slow network requests
+   - JavaScript execution time
+6. Repeat for deck editing workflow
+
+Provide performance report with:
+- Total page load time
+- Deck generation time
+- Identified bottlenecks
+- Long tasks and their impact
+- Optimization recommendations
+```
+
+### Prompt 5: Visual Regression Test
+```
+Perform visual regression testing on the pitch deck application at http://localhost:3000:
+
+1. Take screenshots of all major screens:
+   - Landing page
+   - Wizard (empty and filled)
+   - GeneratingScreen (loading state)
+   - DeckEditor (with slides)
+   - Right sidebar (AI tools)
+   - Presentation mode
+2. Check console for any rendering errors
+3. Verify responsive design by resizing to:
+   - Mobile (375px)
+   - Tablet (768px)
+   - Desktop (1920px)
+4. Take screenshots at each breakpoint
+
+Provide:
+- All screenshots captured
+- Any visual discrepancies
+- Console errors during rendering
+- Responsive design issues
+```
+
+### Prompt 6: End-to-End Workflow Test
+```
+Test the complete pitch deck workflow at http://localhost:3000 with full console and network monitoring:
+
+1. Navigate to wizard
+2. Fill form with test data
+3. Generate deck (monitor console and network)
+4. Edit slide content
+5. Generate image for one slide (monitor console and network)
+6. Use AI Copilot to modify content (monitor console and network)
+7. Analyze slide (monitor console and network)
+8. Enter presentation mode
+9. Navigate through slides
+10. Exit and refresh page
+11. Verify deck persistence
+
+After each step:
+- Check console for errors
+- Monitor network requests
+- Take screenshot
+- Document any issues
+
+Final report should include:
+- Complete console log (errors only)
+- All network requests (with status codes)
+- Screenshots of each major step
+- Total time for each operation
+- List of all bugs/issues found
+```
+
+### Prompt 7: Error Handling Test
+```
+Test error handling in the pitch deck application at http://localhost:3000:
+
+1. Generate deck with invalid data (empty fields)
+2. Try generating image without prompt
+3. Try using AI Copilot with empty input
+4. Simulate network failure (if possible)
+5. Check console for error messages
+6. Verify user-friendly error messages display
+7. Take screenshots of error states
+
+Test validation:
+- Required field validation
+- Error message clarity
+- Console error handling
+- Network error fallback
+
+Provide report on:
+- Error messages shown to users
+- Console errors logged
+- Error recovery mechanisms
+- UX during error states
+```
+
+---
+
+## Browser Testing Best Practices Summary
+
+### ✅ Always Do:
+1. **Check console first** - Before and after every action
+2. **Monitor network requests** - For all API calls
+3. **Take screenshots** - Document each major step
+4. **Filter errors** - Separate critical from warnings
+5. **Get details** - Full error stack trace and network details
+6. **Test systematically** - Follow the test flow phases
+7. **Document findings** - Note all errors, timings, issues
+8. **Verify fixes** - Re-test after fixing issues
+
+### ❌ Never Skip:
+1. Console error check after navigation
+2. Network request verification for API calls
+3. Screenshot capture for visual verification
+4. Performance trace for generation workflows
+5. Error handling test scenarios
+6. Persistence test (refresh page)
+7. Final summary of all errors/failures
+
+### 🎯 Success Criteria:
+- ✅ **Zero console errors** across all workflows
+- ✅ **All network requests succeed** (200 status)
+- ✅ **Performance targets met** (< 30s generation, < 10s images)
+- ✅ **Visual verification passed** (screenshots match expected)
+- ✅ **Error handling works** (graceful fallbacks)
+- ✅ **Persistence works** (state survives refresh)

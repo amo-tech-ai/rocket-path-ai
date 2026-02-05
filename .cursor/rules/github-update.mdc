@@ -1,0 +1,581 @@
+---
+description: Safe GitHub update workflow that syncs code from origin/main while preserving local project knowledge, documentation, and secrets
+globs: ["**/.git/**", "**/.gitignore", "**/package.json", "**/package-lock.json", "**/README.md", "**/CHANGELOG.md"]
+alwaysApply: false
+---
+
+# Safe GitHub Update Strategy
+
+## 🧠 Core Principle: Hybrid Sync
+1. **Application Code**: MUST match `origin/main` exactly to ensure new features (e.g., Wizards, UI) work as designed. **(GitHub Wins)**
+2. **Project Knowledge**: Documentation, Plans, Rules, and Secrets MUST be preserved from local environment. **(Local Wins)**
+
+## 🔒 Protected Paths (Preserve Local Version)
+The following files/folders must NEVER be overwritten by a remote version during an update:
+
+### Core Project Knowledge
+- `.cursor/` (Rules & Prompts)
+- `.claude/` (Claude skills, agents, and documentation)
+- `plan/` (Current project status, implementation plans, feature specs)
+- `pm/` (Project management: progress tracker, notes, audits, events documentation)
+- `prompts/` (Implementation prompts for dashboards, wizards, features)
+- `tasks/` (Task documentation, specs, and screenshots - **Critical project knowledge**, **including `tasks/events/`**)
+- `scripts/` (Utility scripts, automation scripts, migration scripts, event processing scripts)
+- `screenshots/` (Design references, UI mockups, feature examples)
+- `figma/` (Figma design system exports and components)
+- `figma-2/` (Figma design system v2 exports and components)
+- `claude-reference/` (Claude API reference documentation)
+- `claude-sdk/` (Claude SDK documentation and examples)
+- `notes/` (Project notes, Obsidian vaults, documentation)
+- `website/` (Website assets, documentation, and content)
+
+### Project Documentation & Roadmaps
+- `roadmap/` (Product roadmap files and phases)
+- `roadmap.md` (Product Roadmap - v1.1, audited)
+- `prd.md` (Product Requirements Document - v1.1, audited)
+- `progress-tracker.md` (Current progress: ~35% overall)
+- `IMPLEMENTATION_PLAN.md` (Sequential implementation steps)
+- `TASKS_TABLE.md` (Complete task verification table)
+- `style-guide.md` (Design system: Stone palette, Merriweather/Inter fonts, 3-panel layout)
+- `index.md` (Project navigation hub - central index for all documentation)
+- `skills.md` (AI Skills Master Index - comprehensive skills reference)
+
+### Supabase Configuration & Documentation
+- `supabase/` (Supabase config, docs, schemas, functions - **Protected because changes are made both locally and in Lovable**)
+  - Protected: `supabase/docs/`, `supabase/schemas/`, `supabase/functions/` (all edge functions), `supabase/config.toml`, `supabase/events/`, `supabase/seeds/`, and other Supabase config files
+  - **Merge Strategy:** `supabase/migrations/` (database migrations - changes from Lovable/GitHub are merged with local files, both preserved)
+
+### Project Documentation
+- `prd.md` (Product Requirements Document - v1.1, audited)
+- `roadmap.md` (Product Roadmap - v1.1, audited)
+- `progress-tracker.md` (Current progress: ~35% overall)
+- `IMPLEMENTATION_PLAN.md` (Sequential implementation steps)
+- `TASKS_TABLE.md` (Complete task verification table)
+- `style-guide.md` (Design system: Stone palette, Merriweather/Inter fonts, 3-panel layout)
+- `index.md` (Project navigation hub - central index for all documentation)
+- `skills.md` (AI Skills Master Index - comprehensive skills reference)
+
+### Secrets & Configuration
+- `.env.local` (Secrets - Critical!)
+- `.mcp.json` (MCP server configuration)
+- `CLAUDE.md`
+- `AGENTS.md`
+
+## 📦 Not Protected (GitHub Wins - Accept Remote)
+These are data/resources that come from GitHub and should be updated:
+- `docs/` (Architecture & Knowledge - **Updated from Lovable/GitHub**)
+- `accelerators/` (Resource data from GitHub)
+- Source code (`src/`, `components/`, `services/`, etc.)
+- Configuration files (except `.env.local`, `.mcp.json`)
+
+## 🔄 Merge Strategy (GitHub + Local)
+These paths are updated from GitHub but local files are preserved:
+
+- `supabase/migrations/` (Database migrations - **Merge Strategy**)
+  - GitHub changes from Lovable are synced
+  - Local-only migration files are preserved
+  - Both sets of files coexist (no overwrite)
+  - Use this when you make changes in Lovable AND locally
+
+**Note:** Protected directories (`screenshots/`, `prompts/`, `tasks/`, `scripts/`, `figma/`, `figma-2/`, `claude-reference/`, `claude-sdk/`, `notes/`, `roadmap/`, `plan/`, `pm/`, `website/`, `.cursor/`, `.claude/`, `supabase/docs/`, `supabase/schemas/`, `supabase/functions/`, `supabase/events/`, `supabase/seeds/`, etc.) contain local project knowledge, design references, and documentation that should be preserved. **`docs/` is updated from GitHub/Lovable and should NOT be preserved locally. `supabase/migrations/` uses merge strategy: GitHub changes are added while preserving local files.**
+
+## 🚀 Quick Update Methods
+
+### Option 1: Short Prompt (Recommended)
+Simply type in Cursor chat:
+```
+update from github to local @.cursor/rules/github-update.mdc
+```
+
+Or use the Cursor command:
+```
+/update-from-github
+```
+
+**This will:**
+- Backup all knowledge files outside repo (`../_backups/startupai/`)
+- Sync code from GitHub (`git checkout origin/main -- .`)
+- Restore all local knowledge (plans, prompts, pm/, supabase/docs/, etc.)
+- Fail loudly if backup/restore fails (no silent data loss)
+
+**Location:** `.cursor/commands/update-from-github.md`
+
+### Option 2: Bash Script
+Run the automated script:
+```bash
+./scripts/update-from-github.sh
+```
+
+Both methods implement the full workflow below automatically.
+
+## ✅ Mandatory Update Workflow
+
+Always follow this exact sequence to update safely (or use the script above).
+
+### 1. Secure Local State (Backup & Stash)
+Before touching the network or git tree, secure everything.
+
+```bash
+# 1. Create timestamped backup OUTSIDE the repo (safe from git clean)
+BACKUP_ROOT="../_backups/startupai"
+BACKUP_DIR="$BACKUP_ROOT/backup-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+
+# Track backup success for verification
+BACKUP_FAILED=0
+BACKUP_FILE_COUNT_BEFORE=0
+
+# Backup core knowledge directories (docs/ is NOT backed up - it comes from GitHub/Lovable)
+# Define required paths (critical paths that MUST exist)
+REQUIRED_PATHS=".cursor plan pm prompts"
+
+# Verify required paths exist before backup
+for req_dir in $REQUIRED_PATHS; do
+  if [ ! -d "$req_dir" ]; then
+    echo "❌ CRITICAL: Required path '$req_dir' is missing!" >&2
+    echo "   This path is mandatory and should never be missing." >&2
+    BACKUP_FAILED=1
+  fi
+done
+
+# If required paths missing, abort
+if [ $BACKUP_FAILED -eq 1 ]; then
+  echo "❌ BACKUP FAILED - Required paths missing. Aborting to prevent data loss." >&2
+  exit 1
+fi
+
+# Backup all knowledge directories (required + optional)
+for dir in .cursor .claude plan pm prompts tasks scripts screenshots figma figma-2 claude-reference claude-sdk notes roadmap website; do
+  if [ -d "$dir" ]; then
+    if ! cp -r "$dir" "$BACKUP_DIR/"; then
+      echo "❌ FAILED to backup $dir" >&2
+      BACKUP_FAILED=1
+    else
+      echo "✅ Backed up $dir"
+    fi
+  else
+    # Warn about missing optional paths (but don't fail)
+    echo "ℹ️  Optional path '$dir' not found (skipping)"
+  fi
+done
+
+# Backup Supabase configuration, docs, schemas, functions, events, and seeds (but not migrations)
+if [ -d "supabase" ]; then
+  mkdir -p "$BACKUP_DIR/supabase"
+  for item in docs schemas functions events seeds config.toml; do
+    if [ -e "supabase/$item" ]; then
+      if ! cp -r "supabase/$item" "$BACKUP_DIR/supabase/"; then
+        echo "❌ FAILED to backup supabase/$item" >&2
+        BACKUP_FAILED=1
+      else
+        echo "✅ Backed up supabase/$item"
+      fi
+    fi
+  done
+  # Also backup any SQL files in supabase root
+  for sql_file in supabase/*.sql; do
+    if [ -f "$sql_file" ]; then
+      if ! cp "$sql_file" "$BACKUP_DIR/supabase/"; then
+        echo "❌ FAILED to backup $sql_file" >&2
+        BACKUP_FAILED=1
+      else
+        echo "✅ Backed up $sql_file"
+      fi
+    fi
+  done
+fi
+# Note: supabase/migrations/ uses merge strategy - backup local files, then merge with GitHub
+# Backup local migrations for merge comparison
+if [ -d "supabase/migrations" ]; then
+  if ! cp -r supabase/migrations "$BACKUP_DIR/supabase/migrations-local"; then
+    echo "❌ FAILED to backup supabase/migrations (local)" >&2
+    BACKUP_FAILED=1
+  else
+    echo "✅ Backed up supabase/migrations (local) for merge"
+  fi
+fi
+
+# Backup project documentation files
+for doc in prd.md roadmap.md progress-tracker.md IMPLEMENTATION_PLAN.md TASKS_TABLE.md style-guide.md index.md skills.md; do
+  if [ -f "$doc" ]; then
+    if ! cp "$doc" "$BACKUP_DIR/"; then
+      echo "❌ FAILED to backup $doc" >&2
+      BACKUP_FAILED=1
+    else
+      echo "✅ Backed up $doc"
+    fi
+  fi
+done
+
+# Backup secrets and config
+for secret in .env.local .mcp.json CLAUDE.md AGENTS.md; do
+  if [ -f "$secret" ]; then
+    if ! cp "$secret" "$BACKUP_DIR/"; then
+      echo "❌ FAILED to backup $secret" >&2
+      BACKUP_FAILED=1
+    else
+      echo "✅ Backed up $secret"
+    fi
+  fi
+done
+
+# Post-backup sanity check: must have files
+BACKUP_FILE_COUNT_AFTER=$(find "$BACKUP_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+if [ "$BACKUP_FILE_COUNT_AFTER" -le 0 ]; then
+  echo "❌ BACKUP FAILED - Backup is empty (0 files). Aborting to prevent data loss." >&2
+  exit 1
+fi
+
+# FAIL if any backup failed (critical safety check)
+if [ $BACKUP_FAILED -eq 1 ]; then
+  echo "❌ BACKUP FAILED - Aborting update to prevent data loss" >&2
+  exit 1
+fi
+
+echo "✅ Backup secured at $BACKUP_DIR (files: $BACKUP_FILE_COUNT_AFTER)"
+
+# 2. Stash ALL local changes (including new untracked files)
+git stash push -m "Pre-Update Safety Stash $(date +%Y%m%d-%H%M%S)" --include-untracked || echo "ℹ️  No changes to stash"
+```
+
+### 2. Synchronize Code (GitHub Wins)
+Pull the latest code and force the working directory to match.
+
+```bash
+# 3. Fetch latest metadata
+git fetch origin
+
+# 4. Force Working Directory Sync
+# SAFETY: only proceed if backup is non-empty
+if [ ! -d "$BACKUP_DIR" ] || [ "$(find "$BACKUP_DIR" -type f 2>/dev/null | wc -l)" -le 0 ]; then
+  echo "❌ RESTORE BLOCKED - Backup directory missing or empty. Aborting to prevent data loss." >&2
+  exit 1
+fi
+
+# This updates all tracked files to match origin/main (GETS NEW CODE)
+git checkout origin/main -- .
+
+# 5. Ensure exact match (remove any untracked files from working tree)
+# After restore, we'll verify state, but this ensures clean baseline
+# Note: We don't use --hard here to avoid losing backups before restore completes
+```
+
+### 3. Restore Knowledge (Local Wins)
+Re-apply the local versions of protected paths.
+
+```bash
+# 5. Restore Protected Paths from Backup
+echo "Restoring local knowledge..."
+
+# Track restore success for verification
+RESTORE_FAILED=0
+
+# Track which directories were expected but missing from backup
+MISSING_FROM_BACKUP=0
+
+# Define expected protected directories (critical paths that should be in backup)
+EXPECTED_DIRS=".cursor plan pm prompts tasks"
+
+# Restore core knowledge directories (docs/ is NOT restored - it comes from GitHub/Lovable)
+# Use rsync for reliable restore (prevents nesting, preserves permissions)
+# NOTE: Removed --delete flag to prevent accidental deletion of files not in backup
+for dir in .cursor .claude plan pm prompts tasks screenshots figma figma-2 claude-reference claude-sdk notes roadmap website; do
+  if [ -d "$BACKUP_DIR/$dir" ]; then
+    # Create destination directory if it doesn't exist
+    mkdir -p "$dir"
+    # Count files before restore for verification
+    FILES_BEFORE=$(find "$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if ! rsync -a "$BACKUP_DIR/$dir/" "$dir/"; then
+      echo "❌ FAILED to restore $dir" >&2
+      RESTORE_FAILED=1
+    else
+      # Verify restore succeeded (check file count)
+      FILES_AFTER=$(find "$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+      if [ "$FILES_AFTER" -gt 0 ]; then
+        echo "✅ Restored $dir ($FILES_AFTER files)"
+      else
+        echo "⚠️  WARNING: $dir restored but contains 0 files" >&2
+        RESTORE_FAILED=1
+      fi
+    fi
+  else
+    # Directory missing from backup - check if it's expected
+    if echo "$EXPECTED_DIRS" | grep -q "$dir"; then
+      echo "❌ CRITICAL: Expected directory '$dir' missing from backup!" >&2
+      echo "   This directory should have been backed up but wasn't." >&2
+      MISSING_FROM_BACKUP=1
+      RESTORE_FAILED=1
+    else
+      echo "ℹ️  Optional directory '$dir' not in backup (skipping restore)"
+    fi
+  fi
+done
+
+# FAIL if critical directories missing from backup
+if [ $MISSING_FROM_BACKUP -eq 1 ]; then
+  echo "❌ RESTORE FAILED - Critical directories missing from backup. Aborting to prevent data loss." >&2
+  exit 1
+fi
+
+# Restore Supabase configuration, docs, schemas, functions, events, and seeds (but not migrations)
+if [ -d "$BACKUP_DIR/supabase" ]; then
+  mkdir -p supabase
+  for item in docs schemas functions events seeds config.toml; do
+    if [ -e "$BACKUP_DIR/supabase/$item" ]; then
+      # Count files before restore (if directory)
+      if [ -d "$BACKUP_DIR/supabase/$item" ]; then
+        FILES_BEFORE=$(find "supabase/$item" -type f 2>/dev/null | wc -l | tr -d ' ')
+      fi
+      if ! cp -r "$BACKUP_DIR/supabase/$item" supabase/; then
+        echo "❌ FAILED to restore supabase/$item" >&2
+        RESTORE_FAILED=1
+      else
+        # Verify restore succeeded (check file count for directories)
+        if [ -d "supabase/$item" ]; then
+          FILES_AFTER=$(find "supabase/$item" -type f 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$FILES_AFTER" -gt 0 ]; then
+            echo "✅ Restored supabase/$item ($FILES_AFTER files)"
+          else
+            echo "⚠️  WARNING: supabase/$item restored but contains 0 files" >&2
+            RESTORE_FAILED=1
+          fi
+        else
+          echo "✅ Restored supabase/$item"
+        fi
+      fi
+    else
+      echo "ℹ️  supabase/$item not in backup (skipping restore)"
+    fi
+  done
+  # Also restore any SQL files
+  for sql_file in "$BACKUP_DIR/supabase"/*.sql; do
+    if [ -f "$sql_file" ]; then
+      sql_name=$(basename "$sql_file")
+      if ! cp "$sql_file" "supabase/$sql_name"; then
+        echo "❌ FAILED to restore supabase/$sql_name" >&2
+        RESTORE_FAILED=1
+      else
+        echo "✅ Restored supabase/$sql_name"
+      fi
+    fi
+  done
+fi
+
+# Merge supabase/migrations/ (GitHub + Local)
+# Strategy: Keep both GitHub and local migration files, but detect conflicts
+if [ -d "$BACKUP_DIR/supabase/migrations-local" ]; then
+  echo "Merging migrations: GitHub + Local..."
+  
+  # After git checkout, supabase/migrations/ contains GitHub files
+  # We need to add back any local-only files, and detect content conflicts
+  
+  # Find migrations that exist in local backup but not in GitHub
+  for local_migration in "$BACKUP_DIR/supabase/migrations-local"/*.sql; do
+    if [ -f "$local_migration" ]; then
+      migration_name=$(basename "$local_migration")
+      
+      # If migration doesn't exist in GitHub version, restore it
+      if [ ! -f "supabase/migrations/$migration_name" ]; then
+        if ! cp "$local_migration" "supabase/migrations/"; then
+          echo "❌ FAILED to restore local migration: $migration_name" >&2
+          RESTORE_FAILED=1
+        else
+          echo "✅ Restored local migration: $migration_name"
+        fi
+      else
+        # Migration exists in both - check if content differs
+        if ! cmp -s "$local_migration" "supabase/migrations/$migration_name"; then
+          echo "⚠️  WARNING: Migration $migration_name exists in both GitHub and local with DIFFERENT content" >&2
+          echo "   Keeping GitHub version. Local edits will be lost!" >&2
+          echo "   Diff:" >&2
+          diff "$local_migration" "supabase/migrations/$migration_name" | head -20 >&2
+          echo "   (To preserve local version, rename it before running update)" >&2
+          # Optionally: set RESTORE_FAILED=1 to abort on conflict
+          # For now, we warn but continue (user can fix manually)
+        else
+          echo "ℹ️  Migration exists in both with identical content: $migration_name (keeping GitHub version)"
+        fi
+      fi
+    fi
+  done
+  echo "✅ Migrations merged (GitHub + Local preserved, conflicts warned)"
+fi
+
+# Restore project documentation
+for doc in prd.md roadmap.md progress-tracker.md IMPLEMENTATION_PLAN.md TASKS_TABLE.md style-guide.md index.md skills.md; do
+  if [ -f "$BACKUP_DIR/$doc" ]; then
+    if ! cp "$BACKUP_DIR/$doc" .; then
+      echo "❌ FAILED to restore $doc" >&2
+      RESTORE_FAILED=1
+    else
+      echo "✅ Restored $doc"
+    fi
+  fi
+done
+
+# Restore secrets and config
+for secret in .env.local .mcp.json CLAUDE.md AGENTS.md; do
+  if [ -f "$BACKUP_DIR/$secret" ]; then
+    if ! cp "$BACKUP_DIR/$secret" .; then
+      echo "❌ FAILED to restore $secret" >&2
+      RESTORE_FAILED=1
+    else
+      echo "✅ Restored $secret"
+    fi
+  fi
+done
+
+# Post-restore verification: Check that critical directories have files
+echo ""
+echo "Verifying restore completeness..."
+VERIFICATION_FAILED=0
+for dir in .cursor plan pm prompts tasks; do
+  if [ -d "$dir" ]; then
+    FILE_COUNT=$(find "$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$FILE_COUNT" -eq 0 ]; then
+      echo "❌ CRITICAL: $dir exists but contains 0 files after restore!" >&2
+      VERIFICATION_FAILED=1
+    else
+      echo "✅ Verified $dir ($FILE_COUNT files)"
+    fi
+  else
+    echo "❌ CRITICAL: $dir missing after restore!" >&2
+    VERIFICATION_FAILED=1
+  fi
+done
+
+# FAIL if verification failed
+if [ $VERIFICATION_FAILED -eq 1 ]; then
+  echo "❌ RESTORE VERIFICATION FAILED - Critical directories empty or missing. Check backup at $BACKUP_DIR" >&2
+  exit 1
+fi
+
+# FAIL if any restore failed (critical safety check)
+if [ $RESTORE_FAILED -eq 1 ]; then
+  echo "❌ RESTORE FAILED - Check backup at $BACKUP_DIR" >&2
+  exit 1
+fi
+
+echo ""
+echo "✅ Protected paths restored from $BACKUP_DIR"
+```
+
+### 4. Verification & Restart
+Ensure the system is healthy.
+
+```bash
+# 6. Check Status
+git status --short
+
+# 7. Restart Dev Server (to load new env/code)
+# pkill -f vite
+# npm install
+# npm run dev
+```
+
+## ❌ Forbidden Commands
+- `git clean -fd`: Destroys untracked files (like new docs, prompts, screenshots) that haven't been stashed.
+- `git reset --hard` (Without Backup): Destroys local changes instantly.
+- Manual file deletion of protected paths: `.cursor/`, `.claude/`, `plan/`, `pm/`, `prompts/`, `tasks/`, `scripts/`, `screenshots/`, `figma/`, `figma-2/`, `claude-reference/`, `claude-sdk/`, `notes/`, `roadmap/`, `website/`, `supabase/docs/`, `supabase/schemas/`, `supabase/functions/`, `supabase/events/`, `supabase/seeds/`, `supabase/config.toml`, `.mcp.json`, or any project documentation files. **(Note: `docs/` and `supabase/migrations/` are NOT protected - they update from GitHub/Lovable)**
+
+## 🔐 Critical Safety Improvements (v6.0)
+
+### Problem 1: Backups Inside Repo → DELETED by `git clean -fd`
+**Solution:** Move backups outside repo to `../_backups/startupai/`
+- Backups are **safe from Git operations**
+- Not vulnerable to `git clean -fd`
+- Can survive full repo resets
+
+### Problem 2: Silent Copy Failures → No Warning When Backup Fails
+**Solution:** Remove `2>/dev/null || true`, add verification
+- **FAIL if backup fails** (exit 1)
+- **FAIL if restore fails** (exit 1)
+- Show clear error messages
+- Count files before/after for verification
+
+### Problem 3: Missing Protected Paths → New Files Not Backed Up
+**Solution:** Added `supabase/events/` and `supabase/seeds/` to protected paths
+- All Supabase knowledge folders are protected
+- New SQL files in supabase root are backed up
+- Explicit protection for all knowledge directories
+
+### Problem 4: Git Tracks Knowledge → Overwritten by `git checkout`
+**Solution:** Keep knowledge in Git (for sharing) but protect via backup/restore
+- Knowledge remains shareable with team
+- Backup/restore ensures local wins
+- Clear separation: code from GitHub, knowledge from backup
+
+## 📋 Current Project State (Context for Updates)
+
+**Project:** StartupAI - AI Operating System for Founders  
+**Overall Progress:** ~35% Complete  
+**Current Phase:** Phase 1 (Wizard) - 30% (Backend: 50%, Frontend: 0%)  
+**Foundation:** 85% Complete (missing Error Boundary, Env Vars, AuthGuard wiring)  
+**Dashboard UI:** 100% Complete (9 pages, using mock data)  
+**Data Integration:** 0% (all pages use mock data, database integration pending)
+
+### Key Protected Knowledge
+- **PRD (prd.md):** v1.1 - Audited and corrected (72% accuracy → fixed)
+- **Roadmap (roadmap.md):** v1.1 - Audited and corrected (phases updated with actual progress)
+- **Progress Tracker:** Real-time status of 57 completed tasks, 7 in progress, 29 not started
+- **Implementation Plan:** Sequential 7-step plan (currently at Step 1: Environment Config)
+- **Tasks Table:** Verified task list with false positives corrected
+- **Style Guide:** Stone palette, Merriweather/Inter fonts, 3-panel layout system
+- **Prompts:** Implementation prompts for dashboards, wizards, features
+- **Screenshots:** Design references and UI mockups
+- **Figma:** Design system exports (wizard components exist here, not in src/)
+- **Supabase Events:** Events system documentation (`supabase/events/`)
+- **Supabase Seeds:** Local seed files (`supabase/seeds/`)
+
+### Critical Notes
+- Wizard frontend UI exists in `figma/` folder, NOT in `src/` (needs migration)
+- All dashboard pages use mock data (database integration is next priority)
+- Edge functions exist as actions in `ai-helper`, not separate functions
+- Chatbot backend complete (`chat-copilot`), frontend pending
+
+## 🔍 Why This Works
+- **Force Sync Approach**: `git checkout origin/main -- .` ensures code matches exactly (no merge conflicts)
+- **Backup Outside Repo**: Protected paths are safely backed up **outside the repository** before any git operations
+- **Fail-Safe Verification**: Script **fails if backup/restore fails** - no silent data loss
+- **Selective Restore**: Only knowledge/docs are restored, code stays synced from GitHub
+- **Clean State**: Working directory matches GitHub, then local knowledge is layered on top
+
+## 🎯 Why These Files Matter
+
+### Project Knowledge Files
+- **`plan/`**: Contains master implementation plan, feature specs, wizard/dashboard/chatbot docs
+- **`pm/`**: Project management files (progress tracker, notes, audits, events documentation)
+- **`prompts/`**: Implementation prompts for all features (dashboards, wizards, pitch-deck)
+- **`screenshots/`**: Design references, UI mockups, feature examples (critical for visual consistency)
+- **`figma/`**: Design system exports - wizard components exist here (need migration to src/)
+- **`figma-2/`**: Design system v2 exports and components
+- **`claude-reference/`**: Claude API reference documentation and guides
+- **`claude-sdk/`**: Claude SDK documentation, examples, and integration guides
+- **`notes/`**: Project notes, Obsidian vaults, meeting notes, documentation
+- **`roadmap/`**: Product roadmap files, phase documents, planning materials
+- **`supabase/docs/`**: Supabase documentation, best practices, architecture notes
+- **`supabase/schemas/`**: Database schema definitions and documentation
+- **`supabase/events/`**: Events system documentation and planning
+- **`supabase/seeds/`**: Local seed files for development
+
+### Project Documentation
+- **`prd.md`**: Product Requirements Document (v1.1, audited Jan 13, 2026)
+- **`roadmap.md`**: Product Roadmap (v1.1, audited Jan 13, 2026) - 19-week timeline
+- **`progress-tracker.md`**: Real-time progress tracking (~35% overall, 57 complete, 7 in progress)
+- **`IMPLEMENTATION_PLAN.md`**: Sequential 7-step implementation plan (currently Step 1)
+- **`TASKS_TABLE.md`**: Complete verified task list (45 tasks actually complete, 8 false positives corrected)
+- **`style-guide.md`**: Design system (Stone palette, Merriweather/Inter fonts, 3-panel layout)
+
+### Critical State Information
+These files contain:
+- Current implementation status (what's done vs. what's pending)
+- Design system specifications (colors, fonts, layout)
+- Feature specifications (wizard steps, dashboard requirements)
+- Implementation priorities (what to build next)
+- Progress tracking (35% overall, specific phase percentages)
+
+**Losing these files = Losing project context, progress tracking, and implementation guidance.**
+
+---
+*Rule Version: 6.0 (Backup Outside Repo + Fail-Safe Verification)*  
+*Last Updated: January 17, 2025*

@@ -1,0 +1,846 @@
+---
+description: Gemini Structured Output - JSON schema responses for data extraction
+alwaysApply: false
+---
+
+# Gemini Structured Output (JSON Schema) - Cursor Rule
+
+## Overview
+
+Structured outputs guarantee predictable, parsable JSON responses that match a provided schema. This ensures type-safety, format consistency, and enables programmatic detection of refusals.
+
+### Use Cases
+- **Data Extraction:** Pull specific information from unstructured text
+- **Structured Classification:** Categorize text into predefined categories
+- **Agentic Workflows:** Generate structured data for tool/API calls
+
+## Core API Usage
+
+### ✅ CORRECT: Basic Structured Output
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI, Type } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+// Define schema using Type enums
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    eventTitle: { type: Type.STRING },
+    description: { type: Type.STRING },
+    date: { type: Type.STRING, description: "YYYY-MM-DD format" },
+    ticketTiers: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          price: { type: Type.NUMBER },
+          quantity: { type: Type.NUMBER }
+        }
+      }
+    }
+  },
+  required: ["eventTitle", "description", "date"]
+};
+
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: schema, // JavaScript SDK uses responseSchema
+  }
+});
+
+// Parse response
+const responseText = response.text || "{}";
+const parsed = JSON.parse(responseText);
+```
+
+### ❌ WRONG: Don't use responseJsonSchema in JavaScript SDK
+```typescript
+// ❌ WRONG - responseJsonSchema is for REST API, not JavaScript SDK
+config: {
+  responseMimeType: "application/json",
+  responseJsonSchema: schema, // Wrong property name
+}
+```
+
+## Schema Definition Patterns
+
+### ✅ CORRECT: Using Type Enums
+
+```typescript
+import { Type } from "https://esm.sh/@google/genai";
+
+const schema = {
+  type: Type.OBJECT, // Use Type.OBJECT, not "object"
+  properties: {
+    name: { 
+      type: Type.STRING,
+      description: "Clear description of what this field represents"
+    },
+    age: { 
+      type: Type.NUMBER,
+      description: "Age in years"
+    },
+    tags: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING }
+    },
+    metadata: {
+      type: Type.OBJECT,
+      properties: {
+        created: { type: Type.STRING },
+        updated: { type: Type.STRING }
+      }
+    }
+  },
+  required: ["name", "age"] // Array of required field names
+};
+```
+
+### ✅ CORRECT: Nested Structures
+
+```typescript
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    eventTitle: { type: Type.STRING },
+    ticketTiers: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          price: { type: Type.NUMBER },
+          quantity: { type: Type.NUMBER }
+        },
+        required: ["name", "price"] // Required fields within nested object
+      }
+    },
+    scheduleItems: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          time: { type: Type.STRING },
+          activity: { type: Type.STRING }
+        },
+        required: ["time", "activity"]
+      }
+    }
+  },
+  required: ["eventTitle", "ticketTiers", "scheduleItems"]
+};
+```
+
+## Response Parsing
+
+### ✅ CORRECT: Parse and Validate
+
+```typescript
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: schema
+  }
+});
+
+// ✅ CORRECT - Always handle empty/missing text
+const responseText = response.text || "{}";
+
+try {
+  const parsed = JSON.parse(responseText);
+  
+  // Validate required fields
+  if (!parsed.eventTitle) {
+    throw new Error("Missing required field: eventTitle");
+  }
+  
+  return parsed;
+} catch (error: any) {
+  console.error("JSON parse error:", error);
+  throw new Error(`Failed to parse structured response: ${error.message}`);
+}
+```
+
+### ✅ CORRECT: Handle Arrays in Response
+
+```typescript
+// If schema returns array of objects
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    candidates: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          address: { type: Type.STRING }
+        }
+      }
+    }
+  },
+  required: ["candidates"]
+};
+
+const responseText = response.text || "{}";
+const parsed = JSON.parse(responseText);
+const candidates = parsed.candidates || []; // Always provide fallback
+```
+
+## Configuration Options
+
+### ✅ CORRECT: Complete Config
+
+```typescript
+const config = {
+  responseMimeType: "application/json", // Required
+  responseSchema: schema, // Required - JavaScript SDK
+  temperature: 0, // Recommended for deterministic output
+  systemInstruction: "You are a helpful assistant. Return only valid JSON matching the schema."
+};
+```
+
+### System Instructions for Structured Output
+
+```typescript
+// ✅ GOOD - Explicit instruction
+systemInstruction: `
+You are the AI Event Architect for FashionOS.
+Task: Convert user input into a complete, structured fashion event plan.
+
+Output:
+- Return ONLY valid JSON matching the schema.
+- Do not include any text outside the JSON.
+- All required fields must be present.
+`
+```
+
+## Common Patterns
+
+### Pattern 1: Simple Object Extraction
+
+```typescript
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    description: { type: Type.STRING },
+    category: { type: Type.STRING }
+  },
+  required: ["title", "description", "category"]
+};
+
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: "Extract event details from: [text]",
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: schema
+  }
+});
+```
+
+### Pattern 2: Array of Objects
+
+```typescript
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    candidates: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          address: { type: Type.STRING },
+          place_id: { type: Type.STRING }
+        },
+        required: ["name", "address"]
+      }
+    }
+  },
+  required: ["candidates"]
+};
+```
+
+### Pattern 3: Complex Nested Structure
+
+```typescript
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    eventTitle: { type: Type.STRING },
+    ticketTiers: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          price: { type: Type.NUMBER },
+          quantity: { type: Type.NUMBER }
+        },
+        required: ["name", "price"]
+      }
+    },
+    scheduleItems: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          time: { type: Type.STRING },
+          activity: { type: Type.STRING }
+        },
+        required: ["time", "activity"]
+      }
+    }
+  },
+  required: ["eventTitle", "ticketTiers", "scheduleItems"]
+};
+```
+
+## Best Practices
+
+### ✅ DO: Clear Descriptions
+
+```typescript
+// ✅ GOOD - Detailed descriptions with examples
+date: {
+  type: Type.STRING,
+  format: "date",
+  description: "Date of the meeting in YYYY-MM-DD format (e.g., '2024-07-29')"
+}
+```
+
+### ✅ DO: Use Required Fields
+
+```typescript
+// ✅ GOOD - Specify required fields
+required: ["eventTitle", "category", "descriptionLong"]
+```
+
+### ✅ DO: Use Enums for Classification
+
+```typescript
+// ✅ GOOD - Use enum for fixed set of values
+category: {
+  type: Type.STRING,
+  enum: ["Runway", "Party", "Workshop", "Exhibition"],
+  description: "Event category from predefined list"
+}
+```
+
+### ✅ DO: Add Constraints
+
+```typescript
+// ✅ GOOD - Add validation constraints
+price: {
+  type: Type.NUMBER,
+  minimum: 0,
+  maximum: 10000,
+  description: "Price in dollars, must be between 0 and 10000"
+}
+
+tags: {
+  type: Type.ARRAY,
+  items: { type: Type.STRING },
+  minItems: 1,
+  maxItems: 10,
+  description: "Between 1 and 10 tags"
+}
+```
+
+### ✅ DO: Strong Typing
+
+```typescript
+// ✅ GOOD - Use specific types
+prepTime: {
+  type: Type.NUMBER, // Not Type.STRING for numeric values
+  minimum: 0,
+  description: "Preparation time in minutes"
+}
+```
+
+### ✅ DO: Prompt Engineering
+
+```typescript
+// ✅ GOOD - Clear prompt instructions
+const prompt = `
+Extract the following information from the text:
+- Event title
+- Date and time
+- Location
+- Ticket prices
+
+Return the data in the specified JSON format.
+`;
+```
+
+### ✅ DO: Handle Errors Gracefully
+
+```typescript
+try {
+  const responseText = response.text || "{}";
+  const parsed = JSON.parse(responseText);
+  
+  // Validate structure
+  if (!parsed.eventTitle) {
+    throw new Error("Missing required field: eventTitle");
+  }
+  
+  // Validate semantic correctness
+  if (parsed.price && parsed.price < 0) {
+    throw new Error("Price cannot be negative");
+  }
+  
+  return parsed;
+} catch (error: any) {
+  console.error("Structured output error:", error);
+  // Return fallback or throw
+  throw new Error(`Failed to parse structured response: ${error.message}`);
+}
+```
+
+### ❌ DON'T: Vague Descriptions
+
+```typescript
+// ❌ BAD - Too vague
+date: {
+  type: Type.STRING,
+  description: "The date" // Not helpful
+}
+```
+
+### ❌ DON'T: Missing Required Fields
+
+```typescript
+// ❌ BAD - No required fields specified
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING }
+    // Missing required array
+  }
+};
+```
+
+### ❌ DON'T: Overly Complex Schemas
+
+```typescript
+// ❌ BAD - Too deeply nested or too many constraints
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    level1: {
+      type: Type.OBJECT,
+      properties: {
+        level2: {
+          type: Type.OBJECT,
+          properties: {
+            level3: {
+              type: Type.OBJECT,
+              // Too deep - simplify or split
+            }
+          }
+        }
+      }
+    }
+  }
+};
+```
+
+### ❌ DON'T: Skip Validation
+
+```typescript
+// ❌ BAD - No validation after parsing
+const parsed = JSON.parse(response.text);
+return parsed; // Dangerous - always validate!
+```
+
+## Type System Reference
+
+### Supported Types
+
+```typescript
+Type.STRING    // Text values
+Type.NUMBER    // Numeric values (integer or float)
+Type.BOOLEAN   // True/false
+Type.ARRAY     // Lists of items
+Type.OBJECT    // Nested objects
+// Note: null is supported via type array: ["string", "null"]
+```
+
+### Advanced Schema Features
+
+#### Enum (String Classification)
+```typescript
+category: {
+  type: Type.STRING,
+  enum: ["Runway", "Party", "Workshop", "Exhibition", "Pop-up", "Conference"],
+  description: "Event category from predefined list"
+}
+```
+
+#### Format (String Validation)
+```typescript
+date: {
+  type: Type.STRING,
+  format: "date", // Options: "date", "date-time", "time"
+  description: "Date in YYYY-MM-DD format"
+}
+```
+
+#### Numeric Constraints
+```typescript
+price: {
+  type: Type.NUMBER,
+  minimum: 0,
+  maximum: 10000,
+  description: "Price in dollars (0-10000)"
+}
+
+quantity: {
+  type: Type.NUMBER, // Use NUMBER for integers too
+  minimum: 1,
+  description: "Quantity must be at least 1"
+}
+```
+
+#### Array Constraints
+```typescript
+tags: {
+  type: Type.ARRAY,
+  items: { type: Type.STRING },
+  minItems: 1,
+  maxItems: 10,
+  description: "Between 1 and 10 tags"
+}
+```
+
+#### Nullable Fields
+```typescript
+// Allow field to be string or null
+optionalField: {
+  type: [Type.STRING, "null"], // Type array for nullable
+  description: "Optional field that can be null"
+}
+```
+
+#### Additional Properties Control
+```typescript
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    name: { type: Type.STRING }
+  },
+  additionalProperties: false, // Reject extra properties
+  required: ["name"]
+};
+```
+
+### Type Patterns
+
+```typescript
+// String
+{ type: Type.STRING, description: "..." }
+
+// Number
+{ type: Type.NUMBER, description: "..." }
+
+// Boolean
+{ type: Type.BOOLEAN, description: "..." }
+
+// Array of strings
+{
+  type: Type.ARRAY,
+  items: { type: Type.STRING }
+}
+
+// Array of objects
+{
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: { ... },
+    required: [...]
+  }
+}
+
+// Nested object
+{
+  type: Type.OBJECT,
+  properties: {
+    nested: {
+      type: Type.OBJECT,
+      properties: { ... }
+    }
+  }
+}
+```
+
+## SDK Differences
+
+### JavaScript/TypeScript SDK (Type Enums)
+```typescript
+// ✅ CORRECT - Using Type enums directly
+import { Type } from "https://esm.sh/@google/genai";
+
+const schema = {
+  type: Type.OBJECT,
+  properties: { ... }
+};
+
+config: {
+  responseMimeType: "application/json",
+  responseSchema: schema // ✅ Use responseSchema with Type enums
+}
+```
+
+### JavaScript/TypeScript SDK (Zod - Alternative)
+```typescript
+// ✅ CORRECT - Using Zod (if you prefer Zod validation)
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+const recipeSchema = z.object({
+  recipe_name: z.string(),
+  ingredients: z.array(z.object({ ... }))
+});
+
+config: {
+  responseMimeType: "application/json",
+  responseJsonSchema: zodToJsonSchema(recipeSchema) // ✅ Use responseJsonSchema with Zod
+}
+```
+
+### REST API
+```json
+{
+  "generationConfig": {
+    "responseMimeType": "application/json",
+    "responseJsonSchema": { ... } // ✅ Use responseJsonSchema
+  }
+}
+```
+
+**Note:** The codebase uses `responseSchema` with Type enums, which is the recommended approach for Deno Edge Functions.
+
+## Current Implementation Status
+
+### ✅ Correct Implementations
+- `generate-event-draft/index.ts:109` - Uses `responseMimeType` and `responseSchema` ✅
+- `resolve-venue/index.ts:62-63` - Uses `responseMimeType` and `responseSchema` ✅
+- `sponsor-ai/index.ts:192` - Uses `responseSchema` conditionally ✅
+- `search-events/index.ts:49` - Uses `responseSchema` ✅
+- `schedule-optimizer/index.ts:83` - Uses `responseSchema` with temperature control ✅
+- Schema definitions use `Type.OBJECT`, `Type.ARRAY`, etc. ✅
+
+### ⚠️ Potential Improvements
+- Add more detailed field descriptions with examples
+- Consider using `enum` for fixed value sets (categories, statuses)
+- Add `format` constraints for dates/times
+- Add `minimum`/`maximum` constraints for numeric fields
+- Add `minItems`/`maxItems` for arrays
+- Implement robust validation for parsed responses
+- Consider streaming for large responses
+- Explore combining with tools (Gemini 3 Pro) for enhanced capabilities
+
+## Error Handling
+
+### ✅ CORRECT: Robust Error Handling
+
+```typescript
+try {
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: schema
+    }
+  });
+
+  const responseText = response.text || "{}";
+  
+  if (!responseText || responseText.trim() === "") {
+    throw new Error("Empty response from model");
+  }
+
+  const parsed = JSON.parse(responseText);
+
+  // Validate required fields
+  for (const field of schema.required || []) {
+    if (!(field in parsed)) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  }
+
+  return parsed;
+} catch (error: any) {
+  if (error instanceof SyntaxError) {
+    console.error("Invalid JSON in response:", responseText);
+    throw new Error("Model returned invalid JSON");
+  }
+  throw error;
+}
+```
+
+## Quick Reference
+
+**Configuration:**
+- `responseMimeType: "application/json"` - Required
+- `responseSchema: schema` - JavaScript SDK (not responseJsonSchema)
+- `temperature: 0` - Recommended for deterministic output
+
+**Schema Structure:**
+- `type: Type.OBJECT` - Root object
+- `properties: {}` - Field definitions
+- `required: []` - Required field names
+
+**Response Parsing:**
+- `response.text` - Contains JSON string
+- Always use `|| "{}"` fallback
+- Always wrap `JSON.parse()` in try-catch
+- Validate required fields after parsing
+
+**Type Definitions:**
+- Use `Type.STRING`, `Type.NUMBER`, `Type.BOOLEAN`, `Type.ARRAY`, `Type.OBJECT`
+- Not string literals like `"string"` or `"object"`
+
+## Streaming Structured Outputs
+
+Streaming allows processing responses as they're generated, improving perceived performance. Streamed chunks are valid partial JSON strings that concatenate to form the complete JSON object.
+
+### ✅ CORRECT: Streaming Pattern
+
+```typescript
+const stream = await ai.models.generateContentStream({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: schema
+  }
+});
+
+let fullResponse = "";
+for await (const chunk of stream) {
+  const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  fullResponse += text;
+  // Process partial JSON as it arrives
+}
+
+// Parse complete JSON after stream ends
+const parsed = JSON.parse(fullResponse);
+```
+
+## Combining Structured Outputs with Tools (Gemini 3)
+
+**Preview Feature:** Available only with `gemini-3-pro-preview` model.
+
+You can combine structured outputs with built-in tools like Google Search, URL Context, and Code Execution.
+
+### ✅ CORRECT: Structured Output + Tools
+
+```typescript
+const response = await ai.models.generateContent({
+  model: 'gemini-3-pro-preview', // Required for tool combination
+  contents: "Search for all details for the latest Euro.",
+  config: {
+    tools: [
+      { googleSearch: {} },
+      { urlContext: {} }
+    ],
+    responseMimeType: "application/json",
+    responseSchema: schema
+  }
+});
+```
+
+## Model Support
+
+| Model | Structured Outputs | Notes |
+|------|-------------------|-------|
+| Gemini 3 Pro Preview | ✔️ | Full support, can combine with tools |
+| Gemini 2.5 Pro | ✔️ | Full support |
+| Gemini 2.5 Flash | ✔️ | Full support (recommended for speed) |
+| Gemini 2.5 Flash-Lite | ✔️ | Full support |
+| Gemini 2.0 Flash | ✔️* | Requires explicit `propertyOrdering` |
+| Gemini 2.0 Flash-Lite | ✔️* | Requires explicit `propertyOrdering` |
+
+*\* Gemini 2.0 requires an explicit `propertyOrdering` list within the JSON input to define the preferred structure.*
+
+### Property Ordering (Gemini 2.0)
+
+```typescript
+// For Gemini 2.0 models only
+const schema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    description: { type: Type.STRING },
+    date: { type: Type.STRING }
+  },
+  required: ["title", "description", "date"],
+  propertyOrdering: ["title", "description", "date"] // Explicit order for 2.0
+};
+```
+
+## Structured Outputs vs. Function Calling
+
+Both use JSON schemas but serve different purposes:
+
+| Feature | Primary Use Case |
+|--------|----------------|
+| **Structured Outputs** | **Formatting the final response to the user.** Use when you want the model's *answer* in a specific format (e.g., extracting data from a document to save to a database). |
+| **Function Calling** | **Taking action during the conversation.** Use when the model needs to *ask you* to perform a task (e.g., "get current weather") before it can provide a final answer. |
+
+**When to use Structured Outputs:**
+- Data extraction from unstructured text
+- Classification into predefined categories
+- Generating structured data for direct use (save to DB, display in UI)
+
+**When to use Function Calling:**
+- Model needs to call external APIs
+- Model needs to perform actions (send email, update database)
+- Multi-step workflows requiring tool interaction
+
+## Limitations
+
+### Schema Complexity
+- **Subset of JSON Schema:** Not all JSON Schema features are supported. Unsupported properties are ignored.
+- **Size Limits:** Very large or deeply nested schemas may be rejected. If you encounter errors:
+  - Shorten property names
+  - Reduce nesting depth
+  - Limit the number of constraints
+  - Split complex schemas into multiple calls
+
+### Validation
+- **Syntactic vs. Semantic:** Structured output guarantees syntactically correct JSON matching the schema, but does NOT guarantee semantically correct values.
+- **Always validate:** Implement robust validation in your application code before using the output.
+
+### Model Behavior
+- **Order Preservation:** Model produces outputs in the same order as keys in the schema (for most models).
+- **Required Fields:** Model will attempt to provide all required fields, but validation is still recommended.
+
+## When Implementing Structured Output
+
+1. **Define clear schema** - Use Type enums, detailed descriptions, constraints where needed
+2. **Set responseMimeType** - Always `"application/json"`
+3. **Use responseSchema** - JavaScript SDK property name (with Type enums)
+4. **Specify required fields** - Array of required field names
+5. **Add constraints** - Use enum, format, minimum/maximum, minItems/maxItems where appropriate
+6. **Parse safely** - Always handle empty/missing text
+7. **Validate structure** - Check required fields and semantic correctness after parsing
+8. **Handle errors** - Graceful error messages for invalid responses
+9. **Add system instruction** - Guide model to return only JSON
+10. **Consider streaming** - For large responses or better UX
+11. **Choose right model** - Gemini 2.5 Flash for speed, Gemini 3 Pro for tool combination

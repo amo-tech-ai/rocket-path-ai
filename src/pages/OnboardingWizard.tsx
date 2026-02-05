@@ -395,17 +395,41 @@ export default function OnboardingWizard() {
       setUrlExtractionDone(Object.keys(session.ai_extractions).length > 0);
 
       // CRITICAL: Sync extracted fields to formData if not already present
-      // This ensures Step 2 displays the extracted data even after page refresh
+      // This ensures Step 2/4 displays the extracted data even after page refresh
       const updates: Partial<WizardFormData> = {};
       const extractions = session.ai_extractions;
 
+      // Company name - essential for Step 4 Company Details card
+      if (extractions.company_name && !session.form_data?.company_name) {
+        updates.company_name = extractions.company_name as string;
+        updates.name = extractions.company_name as string;
+      }
+      // Description - essential for Step 4 Company Details card
+      if (extractions.description && !session.form_data?.description) {
+        updates.description = extractions.description as string;
+      }
+      // Industry - for display badges
+      if (extractions.industry && !session.form_data?.industry) {
+        updates.industry = extractions.industry as string | string[];
+      }
+      // Stage - for display badge
+      if (extractions.stage && !session.form_data?.stage) {
+        updates.stage = extractions.stage as string;
+      }
+      // Business model - for display badges
+      if (extractions.business_model && !session.form_data?.business_model) {
+        updates.business_model = extractions.business_model as string[];
+      }
+      // Key features
       if (extractions.key_features && Array.isArray(extractions.key_features) && !session.form_data?.key_features?.length) {
         updates.key_features = extractions.key_features as string[];
       }
+      // Target audience
       if (extractions.target_audience && !session.form_data?.target_customers?.length) {
         const audience = extractions.target_audience;
         updates.target_customers = Array.isArray(audience) ? audience as string[] : [audience as string];
       }
+      // Tagline
       if (extractions.tagline && !session.form_data?.tagline) {
         updates.tagline = extractions.tagline as string;
       }
@@ -444,12 +468,7 @@ export default function OnboardingWizard() {
     }
   }, [currentStep, session?.id, formData.website_url, urlExtractionDone, isEnrichingUrl, session?.ai_extractions, step1Handlers]);
 
-  // Task 27: Check for saved interview state when entering Step 3
-  useEffect(() => {
-    if (currentStep === 3 && !isRestoringInterview && hasSavedState && getAnsweredCount() > 0) {
-      setShowResumeDialog(true);
-    }
-  }, [currentStep, isRestoringInterview, hasSavedState, getAnsweredCount]);
+  // Task 27: Resume dialog removed - auto-continue without asking
 
   // Task 28: Load industry-specific questions when Step 3 starts
   useEffect(() => {
@@ -587,14 +606,6 @@ export default function OnboardingWizard() {
   
   return (
     <>
-      {/* Task 27: Resume Interview Dialog */}
-      <ResumeInterviewDialog
-        open={showResumeDialog && currentStep === 3}
-        answeredCount={getAnsweredCount()}
-        onResume={handleResumeInterview}
-        onStartFresh={handleStartFresh}
-      />
-
       {/* Background loading banner when timed out but still loading */}
       {loadingTimedOut && isLoading && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-primary/10 border-b border-primary/20 px-4 py-2">

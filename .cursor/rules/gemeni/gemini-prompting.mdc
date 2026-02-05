@@ -1,0 +1,281 @@
+---
+description: Gemini AI Prompting Best Practices - Always use few-shot examples, clear instructions, and proper formatting
+alwaysApply: false
+---
+
+# Gemini AI Prompting Best Practices
+
+**Purpose:** Guide for creating effective prompts for Google Gemini AI models  
+**Source:** Based on official Gemini API prompt design documentation  
+**Last Updated:** 2025-01-16
+
+---
+
+## 🎯 Core Principles
+
+### 1. Clear and Specific Instructions
+- Provide explicit instructions in the form of questions, step-by-step tasks, or user experience mapping
+- Be specific about what you want the model to do
+- Use constraints to limit scope and format
+
+### 2. Input Types
+- **Question Input:** Direct questions that require answers
+- **Task Input:** Specific tasks the model should perform
+- **Entity Input:** Entities the model operates on
+- **Completion Input:** Partial content for the model to complete
+
+### 3. Response Format Specification
+- Always specify desired output format (table, list, JSON, paragraph, etc.)
+- Use output prefixes (e.g., "JSON:", "Answer:") to guide format
+- Provide examples of the desired format
+
+---
+
+## ✅ Best Practices
+
+### Always Use Few-Shot Examples
+- **Critical:** Always include 2-5 examples showing the desired pattern
+- Few-shot prompts are significantly more effective than zero-shot
+- Examples can replace instructions if they're clear enough
+- Use consistent formatting across all examples
+
+### Add Context
+- Include all necessary information the model needs
+- Don't assume the model has domain-specific knowledge
+- Provide constraints, details, and background information
+- Reference specific documents, guides, or data when relevant
+
+### Use Prefixes Strategically
+- **Input Prefixes:** Label different parts of input (e.g., "English:", "French:")
+- **Output Prefixes:** Signal expected format (e.g., "JSON:", "Answer:")
+- **Example Prefixes:** Label examples in few-shot prompts for easier parsing
+
+### Break Down Complex Prompts
+- Split complex instructions into simpler components
+- Chain prompts for sequential tasks
+- Aggregate responses for parallel operations
+- One prompt per instruction when possible
+
+---
+
+## 📋 Prompt Structure Template
+
+```
+[Context/Background Information]
+[Clear Instructions]
+[Constraints]
+[Few-Shot Examples (2-5 examples)]
+[Input Prefix] [Actual Input]
+[Output Prefix]
+```
+
+---
+
+## 🎨 Example Patterns
+
+### Pattern 1: Task with Few-Shot Examples
+```
+You are an expert pitch deck editor. Based on the examples below, rewrite slide content to be more investor-focused.
+
+Example 1:
+Input: "Our product has many features"
+Output: "Our platform delivers 3 core value propositions that directly address investor ROI concerns"
+
+Example 2:
+Input: "We have customers"
+Output: "We've validated product-market fit with 500+ paying customers and 95% retention"
+
+Now rewrite: [user input]
+```
+
+### Pattern 2: Structured Output with Prefixes
+```
+Classify the following slide titles into categories: [vision, problem, solution, market, traction]
+
+Text: "The Future of AI-Powered Presentations"
+Category: vision
+
+Text: "Founders Waste 60+ Hours on Pitch Decks"
+Category: problem
+
+Text: [user input]
+Category:
+```
+
+### Pattern 3: Completion Strategy
+```
+Generate 5 headline variations for a pitch deck vision slide.
+
+Original Title: "AI Pitch Deck Tool"
+
+Headlines:
+1. 
+```
+
+---
+
+## ⚠️ Common Mistakes to Avoid
+
+### ❌ Don't Do This:
+- Use zero-shot prompts without examples
+- Assume the model knows domain-specific context
+- Use vague instructions without constraints
+- Mix inconsistent formatting in examples
+- Rely on models for factual information without verification
+- Use anti-patterns (showing what NOT to do)
+
+### ✅ Do This Instead:
+- Always include 2-5 few-shot examples
+- Provide all necessary context explicitly
+- Use clear constraints and format specifications
+- Maintain consistent formatting across examples
+- Use positive patterns (show what TO do)
+- Verify factual information independently
+
+---
+
+## 🔧 Model Parameters
+
+### Temperature
+- **Low (0-0.3):** Deterministic, factual responses
+- **Medium (0.4-0.7):** Balanced creativity and accuracy
+- **High (0.8-1.0):** Creative, diverse responses
+
+**Recommendation:** Use low temperature (0.2-0.4) for structured outputs, medium (0.5-0.7) for creative content
+
+### Max Output Tokens
+- 100 tokens ≈ 60-80 words
+- Set based on expected response length
+- Leave buffer for longer responses
+
+### Top-K & Top-P
+- **Top-K:** Number of most probable tokens to consider
+- **Top-P:** Cumulative probability threshold
+- Default Top-P: 0.95
+- Lower values = more focused, higher = more diverse
+
+---
+
+## 🎯 Prompt Iteration Strategy
+
+### When Results Don't Match Expectations:
+
+1. **Rephrase the Prompt**
+   - Try different wording
+   - Use synonyms
+   - Change sentence structure
+
+2. **Switch to Analogous Task**
+   - If direct instruction fails, use similar task
+   - Example: Instead of "categorize", use "multiple choice"
+
+3. **Change Content Order**
+   - Try: [examples] → [context] → [input]
+   - Try: [input] → [examples] → [context]
+   - Try: [examples] → [input] → [context]
+
+4. **Adjust Temperature**
+   - If getting fallback responses, increase temperature
+   - If too creative, decrease temperature
+
+---
+
+## 📝 Prompt Checklist
+
+Before sending a prompt to Gemini, verify:
+
+- [ ] Clear, specific instructions provided
+- [ ] 2-5 few-shot examples included
+- [ ] Consistent formatting across examples
+- [ ] Output format specified
+- [ ] Necessary context included
+- [ ] Constraints clearly stated
+- [ ] Prefixes used appropriately (if needed)
+- [ ] Temperature set appropriately for task
+- [ ] Max output tokens set correctly
+
+---
+
+## 🚀 Quick Reference
+
+### For Structured Outputs (JSON, Tables, Lists)
+```
+[Context]
+[2-3 Examples showing exact format]
+[Input Prefix] [User Input]
+[Output Prefix]
+Temperature: 0.2-0.4
+```
+
+### For Creative Content (Headlines, Descriptions)
+```
+[Context]
+[2-3 Examples showing style/tone]
+[Constraints]
+[User Input]
+Temperature: 0.5-0.7
+```
+
+### For Analysis Tasks
+```
+[Context with relevant information]
+[Examples showing analysis format]
+[Input to analyze]
+[Output format specification]
+Temperature: 0.3-0.5
+```
+
+---
+
+## 💡 Key Insights
+
+1. **Few-shot > Zero-shot:** Always include examples
+2. **Positive patterns > Negative patterns:** Show what TO do, not what NOT to do
+3. **Context is critical:** Don't assume model knowledge
+4. **Format matters:** Consistent formatting in examples = consistent output
+5. **Temperature matters:** Lower for structured, higher for creative
+6. **Iteration is normal:** Expect to refine prompts 2-3 times
+
+---
+
+## 📚 Related Resources
+
+- [Gemini API Documentation](https://ai.google.dev/gemini-api/docs)
+- [Prompt Gallery](https://ai.google.dev/gemini-api/prompts)
+- [Multimodal Prompting Guide](https://ai.google.dev/gemini-api/docs/files#prompt-guide)
+- [Image Generation Prompting](https://ai.google.dev/gemini-api/docs/image-generation#prompt-guide)
+
+---
+
+## 🎯 Application to Sun AI Project
+
+### When Creating Prompts for:
+- **Deck Generation:** Use few-shot examples of good pitch decks
+- **Slide Rewriting:** Show 2-3 examples of before/after transformations
+- **Chart Generation:** Provide examples of chart data structures
+- **Research:** Include context about credible sources and citation format
+- **Analysis:** Show examples of clarity/impact/tone ratings
+
+### Example: Slide Content Rewriting
+```
+You are an expert pitch deck editor. Rewrite slide content to be more investor-focused, following these examples:
+
+Example 1:
+Original: "Our product has many features"
+Rewritten: "Our platform delivers 3 core value propositions that directly address investor ROI concerns"
+
+Example 2:
+Original: "We have customers"
+Rewritten: "We've validated product-market fit with 500+ paying customers and 95% retention"
+
+Now rewrite this slide content:
+Title: [slide title]
+Content: [slide content]
+
+Output format: Return JSON with "newTitle" and "newContent" fields.
+```
+
+---
+
+**Remember:** The best prompts are clear, specific, and include examples. When in doubt, add more context and examples.
+

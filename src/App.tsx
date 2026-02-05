@@ -29,6 +29,7 @@ import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import EventWizard from "./pages/EventWizard";
 import OnboardingWizard from "./pages/OnboardingWizard";
+import OnboardingComplete from "./pages/OnboardingComplete";
 import PublicEventsDirectory from "./pages/PublicEventsDirectory";
 import PublicEventDetail from "./pages/PublicEventDetail";
 import BlogIndex from "./pages/BlogIndex";
@@ -186,6 +187,14 @@ const App = () => (
               }
             />
             <Route
+              path="/onboarding/complete"
+              element={
+                <ProtectedRoute>
+                  <OnboardingComplete />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/app/pitch-decks"
               element={
                 <ProtectedRoute>
@@ -246,14 +255,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Validator />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/validate"
-              element={
-                <ProtectedRoute>
-                  <ValidateIdea />
                 </ProtectedRoute>
               }
             />

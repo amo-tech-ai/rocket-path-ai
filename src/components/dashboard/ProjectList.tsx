@@ -64,7 +64,8 @@ export function ProjectList({ projects, isLoading }: ProjectListProps) {
       ) : (
         <div className="space-y-4">
           {displayProjects.map((project) => {
-            const needsAttention = project.health === 'at_risk' || project.health === 'off_track';
+            // Database CHECK constraint values: on_track, at_risk, behind, completed
+            const needsAttention = project.health === 'at_risk' || project.health === 'behind';
             return (
               <div key={project.id} className="space-y-2">
                 <div className="flex items-center justify-between">

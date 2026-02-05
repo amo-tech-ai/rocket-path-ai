@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=yvyesmiczbjqwbqtlidy&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    },
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-b3fa6e7563cc48f09dfa0cfb3e604606"
+      }
+    },
+    "cloudinary-asset-mgmt-remote": {
+      "url": "https://asset-management.mcp.cloudinary.com/sse",
+      "headers": {
+        "cloudinary-url": "cloudinary://366725312524978:bC0zDwXju65Y4VVb-AGYY2WDfo0@ddysyn5rr"
+      }
+    }
+  }
+}

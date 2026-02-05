@@ -16,7 +16,8 @@ import {
   Sparkles,
   Presentation,
   MessageSquare,
-  BarChart3
+  BarChart3,
+  GitBranch
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ const navItems = [
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
   { label: "Investors", path: "/investors", icon: TrendingUp },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
+  { label: "Diagrams", path: "/diagrams", icon: GitBranch },
   // AI Chat removed from nav - now accessible via floating assistant
 ];
 

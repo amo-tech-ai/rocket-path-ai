@@ -67,10 +67,12 @@ interface RunStepRequest {
 }
 
 interface RunPackRequest {
-  pack_id: string;
+  pack_id?: string;
+  pack_slug?: string;
   context: Record<string, unknown>;
   industry?: string;
   stage?: string;
+  startup_id?: string;
 }
 
 interface ApplyOptions {
@@ -698,12 +700,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
 
       case 'run_pack': {
-        const { pack_id, context, industry, stage } = payload as RunPackRequest;
-        if (!pack_id) return badRequest('Missing pack_id');
+        const { pack_id, pack_slug, context, industry, stage } = payload as RunPackRequest;
         if (!context) return badRequest('Missing context');
 
+        let resolvedPackId = pack_id;
+        if (!resolvedPackId && pack_slug) {
+          const { data: packBySlug } = await supabase
+            .from('prompt_packs')
+            .select('id')
+            .eq('slug', pack_slug)
+            .limit(1)
+            .single();
+          if (!packBySlug?.id) return notFound(`Pack not found: ${pack_slug}`);
+          resolvedPackId = packBySlug.id;
+        }
+        if (!resolvedPackId) return badRequest('Missing pack_id or pack_slug');
+
         const result = await runPack(supabase, user.id, {
-          pack_id,
+          pack_id: resolvedPackId,
           context,
           industry,
           stage,

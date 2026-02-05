@@ -1,0 +1,504 @@
+---
+description: Gemini Google Search Grounding - Real-time information with citations
+alwaysApply: false
+---
+
+# Gemini Google Search Grounding - Cursor Rule
+
+## Overview
+
+Grounding with Google Search connects Gemini models to real-time web content, enabling access to current information beyond the model's knowledge cutoff. This increases factual accuracy, reduces hallucinations, and provides verifiable citations.
+
+### Key Benefits
+- **Increase factual accuracy:** Reduce model hallucinations by basing responses on real-world information
+- **Access real-time information:** Answer questions about recent events and topics
+- **Provide citations:** Build user trust by showing sources for the model's claims
+
+## Core API Usage
+
+### ✅ CORRECT: Basic Google Search Grounding
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+const groundingTool = {
+  googleSearch: {},
+};
+
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Who won the euro 2024?",
+  config: {
+    tools: [groundingTool],
+  },
+});
+
+console.log(response.text);
+```
+
+### ✅ CORRECT: Combined with Other Tools
+
+```typescript
+// Google Search + URL Context
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Compare current fashion trends with this brand's website",
+  config: {
+    tools: [
+      { googleSearch: {} },
+      { urlContext: {} }
+    ],
+  },
+});
+```
+
+## How It Works
+
+When you enable the `googleSearch` tool, the model automatically:
+
+1. **Analyzes the prompt** - Determines if a Google Search can improve the answer
+2. **Generates search queries** - Creates one or multiple search queries automatically
+3. **Executes searches** - Performs the searches and retrieves results
+4. **Processes results** - Synthesizes information from search results
+5. **Returns grounded response** - Provides answer with `groundingMetadata` containing citations
+
+**Key Point:** The model decides when to search - you don't need to explicitly request it.
+
+## Understanding Grounding Metadata
+
+When a response is successfully grounded, it includes `groundingMetadata` with structured citation data:
+
+```typescript
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Who won the euro 2024?",
+  config: {
+    tools: [{ googleSearch: {} }],
+  },
+});
+
+// Access grounding metadata
+const metadata = response.candidates?.[0]?.groundingMetadata;
+
+if (metadata) {
+  // Search queries used
+  const queries = metadata.webSearchQueries; // ["UEFA Euro 2024 winner", "who won euro 2024"]
+  
+  // Web sources
+  const chunks = metadata.groundingChunks; // [{ web: { uri: "...", title: "..." } }]
+  
+  // Citation mappings (text segments to sources)
+  const supports = metadata.groundingSupports; // [{ segment: {...}, groundingChunkIndices: [0, 1] }]
+  
+  // Search entry point (HTML/CSS for search widget - see Terms of Service)
+  const entryPoint = metadata.searchEntryPoint;
+}
+```
+
+### Grounding Metadata Structure
+
+```typescript
+{
+  webSearchQueries: string[],           // Search queries used
+  searchEntryPoint: {                    // HTML/CSS for search widget (Terms of Service apply)
+    renderedContent: string
+  },
+  groundingChunks: [                    // Web sources
+    {
+      web: {
+        uri: string,                     // Source URL
+        title: string                    // Source title
+      }
+    }
+  ],
+  groundingSupports: [                   // Links text segments to sources
+    {
+      segment: {
+        startIndex: number,              // Text start position
+        endIndex: number,                // Text end position
+        text: string                     // Text segment
+      },
+      groundingChunkIndices: number[]   // Indices into groundingChunks
+    }
+  ]
+}
+```
+
+## Attributing Sources with Inline Citations
+
+### ✅ CORRECT: Add Citations to Response Text
+
+```typescript
+function addCitations(response: any): string {
+  let text = response.text || "";
+  const supports = response.candidates?.[0]?.groundingMetadata?.groundingSupports;
+  const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+
+  if (!supports || !chunks || supports.length === 0) {
+    return text; // No citations available
+  }
+
+  // Sort supports by endIndex in descending order to avoid shifting issues when inserting
+  const sortedSupports = [...supports].sort(
+    (a, b) => (b.segment?.endIndex ?? 0) - (a.segment?.endIndex ?? 0),
+  );
+
+  for (const support of sortedSupports) {
+    const endIndex = support.segment?.endIndex;
+    if (endIndex === undefined || !support.groundingChunkIndices?.length) {
+      continue;
+    }
+
+    // Create citation links like [1](url1), [2](url2)
+    const citationLinks = support.groundingChunkIndices
+      .map((i: number) => {
+        const uri = chunks[i]?.web?.uri;
+        if (uri) {
+          return `[${i + 1}](${uri})`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (citationLinks.length > 0) {
+      const citationString = citationLinks.join(", ");
+      text = text.slice(0, endIndex) + citationString + text.slice(endIndex);
+    }
+  }
+
+  return text;
+}
+
+// Usage
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Who won the euro 2024?",
+  config: {
+    tools: [{ googleSearch: {} }],
+  },
+});
+
+const textWithCitations = addCitations(response);
+console.log(textWithCitations);
+// Output: "Spain won Euro 2024, defeating England 2-1 in the final.[1](https://...), [2](https://...)"
+```
+
+## Common Patterns
+
+### Pattern 1: Real-Time Information
+
+```typescript
+// ✅ GOOD - Use for current events, recent data
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "What are the latest fashion trends for 2025?",
+  config: {
+    tools: [{ googleSearch: {} }],
+  },
+});
+```
+
+### Pattern 2: Fact Verification
+
+```typescript
+// ✅ GOOD - Verify facts and reduce hallucinations
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "What is the current population of Medellín, Colombia?",
+  config: {
+    tools: [{ googleSearch: {} }],
+  },
+});
+```
+
+### Pattern 3: Combined with Structured Output
+
+```typescript
+// ✅ GOOD - Get structured data with citations
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Find the top 5 fashion events happening in New York this month",
+  config: {
+    tools: [{ googleSearch: {} }],
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        events: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              date: { type: Type.STRING },
+              location: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    }
+  },
+});
+```
+
+### Pattern 4: Combined with URL Context
+
+```typescript
+// ✅ GOOD - Combine web search with specific URLs
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: "Compare current market trends with this brand's website: https://example.com",
+  config: {
+    tools: [
+      { googleSearch: {} },
+      { urlContext: {} }
+    ],
+  },
+});
+```
+
+## Model Support
+
+| Model | Google Search Support |
+|-------|----------------------|
+| Gemini 2.5 Pro | ✔️ |
+| Gemini 2.5 Flash | ✔️ (Recommended) |
+| Gemini 2.5 Flash-Lite | ✔️ |
+| Gemini 2.0 Flash | ✔️ |
+| Gemini 1.5 Pro | ✔️ (Legacy tool) |
+| Gemini 1.5 Flash | ✔️ (Legacy tool) |
+
+**Note:** 
+- **Gemini 2.0+**: Use `googleSearch` tool (current)
+- **Gemini 1.5**: Supports legacy `googleSearchRetrieval` tool with dynamic mode
+
+## Legacy: Gemini 1.5 Dynamic Retrieval
+
+For Gemini 1.5 models, you can use dynamic retrieval mode that only searches if confidence exceeds a threshold:
+
+```typescript
+// ⚠️ LEGACY - Only for Gemini 1.5 models
+// Use googleSearch for Gemini 2.0+ instead
+import { DynamicRetrievalConfigMode } from "@google/genai";
+
+const retrievalTool = {
+  googleSearchRetrieval: {
+    dynamicRetrievalConfig: {
+      mode: DynamicRetrievalConfigMode.MODE_DYNAMIC,
+      dynamicThreshold: 0.7, // Only search if confidence > 70%
+    },
+  },
+};
+
+const response = await ai.models.generateContent({
+  model: "gemini-1.5-flash",
+  contents: "Who won the euro 2024?",
+  config: {
+    tools: [retrievalTool],
+  },
+});
+
+// Check if search was performed
+if (!response.candidates?.[0]?.groundingMetadata) {
+  console.log("Model answered from its own knowledge (no search performed)");
+}
+```
+
+## Pricing Considerations
+
+**Important:** You are billed for each search query the model decides to execute.
+
+- **Single query:** One billable search
+- **Multiple queries:** If the model executes multiple searches (e.g., "UEFA Euro 2024 winner" and "Spain vs England Euro 2024 final score"), each counts as a separate billable search
+- **No search:** If the model doesn't search (answers from knowledge), no search charges apply
+
+**Cost Optimization:**
+- Use for queries that require real-time information
+- Consider if the information is likely in the model's training data
+- Monitor usage to understand search frequency
+
+## Best Practices
+
+### ✅ DO: Use for Real-Time Information
+
+```typescript
+// ✅ GOOD - Current events, recent data
+contents: "What are the latest fashion trends for 2025?"
+config: { tools: [{ googleSearch: {} }] }
+```
+
+### ✅ DO: Combine with Structured Outputs
+
+```typescript
+// ✅ GOOD - Get structured data with citations
+config: {
+  tools: [{ googleSearch: {} }],
+  responseMimeType: "application/json",
+  responseSchema: schema
+}
+```
+
+### ✅ DO: Display Citations to Users
+
+```typescript
+// ✅ GOOD - Build trust with citations
+const textWithCitations = addCitations(response);
+// Display citations in UI
+```
+
+### ✅ DO: Handle Missing Metadata
+
+```typescript
+// ✅ GOOD - Check if search was performed
+const metadata = response.candidates?.[0]?.groundingMetadata;
+if (metadata) {
+  // Search was performed, use citations
+} else {
+  // Model answered from knowledge, no citations available
+}
+```
+
+### ❌ DON'T: Use for Static Knowledge
+
+```typescript
+// ❌ BAD - Model already knows this
+contents: "What is the capital of France?"
+config: { tools: [{ googleSearch: {} }] } // Unnecessary search cost
+
+// ✅ GOOD - No search needed for well-known facts
+contents: "What is the capital of France?"
+// No tools needed
+```
+
+### ❌ DON'T: Ignore Terms of Service
+
+```typescript
+// ⚠️ IMPORTANT: searchEntryPoint.renderedContent contains HTML/CSS
+// You MUST comply with Terms of Service requirements for displaying
+// Search Suggestions widget if you use this content
+const entryPoint = response.candidates?.[0]?.groundingMetadata?.searchEntryPoint;
+if (entryPoint?.renderedContent) {
+  // Review Terms of Service: https://ai.google.dev/gemini-api/terms#grounding-with-google-search
+}
+```
+
+## Error Handling
+
+### ✅ CORRECT: Robust Error Handling
+
+```typescript
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+    },
+  });
+
+  const text = response.text || "";
+  const metadata = response.candidates?.[0]?.groundingMetadata;
+
+  // Check if search was performed
+  if (metadata) {
+    console.log("Search queries:", metadata.webSearchQueries);
+    console.log("Sources:", metadata.groundingChunks.length);
+    
+    // Add citations
+    const textWithCitations = addCitations(response);
+    return { text: textWithCitations, sources: metadata.groundingChunks };
+  } else {
+    // No search performed - model used knowledge
+    return { text, sources: [] };
+  }
+} catch (error: any) {
+  console.error("Google Search error:", error);
+  throw new Error(`Failed to generate grounded response: ${error.message}`);
+}
+```
+
+## Use Cases
+
+### ✅ Good Use Cases
+
+1. **Current Events:** "Who won the latest fashion week?"
+2. **Recent Data:** "What are the current ticket prices for Coachella 2025?"
+3. **Fact Verification:** "What is the current population of [city]?"
+4. **Trend Analysis:** "What are the latest trends in sustainable fashion?"
+5. **Real-Time Information:** "What events are happening in New York this weekend?"
+
+### ❌ Poor Use Cases
+
+1. **Static Knowledge:** "What is 2+2?" (Model knows this)
+2. **Historical Facts:** "When was the first fashion week?" (Likely in training data)
+3. **General Knowledge:** "What is photosynthesis?" (Model knows this)
+
+## Current Implementation Status
+
+### ⚠️ Potential Usage
+- `generate-image-preview/index.ts:47` - Google Search commented out (could be enabled for brand analysis)
+- `resolve-venue/index.ts:60` - Uses `googleMaps` (different tool, but similar grounding concept)
+
+### 💡 Recommended Enhancements
+- Enable Google Search in `generate-image-preview` for real-time brand analysis
+- Add Google Search to event-related queries for current information
+- Implement citation display in UI for user trust
+- Consider combining with URL Context for comprehensive grounding
+
+## Quick Reference
+
+**Basic Usage:**
+```typescript
+config: {
+  tools: [{ googleSearch: {} }]
+}
+```
+
+**Access Metadata:**
+```typescript
+const metadata = response.candidates?.[0]?.groundingMetadata;
+const queries = metadata?.webSearchQueries;
+const chunks = metadata?.groundingChunks;
+const supports = metadata?.groundingSupports;
+```
+
+**Add Citations:**
+```typescript
+const textWithCitations = addCitations(response);
+```
+
+**Check if Search Performed:**
+```typescript
+if (response.candidates?.[0]?.groundingMetadata) {
+  // Search was performed
+} else {
+  // Model used knowledge
+}
+```
+
+**Supported Models:**
+- Gemini 2.5 Flash (Recommended)
+- Gemini 2.5 Pro
+- Gemini 2.0 Flash
+- Gemini 1.5 Pro/Flash (Legacy tool)
+
+**Pricing:**
+- Billed per search query executed
+- Multiple queries = multiple charges
+- No search = no charge
+
+## When Implementing Google Search
+
+1. **Enable the tool** - Add `{ googleSearch: {} }` to tools array
+2. **Use appropriate models** - Gemini 2.5 Flash recommended
+3. **Handle metadata** - Check for `groundingMetadata` to verify search
+4. **Display citations** - Use `groundingSupports` and `groundingChunks` for citations
+5. **Consider costs** - Only use when real-time information is needed
+6. **Combine tools** - Use with URL Context for comprehensive grounding
+7. **Follow Terms of Service** - Review requirements for `searchEntryPoint` usage
+8. **Handle errors** - Graceful fallback if search fails
+9. **Optimize prompts** - Clear prompts help model decide when to search
+10. **Monitor usage** - Track search frequency to understand costs

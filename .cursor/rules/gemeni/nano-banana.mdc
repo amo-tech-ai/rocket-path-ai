@@ -1,0 +1,276 @@
+---
+description: Gemini Image Generation (Nano Banana) - Use generateContent() for image generation
+alwaysApply: false
+---
+
+# Gemini Image Generation (Nano Banana) - Cursor Rule
+
+## Core API Usage
+
+### ✅ CORRECT: Use `generateContent()` NOT `generateImages()`
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+// ✅ CORRECT - Text to Image
+const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image', // or 'gemini-3-pro-image-preview'
+    contents: prompt, // string or [{ role: 'user', parts: [{ text: prompt }] }]
+    config: {
+        responseModalities: ['TEXT', 'IMAGE'], // or ['IMAGE'] for images only
+        imageConfig: {
+            aspectRatio: '1:1', // Options: "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
+            imageSize: '2K' // For 3 Pro only: '1K', '2K', '4K'
+        }
+    }
+});
+
+// ✅ CORRECT - Parse Response
+const images = [];
+if (response.candidates && response.candidates[0]?.content?.parts) {
+    for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.mimeType?.startsWith('image/')) {
+            images.push({
+                base64: part.inlineData.data, // Already base64 string
+                mimeType: part.inlineData.mimeType || 'image/png'
+            });
+        }
+    }
+}
+```
+
+### ❌ WRONG: Never use `generateImages()` - This method doesn't exist
+```typescript
+// ❌ DON'T DO THIS
+const response = await ai.models.generateImages({...});
+```
+
+## Model Selection
+
+### Gemini 2.5 Flash Image (Nano Banana) - Fast Preview
+- **Model:** `'gemini-2.5-flash-image'`
+- **Use For:** Fast preview generation, multiple variants, high-volume tasks
+- **Resolution:** Fixed 1024x1024 (1:1) or other aspect ratios at 1290 tokens/image
+- **Best For:** Quick iterations, preview grids, low-latency needs
+
+### Gemini 3 Pro Image Preview (Nano Banana Pro) - High Quality
+- **Model:** `'gemini-3-pro-image-preview'`
+- **Use For:** Professional assets, high-resolution, complex prompts
+- **Resolution:** 1K, 2K, or 4K (configure via `imageSize`)
+- **Best For:** Final production images, complex compositions, text rendering
+
+## Response Parsing Pattern
+
+**Always parse from `response.candidates[0].content.parts`:**
+```typescript
+// Standard pattern for all image generation
+for (const part of response.candidates[0].content.parts) {
+    if (part.text) {
+        // Optional text response
+        console.log(part.text);
+    } else if (part.inlineData) {
+        // Image data (base64 string)
+        const base64Image = part.inlineData.data;
+        const mimeType = part.inlineData.mimeType || 'image/png';
+        // Process image...
+    }
+}
+```
+
+## Configuration Options
+
+### Response Modalities
+```typescript
+config: {
+    responseModalities: ['TEXT', 'IMAGE'], // Both text and image
+    // OR
+    responseModalities: ['IMAGE'], // Images only (no text)
+}
+```
+
+### Image Config (Aspect Ratio)
+```typescript
+imageConfig: {
+    aspectRatio: '16:9', // Options: "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
+}
+```
+
+### Image Config (Size - 3 Pro Only)
+```typescript
+imageConfig: {
+    aspectRatio: '16:9',
+    imageSize: '2K', // '1K', '2K', or '4K' (uppercase K required)
+}
+```
+
+## Image Editing (Text + Image to Image)
+
+```typescript
+const parts = [
+    {
+        inlineData: {
+            data: base64ImageString, // Base64 encoded image
+            mimeType: 'image/png'
+        }
+    },
+    {
+        text: "Edit this image: add a wizard hat to the cat's head"
+    }
+];
+
+const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: [{ role: 'user', parts }],
+    config: {
+        responseModalities: ['TEXT', 'IMAGE']
+    }
+});
+```
+
+## Prompt Engineering Best Practices
+
+### ✅ DO: Use Descriptive Paragraphs
+```typescript
+const prompt = `
+    A photorealistic close-up portrait of an elderly Japanese ceramicist
+    with deep, sun-etched wrinkles and a warm, knowing smile. He is
+    carefully inspecting a freshly glazed tea bowl. The setting is his
+    rustic, sun-drenched workshop with pottery wheels and shelves of
+    clay pots in the background. The scene is illuminated by soft,
+    golden hour light streaming through a window, highlighting the
+    fine texture of the clay and the fabric of his apron. Captured
+    with an 85mm portrait lens, resulting in a soft, blurred
+    background (bokeh). The overall mood is serene and masterful.
+`;
+```
+
+### ❌ DON'T: Use Keyword Lists
+```typescript
+// ❌ BAD
+const prompt = "ceramicist, wrinkles, smile, workshop, golden light, bokeh";
+```
+
+### Key Prompt Elements
+- **Describe the scene** (not just keywords)
+- **Include camera/lens details** for photorealistic results
+- **Specify lighting** (golden hour, soft, diffused, etc.)
+- **Mention composition** (close-up, wide shot, etc.)
+- **Add mood/atmosphere** descriptors
+- **Specify aspect ratio** in prompt if not in config
+
+## Common Patterns
+
+### Pattern 1: Text-to-Image (Preview Generation)
+```typescript
+const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: finalPrompt,
+    config: {
+        responseModalities: ['IMAGE'],
+        imageConfig: { aspectRatio: '1:1' }
+    }
+});
+```
+
+### Pattern 2: Image Refinement (Final Generation)
+```typescript
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-image-preview',
+    contents: [{ role: 'user', parts: [imagePart, textPart] }],
+    config: {
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+            aspectRatio: '16:9',
+            imageSize: '2K'
+        }
+    }
+});
+```
+
+### Pattern 3: Multi-Image Composition
+```typescript
+const parts = [
+    { text: "Combine these images:..." },
+    { inlineData: { data: base64Image1, mimeType: 'image/png' } },
+    { inlineData: { data: base64Image2, mimeType: 'image/png' } }
+];
+
+const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: [{ role: 'user', parts }],
+    config: { responseModalities: ['IMAGE'] }
+});
+```
+
+## Error Handling
+
+```typescript
+try {
+    const response = await ai.models.generateContent({...});
+    
+    // Check for images in response
+    const images = [];
+    if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                images.push(part.inlineData.data);
+            }
+        }
+    }
+    
+    if (images.length === 0) {
+        throw new Error("No images generated in response");
+    }
+    
+    return images;
+} catch (error: any) {
+    console.error("Image generation error:", error);
+    throw new Error(`Failed to generate images: ${error.message}`);
+}
+```
+
+## Current Implementation Status
+
+### ✅ Correct Implementations
+- SDK import: `import { GoogleGenAI } from "https://esm.sh/@google/genai"`
+- Client initialization: `new GoogleGenAI({ apiKey })`
+- CORS handling: Proper OPTIONS handler
+- Error handling: Try-catch with proper error messages
+
+### ❌ Needs Fix
+- **generate-image-preview/index.ts:79** - Uses `generateImages()` (doesn't exist)
+- **generate-image-preview/index.ts:90** - Wrong response parsing structure
+- **generate-image-final/index.ts:48** - Missing `imageConfig` in config
+
+## Quick Reference
+
+**Models:**
+- `'gemini-2.5-flash-image'` - Fast, 1024px, multiple variants
+- `'gemini-3-pro-image-preview'` - High quality, 1K/2K/4K
+
+**Method:**
+- ✅ `ai.models.generateContent()`
+- ❌ `ai.models.generateImages()` (doesn't exist)
+
+**Response:**
+- `response.candidates[0].content.parts[]`
+- Check `part.inlineData.data` for base64 image
+- Check `part.inlineData.mimeType` for image type
+
+**Config:**
+- `responseModalities: ['IMAGE']` or `['TEXT', 'IMAGE']`
+- `imageConfig.aspectRatio` - Aspect ratio string
+- `imageConfig.imageSize` - '1K', '2K', '4K' (3 Pro only)
+
+## When Implementing Image Generation
+
+1. **Always use `generateContent()`** - Never `generateImages()`
+2. **Parse from `candidates[0].content.parts`** - Not `generatedImages`
+3. **Check `inlineData`** - Not `image.imageBytes`
+4. **Configure `responseModalities`** - Specify ['IMAGE'] or ['TEXT', 'IMAGE']
+5. **Use descriptive prompts** - Paragraphs, not keyword lists
+6. **Handle multiple images** - Loop through all parts with `inlineData`
+7. **Add `imageConfig`** - For aspect ratio and size control

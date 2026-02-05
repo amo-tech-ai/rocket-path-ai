@@ -1,0 +1,127 @@
+---
+alwaysApply: false
+description: Simple guidelines for Supabase authentication
+globs: ["**/auth/**", "**/supabase/**", "**/*Auth*"]
+---
+
+# Supabase Auth - Cursor Rule
+
+## Quick Setup
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+)
+```
+
+**Environment Variables:**
+```env
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_... or anon key
+```
+
+## Core Auth Methods
+
+```typescript
+// Sign Up
+await supabase.auth.signUp({ email, password })
+
+// Sign In (Password)
+await supabase.auth.signInWithPassword({ email, password })
+
+// Sign In (Magic Link)
+await supabase.auth.signInWithOtp({ email })
+
+// Sign In (OAuth - Google, GitHub, etc.)
+await supabase.auth.signInWithOAuth({ provider: 'google' })
+
+// Sign Out
+await supabase.auth.signOut()
+
+// Get Session
+const { data: { session } } = await supabase.auth.getSession()
+
+// Get User
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+## React Pattern
+
+```typescript
+const [session, setSession] = useState(null)
+
+useEffect(() => {
+  // Get initial session
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session)
+  })
+
+  // Listen for auth changes
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => setSession(session)
+  )
+
+  return () => subscription.unsubscribe()
+}, [])
+```
+
+## Magic Link Flow
+
+```typescript
+// Send magic link
+await supabase.auth.signInWithOtp({
+  email,
+  options: { emailRedirectTo: window.location.origin }
+})
+
+// Handle callback (verify token_hash from URL)
+const params = new URLSearchParams(window.location.search)
+const token_hash = params.get('token_hash')
+if (token_hash) {
+  await supabase.auth.verifyOtp({ token_hash, type: 'email' })
+}
+```
+
+**Email Template:** Change `{{ .ConfirmationURL }}` to `{{ .SiteURL }}?token_hash={{ .TokenHash }}&type=email` in Supabase Dashboard.
+
+## OAuth (Google, LinkedIn, etc.)
+
+```typescript
+// Basic OAuth sign in
+await supabase.auth.signInWithOAuth({ provider: 'google' })
+
+// PKCE flow (server-side)
+await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: { redirectTo: `${origin}/auth/callback` }
+})
+
+// Callback handler
+const code = searchParams.get('code')
+if (code) {
+  await supabase.auth.exchangeCodeForSession(code)
+}
+```
+
+## RLS with Auth
+
+```sql
+CREATE POLICY "Users access own data"
+ON public.table_name FOR ALL
+USING (user_id = auth.uid());
+```
+
+## Quick Reference
+
+| Method | Purpose |
+|--------|---------|
+| `signUp()` | Register new user |
+| `signInWithPassword()` | Login with email/password |
+| `signInWithOtp()` | Magic link / OTP |
+| `signInWithOAuth()` | Social login |
+| `signOut()` | Logout |
+| `getSession()` | Get current session |
+| `onAuthStateChange()` | Listen for auth events |

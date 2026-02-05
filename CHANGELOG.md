@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.2] - 2026-02-03
+
+### Added
+- **Hero Chatbot Landing Page** (`website/hero-chatbot.html`) — BCG-style editorial design:
+  - Clean two-row layout: headline + full-width chatbot
+  - Gemini AI integration with retry logic
+  - DOMPurify sanitization for XSS protection
+  - Demo mode when no API key configured
+  - Refine Strategy and Generate Roadmap follow-up actions
+  - Auto-focus input, Enter to submit
+
+### Changed
+- Tagline updated to "From idea to execution."
+- Button text changed from "Start Conversation" to "Generate"
+
 ## [0.8.1] - 2026-01-27
 
 ### Added

@@ -1,0 +1,851 @@
+---
+description: Comprehensive testing strategy for CRM features, Gemini 3 AI capabilities, and full-cycle workflows including unit, integration, and E2E tests
+globs: ["**/crm/**", "**/*crm*.ts", "**/*crm*.tsx", "**/*crm*.test.ts", "**/test/**", "**/tests/**", "supabase/functions/**/crm*"]
+alwaysApply: false
+---
+
+# CRM Testing Strategy - Cursor Rules
+
+**Purpose:** Comprehensive testing strategy for CRM features, Gemini 3 AI capabilities, and full-cycle workflows  
+**Last Updated:** 2025-01-18  
+**Status:** Production-Ready Testing Framework
+
+---
+
+## 🎯 Testing Philosophy
+
+### Core Principles
+
+1. **Test AI Features End-to-End:** Test the complete flow from user input → Edge Function → Gemini API → Database → UI
+2. **Mock External APIs:** Mock Gemini API responses for unit tests, use real API for integration tests
+3. **Test Function Calling:** Verify function declarations, argument parsing, and response handling
+4. **Test Structured Outputs:** Validate JSON schema compliance and data integrity
+5. **Test Google Search Grounding:** Verify search queries, citations, and metadata
+6. **Test Thinking Levels:** Verify `thinkingLevel: 'high'` produces better reasoning
+7. **Test Error Handling:** Verify graceful degradation when AI fails
+8. **Test Full User Journeys:** Test complete workflows from prospecting → enrichment → scoring → deal creation
+
+---
+
+## 📋 Testing Layers
+
+### Layer 1: Unit Tests (Edge Functions)
+
+**Purpose:** Test individual Edge Functions in isolation with mocked dependencies
+
+**Test Coverage:**
+- ✅ Function input validation
+- ✅ Error handling (missing API keys, invalid inputs)
+- ✅ CORS headers
+- ✅ Response format (JSON structure)
+- ✅ Function calling (declarations, argument parsing)
+- ✅ Structured outputs (schema validation)
+- ✅ Google Search integration (mock responses)
+- ✅ Database operations (Supabase client mocking)
+
+**Example Test Structure:**
+```typescript
+// supabase/functions/generate-leads/index.test.ts
+import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { handler } from "./index.ts";
+
+Deno.test("generate-leads: returns valid leads array", async () => {
+  const mockRequest = new Request("http://localhost", {
+    method: "POST",
+    body: JSON.stringify({
+      criteria: {
+        industry: "SaaS",
+        location: "San Francisco",
+        stage: "Series A"
+      }
+    })
+  });
+
+  // Mock Gemini API response
+  const response = await handler(mockRequest);
+  const data = await response.json();
+
+  assertEquals(data.leads.length > 0, true);
+  assertEquals(data.leads[0].name, typeof "string");
+  assertEquals(data.leads[0].fitScore >= 0 && data.leads[0].fitScore <= 100, true);
+});
+```
+
+**Test Files to Create:**
+- `supabase/functions/generate-leads/index.test.ts`
+- `supabase/functions/enrich-lead/index.test.ts`
+- `supabase/functions/score-lead/index.test.ts`
+- `supabase/functions/analyze-deal-score/index.test.ts`
+- `supabase/functions/generate-cold-email/index.test.ts`
+- `supabase/functions/generate-battlecard/index.test.ts`
+- `supabase/functions/analyze-account-health/index.test.ts`
+- `supabase/functions/generate-crm-insights/index.test.ts`
+- `supabase/functions/suggest-csv-mapping/index.test.ts`
+- `supabase/functions/send-email/index.test.ts`
+
+---
+
+### Layer 2: Integration Tests (Full Cycle)
+
+**Purpose:** Test complete workflows with real Supabase database and mocked Gemini API
+
+**Test Scenarios:**
+
+#### Scenario 1: Lead Generation → Enrichment → Scoring (Full Cycle)
+
+```typescript
+// test/crm/full-cycle-lead-generation.test.ts
+describe("CRM Full Cycle: Lead Generation → Enrichment → Scoring", () => {
+  it("should generate leads, enrich them, and score them", async () => {
+    // 1. Generate Leads
+    const leadsResponse = await fetch("/functions/v1/generate-leads", {
+      method: "POST",
+      body: JSON.stringify({
+        criteria: {
+          industry: "SaaS",
+          location: "San Francisco",
+          keywords: ["AI", "B2B"]
+        }
+      })
+    });
+    const { leads } = await leadsResponse.json();
+    expect(leads.length).toBeGreaterThan(0);
+
+    // 2. Create Contact in Database
+    const contact = await createContact({
+      first_name: leads[0].name.split(" ")[0],
+      last_name: leads[0].name.split(" ")[1] || "",
+      email: `test@${leads[0].website}`,
+      account_id: await createAccount({ name: leads[0].name })
+    });
+
+    // 3. Enrich Lead
+    const enrichResponse = await fetch("/functions/v1/enrich-lead", {
+      method: "POST",
+      body: JSON.stringify({
+        lead_id: contact.id,
+        force_refresh: true
+      })
+    });
+    const enrichment = await enrichResponse.json();
+    expect(enrichment.ceo_name).toBeDefined();
+    expect(enrichment.market_presence_score).toBeGreaterThanOrEqual(0);
+    expect(enrichment.market_presence_score).toBeLessThanOrEqual(100);
+
+    // 4. Score Lead
+    const scoreResponse = await fetch("/functions/v1/score-lead", {
+      method: "POST",
+      body: JSON.stringify({
+        lead_id: contact.id
+      })
+    });
+    const score = await scoreResponse.json();
+    expect(score.overall_score).toBeGreaterThanOrEqual(0);
+    expect(score.overall_score).toBeLessThanOrEqual(100);
+    expect(['High', 'Medium', 'Low']).toContain(score.status_band);
+    expect(score.fit_breakdown).toBeDefined();
+  });
+});
+```
+
+#### Scenario 2: Deal Creation → Deal Scoring → Account Health
+
+```typescript
+// test/crm/full-cycle-deal-management.test.ts
+describe("CRM Full Cycle: Deal Management", () => {
+  it("should create deal, score it, and analyze account health", async () => {
+    // 1. Create Account and Deal
+    const account = await createAccount({ name: "Test Corp", mrr: 10000 });
+    const deal = await createDeal({
+      account_id: account.id,
+      name: "Enterprise License",
+      amount: 50000,
+      stage: "Proposal"
+    });
+
+    // 2. Score Deal
+    const dealScoreResponse = await fetch("/functions/v1/analyze-deal-score", {
+      method: "POST",
+      body: JSON.stringify({
+        deal: { name: deal.name, value: deal.amount, stage: deal.stage },
+        customer: { name: account.name, segment: account.segment, healthScore: 75 },
+        interactions: []
+      })
+    });
+    const dealScore = await dealScoreResponse.json();
+    expect(dealScore.score).toBeGreaterThanOrEqual(0);
+    expect(dealScore.score).toBeLessThanOrEqual(100);
+
+    // 3. Analyze Account Health
+    const healthResponse = await fetch("/functions/v1/analyze-account-health", {
+      method: "POST",
+      body: JSON.stringify({
+        account: {
+          name: account.name,
+          segment: account.segment,
+          status: account.status,
+          mrr: account.mrr,
+          lastInteraction: new Date().toISOString()
+        }
+      })
+    });
+    const health = await healthResponse.json();
+    expect(health.score).toBeGreaterThanOrEqual(0);
+    expect(health.score).toBeLessThanOrEqual(100);
+    expect(['Healthy', 'Neutral', 'At Risk']).toContain(health.status);
+  });
+});
+```
+
+#### Scenario 3: CSV Import → Mapping → Bulk Enrichment
+
+```typescript
+// test/crm/full-cycle-csv-import.test.ts
+describe("CRM Full Cycle: CSV Import", () => {
+  it("should import CSV, map columns, and enrich leads", async () => {
+    // 1. Suggest CSV Mapping
+    const mappingResponse = await fetch("/functions/v1/suggest-csv-mapping", {
+      method: "POST",
+      body: JSON.stringify({
+        headers: ["Company Name", "Email", "Website", "Job Title", "LinkedIn"]
+      })
+    });
+    const mapping = await mappingResponse.json();
+    expect(mapping.mapping.name).toBe("Company Name");
+    expect(mapping.mapping.email).toBe("Email");
+
+    // 2. Import CSV Data
+    const csvData = [
+      { "Company Name": "Acme Corp", "Email": "john@acme.com", "Website": "acme.com" }
+    ];
+    const imported = await bulkImportContacts(csvData, mapping.mapping);
+
+    // 3. Enrich All Leads
+    for (const contact of imported) {
+      await fetch("/functions/v1/enrich-lead", {
+        method: "POST",
+        body: JSON.stringify({ lead_id: contact.id, force_refresh: true })
+      });
+    }
+  });
+});
+```
+
+---
+
+### Layer 3: Frontend Component Tests
+
+**Purpose:** Test React components with mocked Edge Functions
+
+**Test Coverage:**
+- ✅ Component rendering
+- ✅ User interactions (clicks, form submissions)
+- ✅ Loading states
+- ✅ Error states
+- ✅ Data display (tables, cards, charts)
+- ✅ Modal interactions
+- ✅ Form validation
+
+**Example Test:**
+```typescript
+// screens/CustomerCRM.test.tsx
+import { render, screen, waitFor } from '@test/test-utils';
+import CustomerCRM from './CustomerCRM';
+import * as crmService from '../services/crmService';
+
+jest.mock('../services/crmService');
+
+describe('CustomerCRM', () => {
+  it('renders CRM dashboard with stats', async () => {
+    (crmService.getCRMData as jest.Mock).mockResolvedValue({
+      customers: [{ id: '1', name: 'Acme Corp', mrr: 10000 }],
+      stats: { totalCustomers: 1, activeAccounts: 1, totalRevenue: 10000 }
+    });
+
+    render(<CustomerCRM />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      expect(screen.getByText('$10,000')).toBeInTheDocument();
+    });
+  });
+
+  it('calls enrich-lead when enrich button clicked', async () => {
+    const { user } = render(<CustomerCRM />);
+    
+    const enrichButton = screen.getByText('Enrich Lead');
+    await user.click(enrichButton);
+
+    await waitFor(() => {
+      expect(crmService.enrichLead).toHaveBeenCalled();
+    });
+  });
+});
+```
+
+**Test Files to Create:**
+- `screens/CustomerCRM.test.tsx`
+- `screens/Prospecting.test.tsx`
+- `components/crm/CustomerFormModal.test.tsx`
+- `components/crm/CustomerDetailPanel.test.tsx`
+- `components/crm/DealBoard.test.tsx`
+- `components/crm/EmailComposeModal.test.tsx`
+- `components/crm/CSVImportModal.test.tsx`
+
+---
+
+### Layer 4: End-to-End Tests (User Journeys)
+
+**Purpose:** Test complete user workflows from UI → API → Database → UI
+
+**Test Scenarios:**
+
+#### Journey 1: AI Prospecting Flow
+
+```typescript
+// e2e/crm/ai-prospecting-journey.test.ts
+describe("E2E: AI Prospecting Journey", () => {
+  it("should complete full prospecting workflow", async () => {
+    // 1. Navigate to Prospecting page
+    await page.goto("http://localhost:3000/prospecting");
+
+    // 2. Enter search criteria
+    await page.fill('[data-testid="industry-input"]', "SaaS");
+    await page.fill('[data-testid="location-input"]', "San Francisco");
+    await page.click('[data-testid="search-button"]');
+
+    // 3. Wait for leads to generate
+    await page.waitForSelector('[data-testid="lead-card"]', { timeout: 30000 });
+    const leads = await page.$$('[data-testid="lead-card"]');
+    expect(leads.length).toBeGreaterThan(0);
+
+    // 4. Click "Add to CRM" on first lead
+    await page.click('[data-testid="add-to-crm-button"]:first-child');
+
+    // 5. Verify lead appears in CRM dashboard
+    await page.goto("http://localhost:3000/crm");
+    await page.waitForSelector('[data-testid="customer-row"]');
+    const customerName = await page.textContent('[data-testid="customer-name"]:first-child');
+    expect(customerName).toBeTruthy();
+
+    // 6. Click "Enrich" button
+    await page.click('[data-testid="enrich-button"]:first-child');
+
+    // 7. Wait for enrichment to complete
+    await page.waitForSelector('[data-testid="enrichment-data"]', { timeout: 60000 });
+
+    // 8. Verify enrichment data displayed
+    const ceoName = await page.textContent('[data-testid="ceo-name"]');
+    expect(ceoName).toBeTruthy();
+  });
+});
+```
+
+#### Journey 2: Deal Pipeline Management
+
+```typescript
+// e2e/crm/deal-pipeline-journey.test.ts
+describe("E2E: Deal Pipeline Journey", () => {
+  it("should create deal, move through stages, and close", async () => {
+    // 1. Navigate to CRM
+    await page.goto("http://localhost:3000/crm");
+
+    // 2. Click "New Deal"
+    await page.click('[data-testid="new-deal-button"]');
+
+    // 3. Fill deal form
+    await page.fill('[data-testid="deal-name"]', "Enterprise License");
+    await page.fill('[data-testid="deal-amount"]', "50000");
+    await page.selectOption('[data-testid="deal-stage"]', "Proposal");
+
+    // 4. Submit deal
+    await page.click('[data-testid="submit-deal"]');
+
+    // 5. Verify deal appears in pipeline
+    await page.waitForSelector('[data-testid="deal-card"]');
+    const dealName = await page.textContent('[data-testid="deal-name"]');
+    expect(dealName).toBe("Enterprise License");
+
+    // 6. Click "Score Deal"
+    await page.click('[data-testid="score-deal-button"]');
+    await page.waitForSelector('[data-testid="deal-score"]', { timeout: 30000 });
+
+    // 7. Move deal to next stage
+    await page.click('[data-testid="move-deal-button"]');
+    await page.selectOption('[data-testid="new-stage"]', "Negotiation");
+
+    // 8. Verify deal moved
+    const stage = await page.textContent('[data-testid="deal-stage"]');
+    expect(stage).toBe("Negotiation");
+  });
+});
+```
+
+---
+
+## 🤖 Testing Gemini 3 Features
+
+### Testing Function Calling
+
+**Best Practices:**
+- ✅ Mock function declarations
+- ✅ Verify function name matches
+- ✅ Validate function arguments structure
+- ✅ Test function response handling
+- ✅ Test error cases (function not called, invalid args)
+
+**Example:**
+```typescript
+// test/gemini/function-calling.test.ts
+describe("Gemini 3 Function Calling", () => {
+  it("should call findLeads function with correct arguments", async () => {
+    const mockGeminiResponse = {
+      functionCalls: [{
+        name: "findLeads",
+        args: {
+          leads: [
+            { name: "Acme Corp", website: "acme.com", fitScore: 85 }
+          ]
+        }
+      }]
+    };
+
+    const result = await processFunctionCall(mockGeminiResponse);
+    
+    expect(result.functionName).toBe("findLeads");
+    expect(result.args.leads.length).toBeGreaterThan(0);
+    expect(result.args.leads[0].fitScore).toBeGreaterThanOrEqual(0);
+    expect(result.args.leads[0].fitScore).toBeLessThanOrEqual(100);
+  });
+});
+```
+
+### Testing Structured Outputs
+
+**Best Practices:**
+- ✅ Validate JSON schema compliance
+- ✅ Test required fields are present
+- ✅ Test enum values are valid
+- ✅ Test numeric constraints (min/max)
+- ✅ Test array constraints (minItems/maxItems)
+
+**Example:**
+```typescript
+// test/gemini/structured-outputs.test.ts
+describe("Gemini 3 Structured Outputs", () => {
+  it("should return valid lead score schema", async () => {
+    const response = await scoreLead("contact-id");
+    const schema = {
+      type: "object",
+      properties: {
+        overall_score: { type: "integer", minimum: 0, maximum: 100 },
+        status_band: { type: "string", enum: ["High", "Medium", "Low"] },
+        fit_breakdown: { type: "object" }
+      },
+      required: ["overall_score", "status_band", "fit_breakdown"]
+    };
+
+    const isValid = validateJSONSchema(response, schema);
+    expect(isValid).toBe(true);
+    expect(response.overall_score).toBeGreaterThanOrEqual(0);
+    expect(response.overall_score).toBeLessThanOrEqual(100);
+    expect(['High', 'Medium', 'Low']).toContain(response.status_band);
+  });
+});
+```
+
+### Testing Google Search Grounding
+
+**Best Practices:**
+- ✅ Verify search queries are generated
+- ✅ Test citation metadata structure
+- ✅ Validate source URLs are present
+- ✅ Test grounding chunks and supports
+- ✅ Test fallback when search fails
+
+**Example:**
+```typescript
+// test/gemini/google-search-grounding.test.ts
+describe("Google Search Grounding", () => {
+  it("should include citations in enrichment response", async () => {
+    const response = await enrichLead("contact-id");
+    
+    expect(response.groundingMetadata).toBeDefined();
+    expect(response.groundingMetadata.webSearchQueries.length).toBeGreaterThan(0);
+    expect(response.groundingMetadata.groundingChunks.length).toBeGreaterThan(0);
+    
+    const chunk = response.groundingMetadata.groundingChunks[0];
+    expect(chunk.web.uri).toMatch(/^https?:\/\//);
+    expect(chunk.web.title).toBeDefined();
+  });
+});
+```
+
+### Testing Thinking Levels
+
+**Best Practices:**
+- ✅ Test `thinkingLevel: 'high'` produces more detailed reasoning
+- ✅ Test `thinkingLevel: 'low'` produces faster responses
+- ✅ Verify thinking level affects response quality
+- ✅ Test response time differences
+
+**Example:**
+```typescript
+// test/gemini/thinking-levels.test.ts
+describe("Gemini 3 Thinking Levels", () => {
+  it("should produce better reasoning with high thinking level", async () => {
+    const highThinkingResponse = await scoreLead("contact-id", { thinkingLevel: "high" });
+    const lowThinkingResponse = await scoreLead("contact-id", { thinkingLevel: "low" });
+
+    // High thinking should have more detailed findings
+    expect(highThinkingResponse.ai_findings.length).toBeGreaterThanOrEqual(
+      lowThinkingResponse.ai_findings.length
+    );
+    
+    // High thinking should have more detailed reasoning
+    expect(highThinkingResponse.recommended_next_actions.length).toBeGreaterThanOrEqual(
+      lowThinkingResponse.recommended_next_actions.length
+    );
+  });
+});
+```
+
+---
+
+## 🧪 Test Data Management
+
+### Seed Data for Testing
+
+**Best Practices:**
+- ✅ Use test-specific seed data (separate from production)
+- ✅ Create minimal test datasets
+- ✅ Use realistic but anonymized data
+- ✅ Clean up test data after tests
+- ✅ Use transactions for test isolation
+
+**Example Test Seed:**
+```typescript
+// test/fixtures/crm-seed-data.ts
+export const testAccounts = [
+  {
+    id: "test-account-1",
+    name: "Test SaaS Corp",
+    segment: "Enterprise",
+    status: "Active",
+    mrr: 10000
+  }
+];
+
+export const testContacts = [
+  {
+    id: "test-contact-1",
+    account_id: "test-account-1",
+    first_name: "John",
+    last_name: "Doe",
+    email: "john@testsaascorp.com"
+  }
+];
+```
+
+### Mock Data Strategies
+
+**For Unit Tests:**
+- Mock Gemini API responses
+- Mock Supabase client
+- Use static test data
+
+**For Integration Tests:**
+- Use real Supabase (test database)
+- Mock Gemini API (use test API key)
+- Use seed data
+
+**For E2E Tests:**
+- Use real Supabase (test database)
+- Use real Gemini API (test API key)
+- Clean up after each test
+
+---
+
+## 📊 Test Coverage Requirements
+
+### Minimum Coverage Targets
+
+- **Edge Functions:** 80% code coverage
+- **Frontend Components:** 70% code coverage
+- **Services:** 85% code coverage
+- **Critical Paths:** 100% coverage (lead generation, enrichment, scoring)
+
+### Critical Paths (Must Have 100% Coverage)
+
+1. **Lead Generation Flow:**
+   - generate-leads function
+   - Frontend prospecting UI
+   - Lead addition to CRM
+
+2. **Lead Enrichment Flow:**
+   - enrich-lead function
+   - Google Search integration
+   - Database updates
+
+3. **Lead Scoring Flow:**
+   - score-lead function
+   - Gemini 3 reasoning
+   - Score persistence
+
+4. **Deal Management Flow:**
+   - Deal creation
+   - Deal scoring
+   - Pipeline movement
+
+---
+
+## 🔍 Test Assertions
+
+### Edge Function Assertions
+
+**Required Assertions:**
+```typescript
+// 1. Response Status
+expect(response.status).toBe(200);
+
+// 2. Response Headers
+expect(response.headers.get('Content-Type')).toBe('application/json');
+expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+
+// 3. Response Body Structure
+const data = await response.json();
+expect(data).toHaveProperty('leads'); // or 'score', 'enrichment', etc.
+
+// 4. Data Validation
+expect(data.leads[0].fitScore).toBeGreaterThanOrEqual(0);
+expect(data.leads[0].fitScore).toBeLessThanOrEqual(100);
+
+// 5. Error Handling
+const errorResponse = await fetch('/functions/v1/generate-leads', {
+  method: 'POST',
+  body: JSON.stringify({}) // Invalid input
+});
+expect(errorResponse.status).toBe(500);
+const error = await errorResponse.json();
+expect(error).toHaveProperty('error');
+```
+
+### Frontend Component Assertions
+
+**Required Assertions:**
+```typescript
+// 1. Component Renders
+expect(screen.getByText('Customer CRM')).toBeInTheDocument();
+
+// 2. Data Displays
+expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+
+// 3. Loading States
+expect(screen.getByText('Loading...')).toBeInTheDocument();
+await waitFor(() => {
+  expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+});
+
+// 4. Error States
+expect(screen.getByText('Error loading data')).toBeInTheDocument();
+
+// 5. User Interactions
+const button = screen.getByRole('button', { name: 'Enrich Lead' });
+await user.click(button);
+expect(mockEnrichLead).toHaveBeenCalled();
+```
+
+---
+
+## 🚀 Running Tests
+
+### Test Commands
+
+```bash
+# Run all tests
+npm test
+
+# Run unit tests only
+npm test -- --testPathPattern="unit"
+
+# Run integration tests only
+npm test -- --testPathPattern="integration"
+
+# Run E2E tests only
+npm run test:e2e
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run specific test file
+npm test -- generate-leads.test.ts
+```
+
+### Test Environment Setup
+
+**Required Environment Variables:**
+```bash
+# .env.test
+GEMINI_API_KEY=test-api-key
+SUPABASE_URL=https://test-project.supabase.co
+SUPABASE_ANON_KEY=test-anon-key
+SUPABASE_SERVICE_ROLE_KEY=test-service-role-key
+RESEND_API_KEY=test-resend-key
+```
+
+---
+
+## 📝 Test Documentation
+
+### Test Plan Template
+
+For each feature, document:
+
+1. **Test Scenario:** What is being tested
+2. **Prerequisites:** What data/setup is needed
+3. **Test Steps:** Step-by-step test execution
+4. **Expected Results:** What should happen
+5. **Actual Results:** What actually happened
+6. **Pass/Fail:** Test outcome
+
+### Example Test Plan Entry
+
+```markdown
+## Test: Lead Enrichment with Google Search
+
+**Scenario:** Enrich a lead using Gemini 3 with Google Search Grounding
+
+**Prerequisites:**
+- Test contact exists in database
+- Gemini API key configured
+- Google Search enabled
+
+**Test Steps:**
+1. Call `/functions/v1/enrich-lead` with `lead_id` and `force_refresh: true`
+2. Wait for response (max 60 seconds)
+3. Verify response structure
+4. Check database for enrichment record
+
+**Expected Results:**
+- Response includes `ceo_name`, `market_presence_score`, `gemini_summary`
+- Response includes `groundingMetadata` with citations
+- Database record created in `crm_lead_enrichment`
+- `crm_accounts.last_enriched_at` updated
+
+**Actual Results:** [Fill during test execution]
+
+**Status:** ✅ PASS / ❌ FAIL
+```
+
+---
+
+## 🐛 Debugging Tests
+
+### Common Issues
+
+1. **Gemini API Timeout:**
+   - Increase timeout to 60+ seconds
+   - Use `thinkingLevel: 'low'` for faster tests
+   - Mock Gemini API for unit tests
+
+2. **Database Connection:**
+   - Use test database (not production)
+   - Clean up test data after tests
+   - Use transactions for isolation
+
+3. **CORS Errors:**
+   - Verify CORS headers in Edge Functions
+   - Check OPTIONS request handling
+
+4. **Function Calling Failures:**
+   - Verify function declarations match
+   - Check argument structure
+   - Validate response parsing
+
+---
+
+## ✅ Test Checklist
+
+### Before Committing Code
+
+- [ ] All unit tests pass
+- [ ] All integration tests pass
+- [ ] E2E tests pass (if applicable)
+- [ ] Test coverage meets minimum requirements
+- [ ] No console errors in tests
+- [ ] Test data cleaned up
+- [ ] Documentation updated
+
+### Before Production Deployment
+
+- [ ] All tests pass in CI/CD
+- [ ] Performance tests pass
+- [ ] Load tests pass (if applicable)
+- [ ] Security tests pass
+- [ ] Manual QA completed
+- [ ] Test reports reviewed
+
+---
+
+## 📚 Test Examples
+
+### Complete Test Suite Structure
+
+```
+test/
+├── unit/
+│   ├── functions/
+│   │   ├── generate-leads.test.ts
+│   │   ├── enrich-lead.test.ts
+│   │   └── score-lead.test.ts
+│   └── services/
+│       ├── crmService.test.ts
+│       └── edgeFunctionService.test.ts
+├── integration/
+│   ├── crm/
+│   │   ├── full-cycle-lead-generation.test.ts
+│   │   ├── full-cycle-deal-management.test.ts
+│   │   └── full-cycle-csv-import.test.ts
+│   └── gemini/
+│       ├── function-calling.test.ts
+│       ├── structured-outputs.test.ts
+│       └── google-search-grounding.test.ts
+├── e2e/
+│   ├── crm/
+│   │   ├── ai-prospecting-journey.test.ts
+│   │   └── deal-pipeline-journey.test.ts
+│   └── user-journeys/
+│       └── complete-crm-workflow.test.ts
+└── fixtures/
+    ├── crm-seed-data.ts
+    └── mock-gemini-responses.ts
+```
+
+---
+
+## 🎯 Key Testing Principles
+
+1. **Test the Happy Path First:** Verify core functionality works
+2. **Test Error Cases:** Verify graceful error handling
+3. **Test Edge Cases:** Verify boundary conditions
+4. **Test Performance:** Verify response times are acceptable
+5. **Test Security:** Verify no data leaks or vulnerabilities
+6. **Test Accessibility:** Verify UI is accessible
+7. **Test Compatibility:** Verify works across browsers/devices
+
+---
+
+## 🔗 Related Documentation
+
+- `docs/97-edge-functions-crm-deployment.md` - Deployment guide
+- `docs/98-edge-functions-crm-verification.md` - Verification checklist
+- `docs/99-edge-functions-crm-deployment-summary.md` - Deployment summary
+- `.cursor/rules/gemini-snippet.mdc` - Gemini AI prompting guide
+- `.cursor/rules/create-db-functions.mdc` - Database function best practices
+
+---
+
+**Remember:** Testing is not optional. Every feature must have tests. Every bug fix must include a test that prevents regression. Every deployment must pass all tests.

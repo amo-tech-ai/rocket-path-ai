@@ -33,16 +33,19 @@ interface ProjectCardProps {
   index?: number;
 }
 
+// Must match database CHECK constraint: on_track, at_risk, behind, completed
 const healthIcons = {
   on_track: CheckCircle2,
   at_risk: AlertTriangle,
-  off_track: XCircle,
+  behind: XCircle,
+  completed: CheckCircle2,
 };
 
 const healthColors = {
   on_track: 'text-sage',
   at_risk: 'text-warm-foreground',
-  off_track: 'text-destructive',
+  behind: 'text-destructive',
+  completed: 'text-muted-foreground',
 };
 
 export function ProjectCard({ 

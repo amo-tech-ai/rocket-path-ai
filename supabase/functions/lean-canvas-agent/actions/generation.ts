@@ -5,7 +5,7 @@
 
 import type { LeanCanvasData, BoxKey } from "../types.ts";
 import { EMPTY_CANVAS, CANVAS_BOX_CONFIG } from "../types.ts";
-import { callGemini, extractJSON } from "../ai-utils.ts";
+import { callGemini, extractJSON, logAIRun } from "../ai-utils.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -26,6 +26,15 @@ export async function prefillCanvas(
   gapAnswers?: Record<string, string>
 ): Promise<PrefillResponse> {
   console.log(`[prefillCanvas] Generating canvas for startup ${startupId}`);
+
+  // Get user's org_id for logging
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("org_id")
+    .eq("id", userId)
+    .single();
+
+  const orgId = profile?.org_id || null;
 
   // Fetch startup profile
   const { data: startup } = await supabase
@@ -91,8 +100,17 @@ Confidence levels:
 - MEDIUM: Inferred from context
 - LOW: AI-estimated with minimal data`;
 
-  const response = await callGemini("google/gemini-3-flash-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<Record<string, { items: string[]; confidence: string }>>(response);
+  const response = await callGemini(
+    "gemini-3-flash-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 2000 }
+  );
+
+  // Log AI run for cost tracking
+  await logAIRun(supabase, userId, orgId, startupId, "prefill_canvas", response);
+
+  const parsed = extractJSON<Record<string, { items: string[]; confidence: string }>>(response.text);
 
   if (parsed) {
     const canvas: LeanCanvasData = { ...EMPTY_CANVAS };
@@ -139,6 +157,15 @@ export async function suggestBox(
 ): Promise<{ suggestions: string[]; reasoning: string }> {
   console.log(`[suggestBox] Generating suggestions for ${boxKey}`);
 
+  // Get user's org_id for logging
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("org_id")
+    .eq("id", userId)
+    .single();
+
+  const orgId = profile?.org_id || null;
+
   // Fetch startup profile
   const { data: startup } = await supabase
     .from("startups")
@@ -176,8 +203,17 @@ Suggest 3-4 items for the "${boxTitle}" box. Return JSON:
   "reasoning": "Brief explanation of why these fit"
 }`;
 
-  const response = await callGemini("google/gemini-3-flash-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<{ suggestions: string[]; reasoning: string }>(response);
+  const response = await callGemini(
+    "gemini-3-flash-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 1000 }
+  );
+
+  // Log AI run for cost tracking
+  await logAIRun(supabase, userId, orgId, startupId, "suggest_box", response);
+
+  const parsed = extractJSON<{ suggestions: string[]; reasoning: string }>(response.text);
 
   if (parsed && Array.isArray(parsed.suggestions)) {
     return {

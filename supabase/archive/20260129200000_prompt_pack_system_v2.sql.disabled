@@ -1,0 +1,1063 @@
+-- ============================================================================
+-- Migration: Prompt Pack System v2 (Comprehensive)
+-- Description: Complete prompt pack and playbook system with all dependencies
+-- Author: StartupAI
+-- Created: 2026-01-29
+--
+-- Tables:
+--   - prompt_packs (enhanced)
+--   - prompt_pack_steps (enhanced)
+--   - prompt_runs (enhanced)
+--   - playbooks (NEW - multi-step journeys)
+--   - playbook_steps (NEW - playbook step definitions)
+--   - startup_playbooks (enhanced)
+--   - pack_dependencies (NEW - pack prerequisites)
+--   - validation_scores (NEW - dimension scores)
+--   - startup_memory (enhanced with embeddings)
+--
+-- Functions:
+--   - search_best_pack() - intelligent pack selection
+--   - get_playbook_progress() - playbook completion status
+--   - apply_pack_outputs() - auto-apply to DB
+--   - interpolate_template() - variable replacement
+-- ============================================================================
+
+-- Enable extensions
+create extension if not exists "uuid-ossp";
+create extension if not exists "pg_trgm"; -- for fuzzy search
+
+-- ============================================================================
+-- ENUM TYPES (for type safety)
+-- ============================================================================
+
+do $$ begin
+  create type pack_category as enum (
+    'ideation', 'validation', 'market', 'canvas',
+    'pitch', 'gtm', 'pricing', 'hiring', 'funding'
+  );
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type model_preference as enum ('gemini', 'claude', 'claude-sonnet', 'auto');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type run_status as enum ('pending', 'running', 'completed', 'failed', 'cancelled');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type playbook_status as enum ('suggested', 'active', 'in_progress', 'completed', 'skipped');
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type validation_verdict as enum ('go', 'conditional', 'pivot', 'no_go');
+exception when duplicate_object then null;
+end $$;
+
+-- ============================================================================
+-- TABLE: prompt_packs (enhanced)
+-- ============================================================================
+create table if not exists prompt_packs (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text unique not null,
+  description text,
+  category text not null, -- using text for flexibility, can migrate to enum
+
+  -- Tags for filtering
+  stage_tags text[] default '{}',
+  industry_tags text[] default '{}',
+  use_case_tags text[] default '{}', -- NEW: e.g., 'onboarding', 'chat', 'dashboard'
+
+  -- Versioning
+  version int default 1,
+  parent_pack_id uuid references prompt_packs(id), -- NEW: for version inheritance
+
+  -- Status
+  is_active boolean default true,
+  is_premium boolean default false, -- NEW: for monetization
+
+  -- Source tracking
+  source text default 'startupai', -- startupai, custom, imported
+  author_id uuid references auth.users(id), -- NEW: who created it
+
+  -- Metadata
+  metadata jsonb default '{}',
+  estimated_time_seconds int, -- NEW: expected runtime
+
+  -- Timestamps
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Comments
+comment on table prompt_packs is 'AI prompt pack definitions with industry/stage targeting';
+comment on column prompt_packs.use_case_tags is 'When to use: onboarding, chat, dashboard, canvas, pitch';
+comment on column prompt_packs.is_premium is 'Requires paid subscription';
+comment on column prompt_packs.estimated_time_seconds is 'Expected execution time for all steps';
+
+-- ============================================================================
+-- TABLE: prompt_pack_steps (enhanced)
+-- ============================================================================
+create table if not exists prompt_pack_steps (
+  id uuid primary key default gen_random_uuid(),
+  pack_id uuid not null references prompt_packs(id) on delete cascade,
+  step_order int not null,
+
+  -- Step definition
+  name text not null, -- NEW: short identifier
+  purpose text not null,
+  prompt_template text not null,
+
+  -- Schemas
+  input_schema jsonb default '{}',
+  output_schema jsonb not null,
+
+  -- Model settings
+  model_preference text default 'gemini',
+  max_tokens int default 2000,
+  temperature float default 0.7,
+
+  -- Execution settings (NEW)
+  timeout_seconds int default 60,
+  retry_count int default 2,
+  fallback_model text, -- if primary fails
+
+  -- Output handling (NEW)
+  apply_to text[] default '{}', -- auto-apply targets: profile, canvas, tasks, etc.
+  required_fields text[] default '{}', -- fields that must be in output
+
+  -- Timestamps
+  created_at timestamptz default now(),
+
+  constraint prompt_pack_steps_unique_order unique(pack_id, step_order)
+);
+
+comment on table prompt_pack_steps is 'Individual execution steps within a prompt pack';
+comment on column prompt_pack_steps.name is 'Short identifier: problem_snapshot, competitor_list';
+comment on column prompt_pack_steps.apply_to is 'Auto-apply outputs to: profile, canvas, tasks, slides, validation';
+comment on column prompt_pack_steps.required_fields is 'Output fields that must exist for step to succeed';
+
+-- ============================================================================
+-- TABLE: prompt_runs (enhanced)
+-- ============================================================================
+create table if not exists prompt_runs (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Context
+  startup_id uuid references startups(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  pack_id uuid references prompt_packs(id),
+  step_id uuid references prompt_pack_steps(id),
+  playbook_run_id uuid, -- NEW: link to playbook execution
+
+  -- Input/Output
+  inputs_json jsonb not null,
+  outputs_json jsonb,
+  interpolated_prompt text, -- NEW: actual prompt sent to AI
+
+  -- Model info
+  model_used text,
+  model_version text, -- NEW: specific version
+
+  -- Metrics
+  tokens_input int,
+  tokens_output int,
+  cost_usd numeric(10, 6),
+  latency_ms int,
+
+  -- Status
+  status text default 'pending',
+  error_message text,
+  error_code text, -- NEW: structured error codes
+  retry_count int default 0, -- NEW: how many retries
+
+  -- Validation (NEW)
+  output_valid boolean,
+  validation_errors text[],
+
+  -- Apply tracking (NEW)
+  applied_to text[], -- which targets were updated
+  applied_at timestamptz,
+
+  -- Timestamps
+  created_at timestamptz default now(),
+  completed_at timestamptz
+);
+
+comment on table prompt_runs is 'Execution history with cost, latency, and apply tracking';
+comment on column prompt_runs.interpolated_prompt is 'Actual prompt after variable substitution';
+comment on column prompt_runs.applied_to is 'Which DB targets were updated: profile, canvas, tasks';
+
+-- ============================================================================
+-- TABLE: playbooks (NEW - multi-step journeys)
+-- ============================================================================
+create table if not exists playbooks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text unique not null,
+  description text,
+
+  -- Categorization
+  category text not null, -- onboarding, validation, pitch, canvas, gtm
+  stage_tags text[] default '{}',
+  industry_tags text[] default '{}',
+
+  -- Structure
+  estimated_time_minutes int,
+  difficulty_level text default 'beginner', -- beginner, intermediate, advanced
+
+  -- Status
+  is_active boolean default true,
+  is_featured boolean default false, -- show on dashboard
+
+  -- Metadata
+  icon text, -- emoji or icon name
+  color text, -- hex color for UI
+  metadata jsonb default '{}',
+
+  -- Timestamps
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+comment on table playbooks is 'Multi-step guided journeys with progress tracking';
+comment on column playbooks.difficulty_level is 'Complexity: beginner, intermediate, advanced';
+comment on column playbooks.is_featured is 'Show prominently on dashboard';
+
+-- ============================================================================
+-- TABLE: playbook_steps (NEW - playbook step definitions)
+-- ============================================================================
+create table if not exists playbook_steps (
+  id uuid primary key default gen_random_uuid(),
+  playbook_id uuid not null references playbooks(id) on delete cascade,
+  step_order int not null,
+
+  -- Step info
+  title text not null,
+  description text,
+  instructions text, -- guidance for the user
+
+  -- Linked pack (if any)
+  pack_id uuid references prompt_packs(id),
+  pack_step_id uuid references prompt_pack_steps(id),
+
+  -- Alternative: manual action
+  action_type text default 'pack', -- pack, manual, form, link
+  action_config jsonb default '{}', -- config for manual actions
+
+  -- Requirements
+  required_fields text[] default '{}', -- fields needed to complete
+  skip_if_complete boolean default true, -- auto-skip if data exists
+
+  -- Completion criteria
+  completion_check jsonb, -- how to verify step is done
+
+  -- Timestamps
+  created_at timestamptz default now(),
+
+  constraint playbook_steps_unique_order unique(playbook_id, step_order)
+);
+
+comment on table playbook_steps is 'Steps within a playbook, linked to packs or manual actions';
+comment on column playbook_steps.action_type is 'pack (run AI), manual (user action), form (fill data), link (external)';
+comment on column playbook_steps.completion_check is 'JSON defining how to verify completion';
+
+-- ============================================================================
+-- TABLE: startup_playbooks (enhanced - junction with progress)
+-- ============================================================================
+create table if not exists startup_playbooks (
+  startup_id uuid not null references startups(id) on delete cascade,
+  playbook_id uuid not null references playbooks(id) on delete cascade,
+
+  -- Progress
+  status text default 'suggested',
+  progress int default 0 check (progress >= 0 and progress <= 100),
+  current_step int default 1,
+
+  -- Tracking
+  matched_at timestamptz default now(),
+  started_at timestamptz,
+  completed_at timestamptz,
+  last_activity_at timestamptz default now(),
+
+  -- Match info
+  match_reason text,
+  match_confidence numeric(3, 2),
+  recommended_by text, -- system, user, admin
+
+  -- Step completion (NEW)
+  completed_steps int[] default '{}', -- array of step_order values
+  skipped_steps int[] default '{}',
+
+  -- Notes
+  notes text,
+
+  primary key (startup_id, playbook_id)
+);
+
+comment on table startup_playbooks is 'Track playbook progress per startup';
+comment on column startup_playbooks.completed_steps is 'Array of completed step_order values';
+comment on column startup_playbooks.skipped_steps is 'Array of skipped step_order values';
+
+-- ============================================================================
+-- TABLE: pack_dependencies (NEW - pack prerequisites)
+-- ============================================================================
+create table if not exists pack_dependencies (
+  id uuid primary key default gen_random_uuid(),
+  pack_id uuid not null references prompt_packs(id) on delete cascade,
+
+  -- Dependency type
+  depends_on_pack_id uuid references prompt_packs(id) on delete cascade,
+  depends_on_data text[], -- required data: problem, market, team, etc.
+
+  -- Requirement level
+  is_required boolean default true, -- vs recommended
+
+  -- Timestamps
+  created_at timestamptz default now(),
+
+  constraint pack_deps_unique unique(pack_id, depends_on_pack_id)
+);
+
+comment on table pack_dependencies is 'Prerequisites for running a pack';
+comment on column pack_dependencies.depends_on_data is 'Required profile data: problem, solution, market, team';
+
+-- ============================================================================
+-- TABLE: validation_scores (NEW - detailed scoring)
+-- ============================================================================
+create table if not exists validation_scores (
+  id uuid primary key default gen_random_uuid(),
+  validation_report_id uuid references validation_reports(id) on delete cascade,
+  startup_id uuid references startups(id) on delete cascade,
+
+  -- Dimension scores (0-100)
+  dimension text not null, -- problem, market, competition, solution, business, execution, team
+  score numeric(5, 2),
+  weight numeric(3, 2) default 1.0,
+
+  -- Details
+  rationale text,
+  strengths text[],
+  weaknesses text[],
+  suggestions text[],
+
+  -- Source
+  source text default 'ai', -- ai, manual, imported
+  model_used text,
+
+  -- Timestamps
+  created_at timestamptz default now()
+);
+
+comment on table validation_scores is 'Individual dimension scores for validation';
+comment on column validation_scores.dimension is 'Scoring dimension: problem, market, competition, solution, business, execution, team';
+comment on column validation_scores.weight is 'Weight for calculating overall score';
+
+-- ============================================================================
+-- TABLE: startup_memory (enhanced with categories)
+-- ============================================================================
+-- Add columns if table exists
+do $$ begin
+  alter table startup_memory add column if not exists category text;
+  alter table startup_memory add column if not exists importance numeric(3, 2) default 0.5;
+  alter table startup_memory add column if not exists expires_at timestamptz;
+  alter table startup_memory add column if not exists metadata jsonb default '{}';
+exception when undefined_table then
+  create table startup_memory (
+    id uuid primary key default gen_random_uuid(),
+    startup_id uuid references startups(id) on delete cascade,
+    entity_type text not null,
+    entity_id uuid,
+    content text not null,
+    embedding extensions.vector(512),
+    source text,
+    category text, -- insight, decision, feedback, context
+    importance numeric(3, 2) default 0.5,
+    expires_at timestamptz,
+    metadata jsonb default '{}',
+    created_at timestamptz default now()
+  );
+end $$;
+
+comment on column startup_memory.category is 'Memory type: insight, decision, feedback, context';
+comment on column startup_memory.importance is 'Relevance score 0-1 for retrieval ranking';
+comment on column startup_memory.expires_at is 'When this memory should be archived';
+
+-- ============================================================================
+-- INDEXES
+-- ============================================================================
+
+-- prompt_packs
+create index if not exists idx_prompt_packs_category on prompt_packs(category);
+create index if not exists idx_prompt_packs_active on prompt_packs(is_active) where is_active = true;
+create index if not exists idx_prompt_packs_stage_tags on prompt_packs using gin(stage_tags);
+create index if not exists idx_prompt_packs_industry_tags on prompt_packs using gin(industry_tags);
+create index if not exists idx_prompt_packs_use_case_tags on prompt_packs using gin(use_case_tags);
+create index if not exists idx_prompt_packs_slug on prompt_packs(slug);
+create index if not exists idx_prompt_packs_search on prompt_packs using gin(to_tsvector('english', title || ' ' || coalesce(description, '')));
+
+-- prompt_pack_steps
+create index if not exists idx_prompt_pack_steps_pack on prompt_pack_steps(pack_id);
+create index if not exists idx_prompt_pack_steps_order on prompt_pack_steps(pack_id, step_order);
+create index if not exists idx_prompt_pack_steps_name on prompt_pack_steps(name);
+
+-- prompt_runs
+create index if not exists idx_prompt_runs_startup on prompt_runs(startup_id);
+create index if not exists idx_prompt_runs_user on prompt_runs(user_id);
+create index if not exists idx_prompt_runs_pack on prompt_runs(pack_id);
+create index if not exists idx_prompt_runs_status on prompt_runs(status);
+create index if not exists idx_prompt_runs_created on prompt_runs(created_at desc);
+create index if not exists idx_prompt_runs_playbook on prompt_runs(playbook_run_id) where playbook_run_id is not null;
+
+-- playbooks
+create index if not exists idx_playbooks_category on playbooks(category);
+create index if not exists idx_playbooks_active on playbooks(is_active) where is_active = true;
+create index if not exists idx_playbooks_featured on playbooks(is_featured) where is_featured = true;
+
+-- playbook_steps
+create index if not exists idx_playbook_steps_playbook on playbook_steps(playbook_id);
+create index if not exists idx_playbook_steps_order on playbook_steps(playbook_id, step_order);
+create index if not exists idx_playbook_steps_pack on playbook_steps(pack_id) where pack_id is not null;
+
+-- startup_playbooks
+create index if not exists idx_startup_playbooks_startup on startup_playbooks(startup_id);
+create index if not exists idx_startup_playbooks_playbook on startup_playbooks(playbook_id);
+create index if not exists idx_startup_playbooks_status on startup_playbooks(status);
+create index if not exists idx_startup_playbooks_progress on startup_playbooks(progress) where status = 'in_progress';
+
+-- pack_dependencies
+create index if not exists idx_pack_dependencies_pack on pack_dependencies(pack_id);
+create index if not exists idx_pack_dependencies_depends on pack_dependencies(depends_on_pack_id);
+
+-- validation_scores
+create index if not exists idx_validation_scores_report on validation_scores(validation_report_id);
+create index if not exists idx_validation_scores_startup on validation_scores(startup_id);
+create index if not exists idx_validation_scores_dimension on validation_scores(dimension);
+
+-- startup_memory
+create index if not exists idx_startup_memory_startup on startup_memory(startup_id);
+create index if not exists idx_startup_memory_type on startup_memory(entity_type);
+create index if not exists idx_startup_memory_category on startup_memory(category) where category is not null;
+
+-- ============================================================================
+-- ROW LEVEL SECURITY
+-- ============================================================================
+alter table prompt_packs enable row level security;
+alter table prompt_pack_steps enable row level security;
+alter table prompt_runs enable row level security;
+alter table playbooks enable row level security;
+alter table playbook_steps enable row level security;
+alter table startup_playbooks enable row level security;
+alter table pack_dependencies enable row level security;
+alter table validation_scores enable row level security;
+alter table startup_memory enable row level security;
+
+-- ============================================================================
+-- RLS POLICIES: prompt_packs (public read, admin write)
+-- ============================================================================
+drop policy if exists "prompt_packs_select_public" on prompt_packs;
+create policy "prompt_packs_select_public"
+  on prompt_packs for select
+  using (is_active = true or exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_packs_insert_admin" on prompt_packs;
+create policy "prompt_packs_insert_admin"
+  on prompt_packs for insert
+  with check (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_packs_update_admin" on prompt_packs;
+create policy "prompt_packs_update_admin"
+  on prompt_packs for update
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_packs_delete_admin" on prompt_packs;
+create policy "prompt_packs_delete_admin"
+  on prompt_packs for delete
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: prompt_pack_steps (same as packs)
+-- ============================================================================
+drop policy if exists "prompt_pack_steps_select_public" on prompt_pack_steps;
+create policy "prompt_pack_steps_select_public"
+  on prompt_pack_steps for select
+  using (exists (
+    select 1 from prompt_packs where id = prompt_pack_steps.pack_id and is_active = true
+  ) or exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_pack_steps_insert_admin" on prompt_pack_steps;
+create policy "prompt_pack_steps_insert_admin"
+  on prompt_pack_steps for insert
+  with check (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_pack_steps_update_admin" on prompt_pack_steps;
+create policy "prompt_pack_steps_update_admin"
+  on prompt_pack_steps for update
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_pack_steps_delete_admin" on prompt_pack_steps;
+create policy "prompt_pack_steps_delete_admin"
+  on prompt_pack_steps for delete
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: prompt_runs (user owns their runs)
+-- ============================================================================
+drop policy if exists "prompt_runs_select_own" on prompt_runs;
+create policy "prompt_runs_select_own"
+  on prompt_runs for select
+  using (user_id = auth.uid() or exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "prompt_runs_insert_own" on prompt_runs;
+create policy "prompt_runs_insert_own"
+  on prompt_runs for insert
+  with check (user_id = auth.uid() or user_id is null);
+
+drop policy if exists "prompt_runs_update_own" on prompt_runs;
+create policy "prompt_runs_update_own"
+  on prompt_runs for update
+  using (user_id = auth.uid());
+
+-- ============================================================================
+-- RLS POLICIES: playbooks (public read)
+-- ============================================================================
+drop policy if exists "playbooks_select_public" on playbooks;
+create policy "playbooks_select_public"
+  on playbooks for select
+  using (is_active = true or exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "playbooks_insert_admin" on playbooks;
+create policy "playbooks_insert_admin"
+  on playbooks for insert
+  with check (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "playbooks_update_admin" on playbooks;
+create policy "playbooks_update_admin"
+  on playbooks for update
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "playbooks_delete_admin" on playbooks;
+create policy "playbooks_delete_admin"
+  on playbooks for delete
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: playbook_steps (same as playbooks)
+-- ============================================================================
+drop policy if exists "playbook_steps_select_public" on playbook_steps;
+create policy "playbook_steps_select_public"
+  on playbook_steps for select
+  using (exists (
+    select 1 from playbooks where id = playbook_steps.playbook_id and is_active = true
+  ) or exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+drop policy if exists "playbook_steps_write_admin" on playbook_steps;
+create policy "playbook_steps_write_admin"
+  on playbook_steps for all
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: startup_playbooks (org access)
+-- ============================================================================
+drop policy if exists "startup_playbooks_select_org" on startup_playbooks;
+create policy "startup_playbooks_select_org"
+  on startup_playbooks for select
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_playbooks_insert_org" on startup_playbooks;
+create policy "startup_playbooks_insert_org"
+  on startup_playbooks for insert
+  with check (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_playbooks_update_org" on startup_playbooks;
+create policy "startup_playbooks_update_org"
+  on startup_playbooks for update
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_playbooks_delete_org" on startup_playbooks;
+create policy "startup_playbooks_delete_org"
+  on startup_playbooks for delete
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: pack_dependencies (public read)
+-- ============================================================================
+drop policy if exists "pack_dependencies_select_public" on pack_dependencies;
+create policy "pack_dependencies_select_public"
+  on pack_dependencies for select
+  using (true);
+
+drop policy if exists "pack_dependencies_write_admin" on pack_dependencies;
+create policy "pack_dependencies_write_admin"
+  on pack_dependencies for all
+  using (exists (
+    select 1 from user_roles where user_id = auth.uid() and role in ('admin', 'moderator')
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: validation_scores (org access)
+-- ============================================================================
+drop policy if exists "validation_scores_select_org" on validation_scores;
+create policy "validation_scores_select_org"
+  on validation_scores for select
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "validation_scores_insert_org" on validation_scores;
+create policy "validation_scores_insert_org"
+  on validation_scores for insert
+  with check (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "validation_scores_update_org" on validation_scores;
+create policy "validation_scores_update_org"
+  on validation_scores for update
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+-- ============================================================================
+-- RLS POLICIES: startup_memory (org access)
+-- ============================================================================
+drop policy if exists "startup_memory_select_org" on startup_memory;
+create policy "startup_memory_select_org"
+  on startup_memory for select
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_memory_insert_org" on startup_memory;
+create policy "startup_memory_insert_org"
+  on startup_memory for insert
+  with check (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_memory_update_org" on startup_memory;
+create policy "startup_memory_update_org"
+  on startup_memory for update
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+drop policy if exists "startup_memory_delete_org" on startup_memory;
+create policy "startup_memory_delete_org"
+  on startup_memory for delete
+  using (startup_id in (
+    select s.id from startups s
+    join profiles p on s.org_id = p.org_id
+    where p.id = auth.uid()
+  ));
+
+-- ============================================================================
+-- FUNCTIONS: Intelligent pack selection
+-- ============================================================================
+
+-- Search for best matching pack
+create or replace function search_best_pack(
+  p_module text,
+  p_industry text default null,
+  p_stage text default null,
+  p_use_case text default null
+)
+returns table (
+  pack_id uuid,
+  title text,
+  slug text,
+  category text,
+  description text,
+  step_count bigint,
+  match_score numeric,
+  first_step_id uuid,
+  first_step_name text
+)
+language plpgsql stable
+security definer
+as $$
+declare
+  v_categories text[];
+begin
+  -- Map module to categories
+  v_categories := case p_module
+    when 'onboarding' then array['validation', 'ideation', 'market']
+    when 'canvas' then array['canvas', 'pricing', 'gtm']
+    when 'pitch' then array['pitch']
+    when 'validation' then array['validation', 'market']
+    when 'gtm' then array['gtm', 'pricing']
+    when 'pricing' then array['pricing']
+    when 'market' then array['market']
+    when 'ideation' then array['ideation']
+    when 'funding' then array['funding']
+    else array[p_module]
+  end;
+
+  return query
+  with ranked_packs as (
+    select
+      pp.id,
+      pp.title,
+      pp.slug,
+      pp.category,
+      pp.description,
+      count(pps.id) as step_count,
+      -- Calculate match score (higher = better match)
+      (
+        case when pp.category = any(v_categories) then 10 else 0 end +
+        case when p_industry is not null and p_industry = any(pp.industry_tags) then 5 else 0 end +
+        case when p_stage is not null and p_stage = any(pp.stage_tags) then 3 else 0 end +
+        case when p_use_case is not null and p_use_case = any(pp.use_case_tags) then 4 else 0 end +
+        pp.version * 0.1
+      )::numeric as match_score
+    from prompt_packs pp
+    left join prompt_pack_steps pps on pps.pack_id = pp.id
+    where pp.is_active = true
+      and pp.category = any(v_categories)
+    group by pp.id
+  )
+  select
+    rp.id as pack_id,
+    rp.title,
+    rp.slug,
+    rp.category,
+    rp.description,
+    rp.step_count,
+    rp.match_score,
+    fs.id as first_step_id,
+    fs.name as first_step_name
+  from ranked_packs rp
+  left join lateral (
+    select pps.id, pps.name
+    from prompt_pack_steps pps
+    where pps.pack_id = rp.id
+    order by pps.step_order
+    limit 1
+  ) fs on true
+  order by rp.match_score desc, rp.step_count desc
+  limit 5;
+end;
+$$;
+
+comment on function search_best_pack is 'Find best matching pack by module, industry, stage, and use case';
+
+-- Get playbook progress for a startup
+create or replace function get_playbook_progress(p_startup_id uuid)
+returns table (
+  playbook_id uuid,
+  playbook_title text,
+  status text,
+  progress int,
+  current_step int,
+  total_steps bigint,
+  next_step_title text,
+  next_step_pack_id uuid
+)
+language sql stable
+security definer
+as $$
+  select
+    p.id as playbook_id,
+    p.title as playbook_title,
+    sp.status,
+    sp.progress,
+    sp.current_step,
+    count(ps.id) as total_steps,
+    ns.title as next_step_title,
+    ns.pack_id as next_step_pack_id
+  from startup_playbooks sp
+  join playbooks p on p.id = sp.playbook_id
+  left join playbook_steps ps on ps.playbook_id = p.id
+  left join playbook_steps ns on ns.playbook_id = p.id and ns.step_order = sp.current_step
+  where sp.startup_id = p_startup_id
+    and sp.status in ('active', 'in_progress')
+  group by p.id, p.title, sp.status, sp.progress, sp.current_step, ns.title, ns.pack_id
+  order by sp.last_activity_at desc;
+$$;
+
+comment on function get_playbook_progress is 'Get active playbook progress for a startup';
+
+-- Get pack with all steps (ordered)
+create or replace function get_pack_with_steps(p_pack_id uuid)
+returns table (
+  pack_id uuid,
+  pack_title text,
+  pack_slug text,
+  pack_category text,
+  pack_description text,
+  step_id uuid,
+  step_order int,
+  step_name text,
+  step_purpose text,
+  prompt_template text,
+  output_schema jsonb,
+  model_preference text,
+  apply_to text[]
+)
+language sql stable
+security definer
+as $$
+  select
+    pp.id as pack_id,
+    pp.title as pack_title,
+    pp.slug as pack_slug,
+    pp.category as pack_category,
+    pp.description as pack_description,
+    pps.id as step_id,
+    pps.step_order,
+    pps.name as step_name,
+    pps.purpose as step_purpose,
+    pps.prompt_template,
+    pps.output_schema,
+    pps.model_preference,
+    pps.apply_to
+  from prompt_packs pp
+  left join prompt_pack_steps pps on pps.pack_id = pp.id
+  where pp.id = p_pack_id
+  order by pps.step_order;
+$$;
+
+comment on function get_pack_with_steps is 'Get pack with all steps in order';
+
+-- Get recommended playbooks for a startup
+create or replace function get_recommended_playbooks(
+  p_startup_id uuid,
+  p_limit int default 5
+)
+returns table (
+  playbook_id uuid,
+  title text,
+  description text,
+  category text,
+  estimated_time_minutes int,
+  match_reason text,
+  is_started boolean
+)
+language plpgsql stable
+security definer
+as $$
+declare
+  v_industry text;
+  v_stage text;
+  v_has_canvas boolean;
+  v_has_pitch boolean;
+  v_has_validation boolean;
+begin
+  -- Get startup context
+  select industry, stage into v_industry, v_stage
+  from startups where id = p_startup_id;
+
+  -- Check what's already done
+  select exists(select 1 from lean_canvases where startup_id = p_startup_id) into v_has_canvas;
+  select exists(select 1 from pitch_decks where startup_id = p_startup_id) into v_has_pitch;
+  select exists(select 1 from validation_reports where startup_id = p_startup_id) into v_has_validation;
+
+  return query
+  select
+    p.id as playbook_id,
+    p.title,
+    p.description,
+    p.category,
+    p.estimated_time_minutes,
+    case
+      when p.category = 'onboarding' and not v_has_canvas then 'Complete your startup profile'
+      when p.category = 'validation' and not v_has_validation then 'Validate your idea'
+      when p.category = 'canvas' and not v_has_canvas then 'Build your Lean Canvas'
+      when p.category = 'pitch' and not v_has_pitch then 'Create your pitch deck'
+      when v_industry is not null and v_industry = any(p.industry_tags) then 'Recommended for ' || v_industry
+      when v_stage is not null and v_stage = any(p.stage_tags) then 'Recommended for ' || v_stage || ' stage'
+      else 'Popular playbook'
+    end as match_reason,
+    exists(select 1 from startup_playbooks sp where sp.startup_id = p_startup_id and sp.playbook_id = p.id) as is_started
+  from playbooks p
+  where p.is_active = true
+    and not exists(
+      select 1 from startup_playbooks sp
+      where sp.startup_id = p_startup_id
+        and sp.playbook_id = p.id
+        and sp.status = 'completed'
+    )
+  order by
+    p.is_featured desc,
+    case when v_industry = any(p.industry_tags) then 0 else 1 end,
+    case when v_stage = any(p.stage_tags) then 0 else 1 end,
+    p.created_at desc
+  limit p_limit;
+end;
+$$;
+
+comment on function get_recommended_playbooks is 'Get recommended playbooks based on startup context';
+
+-- Get run statistics for analytics
+create or replace function get_pack_analytics(
+  p_pack_id uuid,
+  p_days int default 30
+)
+returns table (
+  total_runs bigint,
+  successful_runs bigint,
+  failed_runs bigint,
+  success_rate numeric,
+  avg_latency_ms numeric,
+  total_cost_usd numeric,
+  unique_users bigint,
+  unique_startups bigint
+)
+language sql stable
+security definer
+as $$
+  select
+    count(*) as total_runs,
+    count(*) filter (where status = 'completed') as successful_runs,
+    count(*) filter (where status = 'failed') as failed_runs,
+    round(
+      count(*) filter (where status = 'completed')::numeric /
+      nullif(count(*), 0) * 100, 2
+    ) as success_rate,
+    round(avg(latency_ms), 0) as avg_latency_ms,
+    sum(cost_usd) as total_cost_usd,
+    count(distinct user_id) as unique_users,
+    count(distinct startup_id) as unique_startups
+  from prompt_runs
+  where pack_id = p_pack_id
+    and created_at >= now() - (p_days || ' days')::interval;
+$$;
+
+comment on function get_pack_analytics is 'Get pack execution analytics for the last N days';
+
+-- ============================================================================
+-- TRIGGERS
+-- ============================================================================
+
+-- Update timestamp trigger
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+-- Apply to tables
+drop trigger if exists prompt_packs_updated_at on prompt_packs;
+create trigger prompt_packs_updated_at
+  before update on prompt_packs
+  for each row execute function update_updated_at_column();
+
+drop trigger if exists playbooks_updated_at on playbooks;
+create trigger playbooks_updated_at
+  before update on playbooks
+  for each row execute function update_updated_at_column();
+
+-- Update playbook progress trigger
+create or replace function update_playbook_progress()
+returns trigger as $$
+declare
+  v_total_steps int;
+  v_completed_steps int;
+begin
+  -- Get total steps
+  select count(*) into v_total_steps
+  from playbook_steps where playbook_id = new.playbook_id;
+
+  -- Get completed steps
+  v_completed_steps := coalesce(array_length(new.completed_steps, 1), 0);
+
+  -- Calculate progress
+  if v_total_steps > 0 then
+    new.progress := round((v_completed_steps::numeric / v_total_steps) * 100);
+  end if;
+
+  -- Update status
+  if new.progress >= 100 then
+    new.status := 'completed';
+    new.completed_at := now();
+  elsif new.progress > 0 then
+    new.status := 'in_progress';
+  end if;
+
+  new.last_activity_at := now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists startup_playbooks_progress on startup_playbooks;
+create trigger startup_playbooks_progress
+  before update on startup_playbooks
+  for each row execute function update_playbook_progress();
+
+-- ============================================================================
+-- GRANTS
+-- ============================================================================
+grant execute on function search_best_pack(text, text, text, text) to authenticated;
+grant execute on function get_playbook_progress(uuid) to authenticated;
+grant execute on function get_pack_with_steps(uuid) to authenticated;
+grant execute on function get_recommended_playbooks(uuid, int) to authenticated;
+grant execute on function get_pack_analytics(uuid, int) to authenticated;
+
+-- ============================================================================
+-- END OF MIGRATION
+-- ============================================================================

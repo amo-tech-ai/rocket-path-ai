@@ -1,0 +1,568 @@
+---
+description: Guide for creating and using Agent Skills - extend AI agents with specialized capabilities using the Agent Skills open standard
+globs: ["**/.cursor/skills/**", "**/.claude/skills/**"]
+alwaysApply: true
+---
+
+# Agent Skills — Cursor Rule
+
+**Purpose:** Extend AI agents with specialized capabilities using the Agent Skills open standard  
+**Based on:** [Cursor Docs: Agent Skills](https://cursor.com/docs/context/skills)  
+**Standard:** [agentskills.io](https://agentskills.io) (open standard)
+
+**Note:** Agent Skills are available in **Nightly** release channel. Switch via Settings → Beta → Update channel → Nightly.
+
+---
+
+## What Are Agent Skills?
+
+Agent Skills are **portable, version-controlled packages** that teach agents how to perform domain-specific tasks.
+
+**Key Features:**
+- **Portable:** Work across any agent supporting the Agent Skills standard
+- **Version-controlled:** Stored as files, tracked in repository or installed from GitHub
+- **Discoverable:** Automatically discovered by Cursor at startup
+- **Dynamic:** Agent decides when skills are relevant based on context
+
+---
+
+## Skill Directory Structure
+
+### Supported Locations
+
+Skills are automatically discovered from these locations:
+
+| Location | Scope | Example |
+|----------|-------|---------|
+| `.cursor/skills/` | Project-level | `.cursor/skills/edge-functions/` |
+| `.claude/skills/` | Project-level (Claude compatibility) | `.claude/skills/supabase/` |
+| `~/.cursor/skills/` | User-level (global) | User-wide skills |
+| `~/.claude/skills/` | User-level (global) | User-wide skills |
+
+**Current Project:**
+- Skills location: `.cursor/skills/` ✅
+- Example: `.cursor/skills/agent-best-practices/` ✅
+
+### Skill Folder Structure
+
+Each skill should be a folder containing a `SKILL.md` file:
+
+```text
+.cursor/
+└── skills/
+    └── my-skill/
+        ├── SKILL.md          # Required: Skill definition
+        ├── examples/          # Optional: Example files
+        │   └── example-1.md
+        ├── references/        # Optional: Reference documentation
+        │   └── guide.md
+        └── scripts/           # Optional: Executable scripts
+            └── helper.sh
+```
+
+**Example from this project:**
+```text
+.cursor/skills/
+└── agent-best-practices/
+    ├── SKILL.md
+    ├── examples/
+    │   └── example-plan.md
+    └── references/
+        ├── prompting.md
+        └── workflows.md
+```
+
+---
+
+## SKILL.md File Format
+
+### Required Frontmatter
+
+Each skill must have a `SKILL.md` file with YAML frontmatter:
+
+```markdown
+---
+name: my-skill
+description: Short description of what this skill does and when to use it.
+---
+
+# My Skill
+
+Detailed instructions for the agent.
+
+## When to Use
+
+- Use this skill when...
+- This skill is helpful for...
+
+## Instructions
+
+- Step-by-step guidance for the agent
+- Domain-specific conventions
+- Best practices and patterns
+```
+
+### Frontmatter Fields
+
+| Field | Required | Description | Example |
+|-------|----------|-------------|---------|
+| `description` | ✅ **Yes** | Short description shown in menus. Used by agent to determine when to apply the skill. | `"Create Supabase Edge Functions with Deno, TypeScript, JWT auth"` |
+| `name` | ❌ No | Human-readable name. If omitted, parent folder name is used. | `"Supabase Edge Functions"` |
+| `version` | ❌ No | Version number for tracking. Optional but recommended. | `"1.0.0"` |
+
+**Example from this project:**
+
+```markdown
+---
+name: Agent Best Practices
+description: This skill should be used when the user asks about "agent best practices", "coding with agents", "plan mode", "agent workflows", "test-driven development with agents", "code review with agents", "pull request automation", mentions agent efficiency, or needs guidance on effective agent collaboration patterns.
+version: 1.0.0
+---
+```
+
+---
+
+## Creating New Skills
+
+### Skill Creation Checklist
+
+**1. Create Skill Directory:**
+```bash
+mkdir -p .cursor/skills/my-skill-name
+```
+
+**2. Create SKILL.md with Frontmatter:**
+```markdown
+---
+name: My Skill Name
+description: Short, clear description of when to use this skill. Include keywords that help agent recognize relevance.
+---
+
+# My Skill Name
+
+[Detailed instructions follow...]
+```
+
+**3. Structure Content:**
+- **When to Use** — Clear triggers for when agent should use this skill
+- **Instructions** — Step-by-step guidance for the agent
+- **Examples** — Show correct usage patterns
+- **Best Practices** — Domain-specific conventions
+
+**4. Add Supporting Files (Optional):**
+- `examples/` — Example files showing correct usage
+- `references/` — Reference documentation
+- `scripts/` — Executable scripts or helpers
+
+### Naming Conventions
+
+**Skill Folder Names:**
+- Use kebab-case: `edge-functions`, `agent-best-practices`
+- Be descriptive: `supabase-auth` ✅, `auth` ❌ (too generic)
+- Match skill purpose: `supabase-edge-functions` ✅
+
+**SKILL.md `name` field:**
+- Use Title Case: `"Supabase Edge Functions"`
+- Be descriptive: `"Agent Best Practices"` ✅
+
+### Description Best Practices
+
+**Good Description:**
+```markdown
+description: Create Supabase Edge Functions with Deno, TypeScript, JWT auth, database connections, and AI integration. Use when creating serverless functions, webhooks, or API endpoints on Supabase.
+```
+
+**Why Good:**
+- Clear purpose ("Create Supabase Edge Functions")
+- Technologies mentioned ("Deno, TypeScript, JWT auth")
+- Use cases specified ("serverless functions, webhooks, API endpoints")
+- Triggers clear ("when creating...")
+
+**Bad Description:**
+```markdown
+description: Edge functions skill.
+```
+
+**Why Bad:**
+- Too vague (which platform? what purpose?)
+- No keywords for agent to recognize relevance
+- No use cases specified
+
+---
+
+## Skill Content Structure
+
+### Recommended Sections
+
+```markdown
+# Skill Name
+
+[Brief introduction explaining what this skill teaches]
+
+## When to Use
+
+- Trigger phrase 1: "when user asks about..."
+- Trigger phrase 2: "when user mentions..."
+- Trigger keyword 3: "when working with..."
+
+## Core Concepts
+
+[Domain-specific knowledge the agent needs]
+
+## Step-by-Step Instructions
+
+1. First step with guidance
+2. Second step with details
+3. Third step with patterns
+
+## Examples
+
+### Example 1: [Scenario]
+[Example code or workflow]
+
+### Example 2: [Scenario]
+[Example code or workflow]
+
+## Best Practices
+
+- Best practice 1
+- Best practice 2
+- Common pitfalls to avoid
+
+## Common Patterns
+
+[Reusable patterns for this domain]
+
+## References
+
+- Link to documentation
+- Link to examples
+- Link to related skills
+```
+
+### Content Guidelines
+
+**✅ DO:**
+- Be specific about when to use the skill
+- Include step-by-step instructions
+- Provide concrete examples
+- Reference related documentation
+- Use clear, actionable language
+
+**❌ DON'T:**
+- Be too generic or vague
+- Include only theory without examples
+- Use ambiguous terminology
+- Duplicate information from other skills unnecessarily
+
+---
+
+## How Skills Work in Cursor
+
+### Automatic Discovery
+
+**When Cursor Starts:**
+1. Scans skill directories (`.cursor/skills/`, `.claude/skills/`, user-level)
+2. Reads `SKILL.md` files
+3. Extracts `name` and `description` from frontmatter
+4. Makes skills available to Agent
+
+**Agent Behavior:**
+1. Sees available skills (name + description only) in system prompt
+2. Decides when skills are relevant based on context
+3. Dynamically loads full skill content when needed (dynamic context discovery)
+4. Uses skill instructions to perform task
+
+### Manual Invocation
+
+**Using Skills Manually:**
+1. Type `/` in Agent chat
+2. Search for skill name
+3. Select skill to invoke
+
+**Example:**
+```
+/agent-best-practices
+```
+
+### Viewing Skills
+
+**In Cursor Settings:**
+1. Open **Cursor Settings** (`Cmd+Shift+J` / `Ctrl+Shift+J`)
+2. Navigate to **Rules**
+3. Skills appear in **Agent Decides** section
+4. See skill names and descriptions
+
+---
+
+## Dynamic Context Discovery
+
+**Skills use dynamic context discovery:**
+
+1. **Static Context** (System Prompt):
+   - Skill names and descriptions only
+   - Small, efficient context usage
+
+2. **Dynamic Context** (When Needed):
+   - Agent sees skill is relevant
+   - Pulls full `SKILL.md` content dynamically
+   - Only loads when actually using the skill
+
+**Result:** ~47% token reduction (per Cursor's dynamic context discovery research)
+
+**This means:**
+- You can create many skills without context bloat
+- Agent loads skills only when needed
+- System prompt stays lightweight
+
+---
+
+## Installing Skills from GitHub
+
+### Remote Skill Installation
+
+You can import skills from GitHub repositories:
+
+**Steps:**
+1. Open **Cursor Settings → Rules**
+2. In **Project Rules** section, click **Add Rule**
+3. Select **Remote Rule (Github)**
+4. Enter GitHub repository URL
+
+**Example:**
+```
+https://github.com/username/skills-repo.git
+```
+
+### Remote Skills Use Cases
+
+- Share skills across team members
+- Install community-contributed skills
+- Version control skills in separate repositories
+- Maintain private skill libraries
+
+---
+
+## Project-Specific Skills
+
+### Current Skills
+
+**Existing Skill:**
+- `.cursor/skills/agent-best-practices/` ✅
+  - **Purpose:** Agent collaboration best practices
+  - **Usage:** When working with agents, plan mode, context management
+
+### Recommended Skills for This Project
+
+**Potential Skills to Create:**
+
+1. **Supabase Edge Functions** (`.cursor/skills/edge-functions/`)
+   - Purpose: Create Deno edge functions with AI integration
+   - Use: When implementing edge functions
+
+2. **Supabase Database** (`.cursor/skills/supabase/`)
+   - Purpose: Write migrations, RLS policies, database functions
+   - Use: When working with database schema
+
+3. **Dashboard Development** (`.cursor/skills/dashboards/`)
+   - Purpose: Create 3-panel dashboard layouts
+   - Use: When implementing dashboard screens
+
+4. **AI Agent Integration** (`.cursor/skills/ai-agents/`)
+   - Purpose: Integrate Gemini AI agents into features
+   - Use: When adding AI functionality
+
+### Skill Organization
+
+**Organize by Domain:**
+```
+.cursor/skills/
+├── agent-best-practices/    # Agent collaboration
+├── edge-functions/          # Supabase Edge Functions
+├── supabase/                # Database work
+├── dashboards/              # Dashboard development
+└── ai-agents/               # AI integration
+```
+
+**Each skill is independent:**
+- Can be used separately
+- Can reference other skills
+- Can bundle supporting files
+
+---
+
+## Skill Best Practices
+
+### ✅ DO
+
+1. **Be Specific in Description**
+   - Include keywords that help agent recognize relevance
+   - Specify use cases and triggers
+   - Mention technologies involved
+
+2. **Provide Examples**
+   - Show correct usage patterns
+   - Include code examples if applicable
+   - Demonstrate best practices
+
+3. **Use Clear Structure**
+   - "When to Use" section with triggers
+   - Step-by-step instructions
+   - Best practices section
+
+4. **Keep Skills Focused**
+   - One domain per skill
+   - Clear, single purpose
+   - Don't mix unrelated concepts
+
+5. **Reference Related Skills**
+   - Link to complementary skills
+   - Show how skills work together
+   - Build skill ecosystem
+
+### ❌ DON'T
+
+1. **Don't Be Too Generic**
+   - `description: "Code skill"` ❌
+   - `description: "Create React components with TypeScript, hooks, and proper error handling. Use when building UI components."` ✅
+
+2. **Don't Duplicate Documentation**
+   - Don't copy entire docs into skill
+   - Reference external docs instead
+   - Focus on agent-specific guidance
+
+3. **Don't Create Overlapping Skills**
+   - One skill per domain
+   - Avoid duplicate functionality
+   - Consider combining similar skills
+
+4. **Don't Ignore Naming Conventions**
+   - Use kebab-case for folders
+   - Use Title Case for skill names
+   - Be consistent
+
+---
+
+## Examples
+
+### Example 1: Creating a New Skill
+
+**User wants to create skill for Supabase Edge Functions:**
+
+```bash
+# 1. Create directory
+mkdir -p .cursor/skills/edge-functions
+
+# 2. Create SKILL.md
+cat > .cursor/skills/edge-functions/SKILL.md << 'EOF'
+---
+name: Supabase Edge Functions
+description: Create Supabase Edge Functions with Deno, TypeScript, JWT auth, database connections, and AI integration. Use when creating serverless functions, webhooks, or API endpoints on Supabase.
+version: 1.0.0
+---
+
+# Supabase Edge Functions
+
+This skill teaches agents how to create and deploy Supabase Edge Functions.
+
+## When to Use
+
+- When user asks to "create edge function"
+- When user mentions "Supabase function"
+- When implementing webhooks or API endpoints
+- When integrating AI services via edge functions
+
+## Instructions
+
+[Detailed instructions follow...]
+EOF
+```
+
+### Example 2: Agent Using a Skill
+
+**User request:**
+```
+"Create an edge function that enriches user profiles from LinkedIn"
+```
+
+**Agent behavior:**
+1. Sees skill description matches task ("edge function", "Supabase")
+2. Loads `edge-functions/SKILL.md` dynamically
+3. Follows skill instructions for:
+   - Deno setup
+   - TypeScript configuration
+   - JWT authentication
+   - Database connections
+   - AI integration
+4. Creates edge function following skill patterns
+
+### Example 3: Multiple Skills Working Together
+
+**User request:**
+```
+"Add user profile enrichment to the dashboard"
+```
+
+**Agent behavior:**
+1. Uses `dashboards/` skill for UI implementation
+2. Uses `edge-functions/` skill for backend function
+3. Uses `ai-agents/` skill for Gemini integration
+4. Combines skills to build complete feature
+
+---
+
+## Quick Reference
+
+### Skill File Structure
+```
+.cursor/skills/
+└── skill-name/
+    ├── SKILL.md          # Required: YAML frontmatter + content
+    ├── examples/         # Optional: Example files
+    ├── references/       # Optional: Reference docs
+    └── scripts/          # Optional: Executable scripts
+```
+
+### Required Frontmatter
+```markdown
+---
+description: Clear description with keywords and use cases (REQUIRED)
+name: Human-readable name (OPTIONAL - uses folder name if omitted)
+version: Version number (OPTIONAL - recommended)
+---
+```
+
+### Skill Directories
+- `.cursor/skills/` — Project-level (recommended)
+- `.claude/skills/` — Project-level (Claude compatibility)
+- `~/.cursor/skills/` — User-level (global)
+- `~/.claude/skills/` — User-level (global)
+
+### Manual Invocation
+- Type `/` in Agent chat
+- Search for skill name
+- Select skill
+
+### Viewing Skills
+- Settings → Rules → Agent Decides section
+
+---
+
+## Reference
+
+- **Cursor Docs:** [Agent Skills](https://cursor.com/docs/context/skills)
+- **Open Standard:** [agentskills.io](https://agentskills.io)
+- **Dynamic Context Discovery:** `.cursor/rules/dynamic-context-discovery.mdc`
+
+---
+
+## Key Takeaways
+
+1. **Skills are portable, version-controlled packages** for domain-specific tasks
+2. **Automatic discovery** from `.cursor/skills/` and `.claude/skills/` directories
+3. **Dynamic loading** — only loaded when agent determines they're relevant
+4. **Clear descriptions** help agent recognize when to use skills
+5. **Organize by domain** — one skill per focused domain
+6. **Reference, don't duplicate** — reference docs instead of copying
+
+**Result:** Extend agent capabilities without context bloat, maintain skills as version-controlled files, share skills across projects and teams.

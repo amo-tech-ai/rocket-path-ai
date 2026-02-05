@@ -41,8 +41,8 @@ const MODEL_CONFIG = {
   stage_guidance: { provider: 'gemini', model: 'gemini-3-flash-preview' },
 } as const;
 
-// Public mode system prompt
-const PUBLIC_SYSTEM_PROMPT = `You are Atlas, StartupAI's friendly assistant on the public website.
+// Public mode system prompt (persona: Amo per PRD/index-chat.md)
+const PUBLIC_SYSTEM_PROMPT = `You are Amo, StartupAI's friendly assistant on the public website.
 
 ABOUT STARTUPAI:
 StartupAI is an AI-powered platform that helps founders:
@@ -428,13 +428,28 @@ async function callAnthropic(
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'context-management-2025-06-27'
     },
     body: JSON.stringify({
       model,
       max_tokens: 2048,
-      system: systemPrompt,
-      messages
+      system: [{
+        type: 'text',
+        text: systemPrompt,
+        cache_control: { type: 'ephemeral' }  // Cache system prompt
+      }],
+      messages,
+      // Context management: clear old tool results when context grows
+      context_management: {
+        edits: [
+          {
+            type: 'clear_tool_uses_20250919',
+            trigger: { type: 'input_tokens', value: 50000 },
+            keep: { type: 'tool_uses', value: 5 }
+          }
+        ]
+      }
     }),
   });
 

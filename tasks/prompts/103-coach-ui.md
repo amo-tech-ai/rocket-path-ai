@@ -28,7 +28,7 @@ ai_model: -
 subagents: [frontend-designer, code-reviewer]
 edge_function: -
 schema_tables: []
-depends_on: [101-VAL, 102-VAL]
+depends_on: [101-coach-tables, 102-coach-ai]
 ---
 ```
 

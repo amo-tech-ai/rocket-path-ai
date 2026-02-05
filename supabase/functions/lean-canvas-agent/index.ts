@@ -16,6 +16,10 @@ import {
   canvasToPitch,
   getBenchmarks,
   suggestPivots,
+  extractAssumptions,
+  suggestExperiment,
+  getAssumptions,
+  updateAssumptionStatus,
 } from "./actions/index.ts";
 
 const corsHeaders = {
@@ -23,8 +27,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://yvyesmiczbjqwbqtlidy.supabase.co";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eWVzbWljemJqcXdicXRsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTA1OTcsImV4cCI6MjA4NDAyNjU5N30.eSN491MztXvWR03q4v-Zfc0zrG06mrIxdSRe_FFZDu4";
+// Use environment variables (set automatically by Supabase)
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -40,6 +45,11 @@ interface RequestBody {
   label?: string;
   industry?: string;
   stage?: string;
+  // Assumption-related fields
+  assumption_id?: string;
+  assumption_status?: 'validated' | 'invalidated' | 'pivoted';
+  evidence?: string;
+  validation_results?: Array<{ box: string; score: number; issues: string[] }>;
 }
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -180,6 +190,51 @@ Deno.serve(async (req) => {
           user.id,
           body.startup_id,
           body.canvas_data
+        );
+        break;
+
+      // ===== Assumption Management Actions =====
+      case "extract_assumptions":
+        if (!body.startup_id) throw new Error("startup_id is required");
+        if (!body.canvas_data) throw new Error("canvas_data is required");
+        result = await extractAssumptions(
+          supabase,
+          user.id,
+          body.startup_id,
+          body.canvas_data,
+          body.validation_results
+        );
+        break;
+
+      case "suggest_experiment":
+        if (!body.startup_id) throw new Error("startup_id is required");
+        if (!body.assumption_id) throw new Error("assumption_id is required");
+        result = await suggestExperiment(
+          supabase,
+          user.id,
+          body.startup_id,
+          body.assumption_id
+        );
+        break;
+
+      case "get_assumptions":
+        if (!body.startup_id) throw new Error("startup_id is required");
+        result = await getAssumptions(
+          supabase,
+          user.id,
+          body.startup_id
+        );
+        break;
+
+      case "update_assumption_status":
+        if (!body.assumption_id) throw new Error("assumption_id is required");
+        if (!body.assumption_status) throw new Error("assumption_status is required");
+        result = await updateAssumptionStatus(
+          supabase,
+          user.id,
+          body.assumption_id,
+          body.assumption_status,
+          body.evidence
         );
         break;
 
