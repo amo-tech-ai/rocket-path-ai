@@ -1,0 +1,499 @@
+---
+description: Practical guide for using Agent Skills in this project - how to invoke skills, when they're used automatically, and which skills are available
+globs: ["**/.cursor/skills/**", "**/.claude/skills/**"]
+alwaysApply: true
+---
+
+# Using Agent Skills — Practical Guide
+
+**Purpose:** How to use Agent Skills in this project  
+**Based on:** [Cursor Docs: Agent Skills](https://cursor.com/docs/context/skills)  
+**Skills Location:** `.cursor/skills/`
+
+**Note:** Agent Skills are available in **Nightly** release channel. Switch via Settings → Beta → Update channel → Nightly.
+
+---
+
+## Quick Start: Using Skills
+
+### Automatic Usage
+
+**Skills are automatically discovered and used by Agent:**
+
+1. Agent sees your request
+2. Agent checks available skills (from `.cursor/skills/`)
+3. Agent decides if a skill is relevant
+4. Agent loads and uses the skill automatically
+
+**You don't need to do anything** — skills are used automatically when relevant.
+
+### Manual Invocation
+
+**To explicitly use a skill:**
+
+1. Type `/` in Agent chat
+2. Search for skill name (e.g., `/edge-functions`)
+3. Select the skill
+4. Agent will use that skill for your request
+
+**Example:**
+```
+/edge-functions create a function that enriches user profiles
+```
+
+---
+
+## Available Skills in This Project
+
+### Current Skills (`.cursor/skills/`)
+
+| Skill | Description | When to Use |
+|-------|-------------|-------------|
+| **edge-functions** | Create Supabase Edge Functions with Deno, TypeScript, JWT auth, AI integration | Creating serverless functions, webhooks, API endpoints |
+| **supabase** | Write migrations, RLS policies, database functions, SQL queries | Working with database schema, security, PostgreSQL |
+| **dashboards** | Create 3-panel dashboard layouts (Context + Work + Intelligence) | Implementing dashboard screens, new dashboard pages |
+| **ai-agents** | Integrate Gemini AI agents into features | Adding AI functionality, AI-powered features |
+| **testing** | Testing strategies and patterns | Writing tests, test-driven development |
+| **claude-sdk** | Claude SDK agent patterns | Building Claude SDK agents |
+| **agent-best-practices** | Agent collaboration best practices | Working with agents, plan mode, context management |
+
+### Skill Details
+
+**Location:** `.cursor/skills/{skill-name}/SKILL.md`
+
+**View skills:**
+- Settings → Rules → Agent Decides section
+- Or browse `.cursor/skills/` directory
+
+---
+
+## How Skills Work
+
+### 1. Automatic Discovery
+
+**When Cursor starts:**
+- Scans `.cursor/skills/` directory
+- Reads `SKILL.md` files
+- Extracts skill names and descriptions
+- Makes skills available to Agent
+
+**Agent sees:**
+- Skill names
+- Skill descriptions
+- Decides relevance based on your request
+
+### 2. Dynamic Loading
+
+**When Agent decides a skill is relevant:**
+- Loads full `SKILL.md` content
+- Reads supporting files (`examples/`, `references/`, `scripts/`)
+- Uses skill instructions to perform task
+- Only loads when needed (efficient context usage)
+
+**Result:** ~47% token reduction vs loading all skills upfront
+
+---
+
+## Practical Usage Examples
+
+### Example 1: Creating an Edge Function
+
+**User request:**
+```
+Create an edge function that enriches startup profiles from LinkedIn URLs
+```
+
+**Agent behavior:**
+1. Sees "edge function" keyword
+2. Checks skills → finds `edge-functions` skill
+3. Loads `.cursor/skills/edge-functions/SKILL.md`
+4. Follows skill instructions:
+   - Uses `Deno.serve` pattern
+   - Adds CORS handling
+   - Implements JWT auth
+   - Uses Gemini API for enrichment
+   - Follows project patterns
+
+**Result:** Edge function created following best practices
+
+### Example 2: Creating a Dashboard Page
+
+**User request:**
+```
+Create a new dashboard page for investor management
+```
+
+**Agent behavior:**
+1. Sees "dashboard page" keyword
+2. Checks skills → finds `dashboards` skill
+3. Loads `.cursor/skills/dashboards/SKILL.md`
+4. Follows skill instructions:
+   - Uses 3-panel layout (`DashboardLayout`)
+   - Left panel: Navigation
+   - Main panel: Investor list/form
+   - Right panel: AI insights
+   - Uses React Query hooks
+   - Follows Tailwind CSS patterns
+
+**Result:** Dashboard page with proper 3-panel architecture
+
+### Example 3: Writing a Database Migration
+
+**User request:**
+```
+Add a new table for event sponsors with RLS policies
+```
+
+**Agent behavior:**
+1. Sees "table", "RLS", "migration" keywords
+2. Checks skills → finds `supabase` skill
+3. Loads `.cursor/skills/supabase/SKILL.md`
+4. Follows skill instructions:
+   - Creates migration file
+   - Enables RLS on table
+   - Creates granular policies (SELECT/INSERT/UPDATE/DELETE)
+   - Adds indexes
+   - Uses helper functions
+
+**Result:** Migration with proper RLS policies
+
+### Example 4: Manual Skill Invocation
+
+**User request:**
+```
+/edge-functions create a function that calculates investor scores
+```
+
+**Agent behavior:**
+1. Explicitly uses `edge-functions` skill
+2. Loads skill content
+3. Creates edge function following skill patterns
+4. Ignores other potentially relevant skills (focused on edge functions)
+
+**Result:** Edge function created with focus on edge function patterns
+
+---
+
+## When Skills Are Used Automatically
+
+### Skill Matching Logic
+
+**Agent matches skills based on:**
+
+1. **Keywords in your request:**
+   - "edge function" → `edge-functions` skill
+   - "dashboard" → `dashboards` skill
+   - "migration" → `supabase` skill
+   - "AI agent" → `ai-agents` skill
+
+2. **Task type:**
+   - Creating functions → `edge-functions`
+   - Database work → `supabase`
+   - UI components → `dashboards`
+   - Testing → `testing`
+
+3. **Context:**
+   - Working in `supabase/functions/` → `edge-functions` skill
+   - Working in `src/pages/` → `dashboards` skill
+   - Working in `supabase/migrations/` → `supabase` skill
+
+### Multiple Skills Can Apply
+
+**Agent can use multiple skills for complex tasks:**
+
+**Example:** "Add AI-powered profile enrichment to the dashboard"
+
+**Agent uses:**
+1. `dashboards` skill → For dashboard UI
+2. `edge-functions` skill → For backend function
+3. `ai-agents` skill → For Gemini integration
+
+**Result:** Complete feature using multiple skills
+
+---
+
+## Skill Descriptions (What Agent Sees)
+
+### edge-functions
+
+**Description:**
+> Create Supabase Edge Functions with Deno, TypeScript, JWT auth, database connections, and AI integration. Use when creating serverless functions, webhooks, or API endpoints on Supabase.
+
+**Triggers:**
+- "create edge function"
+- "Supabase function"
+- "serverless function"
+- "webhook"
+- "API endpoint"
+
+### supabase
+
+**Description:**
+> Write Supabase migrations, RLS policies, database functions, and SQL queries following official best practices. Use when working with Supabase database schema, security policies, PostgreSQL functions, or any database-related task.
+
+**Triggers:**
+- "migration"
+- "RLS policy"
+- "database function"
+- "SQL query"
+- "schema change"
+
+### dashboards
+
+**Description:**
+> Create 3-panel dashboard layouts (Left = Context, Main = Work, Right = Intelligence) with React, TypeScript, and Tailwind CSS. Use when implementing dashboard screens, creating new dashboard pages, or following 3-panel architecture.
+
+**Triggers:**
+- "dashboard page"
+- "dashboard component"
+- "3-panel layout"
+- "new dashboard"
+
+### ai-agents
+
+**Description:**
+> Integrate Gemini AI agents into features. Use when adding AI functionality.
+
+**Triggers:**
+- "AI agent"
+- "Gemini integration"
+- "AI-powered"
+- "AI feature"
+
+### testing
+
+**Description:**
+> Testing strategies and patterns. Use when writing tests or test-driven development.
+
+**Triggers:**
+- "write tests"
+- "test coverage"
+- "TDD"
+- "unit test"
+
+### agent-best-practices
+
+**Description:**
+> Agent collaboration best practices. Use when working with agents, plan mode, or context management.
+
+**Triggers:**
+- "agent best practices"
+- "plan mode"
+- "agent workflow"
+- "context management"
+
+---
+
+## Using Skills Effectively
+
+### ✅ DO
+
+1. **Let Agent Decide Automatically**
+   - Just describe what you want
+   - Agent will use relevant skills automatically
+   - Most efficient approach
+
+2. **Use Manual Invocation for Focus**
+   - Type `/skill-name` when you want specific skill
+   - Useful when multiple skills could apply
+   - Focuses Agent on specific patterns
+
+3. **Reference Skills in Requests**
+   - "Use the edge-functions skill to..."
+   - "Follow the dashboards skill pattern..."
+   - Explicitly guides Agent
+
+4. **Combine Skills Naturally**
+   - Complex tasks use multiple skills
+   - Agent combines them automatically
+   - No need to invoke multiple skills manually
+
+### ❌ DON'T
+
+1. **Don't Override Agent's Choice**
+   - Agent usually picks the right skill
+   - Manual override only if needed
+   - Trust automatic selection
+
+2. **Don't Invoke Skills Unnecessarily**
+   - Simple tasks don't need explicit skill invocation
+   - Let Agent decide automatically
+   - Manual invocation for complex/focused tasks
+
+3. **Don't Create Duplicate Skills**
+   - Check existing skills first
+   - Extend existing skills if needed
+   - Avoid overlapping functionality
+
+---
+
+## Skill File Structure
+
+### What's in Each Skill
+
+```
+.cursor/skills/
+└── skill-name/
+    ├── SKILL.md          # Required: Skill definition with instructions
+    ├── examples/         # Optional: Example files
+    │   └── example.md
+    ├── references/       # Optional: Reference documentation
+    │   └── reference.md
+    └── scripts/          # Optional: Executable scripts
+        └── helper.sh
+```
+
+### Reading Skill Content
+
+**To see what a skill teaches:**
+
+1. Open `.cursor/skills/{skill-name}/SKILL.md`
+2. Read the instructions
+3. Check `examples/` for usage examples
+4. Check `references/` for detailed docs
+
+**Example:**
+```bash
+# View edge-functions skill
+cat .cursor/skills/edge-functions/SKILL.md
+
+# View examples
+ls .cursor/skills/edge-functions/examples/
+```
+
+---
+
+## Troubleshooting
+
+### Skill Not Being Used
+
+**If Agent isn't using a skill:**
+
+1. **Check skill description:**
+   - Does it match your request keywords?
+   - Is description clear and specific?
+
+2. **Try manual invocation:**
+   - Type `/skill-name` explicitly
+   - Forces Agent to use that skill
+
+3. **Improve skill description:**
+   - Add more keywords
+   - Make description more specific
+   - Update `SKILL.md` frontmatter
+
+### Skill Not Found
+
+**If skill doesn't appear:**
+
+1. **Check location:**
+   - Is it in `.cursor/skills/`?
+   - Does folder name match skill name?
+
+2. **Check SKILL.md:**
+   - Does `SKILL.md` exist?
+   - Is frontmatter correct?
+
+3. **Restart Cursor:**
+   - Skills are discovered on startup
+   - Restart to refresh skill list
+
+### Multiple Skills Apply
+
+**If multiple skills could apply:**
+
+1. **Let Agent decide:**
+   - Agent usually picks the best one
+   - Or combines multiple skills
+
+2. **Manual invocation:**
+   - Type `/skill-name` to focus on one
+   - Useful for focused tasks
+
+3. **Combine explicitly:**
+   - "Use edge-functions and ai-agents skills to..."
+   - Guides Agent to use both
+
+---
+
+## Best Practices
+
+### For Users
+
+1. **Trust Automatic Selection**
+   - Agent usually picks the right skill
+   - Only override when needed
+
+2. **Use Clear Keywords**
+   - "Create edge function" → triggers `edge-functions`
+   - "Add dashboard page" → triggers `dashboards`
+   - Clear requests = better skill matching
+
+3. **Reference Skills When Needed**
+   - "Use the dashboards skill pattern"
+   - Explicitly guides Agent
+
+### For Skill Creators
+
+1. **Write Clear Descriptions**
+   - Include keywords
+   - Specify use cases
+   - Make triggers obvious
+
+2. **Provide Examples**
+   - Add `examples/` directory
+   - Show correct usage
+   - Demonstrate patterns
+
+3. **Keep Skills Focused**
+   - One domain per skill
+   - Clear, single purpose
+   - Avoid overlap
+
+---
+
+## Quick Reference
+
+### Manual Invocation
+
+```
+/edge-functions    → Use edge-functions skill
+/supabase          → Use supabase skill
+/dashboards        → Use dashboards skill
+/ai-agents         → Use ai-agents skill
+/testing            → Use testing skill
+```
+
+### View Skills
+
+- **Settings:** Cursor Settings → Rules → Agent Decides
+- **Files:** `.cursor/skills/{skill-name}/SKILL.md`
+- **List:** `ls .cursor/skills/`
+
+### Skill Locations
+
+- **Project-level:** `.cursor/skills/` (this project)
+- **User-level:** `~/.cursor/skills/` (global)
+- **Claude compatibility:** `.claude/skills/`
+
+---
+
+## Reference
+
+- **Cursor Docs:** [Agent Skills](https://cursor.com/docs/context/skills)
+- **Open Standard:** [agentskills.io](https://agentskills.io)
+- **Creation Guide:** `.cursor/rules/agent-skills.mdc`
+- **Dynamic Context:** `.cursor/rules/dynamic-context-discovery.mdc`
+
+---
+
+## Key Takeaways
+
+1. **Skills are used automatically** — Agent decides when to use them
+2. **Manual invocation available** — Type `/skill-name` to force usage
+3. **Multiple skills can apply** — Agent combines them for complex tasks
+4. **Skills are in `.cursor/skills/`** — Browse to see what's available
+5. **Clear requests = better matching** — Use keywords that match skill descriptions
+6. **Trust automatic selection** — Agent usually picks the right skill
+
+**Result:** More consistent, higher-quality code following project patterns and best practices.

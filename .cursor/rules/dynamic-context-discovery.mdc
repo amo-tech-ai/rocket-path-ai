@@ -1,0 +1,67 @@
+---
+description: Reference files instead of loading them - reduces tokens by ~47%
+globs: ["**/SUMMARY.md", "**/INDEX.md", "**/00-*.md", "**/101-*.md"]
+alwaysApply: true
+---
+
+# Dynamic Context Discovery
+
+**Core Rule:** Reference files, don't load them. Agent discovers files only when needed.
+
+---
+
+## ✅ DO: Reference Files
+
+```markdown
+## Recent Work
+- Feature: `prompts/dashboard/27-user-profile.md`
+- Task: `prompts/tasks/01-list-prompts.md`
+```
+
+**Why:** Agent loads files only when needed, not on every message.
+
+---
+
+## ❌ DON'T: Copy Content
+
+```markdown
+## Recent Work
+[Pastes entire 500-line prompt here]  ❌
+```
+
+**Why:** Bloats context with unused content.
+
+---
+
+## Patterns
+
+### Summaries
+- Reference: `path/to/file.md` (description)
+- Never paste full content
+
+### File Names
+- Use: `27-feature-name.md` (number + clear name)
+- Avoid: `feature.md` (too generic)
+
+### Organization
+- Group by domain: `prompts/dashboard/`, `prompts/wizard/`
+- Create index files for large directories
+
+---
+
+## Quick Reference
+
+**Summary format:**
+```markdown
+# Title
+## Section
+- Item: `path/to/file.md` (status)
+```
+
+**File naming:**
+- Format: `##-feature-name.md`
+- Examples: `27-user-profile.md`, `28-company-profile.md`
+
+---
+
+**Result:** ~47% token reduction, better focus, faster responses.

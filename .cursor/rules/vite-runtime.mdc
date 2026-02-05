@@ -1,0 +1,1119 @@
+---
+alwaysApply: true
+---
+# Vite Runtime & Import Safety Rules (Production)
+
+**Purpose:** Prevent runtime failures, blank screens, and CORS errors in Vite + React applications  
+**Target:** Engineers and AI agents working on FashionOS codebase  
+**Status:** Production-Enforced Rules
+
+---
+
+## 1. Core Vite Principles
+
+### 1.1 How Vite Resolves Modules at Runtime
+
+**Critical Understanding:**
+- Vite uses **ESM (ES Modules)** at runtime, not CommonJS
+- Module resolution happens **at build time** (dev) or **at serve time** (production)
+- Vite **transforms** imports during development using its dev server
+- **Incorrect paths = runtime failures** (blank screens, 404s, CORS errors)
+
+**Why ESM Import Resolution Fails:**
+1. **Relative Path Errors:** `./components/Button` fails if file doesn't exist at that relative location
+2. **Alias Errors:** `@/components/Button` fails if alias not configured in `vite.config.ts` AND `tsconfig.json`
+3. **Absolute URL Errors:** `https://cdn.example.com/module.js` breaks CORS and ESM loading
+4. **Case Sensitivity:** `./Button` ≠ `./button` (Linux/Mac are case-sensitive)
+
+**Why Vite Must Serve the App:**
+- Vite dev server (`npm run dev`) provides **HMR (Hot Module Replacement)**
+- Vite transforms imports on-the-fly during development
+- External sandboxes (ai.studio, aistudiocdn) **cannot** transform Vite imports
+- **Result:** Blank screens, CORS errors, "Failed to fetch module" errors
+
+**Rule:** ✅ **ALWAYS** run `npm run dev` on `http://localhost:3000` (or configured port)  
+**Rule:** ❌ **NEVER** load app from external origins (ai.studio, aistudiocdn, etc.)
+
+---
+
+## 2. Import Rules (STRICT)
+
+### 2.1 Allowed Import Formats
+
+#### ✅ Valid: Relative Imports (RECOMMENDED)
+
+```typescript
+// Same directory
+import { Button } from './Button';
+
+// Parent directory
+import { Layout } from '../layouts/Layout';
+
+// Nested relative (2 levels up)
+import { BrandInput } from '../../../types/brand';
+
+// Nested relative (3 levels up)
+import { useDesignerWizard } from '../../../../contexts/DesignerWizardContext';
+```
+
+**When to Use:**
+- ✅ Default choice for all imports
+- ✅ Works without configuration
+- ✅ TypeScript understands paths
+- ✅ Vite resolves correctly
+
+#### ✅ Valid: Alias Imports (IF CONFIGURED)
+
+```typescript
+// Only if vite.config.ts AND tsconfig.json are configured
+import { Button } from '@/components/Button';
+import { Layout } from '@/layouts/Layout';
+```
+
+**Requirements:**
+- ✅ `vite.config.ts` must have `resolve.alias` configured
+- ✅ `tsconfig.json` must have `paths` configured
+- ✅ **MUST restart dev server** after adding alias
+- ✅ **MUST verify** alias works before committing
+
+**Current Project Status:**
+- ⚠️ Alias `@` is configured in `vite.config.ts` → `path.resolve(__dirname, './')`
+- ⚠️ **VERIFY** `tsconfig.json` has matching `paths` configuration
+- ⚠️ **Default:** Use relative imports unless alias is verified working
+
+#### ✅ Valid: Node Modules (npm packages)
+
+```typescript
+import React from 'react';
+import { HashRouter } from 'react-router-dom';
+import { Button } from 'lucide-react';
+```
+
+**Rule:** ✅ Always use package name from `package.json` dependencies
+
+#### ✅ Valid: Dynamic Imports (Code Splitting)
+
+```typescript
+// Lazy component loading
+const DesignerWizard = React.lazy(() => import('./components/wizards/designer/DesignerWizard'));
+
+// Dynamic import with error handling
+const loadModule = async () => {
+  try {
+    const module = await import('./utils/helper');
+    return module.default;
+  } catch (error) {
+    console.error('Failed to load module:', error);
+    return null;
+  }
+};
+```
+
+**Rule:** ✅ Use for code splitting and lazy loading  
+**Rule:** ✅ Always handle errors in dynamic imports
+
+### 2.2 Disallowed Import Formats
+
+#### ❌ Invalid: Absolute URLs (FORBIDDEN)
+
+```typescript
+// ❌ NEVER DO THIS
+import { Button } from 'https://cdn.example.com/button.js';
+import React from 'https://esm.sh/react';
+```
+
+**Why Forbidden:**
+- ❌ Breaks CORS (Cross-Origin Resource Sharing)
+- ❌ ESM cannot load from external origins in Vite
+- ❌ No HMR support
+- ❌ Breaks build process
+
+**Rule:** ❌ **NEVER** use absolute URLs in imports
+
+#### ❌ Invalid: Unconfigured Aliases
+
+```typescript
+// ❌ If @ alias is not configured in vite.config.ts AND tsconfig.json
+import { Button } from '@/components/Button';
+```
+
+**Why Forbidden:**
+- ❌ Vite cannot resolve unconfigured aliases
+- ❌ TypeScript cannot resolve paths
+- ❌ Results in "Cannot find module" errors
+- ❌ Blank screen on load
+
+**Rule:** ❌ **NEVER** use aliases unless verified in both config files
+
+#### ❌ Invalid: Case-Insensitive Paths
+
+```typescript
+// ❌ WRONG (if file is Button.tsx)
+import { Button } from './button';
+
+// ❌ WRONG (if file is Layout.tsx)
+import { Layout } from './layout';
+```
+
+**Why Forbidden:**
+- ❌ Linux/Mac are case-sensitive
+- ❌ Production builds fail on case-sensitive systems
+- ❌ Dev may work on Windows, fail in production
+
+**Rule:** ❌ **ALWAYS** match exact file case
+
+#### ❌ Invalid: Missing Extensions (TypeScript/JSX)
+
+```typescript
+// ❌ WRONG (missing .tsx extension)
+import { Button } from './Button';
+
+// ✅ CORRECT (no extension needed for .ts/.tsx in TypeScript)
+import { Button } from './Button'; // Actually OK in TypeScript/Vite
+```
+
+**Note:** TypeScript/Vite allows omitting `.ts`/`.tsx` extensions, but **file must exist**
+
+**Rule:** ✅ Use extensions only if file doesn't exist without extension
+
+#### ❌ Invalid: Circular Dependencies
+
+```typescript
+// ❌ File A imports File B, File B imports File A
+// FileA.tsx
+import { ComponentB } from './FileB';
+
+// FileB.tsx
+import { ComponentA } from './FileA';
+```
+
+**Why Forbidden:**
+- ❌ Causes "Cannot access before initialization" errors
+- ❌ Breaks module resolution
+- ❌ Results in undefined exports
+
+**Rule:** ❌ **NEVER** create circular dependencies
+
+---
+
+## 3. Alias Rules
+
+### 3.1 When Aliases Are NOT Allowed (Default)
+
+**Default Rule:** ❌ **DO NOT USE ALIASES** unless explicitly configured and verified
+
+**Why:**
+- Relative imports work without configuration
+- Less chance of errors
+- Easier to debug
+- No restart requirements
+
+**Current Project:**
+- ⚠️ Alias `@` exists in `vite.config.ts` but **MUST VERIFY** `tsconfig.json` configuration
+- ⚠️ **Default to relative imports** until alias is verified working
+
+### 3.2 When Aliases ARE Allowed
+
+**Requirements (ALL must be met):**
+
+#### 1. `vite.config.ts` Configuration
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './'), // Maps @ to project root
+      // OR
+      '@': path.resolve(__dirname, './src'), // Maps @ to src directory
+    },
+  },
+});
+```
+
+**Rule:** ✅ Alias must point to **absolute path** using `path.resolve()`
+
+#### 2. `tsconfig.json` Configuration
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]  // Must match vite.config.ts alias
+      // OR
+      "@/*": ["./src/*"]  // If alias points to src
+    }
+  }
+}
+```
+
+**Rule:** ✅ `paths` in `tsconfig.json` **MUST MATCH** alias in `vite.config.ts`
+
+#### 3. Restart Requirements
+
+**After adding/modifying alias:**
+1. ✅ Stop dev server (`Ctrl+C`)
+2. ✅ Clear Vite cache: `rm -rf node_modules/.vite`
+3. ✅ Restart dev server: `npm run dev`
+4. ✅ Verify alias works: Test import in component
+
+**Rule:** ✅ **ALWAYS** restart dev server after alias changes
+
+#### 4. Verification Checklist
+
+Before using alias in code:
+- [ ] `vite.config.ts` has `resolve.alias` configured
+- [ ] `tsconfig.json` has `paths` configured
+- [ ] Alias paths match between both files
+- [ ] Dev server restarted after configuration
+- [ ] Test import works: `import { Button } from '@/components/Button'`
+- [ ] No TypeScript errors
+- [ ] No runtime errors
+
+**Rule:** ✅ **VERIFY** alias works before committing code with alias imports
+
+---
+
+## 4. Entry Point Rules
+
+### 4.1 Required `index.html` Structure
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FashionOS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- ✅ SINGLE ALLOWED SCRIPT TAG -->
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
+```
+
+**Rules:**
+- ✅ **ONLY ONE** `<script type="module">` tag allowed
+- ✅ Must have `type="module"` attribute
+- ✅ Must point to entry file (`/index.tsx` or `/src/index.tsx`)
+- ✅ `<div id="root">` required for React mounting
+- ❌ **NO** `<script type="importmap">` with external URLs
+- ❌ **NO** CDN scripts (Tailwind, React, etc.)
+- ❌ **NO** multiple script tags
+
+**Current Project Status:**
+- ⚠️ **VIOLATION:** `index.html` contains forbidden elements:
+  - CDN Tailwind script (line 14)
+  - Importmap with external URLs (lines 86-104)
+- ⚠️ **MUST FIX:** Remove these before production
+
+### 4.2 Forbidden Script Tags
+
+```html
+<!-- ❌ NEVER DO THIS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="./app.js"></script>
+<script type="text/javascript" src="/index.tsx"></script>
+```
+
+**Why Forbidden:**
+- ❌ CDN scripts break Vite's module system
+- ❌ Missing `type="module"` breaks ESM loading
+- ❌ Multiple scripts cause conflicts
+
+**Rule:** ❌ **ONLY** one `<script type="module">` pointing to entry file
+
+### 4.3 Correct Entry File
+
+**File:** `src/index.tsx` (or `index.tsx` at root)
+
+```typescript
+// src/index.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css'; // If using CSS
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+**Rules:**
+- ✅ Must use `ReactDOM.createRoot()` (React 18+)
+- ✅ Must mount to `#root` element
+- ✅ Must import `App` component
+- ✅ Can import global CSS here
+
+---
+
+## 5. CSS & Tailwind Rules
+
+### 5.1 Why CDN Tailwind is Forbidden
+
+```html
+<!-- ❌ NEVER DO THIS -->
+<script src="https://cdn.tailwindcss.com"></script>
+```
+
+**Why Forbidden:**
+- ❌ CDN Tailwind breaks Vite's CSS processing
+- ❌ No PostCSS integration
+- ❌ No JIT (Just-In-Time) compilation
+- ❌ Breaks build process
+- ❌ Causes "Failed to resolve" errors
+- ❌ Conflicts with Vite's module system
+- ❌ Cannot be tree-shaken (includes entire Tailwind)
+
+**Current Project Status:**
+- ⚠️ **VIOLATION DETECTED:** `index.html` contains CDN Tailwind script
+- ⚠️ **MUST FIX:** Remove CDN Tailwind and use proper Vite setup
+
+**Rule:** ❌ **NEVER** use CDN Tailwind in Vite projects
+
+### 5.2 Required Tailwind Setup for Vite
+
+#### 1. Install Dependencies
+
+```bash
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
+#### 2. `tailwind.config.js` Configuration
+
+```javascript
+// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+**Rule:** ✅ `content` array **MUST** include all files using Tailwind classes
+
+#### 3. Required CSS Import
+
+```css
+/* src/index.css (or src/styles.css) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+**Rule:** ✅ **MUST** import this CSS file in `src/index.tsx`:
+
+```typescript
+// src/index.tsx
+import './index.css'; // ✅ Required for Tailwind
+```
+
+#### 4. PostCSS Configuration (Auto-Generated)
+
+```javascript
+// postcss.config.js (auto-generated by tailwindcss init -p)
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+```
+
+**Rule:** ✅ PostCSS config required for Tailwind processing
+
+### 5.3 CSS Import Rules
+
+#### ✅ Valid: Global CSS
+
+```typescript
+// src/index.tsx
+import './index.css';
+import './styles.css';
+```
+
+#### ✅ Valid: Component CSS
+
+```typescript
+// Component.tsx
+import './Component.css';
+```
+
+#### ✅ Valid: CSS Modules
+
+```typescript
+// Component.module.css
+.container { ... }
+
+// Component.tsx
+import styles from './Component.module.css';
+<div className={styles.container}>...</div>
+```
+
+#### ❌ Invalid: External CSS URLs
+
+```typescript
+// ❌ NEVER DO THIS
+import 'https://cdn.example.com/styles.css';
+```
+
+**Rule:** ❌ **NEVER** import CSS from external URLs
+
+---
+
+## 6. Runtime Environment Rules
+
+### 6.1 Allowed Origins
+
+**Development:**
+- ✅ `http://localhost:3000` (default Vite port)
+- ✅ `http://localhost:5173` (Vite default alternative)
+- ✅ `http://127.0.0.1:3000`
+- ✅ Custom port configured in `vite.config.ts`
+
+**Production:**
+- ✅ Your production domain (e.g., `https://fashionos.com`)
+- ✅ Vercel/Netlify preview URLs
+- ✅ Staging environment URLs
+
+**Rule:** ✅ **ONLY** load app from configured Vite server or production domain
+
+### 6.2 Forbidden Origins
+
+**External Sandboxes (FORBIDDEN):**
+- ❌ `https://ai.studio/*`
+- ❌ `https://aistudiocdn.com/*`
+- ❌ `https://*.sandbox.com/*`
+- ❌ Any external CDN for app code
+
+**Why Forbidden:**
+- ❌ Cannot transform Vite imports
+- ❌ CORS errors on module loading
+- ❌ No HMR support
+- ❌ Breaks ESM resolution
+- ❌ Results in blank screens
+
+**Current Project Status:**
+- ⚠️ **VIOLATION DETECTED:** `index.html` contains `<script type="importmap">` with `aistudiocdn.com` URLs
+- ⚠️ **MUST FIX:** Remove importmap or replace with npm package imports
+- ⚠️ **CRITICAL:** This will cause CORS errors and module loading failures
+
+**Rule:** ❌ **NEVER** load app from external sandboxes  
+**Rule:** ❌ **NEVER** use importmap with external CDN URLs in Vite projects
+
+### 6.3 Why CORS Breaks ESM Loading
+
+**Technical Explanation:**
+1. Vite uses **ESM (ES Modules)** which require CORS headers
+2. External origins don't send `Access-Control-Allow-Origin` headers
+3. Browser blocks module loading → "Failed to fetch module" error
+4. Result: Blank screen, no components load
+
+**Rule:** ✅ **ALWAYS** serve app from same origin (localhost or production domain)
+
+---
+
+## 7. Routing Rules
+
+### 7.1 React Router + Vite Interaction
+
+**Current Setup:**
+- ✅ Using `HashRouter` (compatible with static hosting)
+- ✅ Routes defined in `src/Router.tsx`
+- ✅ Layout component with `<Outlet />` for nested routes
+
+**Critical Rules:**
+
+#### ✅ Valid: HashRouter Setup
+
+```typescript
+// src/App.tsx
+import { HashRouter } from 'react-router-dom';
+import { Router } from './Router';
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Router />
+    </HashRouter>
+  );
+}
+```
+
+**Rule:** ✅ `HashRouter` wraps entire app (once, at root)
+
+#### ✅ Valid: Route Definitions
+
+```typescript
+// src/Router.tsx
+import { Routes, Route } from 'react-router-dom';
+import { Layout } from './layouts/Layout';
+import { DesignerWizardPage } from './pages/DesignerWizardPage';
+
+export const Router = () => {
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/create-profile" element={<DesignerWizardPage />} />
+        <Route path="/brand/analysis" element={<DesignerWizardPage />} />
+      </Route>
+    </Routes>
+  );
+};
+```
+
+**Rule:** ✅ Nested routes **MUST** have parent `<Route element={<Layout />}>` with `<Outlet />` in Layout
+
+#### ✅ Valid: Layout with Outlet
+
+```typescript
+// src/layouts/Layout.tsx
+import { Outlet } from 'react-router-dom';
+
+export const Layout = () => {
+  return (
+    <div>
+      <header>...</header>
+      <Outlet /> {/* ✅ REQUIRED for nested routes */}
+      <footer>...</footer>
+    </div>
+  );
+};
+```
+
+**Rule:** ✅ **MUST** include `<Outlet />` in Layout component for nested routes to render
+
+### 7.2 Refresh Safety
+
+**HashRouter URLs:**
+- ✅ `http://localhost:3000/#/create-profile` (works on refresh)
+- ✅ `http://localhost:3000/#/brand/analysis` (works on refresh)
+
+**BrowserRouter URLs (if used):**
+- ⚠️ Requires server configuration for refresh
+- ⚠️ `http://localhost:3000/create-profile` (needs server rewrite)
+
+**Rule:** ✅ HashRouter is refresh-safe without server configuration
+
+### 7.3 404 Handling
+
+**Required Fallback Route:**
+
+```typescript
+// src/Router.tsx
+import { NotFound } from './pages/NotFound';
+
+export const Router = () => {
+  return (
+    <Routes>
+      {/* ... other routes ... */}
+      <Route path="*" element={<NotFound />} /> {/* ✅ MUST be last */}
+    </Routes>
+  );
+};
+```
+
+**Rule:** ✅ **MUST** have catch-all route (`path="*"`) as **LAST** route
+
+### 7.4 Common Routing Errors
+
+#### ❌ Error: Routes Return 404
+
+**Symptoms:**
+- Routes defined but return 404
+- `NotFound` component renders
+- Component files not requested in network
+
+**Possible Causes:**
+1. Route not inside parent `<Route element={<Layout />}>`
+2. Missing `<Outlet />` in Layout
+3. Route path typo (case-sensitive)
+4. Component import error
+5. React Router v7 breaking change
+
+**Debug Steps:**
+```typescript
+// Add logging to Router.tsx
+console.log('Router rendering, current path:', window.location.hash);
+
+// Add logging to page component
+export const DesignerWizardPage = () => {
+  console.log('DesignerWizardPage rendering');
+  return <DesignerWizard />;
+};
+```
+
+**Rule:** ✅ Add console.logs to verify routes and components load
+
+---
+
+## 8. Error Prevention Checklist
+
+### Pre-Run Checklist (Before `npm run dev`)
+
+#### Imports
+- [ ] All imports use relative paths OR verified aliases
+- [ ] No absolute URLs in imports
+- [ ] No unconfigured aliases (`@/` without config)
+- [ ] File paths match exact case
+- [ ] No circular dependencies
+
+#### Entry File
+- [ ] `index.html` has single `<script type="module">` tag
+- [ ] Script points to correct entry file (`/index.tsx` or `/src/index.tsx`)
+- [ ] Entry file exists and exports App component
+- [ ] `<div id="root">` exists in `index.html`
+
+#### Alias Usage
+- [ ] If using `@/` alias: `vite.config.ts` configured
+- [ ] If using `@/` alias: `tsconfig.json` configured
+- [ ] Alias paths match in both config files
+- [ ] Dev server restarted after alias changes
+
+#### Build Success
+- [ ] `npm run build` completes without errors
+- [ ] No TypeScript errors: `npx tsc --noEmit`
+- [ ] No import resolution errors
+- [ ] All components can be imported
+
+#### Dev Server Origin
+- [ ] Dev server runs on `http://localhost:3000` (or configured port)
+- [ ] Not loading from external sandbox
+- [ ] No CORS errors in console
+- [ ] HMR (Hot Module Replacement) working
+
+### Pre-Commit Checklist
+
+- [ ] All imports resolve correctly
+- [ ] No TypeScript errors
+- [ ] Dev server runs without errors
+- [ ] All routes work (no 404s)
+- [ ] No console errors
+- [ ] Build succeeds: `npm run build`
+
+---
+
+## 9. Debugging Playbook
+
+### 9.1 Common Errors → Root Causes
+
+#### Error: "Failed to fetch module"
+
+**Root Causes:**
+1. ❌ Import path incorrect (file doesn't exist)
+2. ❌ Alias not configured
+3. ❌ Loading from external origin (CORS)
+4. ❌ Case-sensitive path mismatch
+
+**Fix:**
+```bash
+# 1. Verify file exists
+ls -la src/components/Button.tsx
+
+# 2. Check import path
+# Relative: import { Button } from './Button';
+# Alias: Verify vite.config.ts and tsconfig.json
+
+# 3. Verify dev server origin
+# Must be http://localhost:3000
+```
+
+#### Error: "Cannot find module '@/components/Button'"
+
+**Root Causes:**
+1. ❌ Alias not configured in `vite.config.ts`
+2. ❌ Alias not configured in `tsconfig.json`
+3. ❌ Alias paths don't match
+4. ❌ Dev server not restarted
+
+**Fix:**
+```bash
+# 1. Check vite.config.ts
+cat vite.config.ts | grep alias
+
+# 2. Check tsconfig.json
+cat tsconfig.json | grep paths
+
+# 3. Restart dev server
+rm -rf node_modules/.vite
+npm run dev
+```
+
+#### Error: Blank Screen / 404 on Routes
+
+**Root Causes:**
+1. ❌ Route not defined in Router.tsx
+2. ❌ Route not inside Layout wrapper
+3. ❌ Missing `<Outlet />` in Layout
+4. ❌ Component import error
+5. ❌ React Router v7 breaking change
+
+**Fix:**
+```typescript
+// 1. Verify route definition
+// src/Router.tsx
+<Route path="/create-profile" element={<DesignerWizardPage />} />
+
+// 2. Verify Layout has Outlet
+// src/layouts/Layout.tsx
+<Outlet />
+
+// 3. Add logging
+console.log('Route rendering:', window.location.hash);
+```
+
+#### Error: "Cannot resolve './Button'"
+
+**Root Causes:**
+1. ❌ File doesn't exist at path
+2. ❌ Case mismatch (Button.tsx vs button.tsx)
+3. ❌ Wrong relative path depth
+
+**Fix:**
+```bash
+# 1. Find actual file location
+find src -name "Button.tsx"
+
+# 2. Calculate correct relative path
+# From: src/components/wizards/designer/steps/
+# To: src/components/Button.tsx
+# Path: ../../../../components/Button
+
+# 3. Verify case
+ls -la src/components/ | grep -i button
+```
+
+### 9.2 Fast Diagnosis Flowchart
+
+```
+App doesn't load?
+├─ Blank screen?
+│  ├─ Check console errors
+│  ├─ Check network tab (failed requests?)
+│  ├─ Verify entry file exists
+│  └─ Verify index.html script tag
+│
+├─ CORS errors?
+│  ├─ Verify loading from localhost (not external)
+│  ├─ Check for absolute URL imports
+│  └─ Verify Vite dev server running
+│
+├─ "Cannot find module"?
+│  ├─ Verify file exists at import path
+│  ├─ Check case sensitivity
+│  ├─ Verify alias configuration (if using @/)
+│  └─ Check relative path depth
+│
+└─ Routes return 404?
+   ├─ Verify route defined in Router.tsx
+   ├─ Verify route inside Layout wrapper
+   ├─ Verify <Outlet /> in Layout
+   ├─ Check component import
+   └─ Add console.logs to debug
+```
+
+### 9.3 Exact Debugging Commands
+
+```bash
+# 1. Clear Vite cache and restart
+rm -rf node_modules/.vite
+npm run dev
+
+# 2. Check TypeScript errors
+npx tsc --noEmit
+
+# 3. Check for import errors
+grep -r "from '@/" src/  # Find all alias imports
+grep -r "from 'https://" src/  # Find forbidden URL imports
+
+# 4. Verify file exists
+find src -name "Button.tsx"
+find src -name "DesignerWizard.tsx"
+
+# 5. Check route definitions
+grep -r "path=" src/Router.tsx
+
+# 6. Verify alias configuration
+cat vite.config.ts | grep -A 5 alias
+cat tsconfig.json | grep -A 5 paths
+
+# 7. Check for circular dependencies (manual review)
+# Look for: FileA imports FileB, FileB imports FileA
+
+# 8. Check for forbidden index.html elements
+grep -i "cdn.tailwindcss" index.html  # Should return nothing
+grep -i "importmap" index.html  # Should return nothing (or no external URLs)
+grep -i "aistudiocdn" index.html  # Should return nothing
+```
+
+### 9.4 Current Project Violations
+
+**Critical Violations Found in `index.html`:**
+
+1. **CDN Tailwind Script (Line 14)**
+   ```html
+   <!-- ❌ VIOLATION -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   ```
+   **Fix:** Remove this line. Tailwind is already configured via `tailwind.config.js` and PostCSS.
+
+2. **Importmap with External URLs (Lines 86-104)**
+   ```html
+   <!-- ❌ VIOLATION -->
+   <script type="importmap">
+   {
+     "imports": {
+       "react": "https://aistudiocdn.com/react@^19.2.1",
+       ...
+     }
+   }
+   </script>
+   ```
+   **Fix:** Remove entire `<script type="importmap">` block. Vite handles module resolution via npm packages.
+
+**Action Required:**
+- ⚠️ Remove CDN Tailwind script
+- ⚠️ Remove importmap block
+- ⚠️ Verify app works with only Vite's module resolution
+- ⚠️ Test all routes after removal
+
+---
+
+## 10. Definition of Done
+
+### Final Checklist (Guarantees Production Readiness)
+
+#### ✅ No Blank Screen
+- [ ] App loads on `http://localhost:3000`
+- [ ] No console errors on initial load
+- [ ] React components render
+- [ ] No "Failed to fetch module" errors
+- [ ] No "Cannot find module" errors
+
+#### ✅ No CORS Errors
+- [ ] No CORS errors in console
+- [ ] App loads from localhost (not external)
+- [ ] No absolute URL imports
+- [ ] All modules load successfully
+
+#### ✅ No Unresolved Imports
+- [ ] All imports resolve correctly
+- [ ] No TypeScript import errors
+- [ ] No runtime import errors
+- [ ] All files exist at import paths
+- [ ] Alias imports work (if used)
+
+#### ✅ App Loads on All Routes
+- [ ] Home route (`/`) works
+- [ ] All wizard routes work (`/create-profile`, `/brand/*`)
+- [ ] No 404 errors on valid routes
+- [ ] Routes refresh correctly (no 404 on refresh)
+- [ ] Navigation between routes works
+
+#### ✅ Build Success
+- [ ] `npm run build` completes
+- [ ] No build errors
+- [ ] No TypeScript errors
+- [ ] Production build works
+
+#### ✅ Dev Server Works
+- [ ] `npm run dev` starts without errors
+- [ ] HMR (Hot Module Replacement) works
+- [ ] Changes reflect immediately
+- [ ] No cache issues
+
+### Production Deployment Checklist
+
+Before deploying to production:
+- [ ] All routes work in production build
+- [ ] No console errors in production
+- [ ] Build output is correct
+- [ ] Environment variables configured
+- [ ] API endpoints work
+- [ ] No CORS errors in production
+
+---
+
+## 11. Quick Reference: Do's and Don'ts
+
+### ✅ DO
+
+- ✅ Use relative imports by default
+- ✅ Verify file exists before importing
+- ✅ Match exact file case
+- ✅ Use `HashRouter` for static hosting
+- ✅ Include `<Outlet />` in Layout components
+- ✅ Restart dev server after config changes
+- ✅ Clear Vite cache if issues persist
+- ✅ Test routes after adding new ones
+- ✅ Verify imports before committing
+
+### ❌ DON'T
+
+- ❌ Use unconfigured aliases
+- ❌ Use absolute URLs in imports
+- ❌ Load app from external sandboxes
+- ❌ Use CDN Tailwind
+- ❌ Create circular dependencies
+- ❌ Forget `<Outlet />` in Layout
+- ❌ Skip restart after alias changes
+- ❌ Commit code with import errors
+- ❌ Use case-insensitive paths
+
+---
+
+## 12. Emergency Fixes
+
+### Blank Screen on Load
+
+```bash
+# 1. Stop dev server
+Ctrl+C
+
+# 2. Clear cache
+rm -rf node_modules/.vite
+
+# 3. Check entry file
+cat src/index.tsx
+
+# 4. Check index.html
+cat index.html
+
+# 5. Restart
+npm run dev
+```
+
+### Routes Return 404
+
+```typescript
+// 1. Verify route definition
+// src/Router.tsx - Check route exists
+
+// 2. Verify Layout has Outlet
+// src/layouts/Layout.tsx
+<Outlet /> // Must be present
+
+// 3. Add logging
+console.log('Current route:', window.location.hash);
+```
+
+### Import Errors
+
+```bash
+# 1. Find file
+find src -name "ComponentName.tsx"
+
+# 2. Calculate correct path
+# Count directory levels: ../../
+
+# 3. Fix import
+# Update import path to match file location
+```
+
+### CORS Errors
+
+```bash
+# 1. Verify loading from localhost
+# URL must be http://localhost:3000
+
+# 2. Check for absolute URL imports
+grep -r "from 'https://" src/
+
+# 3. Remove absolute URLs
+# Replace with relative imports or npm packages
+```
+
+---
+
+---
+
+## 13. Current Project Configuration Status
+
+### ✅ Correctly Configured
+
+1. **Vite Config** (`vite.config.ts`)
+   - ✅ React plugin configured
+   - ✅ Alias `@` configured (points to root)
+   - ✅ Port 3000 configured
+   - ⚠️ **VERIFY:** `tsconfig.json` has matching `paths` configuration
+
+2. **Tailwind Config** (`tailwind.config.js`)
+   - ✅ PostCSS configured
+   - ✅ Content paths configured
+   - ✅ Theme extended correctly
+   - ⚠️ **VIOLATION:** CDN Tailwind in `index.html` conflicts with this
+
+3. **Entry Point**
+   - ✅ `index.html` has `<script type="module" src="./index.tsx">`
+   - ⚠️ **VERIFY:** `index.tsx` exists at root or `src/index.tsx`
+
+4. **Router Setup**
+   - ✅ `HashRouter` used correctly
+   - ✅ Routes defined in `Router.tsx`
+   - ✅ Layout has `<Outlet />`
+   - ⚠️ **ISSUE:** Routes returning 404 (needs debugging)
+
+### ❌ Violations Found
+
+1. **index.html Violations:**
+   - ❌ CDN Tailwind script (line 14) - **MUST REMOVE**
+   - ❌ Importmap with external URLs (lines 86-104) - **MUST REMOVE**
+
+2. **Import Path Issues:**
+   - ⚠️ Alias `@` configured but **MUST VERIFY** `tsconfig.json` paths
+   - ⚠️ Default to relative imports until verified
+
+3. **Routing Issues:**
+   - ❌ Wizard routes return 404
+   - ⚠️ Needs debugging (see Section 7.4)
+
+### Immediate Fixes Required
+
+**Priority 1: Remove Forbidden Elements from index.html**
+```html
+<!-- REMOVE these lines from index.html: -->
+<!-- Line 14: -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Lines 86-104: -->
+<script type="importmap">
+{ ... external URLs ... }
+</script>
+```
+
+**Priority 2: Verify Entry File**
+- Check if `index.tsx` exists at root
+- If not, create `src/index.tsx` and update `index.html` script src
+
+**Priority 3: Verify Alias Configuration**
+- Check `tsconfig.json` has `paths` matching `vite.config.ts`
+- If not configured, use relative imports only
+
+---
+
+**Document Version:** 1.0  
+**Last Updated:** December 14, 2025  
+**Enforcement:** Production-Required  
+**Review Frequency:** After any Vite/import-related issues  
+**Status:** Contains current project violation warnings

@@ -143,8 +143,13 @@ Return JSON:
 Include benchmarks for: keyMetrics, costStructure, revenueStreams, customerSegments, channels.
 Use realistic values with credible sources.`;
 
-  const response = await callGemini("google/gemini-3-flash-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<{ benchmarks: BenchmarkData[] }>(response);
+  const response = await callGemini(
+    "gemini-3-flash-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 1500 }
+  );
+  const parsed = extractJSON<{ benchmarks: BenchmarkData[] }>(response.text);
 
   return parsed?.benchmarks || [];
 }

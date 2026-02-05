@@ -1,0 +1,558 @@
+---
+alwaysApply: true
+---
+
+# Startup Wizard Full Cycle Testing - Cursor Rule
+
+## Overview
+
+Comprehensive testing guide for the complete startup wizard → profile → dashboard cycle. This rule ensures all critical user flows are tested end-to-end.
+
+**Testing Environment:** `http://localhost:5000` (DEV_MODE enabled)  
+**Browser Tools:** Use `@browser` for visual verification and `@chrome-devtools` for console/network monitoring
+
+---
+
+## 🎯 Full Cycle Test Flow
+
+### Phase 1: Startup Wizard (5 Steps)
+
+**Entry Point:** `/onboarding`
+
+#### Step 1: Context (Company Information)
+
+**Test Steps:**
+```bash
+# Navigate to wizard
+@browser Navigate to http://localhost:5000/onboarding
+@browser Take screenshot
+@chrome-devtools list_console_messages
+
+# Fill Step 1: Context
+@browser Type "TestStartup AI" in startup name field
+@browser Type "Revolutionizing AI testing for startups" in tagline field
+@browser Select "Pre-seed" from stage dropdown
+@browser Type "https://teststartup.ai" in website URL field
+@browser Click "Continue" button
+
+# Verify navigation
+@browser Wait for step 2 to appear
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Verify: No errors, progress indicator shows step 2
+```
+
+**Verification Checklist:**
+- [ ] Page loads with "Step 1 of 5: Context" header
+- [ ] All form fields are editable
+- [ ] Progress indicator shows step 1/5
+- [ ] Cover image upload button visible (if applicable)
+- [ ] **Console: No errors on page load**
+- [ ] **Console: No errors on form submission**
+- [ ] Navigation to step 2 works
+- [ ] **Screenshot: Step 1 form renders correctly**
+
+#### Step 2: Team (Founders)
+
+**Test Steps:**
+```bash
+# Verify Step 2 loads
+@browser Verify "Step 2 of 5: Team" header visible
+@browser Take screenshot
+
+# Add founder
+@browser Click "Add Founder" button
+@browser Type "John Doe" in founder name field
+@browser Type "CEO & Co-founder" in role field
+@browser Type "john@teststartup.ai" in email field
+@browser Type "LinkedIn profile URL" in LinkedIn field
+@browser Click "Continue" button
+
+# Verify validation
+@browser Try to continue without founder name
+→ Verify: Error message appears
+@browser Add founder name and continue
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Step 2 header displays correctly
+- [ ] "Add Founder" button works
+- [ ] Founder form fields are editable
+- [ ] Validation prevents empty founder names
+- [ ] **Console: No errors during founder addition**
+- [ ] Navigation to step 3 works
+- [ ] **Screenshot: Team step renders correctly**
+
+#### Step 3: Business (Problem & Solution)
+
+**Test Steps:**
+```bash
+# Verify Step 3 loads
+@browser Verify "Step 3 of 5: Business" header visible
+@browser Take screenshot
+
+# Fill problem statement
+@browser Type "Startups struggle to validate their ideas quickly and efficiently" in problem field
+→ Verify: Character counter updates (if present)
+
+# Fill solution statement
+@browser Type "AI-powered platform that analyzes market fit and generates investor-ready materials in minutes" in solution field
+
+# Test back navigation
+@browser Click "Back" button
+→ Verify: Returns to step 2 with data preserved
+@browser Click "Continue" to return to step 3
+→ Verify: Data persists
+
+# Continue to step 4
+@browser Click "Continue" button
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Step 3 header displays correctly
+- [ ] Problem and solution fields are editable
+- [ ] Character counters work (if present)
+- [ ] Back navigation preserves data
+- [ ] **Console: No errors during navigation**
+- [ ] Navigation to step 4 works
+- [ ] **Screenshot: Business step renders correctly**
+
+#### Step 4: Traction (Funding & Metrics)
+
+**Test Steps:**
+```bash
+# Verify Step 4 loads
+@browser Verify "Step 4 of 5: Traction" header visible
+@browser Take screenshot
+
+# Fill funding information
+@browser Toggle "Currently Raising" switch (if present)
+@browser Type "1000000" in target raise field
+@browser Select "USD" from currency dropdown
+
+# Add metrics (if applicable)
+@browser Add revenue metric: "$5000" MRR
+@browser Add user metric: "150" active users
+
+# Continue to summary
+@browser Click "Continue" button
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Step 4 header displays correctly
+- [ ] Funding fields are editable
+- [ ] Currency selection works
+- [ ] Metrics can be added (if applicable)
+- [ ] **Console: No errors during data entry**
+- [ ] Navigation to step 5 (Summary) works
+- [ ] **Screenshot: Traction step renders correctly**
+
+#### Step 5: Summary (Review & Submit)
+
+**Test Steps:**
+```bash
+# Verify Step 5 loads
+@browser Verify "Step 5 of 5: Summary" header visible
+@browser Take screenshot
+
+# Review all data
+@browser Scroll through summary
+→ Verify: All entered data is displayed correctly
+→ Verify: Company name, founders, problem, solution, funding all visible
+
+# Test edit functionality (if available)
+@browser Click "Edit" on any section (if available)
+→ Verify: Can navigate back to edit
+
+# Submit wizard
+@browser Click "Complete Setup" or "Finish" button
+@chrome-devtools list_network_requests
+→ Monitor: POST request to create startup profile
+@browser Wait for redirect
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Step 5 header displays correctly
+- [ ] All wizard data is summarized correctly
+- [ ] Edit links work (if available)
+- [ ] **Network: Profile creation request succeeds (200)**
+- [ ] **Network: Request completes in < 5 seconds**
+- [ ] **Console: No errors during submission**
+- [ ] Redirect to dashboard/profile works
+- [ ] **Screenshot: Summary step renders correctly**
+
+---
+
+### Phase 2: Dashboard Verification
+
+**Entry Point:** `/dashboard` (after wizard completion)
+
+#### Dashboard V2 Components Test
+
+**Test Steps:**
+```bash
+# Navigate to dashboard
+@browser Navigate to http://localhost:5000/dashboard
+@browser Wait for dashboard to load
+@browser Take screenshot
+@chrome-devtools list_console_messages
+
+# Verify all dashboard widgets
+@browser Scroll through dashboard
+→ Verify: FounderCommandCenter widget visible
+→ Verify: HealthScorecard widget visible
+→ Verify: AICoachWidget widget visible
+→ Verify: MilestonesTimeline widget visible
+→ Verify: AIInsightsDigest widget visible
+→ Verify: CRMSnapshot widget visible
+→ Verify: SmartAlerts widget visible
+→ Verify: SetupChecklist widget visible
+
+# Test AI Coach interaction
+@browser Click "Generate Insights" button (if present)
+@chrome-devtools list_network_requests
+→ Monitor: AI service request
+@browser Wait for insights to appear
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Dashboard loads without errors
+- [ ] WelcomeHeader displays startup name
+- [ ] All V2 widgets render correctly:
+  - [ ] FounderCommandCenter
+  - [ ] HealthScorecard
+  - [ ] AICoachWidget
+  - [ ] MilestonesTimeline
+  - [ ] AIInsightsDigest
+  - [ ] CRMSnapshot
+  - [ ] SmartAlerts
+  - [ ] SetupChecklist
+- [ ] **Console: No errors on dashboard load**
+- [ ] **Network: All API calls succeed**
+- [ ] **Screenshot: Dashboard renders correctly**
+
+---
+
+### Phase 3: Startup Profile Page
+
+**Entry Point:** `/startup-profile`
+
+#### Profile Display Test
+
+**Test Steps:**
+```bash
+# Navigate to startup profile
+@browser Navigate to http://localhost:5000/startup-profile
+@browser Wait for profile to load
+@browser Take screenshot
+@chrome-devtools list_console_messages
+
+# Verify profile components
+@browser Scroll through profile page
+→ Verify: BusinessCard component visible
+→ Verify: OverviewCard component visible
+→ Verify: SummaryCard component visible
+→ Verify: TeamCard component visible
+→ Verify: TractionCard component visible
+
+# Test profile editing (if available)
+@browser Click "Edit" button (if present)
+→ Verify: Edit mode activates
+@browser Make a change
+@browser Click "Save"
+@chrome-devtools list_network_requests
+→ Monitor: Profile update request
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] Profile page loads without errors
+- [ ] All profile cards display correctly:
+  - [ ] BusinessCard (company info)
+  - [ ] OverviewCard (problem/solution)
+  - [ ] SummaryCard (executive summary)
+  - [ ] TeamCard (founders)
+  - [ ] TractionCard (metrics/funding)
+- [ ] Data from wizard is displayed correctly
+- [ ] **Console: No errors on profile load**
+- [ ] **Network: Profile fetch succeeds**
+- [ ] **Screenshot: Profile page renders correctly**
+
+---
+
+### Phase 4: Navigation & Routing
+
+#### Sidebar Navigation Test
+
+**Test Steps:**
+```bash
+# Test all sidebar links
+@browser Navigate to http://localhost:5000/dashboard
+@browser Click "Startup Profile" in sidebar
+→ Verify: Navigates to /startup-profile
+@browser Click "Dashboard" in sidebar
+→ Verify: Returns to /dashboard
+@browser Click "Pitch Decks" in sidebar
+→ Verify: Navigates to /pitch-decks
+@browser Click "CRM" in sidebar
+→ Verify: Navigates to /crm
+@browser Click "Documents" in sidebar
+→ Verify: Navigates to /documents
+@browser Click "Tasks" in sidebar
+→ Verify: Navigates to /tasks
+@browser Click "My Account" in sidebar
+→ Verify: Navigates to /profile
+@browser Click "Settings" in sidebar
+→ Verify: Navigates to /settings
+
+# Verify active state
+@browser Verify current page is highlighted in sidebar
+@chrome-devtools list_console_messages
+```
+
+**Verification Checklist:**
+- [ ] All sidebar links navigate correctly
+- [ ] Active page is highlighted in sidebar
+- [ ] No broken routes (404 errors)
+- [ ] **Console: No navigation errors**
+- [ ] **Network: No failed route requests**
+
+---
+
+## 🔍 Critical Test Scenarios
+
+### Scenario 1: Complete Wizard Flow (Happy Path)
+
+```bash
+# Full wizard completion
+@browser Navigate to http://localhost:5000/onboarding
+@browser Complete all 5 steps with valid data
+@browser Submit wizard
+@browser Verify redirect to dashboard
+@browser Verify dashboard shows startup data
+@chrome-devtools list_console_messages
+→ Final check: Zero errors
+```
+
+**Success Criteria:**
+- ✅ All 5 wizard steps complete successfully
+- ✅ Profile created and saved
+- ✅ Dashboard displays startup data
+- ✅ **Zero console errors**
+- ✅ **All network requests succeed**
+
+### Scenario 2: Wizard Persistence (Refresh Test)
+
+```bash
+# Test localStorage persistence
+@browser Navigate to http://localhost:5000/onboarding
+@browser Fill step 1 and 2
+@browser Refresh page
+@browser Verify data persists
+@browser Continue from step 3
+@chrome-devtools evaluate_script("localStorage.getItem('startup_wizard_progress')")
+→ Verify: Data exists in localStorage
+```
+
+**Success Criteria:**
+- ✅ Wizard progress persists across page refresh
+- ✅ Data loads from localStorage correctly
+- ✅ Can continue from saved step
+
+### Scenario 3: Validation & Error Handling
+
+```bash
+# Test validation
+@browser Navigate to http://localhost:5000/onboarding
+@browser Try to continue without required fields
+→ Verify: Error messages appear
+@browser Fill required fields
+@browser Verify "Continue" button enables
+@chrome-devtools list_console_messages
+```
+
+**Success Criteria:**
+- ✅ Required field validation works
+- ✅ Error messages are user-friendly
+- ✅ Cannot proceed without valid data
+
+### Scenario 4: Guest Mode Flow
+
+```bash
+# Test guest mode (DEV_MODE enabled)
+@browser Navigate to http://localhost:5000/onboarding
+@browser Complete wizard as guest
+@browser Verify guest banner appears on dashboard
+@browser Verify data persists in guest mode
+@chrome-devtools list_console_messages
+```
+
+**Success Criteria:**
+- ✅ Guest mode works correctly
+- ✅ Guest banner displays on dashboard
+- ✅ Data persists for guest users
+
+---
+
+## 📊 Performance Testing
+
+### Load Time Targets
+
+```bash
+# Measure page load times
+@chrome-devtools performance_start_trace
+@browser Navigate to http://localhost:5000/onboarding
+@browser Wait for page load
+@chrome-devtools performance_stop_trace
+@chrome-devtools performance_analyze_insight
+```
+
+**Targets:**
+- [ ] Wizard step load: < 1 second
+- [ ] Dashboard load: < 2 seconds
+- [ ] Profile page load: < 1.5 seconds
+- [ ] No long tasks (> 50ms)
+
+---
+
+## 🐛 Common Issues & Debugging
+
+### Issue: Wizard Data Not Persisting
+
+**Debug Steps:**
+```bash
+@chrome-devtools evaluate_script("localStorage.getItem('startup_wizard_progress')")
+→ Check: Data exists in localStorage
+@chrome-devtools list_console_messages
+→ Look for: Storage errors, parse errors
+```
+
+**Fix:** Check localStorage permissions, JSON parsing
+
+### Issue: Dashboard Not Loading After Wizard
+
+**Debug Steps:**
+```bash
+@chrome-devtools list_network_requests
+→ Find: Profile creation request
+→ Check: Status code (should be 200)
+@chrome-devtools list_console_messages
+→ Look for: Profile fetch errors
+```
+
+**Fix:** Verify profile creation succeeded, check DataContext
+
+### Issue: Navigation Not Working
+
+**Debug Steps:**
+```bash
+@chrome-devtools list_console_messages
+→ Look for: React Router errors
+@browser Check URL changes
+→ Verify: URL updates on navigation
+```
+
+**Fix:** Check React Router setup, route definitions
+
+---
+
+## ✅ Complete Test Checklist
+
+### Pre-Test Setup
+- [ ] Dev server running on `http://localhost:5000`
+- [ ] DEV_MODE enabled in AuthContext
+- [ ] Browser console open for monitoring
+- [ ] Network tab open for API monitoring
+
+### Wizard Flow (5 Steps)
+- [ ] Step 1: Context - All fields work, navigation works
+- [ ] Step 2: Team - Add founder works, validation works
+- [ ] Step 3: Business - Problem/solution fields work
+- [ ] Step 4: Traction - Funding fields work
+- [ ] Step 5: Summary - Data displays correctly, submission works
+
+### Post-Wizard
+- [ ] Redirect to dashboard works
+- [ ] Dashboard displays startup data
+- [ ] All dashboard widgets render
+- [ ] Startup profile page displays correctly
+- [ ] All profile cards show wizard data
+
+### Navigation
+- [ ] All sidebar links work
+- [ ] Active page highlighting works
+- [ ] No broken routes
+
+### Console & Network
+- [ ] **Zero console errors** throughout flow
+- [ ] **All network requests succeed** (200 status)
+- [ ] **No failed API calls**
+
+### Screenshots
+- [ ] Screenshot of each wizard step
+- [ ] Screenshot of dashboard
+- [ ] Screenshot of startup profile page
+
+---
+
+## 🚀 Quick Test Command
+
+```bash
+# Run full cycle test
+@browser Navigate to http://localhost:5000/onboarding
+@browser Complete wizard (5 steps)
+@browser Verify dashboard loads
+@browser Navigate to /startup-profile
+@browser Verify profile displays
+@chrome-devtools list_console_messages
+→ Final verification: Zero errors
+```
+
+---
+
+## 📝 Test Report Template
+
+After testing, document:
+
+```markdown
+## Startup Wizard Full Cycle Test - [Date]
+
+**Environment:** http://localhost:5000
+**Browser:** [Browser name/version]
+
+### Wizard Flow
+- ✅ Step 1: Context - [Status]
+- ✅ Step 2: Team - [Status]
+- ✅ Step 3: Business - [Status]
+- ✅ Step 4: Traction - [Status]
+- ✅ Step 5: Summary - [Status]
+
+### Dashboard
+- ✅ Dashboard loads - [Status]
+- ✅ All widgets render - [Status]
+- ✅ Data displays correctly - [Status]
+
+### Profile
+- ✅ Profile page loads - [Status]
+- ✅ All cards display - [Status]
+
+### Issues Found
+- [List any issues]
+
+### Console Errors
+- [List any console errors]
+
+### Network Failures
+- [List any failed requests]
+
+**Status:** ✅ Pass / ⚠️ Issues Found / ❌ Failed
+```
+
+---
+
+**Remember:** Always use browser tools (`@browser` and `@chrome-devtools`) for comprehensive testing. Visual verification with screenshots is critical for catching UI issues.

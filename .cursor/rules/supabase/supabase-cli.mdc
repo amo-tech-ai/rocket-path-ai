@@ -1,0 +1,620 @@
+---
+description: Supabase CLI commands and workflows for local development, migrations, edge functions, and deployment following best practices
+globs: ["supabase/**", "**/migrations/**", "**/functions/**", "**/config.toml", "**/.supabase/**", "**/supabase/**"]
+alwaysApply: false
+---
+
+# Supabase CLI Rules
+
+You're an expert in Supabase CLI. Generate commands and workflows that follow Supabase best practices for local development, migrations, and deployment.
+
+---
+
+## Installation
+
+```bash
+# macOS
+brew install supabase/tap/supabase
+
+# Linux
+curl -fsSL https://supabase.com/install.sh | sh
+
+# Windows
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+
+# Verify installation
+supabase --version
+```
+
+---
+
+## Authentication & Project Connection
+
+### 1. Login to Supabase
+
+```bash
+# Login with access token
+supabase login
+
+# Or use environment variable
+export SUPABASE_ACCESS_TOKEN=your-access-token
+```
+
+**Get access token:** https://supabase.com/dashboard/account/tokens
+
+### 2. Link to Remote Project
+
+```bash
+# Link to existing project (uses project ref from .env or prompts)
+supabase link  
+# Or link interactively
+supabase link
+# Follow prompts to select project
+
+# Verify link
+supabase projects list
+```
+
+**Project Reference:** Found in Supabase Dashboard → Project Settings → General → Reference ID
+
+### 3. Initialize New Project (if starting fresh)
+
+```bash
+# Initialize Supabase in current directory
+supabase init
+
+# This creates:
+# - supabase/config.toml
+# - supabase/migrations/
+# - supabase/functions/
+```
+
+---
+
+## Local Development
+
+### Start Local Supabase
+
+```bash
+# Start all services (Postgres, API, Auth, Storage, Studio)
+supabase start
+
+# Check status and get connection details
+supabase status
+
+# Stop all services
+supabase stop
+```
+
+**Local Services:**
+- API: http://localhost:54321
+- Studio: http://localhost:54323
+- DB: localhost:54322
+- Inbucket (Email): http://localhost:54324
+
+### Get Local Credentials
+
+```bash
+# Get all connection details
+supabase status
+
+# Extract specific values
+supabase status | grep "API URL"
+supabase status | grep "anon key"
+```
+
+---
+
+## Migration Workflow
+
+### Declarative Schema Management (This Project)
+
+**This project uses declarative schema files in `supabase/schemas/`:**
+
+1. **Edit schema files** in `supabase/schemas/*.sql`
+2. **Generate migration** from schema changes:
+   ```bash
+   # Stop local Supabase first
+   supabase stop
+   
+   # Generate migration from schema diff
+   supabase db diff -f <migration_name>
+   
+   # Example
+   supabase db diff -f add_user_profiles
+   ```
+3. **Review generated migration** in `supabase/migrations/`
+4. **Apply locally**:
+   ```bash
+   supabase start
+   supabase db reset  # Applies all migrations + seed.sql
+   ```
+5. **Push to remote**:
+   ```bash
+   supabase db push
+   ```
+
+### Traditional Migration Workflow
+
+**If creating migrations manually:**
+
+```bash
+# Create new migration file
+supabase migration new <descriptive_name>
+
+# Example
+supabase migration new add_user_profiles
+supabase migration new fix_org_bootstrap
+
+# This creates: migrations/YYYYMMDDHHmmss_descriptive_name.sql
+```
+
+**Migration File Naming:**
+- Format: `YYYYMMDDHHmmss_short_description.sql`
+- Use UTC timestamp
+- Descriptive, lowercase with underscores
+- Examples:
+  - `20250110120000_add_profiles_table.sql`
+  - `20250110120001_fix_org_creation_trigger.sql`
+
+### Apply Migrations
+
+```bash
+# Local: Reset and apply all migrations + seed.sql
+supabase db reset
+
+# Local: Apply pending migrations only
+supabase migration up
+
+# Remote: Push migrations to linked project
+supabase db push
+
+# Remote: Pull remote migrations (if schema changed in dashboard)
+supabase db pull
+```
+
+### Migration Best Practices
+
+1. **Always test locally first:**
+   ```bash
+   supabase db reset  # Applies migrations + seed.sql
+   ```
+
+2. **Review generated migrations** before pushing:
+   ```bash
+   # Check what will be applied
+   supabase db diff
+   ```
+
+3. **Use transactions** in migrations:
+   ```sql
+   begin;
+   -- Your migration SQL
+   commit;
+   ```
+
+4. **Never edit applied migrations** - create new ones instead
+
+5. **Use `if not exists`** for idempotency:
+   ```sql
+   create extension if not exists pgcrypto;
+   create index if not exists idx_users_email on users(email);
+   ```
+
+---
+
+## Database Operations
+
+### Schema Diff (Declarative Workflow)
+
+```bash
+# Generate migration from schema changes
+supabase db diff -f <migration_name>
+
+# Compare local schema to remote
+supabase db diff --linked
+
+# Compare local schema to local database
+supabase db diff
+```
+
+### Database Reset
+
+```bash
+# Reset local database (applies all migrations + seed.sql)
+supabase db reset
+
+# Reset with specific migration version
+supabase db reset --version <migration_version>
+```
+
+### Database Pull/Push
+
+```bash
+# Pull remote schema changes (if modified in dashboard)
+supabase db pull
+
+# Push local migrations to remote
+supabase db push
+
+# Push with confirmation prompt
+supabase db push --dry-run  # Preview changes
+```
+
+### Execute SQL
+
+```bash
+# Execute SQL file locally
+supabase db execute <file.sql>
+
+# Execute SQL on remote (use with caution)
+supabase db execute <file.sql> --linked
+```
+
+---
+
+## Edge Functions
+
+### Create Edge Function
+
+```bash
+# Create new function
+supabase functions new <function-name>
+
+# Example
+supabase functions new generate-deck-outline
+supabase functions new url-intel
+
+# Creates: supabase/functions/<function-name>/index.ts
+```
+
+### Serve Locally
+
+```bash
+# Serve single function
+supabase functions serve <function-name>
+
+# Serve all functions
+supabase functions serve
+
+# Serve with specific port
+supabase functions serve <function-name> --port 9000
+```
+
+### Deploy to Production
+
+```bash
+# Deploy single function
+supabase functions deploy <function-name>
+
+# Deploy all functions
+supabase functions deploy
+
+# Deploy with environment variables
+supabase functions deploy <function-name> --no-verify-jwt
+```
+
+### Function Secrets
+
+```bash
+# Set secret for local development
+supabase secrets set GEMINI_API_KEY=your-key
+
+# Set secret for remote project
+supabase secrets set GEMINI_API_KEY=your-key --project-ref bdfhuudcdhvngvpqxfhj
+
+# List secrets
+supabase secrets list
+
+# Unset secret
+supabase secrets unset GEMINI_API_KEY
+```
+
+---
+
+## Common Commands Reference
+
+### Project Management
+
+```bash
+# List all projects
+supabase projects list
+
+# Link to project
+supabase link --project-ref <project-ref>
+
+# Unlink from project
+supabase unlink
+
+# Get project info
+supabase projects list
+```
+
+### Database Management
+
+```bash
+# Start local database
+supabase start
+
+# Stop local database
+supabase stop
+
+# Check status
+supabase status
+
+# Reset database
+supabase db reset
+
+# Create migration
+supabase migration new <name>
+
+# Apply migrations
+supabase migration up
+
+# Push to remote
+supabase db push
+
+# Pull from remote
+supabase db pull
+
+# Generate diff migration
+supabase db diff -f <name>
+```
+
+### Edge Functions
+
+```bash
+# Create function
+supabase functions new <name>
+
+# Serve locally
+supabase functions serve <name>
+
+# Deploy to production
+supabase functions deploy <name>
+
+# View logs
+supabase functions logs <name>
+
+# Delete function
+supabase functions delete <name>
+```
+
+### Secrets Management
+
+```bash
+# Set secret
+supabase secrets set <KEY>=<value>
+
+# List secrets
+supabase secrets list
+
+# Unset secret
+supabase secrets unset <KEY>
+```
+
+---
+
+## Workflow Examples
+
+### Initial Setup
+
+```bash
+# 1. Install CLI
+brew install supabase/tap/supabase  # macOS
+
+# 2. Login
+supabase login
+
+# 3. Link to project
+supabase link --project-ref  yvyesmiczbjqwbqtlidy
+
+# 4. Start local
+supabase start
+
+# 5. Get credentials
+supabase status
+```
+
+### Creating a Migration (Declarative)
+
+```bash
+# 1. Edit schema files in supabase/schemas/
+# 2. Stop local Supabase
+supabase stop
+
+# 3. Generate migration
+supabase db diff -f add_new_feature
+
+# 4. Review generated migration
+cat supabase/migrations/*_add_new_feature.sql
+
+# 5. Test locally
+supabase start
+supabase db reset
+
+# 6. Push to remote
+supabase db push
+```
+
+### Creating a Migration (Manual)
+
+```bash
+# 1. Create migration file
+supabase migration new add_user_profiles
+
+# 2. Edit migration file
+# File: supabase/migrations/YYYYMMDDHHmmss_add_user_profiles.sql
+
+# 3. Test locally
+supabase db reset
+
+# 4. Push to remote
+supabase db push
+```
+
+### Deploying Edge Function
+
+```bash
+# 1. Create function
+supabase functions new generate-deck-outline
+
+# 2. Write code in functions/generate-deck-outline/index.ts
+
+# 3. Test locally
+supabase functions serve generate-deck-outline
+
+# 4. Set secrets
+supabase secrets set GEMINI_API_KEY=your-key
+
+# 5. Deploy
+supabase functions deploy generate-deck-outline
+```
+
+---
+
+## Environment Variables
+
+### Local Development
+
+Create `.env.local` (not tracked by git):
+
+```env
+SUPABASE_URL=http://localhost:54321
+SUPABASE_ANON_KEY=<from-supabase-status>
+SUPABASE_SERVICE_ROLE_KEY=<from-supabase-status>
+GEMINI_API_KEY=<your-key>
+```
+
+Get keys:
+```bash
+supabase status
+```
+
+### Remote Project
+
+Use `.env` file with remote credentials:
+
+```env
+SUPABASE_URL=https://yvyesmiczbjqwbqtlidy.supabase.co
+SUPABASE_ANON_KEY=<from-dashboard>
+SUPABASE_SERVICE_ROLE_KEY=<from-dashboard>
+SUPABASE_ACCESS_TOKEN=<from-dashboard>
+```
+
+---
+
+## Troubleshooting
+
+### Port Already in Use
+
+```bash
+# Stop Supabase
+supabase stop
+
+# Check what's using ports
+lsof -i :54321  # API
+lsof -i :54322  # DB
+lsof -i :54323  # Studio
+```
+
+### Reset Everything
+
+```bash
+# Complete reset
+supabase stop
+supabase db reset
+supabase start
+```
+
+### Migration Conflicts
+
+```bash
+# Check migration status
+supabase migration list
+
+# Reset to specific version
+supabase db reset --version <version>
+
+# Pull remote changes
+supabase db pull
+```
+
+### Link Issues
+
+```bash
+# Unlink and relink
+supabase unlink
+supabase link --project-ref <project-ref>
+
+# Verify link
+cat .supabase/config.toml
+```
+
+---
+
+## Best Practices
+
+1. **Always test migrations locally** before pushing:
+   ```bash
+   supabase db reset  # Test locally first
+   ```
+
+2. **Use declarative schema** (this project's approach):
+   - Edit `supabase/schemas/*.sql`
+   - Generate migrations with `supabase db diff`
+
+3. **Never edit applied migrations** - create new ones
+
+4. **Use transactions** in migrations for atomicity
+
+5. **Set secrets** before deploying functions:
+   ```bash
+   supabase secrets set GEMINI_API_KEY=xxx
+   ```
+
+6. **Commit migration files** to version control
+
+7. **Pull before push** if team members made changes:
+   ```bash
+   supabase db pull  # Get remote changes
+   supabase db push  # Push local changes
+   ```
+
+---
+
+## Project-Specific Commands
+
+### Current Project Setup
+
+```bash
+# Project Reference:  yvyesmiczbjqwbqtlidy
+# Link to project
+supabase link --project-ref yvyesmiczbjqwbqtlidy
+# Start local development
+supabase start
+
+# Generate migration from schema changes
+supabase stop
+supabase db diff -f <migration_name>
+supabase start
+supabase db reset
+
+# Deploy to remote
+supabase db push
+```
+
+---
+
+## References
+
+- [Supabase CLI Docs](https://supabase.com/docs/reference/cli/introduction)
+- [Local Development Guide](https://supabase.com/docs/guides/local-development)
+- [Migration Guide](https://supabase.com/docs/guides/cli/managing-environments)
+- [Edge Functions Guide](https://supabase.com/docs/guides/functions)
+- [GitHub Repository](https://github.com/supabase/cli)
+
+---
+
+**Remember:** Always test migrations locally with `supabase db reset` before pushing to production with `supabase db push`.

@@ -1,0 +1,385 @@
+---
+# Specify the following for Cursor rules
+description: Guidelines for creating database seed files for Supabase
+alwaysApply: false
+---
+
+# Database: Seeding
+
+You're a Supabase Postgres expert in creating seed data. Generate **high-quality seed files** that adhere to the following best practices:
+
+## General Guidelines
+
+1. **One File Per Table (Recommended):**
+   - Create separate seed files for each table (e.g., `01-organizations.sql`, `02-profiles.sql`)
+   - Organize by dependency order (parent tables before child tables)
+   - Use numeric prefixes for execution order
+
+2. **Idempotency:**
+   - Always clear existing data before inserting (use `DELETE` or `TRUNCATE`)
+   - Use `TRUNCATE ... RESTART IDENTITY CASCADE` when possible
+   - Ensure seeds can be run multiple times safely
+
+3. **Real-World Data:**
+   - Use realistic, production-like data
+   - Include edge cases and various states (active, completed, pending)
+   - Match data to actual use cases (e.g., startup founders, investors, customers)
+
+4. **Foreign Key Relationships:**
+   - Maintain referential integrity
+   - Use consistent UUIDs across related tables
+   - Document relationships in comments
+
+## Seed File Structure
+
+### ✅ CORRECT: Complete Seed File Template
+
+```sql
+-- =============================================================================
+-- Seed: Table Name
+-- Purpose: Brief description of what this seed file creates
+-- Real-world scenarios: Describe the use cases covered
+-- =============================================================================
+
+-- Clear existing data (for idempotency)
+truncate table public.table_name restart identity cascade;
+-- OR for tables with foreign key constraints:
+delete from public.table_name;
+
+-- Insert seed data
+insert into public.table_name (
+  id,
+  column1,
+  column2,
+  -- ... all columns
+  created_at,
+  updated_at
+) values (
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,
+  'value1',
+  'value2',
+  -- ... all values
+  '2025-01-27 10:00:00+00'::timestamptz,
+  '2025-01-27 10:00:00+00'::timestamptz
+),
+(
+  '550e8400-e29b-41d4-a716-446655440002'::uuid,
+  'value3',
+  'value4',
+  -- ... all values
+  '2025-01-27 11:00:00+00'::timestamptz,
+  '2025-01-27 11:00:00+00'::timestamptz
+);
+
+-- =============================================================================
+-- END OF SEED: Table Name
+-- =============================================================================
+```
+
+## Best Practices
+
+### 1. Use Explicit UUIDs
+
+```sql
+-- ✅ CORRECT - Explicit UUIDs for relationships
+insert into public.startups (
+  id,
+  org_id,  -- References organizations.id
+  name
+) values (
+  '750e8400-e29b-41d4-a716-446655440001'::uuid,
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,  -- FashionOS org
+  'FashionOS'
+);
+```
+
+**Why:** Makes relationships clear and allows referencing across seed files.
+
+### 2. Realistic Data
+
+```sql
+-- ✅ CORRECT - Realistic startup data
+insert into public.startups (
+  name,
+  industry,
+  stage,
+  traction_data
+) values (
+  'FashionOS',
+  'Fashion Tech',
+  'seed',
+  '{
+    "mrr": 45000,
+    "arr": 540000,
+    "users": 250,
+    "customers": 45,
+    "growth_rate_monthly": 15,
+    "churn_rate": 3
+  }'::jsonb
+);
+```
+
+**Key Points:**
+- Use realistic numbers (MRR, user counts, growth rates)
+- Include various stages (idea, pre_seed, seed, series_a)
+- Cover different industries and business models
+
+### 3. Maintain Relationships
+
+```sql
+-- ✅ CORRECT - Maintain foreign key relationships
+-- Step 1: Insert organization
+insert into public.organizations (id, name) 
+values ('550e8400-e29b-41d4-a716-446655440001'::uuid, 'FashionOS');
+
+-- Step 2: Insert profile (references organization)
+insert into public.profiles (id, org_id, email)
+values (
+  '650e8400-e29b-41d4-a716-446655440001'::uuid,
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,  -- References org
+  'sarah@fashionos.com'
+);
+
+-- Step 3: Insert startup (references organization)
+insert into public.startups (id, org_id, name)
+values (
+  '750e8400-e29b-41d4-a716-446655440001'::uuid,
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,  -- References org
+  'FashionOS'
+);
+```
+
+### 4. Include Various States
+
+```sql
+-- ✅ CORRECT - Include different states
+insert into public.tasks (
+  status,
+  priority,
+  -- ...
+) values 
+  ('completed', 'high', ...),    -- Completed task
+  ('in_progress', 'urgent', ...), -- Active task
+  ('pending', 'medium', ...),     -- Pending task
+  ('blocked', 'high', ...);       -- Blocked task
+```
+
+### 5. Use JSONB Appropriately
+
+```sql
+-- ✅ CORRECT - Realistic JSONB data
+insert into public.startups (
+  founders,
+  traction_data,
+  customer_segments
+) values (
+  '[
+    {
+      "name": "Sarah Chen",
+      "role": "CEO & Co-founder",
+      "background": "Former VP at Stitch Fix, 10+ years in fashion tech",
+      "linkedin": "https://linkedin.com/in/sarahchen"
+    }
+  ]'::jsonb,
+  '{
+    "mrr": 45000,
+    "arr": 540000,
+    "users": 250,
+    "customers": 45
+  }'::jsonb,
+  '[
+    {
+      "segment": "Emerging Fashion Brands",
+      "size": "50-200 employees",
+      "budget": "$10K-$50K per event"
+    }
+  ]'::jsonb
+);
+```
+
+## Configuration
+
+### Multiple Seed Files
+
+**Configure in `supabase/config.toml`:**
+
+```toml
+[db.seed]
+enabled = true
+sql_paths = [
+  './seeds/01-organizations.sql',
+  './seeds/02-profiles.sql',
+  './seeds/03-startups.sql',
+  './seeds/04-projects.sql',
+  './seeds/05-tasks.sql',
+  # ... more seed files
+]
+```
+
+**Or use glob patterns:**
+
+```toml
+[db.seed]
+enabled = true
+sql_paths = ['./seeds/*.sql']
+```
+
+**Key Points:**
+- Files execute in order specified (or lexicographic order for globs)
+- Base folder is `supabase/` (so `./seeds/` = `supabase/seeds/`)
+- Duplicate patterns are deduplicated
+
+### Single Seed File (Legacy)
+
+**Default location:** `supabase/seed.sql`
+
+```sql
+-- All seed data in one file
+-- Organized by table, maintaining dependency order
+```
+
+## Execution Order
+
+**CRITICAL:** Seed files execute **after all migrations** complete.
+
+**Dependency Order:**
+1. Organizations (no dependencies)
+2. Profiles (depends on organizations)
+3. Startups (depends on organizations)
+4. Projects (depends on startups, profiles)
+5. Tasks (depends on startups, projects, profiles)
+6. Contacts (depends on startups)
+7. Deals (depends on startups, contacts)
+8. Communications (depends on startups, contacts, deals)
+9. AI tables (depends on profiles, organizations, startups)
+10. Wizard tables (depends on profiles, startups)
+11. Supporting tables (various dependencies)
+
+## Project-Specific Patterns
+
+### Multi-Tenant Data
+
+**All seed data must include `org_id` for multi-tenant isolation:**
+
+```sql
+-- ✅ CORRECT - Include org_id
+insert into public.startups (
+  id,
+  org_id,  -- ✅ Required for multi-tenant
+  name
+) values (
+  '750e8400-e29b-41d4-a716-446655440001'::uuid,
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,  -- FashionOS org
+  'FashionOS'
+);
+```
+
+### Real-World Startup Scenarios
+
+**Include diverse scenarios:**
+- Different stages (idea, pre_seed, seed, series_a)
+- Different industries (Fashion Tech, Healthcare, EdTech, Climate Tech, FinTech)
+- Different business models (SaaS, Marketplace, B2B, B2C)
+- Different traction levels (early stage, growth stage, mature)
+
+### Founder Profiles
+
+**Realistic founder data:**
+- Co-founders with different roles (CEO, CTO, Head of Product)
+- Diverse backgrounds (former VPs, engineers, doctors, teachers)
+- Professional LinkedIn URLs
+- Realistic email addresses
+
+## Common Patterns
+
+### Pattern 1: Clear and Insert
+
+```sql
+-- ✅ CORRECT - Idempotent seed
+truncate table public.organizations restart identity cascade;
+
+insert into public.organizations (id, name, slug)
+values 
+  ('550e8400-e29b-41d4-a716-446655440001'::uuid, 'FashionOS', 'fashionos'),
+  ('550e8400-e29b-41d4-a716-446655440002'::uuid, 'HealthTechAI', 'healthtechai');
+```
+
+### Pattern 2: Delete and Insert (For FK Constraints)
+
+```sql
+-- ✅ CORRECT - When TRUNCATE CASCADE not possible
+delete from public.profiles;
+-- Note: Profiles reference auth.users, so CASCADE may not work
+
+insert into public.profiles (id, org_id, email, full_name)
+values (...);
+```
+
+### Pattern 3: Conditional Insert (Advanced)
+
+```sql
+-- ✅ CORRECT - Only insert if not exists
+insert into public.organizations (id, name, slug)
+select 
+  '550e8400-e29b-41d4-a716-446655440001'::uuid,
+  'FashionOS',
+  'fashionos'
+where not exists (
+  select 1 from public.organizations 
+  where id = '550e8400-e29b-41d4-a716-446655440001'::uuid
+);
+```
+
+## Verification
+
+### After Seeding
+
+```sql
+-- ✅ CORRECT - Verify seed data
+select count(*) as org_count from public.organizations;
+select count(*) as profile_count from public.profiles;
+select count(*) as startup_count from public.startups;
+
+-- Verify relationships
+select 
+  o.name as org_name,
+  count(s.id) as startup_count
+from public.organizations o
+left join public.startups s on s.org_id = o.id
+group by o.id, o.name;
+```
+
+## Quick Reference
+
+### Seed File Checklist
+
+- [ ] File named with numeric prefix (e.g., `01-organizations.sql`)
+- [ ] Clear existing data (TRUNCATE or DELETE)
+- [ ] Use explicit UUIDs for relationships
+- [ ] Include realistic, production-like data
+- [ ] Cover various states (active, completed, pending)
+- [ ] Maintain foreign key relationships
+- [ ] Include proper timestamps
+- [ ] Document in header comments
+- [ ] Test idempotency (run multiple times)
+
+### Configuration Checklist
+
+- [ ] `config.toml` has `[db.seed]` section
+- [ ] `enabled = true` set
+- [ ] `sql_paths` includes all seed files
+- [ ] Files listed in dependency order
+- [ ] Or glob pattern matches all files
+
+---
+
+## References
+
+- **Official Docs:** [Database Seeding](https://supabase.com/docs/guides/database/seeding)
+- **Schema Documentation:** [`supabase/docs/01-new-supabase.md`](../../supabase/docs/01-new-supabase.md)
+- **Migration Rules:** [`supabase-create-migration.mdc`](./supabase-create-migration.mdc)
+
+---
+
+**Last Updated:** January 27, 2025  
+**Maintained By:** Engineering Team

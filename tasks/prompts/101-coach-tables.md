@@ -34,6 +34,21 @@ depends_on: []
 
 ---
 
+## Data summary
+
+**Consolidated:** [tasks/docs/data/data-summary.md](../docs/data/data-summary.md) (CORE + Coach + Vector).
+
+| Table | Description | Key columns |
+|-------|-------------|-------------|
+| validation_sessions | One active session per startup; state machine root | id, startup_id, state (JSONB), is_active |
+| validation_assessments | Dimension scores over time | session_id, dimension, score (0–10), feedback |
+| validation_campaigns | 90-day campaign definitions | session_id, constraint_type, goal, status |
+| validation_sprints | PDCA sprint tracking | campaign_id, pdca_step, outcomes |
+| validation_experiments | Hypotheses and learnings | sprint_id, hypothesis, result, learning |
+| validation_conversations | Coach chat history per session | session_id, role, content, phase |
+
+---
+
 ## Description
 
 Create the database foundation for the Startup Coach validation system. This includes 6 tables that enable full project memory - tracking assessment scores, 90-day campaigns, sprint progress, experiments, and conversation history. The state machine tracks users through Assessment → Constraint → Campaign → Sprint → Review phases.

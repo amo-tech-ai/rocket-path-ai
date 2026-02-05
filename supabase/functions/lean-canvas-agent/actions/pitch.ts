@@ -3,7 +3,7 @@
  */
 
 import type { BoxKey, PitchSlide } from "../types.ts";
-import { callGemini, extractJSON } from "../ai-utils.ts";
+import { callGemini, extractJSON, logAIRun } from "../ai-utils.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -37,6 +37,15 @@ export async function canvasToPitch(
   canvasData: Record<string, unknown>
 ): Promise<PitchDeckResult> {
   console.log(`[canvasToPitch] Converting canvas to pitch deck for startup ${startupId}`);
+
+  // Get user's org_id for logging
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("org_id")
+    .eq("id", userId)
+    .single();
+
+  const orgId = profile?.org_id || null;
 
   // Fetch startup for context
   const { data: startup } = await supabase
@@ -92,8 +101,17 @@ Convert to pitch deck slides. Return JSON:
   ]
 }`;
 
-  const response = await callGemini("google/gemini-3-pro-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<{ slides: PitchSlide[] }>(response);
+  const response = await callGemini(
+    "gemini-3-pro-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 2000 }
+  );
+
+  // Log AI run for cost tracking
+  await logAIRun(supabase, userId, orgId, startupId, "canvas_to_pitch", response);
+
+  const parsed = extractJSON<{ slides: PitchSlide[] }>(response.text);
 
   if (parsed && Array.isArray(parsed.slides)) {
     const mapping = Object.entries(CANVAS_TO_SLIDE_MAP).map(([box, slide]) => ({

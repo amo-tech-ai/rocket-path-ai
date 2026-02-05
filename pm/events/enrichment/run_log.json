@@ -1,0 +1,80 @@
+{
+  "start_time": "2026-01-26T23:57:35.867Z",
+  "end_time": "2026-01-27T00:01:11.671Z",
+  "total_events": 10,
+  "processed": 10,
+  "successful": 1,
+  "failed": 9,
+  "skipped": 0,
+  "events_list": [
+    {
+      "id": "b0000001-0001-0001-0001-000000000005",
+      "name": "YC Demo Day",
+      "website_url": "https://www.yc.com",
+      "status": "failed",
+      "error": "Firecrawl scrape failed: Request Timeout"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000008",
+      "name": "Founders Forum AI",
+      "website_url": "https://foundersforum.com",
+      "status": "failed",
+      "error": "No images found on page"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000009",
+      "name": "VivaTech",
+      "website_url": "https://vivatechnology.com",
+      "status": "failed",
+      "error": "No images found on page"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000010",
+      "name": "World Summit AI",
+      "website_url": "https://worldsummit.ai",
+      "status": "failed",
+      "error": "No images found on page"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000014",
+      "name": "South Summit",
+      "website_url": "https://southsummit.co",
+      "status": "failed",
+      "error": "Firecrawl scrape failed: Request Timeout"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000018",
+      "name": "AI Startup Europe",
+      "website_url": "https://aistarteurope.com",
+      "status": "failed",
+      "error": "No images found on page"
+    },
+    {
+      "id": "b0000001-0001-0001-0001-000000000019",
+      "name": "AI Pitch Fest Berlin",
+      "website_url": null,
+      "status": "failed",
+      "error": "No website_url - cannot scrape images"
+    },
+    {
+      "id": "fd4b308d-2571-44e9-a0eb-98dd2725aa56",
+      "name": "Ai4 2026",
+      "website_url": "https://ai4.io/",
+      "status": "failed",
+      "error": "Failed to download image"
+    },
+    {
+      "id": "75f38662-84de-4379-afd0-fc89e0bb3f7d",
+      "name": "Future Festival World Summit",
+      "website_url": "https://www.futurefestival.com/",
+      "status": "failed",
+      "error": "No images found on page"
+    },
+    {
+      "id": "e5006fc8-fe48-42de-ab7c-a37dbd0a2654",
+      "name": "Generative AI Summit Toronto",
+      "website_url": "https://world.aiacceleratorinstitute.com/location/toronto/",
+      "status": "success"
+    }
+  ]
+}

@@ -1,0 +1,932 @@
+---
+description: Comprehensive testing procedures for Supabase integration including authentication, database operations, edge functions, real-time subscriptions, and RLS policies
+globs: ["**/test/**", "**/tests/**", "**/*.test.ts", "**/*.test.tsx", "**/testing*.md", "supabase/functions/**", "**/services/supabase/**", "**/context/**"]
+alwaysApply: false
+---
+
+# Testing Supabase Complete - Frontend Integration
+
+## Overview
+
+This rule defines comprehensive testing procedures for Supabase integration through the frontend application. Tests verify authentication, database operations, edge functions, real-time subscriptions, RLS policies, and data persistence.
+
+**Testing Tools:**
+- **@browser** (Cursor Browser) - Visual verification, user interactions, screenshots
+- **Chrome DevTools MCP** - Console monitoring, network debugging, performance analysis
+- **Supabase MCP** - Direct database verification and query testing
+
+**Key Testing Focus:**
+- ✅ Authentication flow (login, session, logout)
+- ✅ Database CRUD operations (all services)
+- ✅ Edge function calls and responses
+- ✅ Real-time subscriptions
+- ✅ RLS policy enforcement
+- ✅ Data persistence and synchronization
+- ✅ Error handling and offline behavior
+- ✅ Performance metrics
+
+---
+
+## Frontend Architecture
+
+### Services Structure
+- `services/supabase/profile.ts` - Startup profile CRUD
+- `services/supabase/crm.ts` - Deals and tasks
+- `services/supabase/dashboard.ts` - Metrics, insights, activities
+- `services/supabase/decks.ts` - Pitch deck operations
+- `services/supabase/documents.ts` - Investor documents
+- `services/supabase/user.ts` - User profile
+- `services/supabase/assets.ts` - File uploads
+- `services/edgeFunctions.ts` - AI edge function calls
+
+### Context & Hooks
+- `context/AuthContext.tsx` - Authentication state
+- `context/DataContext.tsx` - Application data state
+- `context/hooks/useSupabaseData.ts` - Data loading and sync
+- `context/hooks/useAppActions.ts` - Data mutations
+
+### Supabase Client
+- `lib/supabaseClient.ts` - Supabase client initialization
+
+---
+
+## Test Cycle Phases
+
+### Phase 1: Authentication Flow
+
+**Entry Point:** Application startup → `AuthContext.tsx`
+
+**Test Scenarios:**
+
+1. **DEV MODE Authentication**
+   - **Action:** Start application with `DEV_MODE = true`
+   - **Expected:** Auto-login with debug user (`debug-user`)
+   - **Verify:** User object set, loading state false
+   - **Console Check:** "🔧 DEV MODE: Authentication bypassed with demo user"
+
+2. **Real Authentication (if configured)**
+   - **Action:** Login via `Login.tsx` component
+   - **Expected:** Supabase auth session created
+   - **Verify:** Session stored, user object set
+   - **Network Check:** POST to `/auth/v1/token` succeeds
+
+3. **Session Persistence**
+   - **Action:** Refresh page after login
+   - **Expected:** Session restored from Supabase
+   - **Verify:** User remains logged in
+   - **Console Check:** No auth errors
+
+4. **Logout**
+   - **Action:** Call `signOut()` from AuthContext
+   - **Expected:** Session cleared, user set to null
+   - **Verify:** Redirected to login or home page
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Start application
+@browser Navigate to http://localhost:3000
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Verify: No errors on startup
+
+# Step 2: Check authentication state
+@chrome-devtools evaluate_script("window.localStorage.getItem('sb-')")
+→ Check: Session stored (if real auth) or DEV_MODE active
+
+# Step 3: Test login (if not DEV_MODE)
+@browser Click login button
+@browser Enter credentials
+@browser Click submit
+@chrome-devtools list_network_requests
+→ Monitor: POST /auth/v1/token
+→ Verify: Status 200, session created
+
+# Step 4: Verify session persistence
+@browser Refresh page
+@chrome-devtools list_console_messages
+→ Verify: Session restored, no errors
+@browser Take screenshot
+→ Verify: User still logged in
+
+# Step 5: Test logout
+@browser Click logout button
+@chrome-devtools list_console_messages
+→ Verify: Session cleared
+@browser Take screenshot
+→ Verify: Redirected appropriately
+```
+
+**Verification Checklist:**
+- [ ] **Console: No errors on startup**
+- [ ] **Console: DEV_MODE message (if enabled)**
+- [ ] **Network: Auth requests succeed (200)**
+- [ ] **Screenshot: Login screen or authenticated state**
+- [ ] **Session: Persists across page refresh**
+- [ ] **Logout: Clears session correctly**
+
+---
+
+### Phase 2: Profile Data Operations
+
+**Service:** `services/supabase/profile.ts`  
+**Component:** Startup wizard, profile editor
+
+**Test Scenarios:**
+
+1. **Load Profile**
+   - **Action:** Navigate to profile page
+   - **Expected:** `ProfileService.getByUserId()` called
+   - **Verify:** Profile data displayed, founders loaded
+   - **Network Check:** GET `/rest/v1/startups?user_id=eq.{id}`
+
+2. **Create Profile**
+   - **Action:** Complete startup wizard
+   - **Expected:** `ProfileService.create()` called
+   - **Verify:** Profile created, ID returned
+   - **Network Check:** POST `/rest/v1/startups` succeeds
+
+3. **Update Profile**
+   - **Action:** Edit profile fields
+   - **Expected:** `ProfileService.update()` called
+   - **Verify:** Changes saved, UI updated
+   - **Network Check:** PATCH `/rest/v1/startups?id=eq.{id}`
+
+4. **Sync Founders**
+   - **Action:** Add/edit/remove founders
+   - **Expected:** `ProfileService.syncFounders()` called
+   - **Verify:** Founders updated correctly
+   - **Network Check:** DELETE + INSERT operations
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to profile
+@browser Navigate to http://localhost:3000/profile
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Baseline: Check for errors
+
+# Step 2: Load profile data
+@browser Wait for profile to load
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/startups
+→ Verify: Status 200, data returned
+@chrome-devtools list_console_messages
+→ Verify: No errors during load
+
+# Step 3: Edit profile
+@browser Click edit button
+@browser Change company name
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: PATCH /rest/v1/startups
+→ Verify: Status 200 or 204
+@browser Take screenshot
+→ Verify: Changes reflected in UI
+
+# Step 4: Add founder
+@browser Click "Add Founder"
+@browser Fill founder form
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: DELETE + INSERT operations
+→ Verify: Founder added successfully
+@browser Take screenshot
+→ Verify: Founder appears in list
+
+# Step 5: Verify persistence
+@browser Refresh page
+@chrome-devtools list_console_messages
+→ Verify: Profile loads with changes
+@browser Take screenshot
+→ Verify: All changes persisted
+```
+
+**Verification Checklist:**
+- [ ] **Network: GET /rest/v1/startups succeeds**
+- [ ] **Console: No errors during profile load**
+- [ ] **Screenshot: Profile data displayed correctly**
+- [ ] **Network: PATCH /rest/v1/startups succeeds**
+- [ ] **Screenshot: Changes reflected in UI**
+- [ ] **Network: Founder sync operations succeed**
+- [ ] **Screenshot: Founders updated correctly**
+- [ ] **Persistence: Changes survive page refresh**
+
+---
+
+### Phase 3: CRM Operations
+
+**Service:** `services/supabase/crm.ts`  
+**Component:** CRM dashboard, deals list, tasks
+
+**Test Scenarios:**
+
+1. **Load Deals**
+   - **Action:** Navigate to CRM dashboard
+   - **Expected:** `CrmService.getDeals()` called
+   - **Verify:** Deals displayed, filtered by startup_id
+   - **Network Check:** GET `/rest/v1/crm_deals?startup_id=eq.{id}`
+
+2. **Create Deal**
+   - **Action:** Click "New Deal", fill form, save
+   - **Expected:** `CrmService.createDeal()` called
+   - **Verify:** Deal created, appears in list
+   - **Network Check:** POST `/rest/v1/crm_deals` succeeds
+
+3. **Update Deal**
+   - **Action:** Edit deal stage, amount, or probability
+   - **Expected:** `CrmService.updateDeal()` called
+   - **Verify:** Changes saved, UI updated
+   - **Network Check:** PATCH `/rest/v1/crm_deals?id=eq.{id}`
+
+4. **Tasks CRUD**
+   - **Action:** Create, update, complete, delete tasks
+   - **Expected:** Task operations succeed
+   - **Verify:** Tasks sync correctly
+   - **Network Check:** All task operations succeed
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to CRM
+@browser Navigate to http://localhost:3000/crm
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Baseline check
+
+# Step 2: Load deals
+@browser Wait for deals to load
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/crm_deals
+→ Verify: Status 200, deals returned
+@chrome-devtools list_console_messages
+→ Verify: No errors
+
+# Step 3: Create deal
+@browser Click "New Deal"
+@browser Fill deal form (name, amount, stage)
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: POST /rest/v1/crm_deals
+→ Verify: Status 201, deal ID returned
+@browser Take screenshot
+→ Verify: Deal appears in list
+
+# Step 4: Update deal stage
+@browser Click deal in list
+@browser Change stage dropdown
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: PATCH /rest/v1/crm_deals
+→ Verify: Status 200 or 204
+@browser Take screenshot
+→ Verify: Stage updated in UI
+
+# Step 5: Test tasks
+@browser Navigate to Tasks tab
+@browser Click "New Task"
+@browser Fill task form
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: POST /rest/v1/crm_tasks
+→ Verify: Task created successfully
+@browser Take screenshot
+→ Verify: Task appears in list
+
+# Step 6: Complete task
+@browser Click checkbox on task
+@chrome-devtools list_network_requests
+→ Monitor: PATCH /rest/v1/crm_tasks
+→ Verify: Task marked complete
+@browser Take screenshot
+→ Verify: Task shows as completed
+```
+
+**Verification Checklist:**
+- [ ] **Network: GET /rest/v1/crm_deals succeeds**
+- [ ] **Console: No errors during CRM load**
+- [ ] **Screenshot: Deals displayed correctly**
+- [ ] **Network: POST /rest/v1/crm_deals succeeds**
+- [ ] **Screenshot: New deal appears**
+- [ ] **Network: PATCH /rest/v1/crm_deals succeeds**
+- [ ] **Screenshot: Deal updates reflected**
+- [ ] **Network: Task operations succeed**
+- [ ] **Screenshot: Tasks sync correctly**
+
+---
+
+### Phase 4: Dashboard Operations
+
+**Service:** `services/supabase/dashboard.ts`  
+**Component:** Dashboard page, metrics charts, insights
+
+**Test Scenarios:**
+
+1. **Load Metrics History**
+   - **Action:** Navigate to dashboard
+   - **Expected:** `DashboardService.getMetricsHistory()` called
+   - **Verify:** Metrics loaded, charts render
+   - **Network Check:** GET `/rest/v1/startup_metrics_snapshots`
+
+2. **Update Metrics**
+   - **Action:** Update MRR, users, or other metrics
+   - **Expected:** `DashboardService.updateMetrics()` called
+   - **Verify:** Metrics saved, charts update
+   - **Network Check:** POST or UPSERT `/rest/v1/startup_metrics_snapshots`
+
+3. **Load AI Insights**
+   - **Action:** View insights section
+   - **Expected:** `DashboardService.getInsights()` called
+   - **Verify:** Insights displayed
+   - **Network Check:** GET `/rest/v1/ai_coach_insights`
+
+4. **Load Activities**
+   - **Action:** View activity feed
+   - **Expected:** `DashboardService.getActivities()` called
+   - **Verify:** Activities displayed chronologically
+   - **Network Check:** GET `/rest/v1/crm_activities`
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Navigate to dashboard
+@browser Navigate to http://localhost:3000/dashboard
+@browser Take screenshot
+@chrome-devtools list_console_messages
+→ Baseline check
+
+# Step 2: Load metrics
+@browser Wait for dashboard to load
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/startup_metrics_snapshots
+→ Verify: Status 200, metrics returned
+@chrome-devtools list_console_messages
+→ Verify: No errors
+@browser Take screenshot
+→ Verify: Charts render correctly
+
+# Step 3: Update metrics
+@browser Click "Update Metrics"
+@browser Enter new MRR value
+@browser Click save
+@chrome-devtools list_network_requests
+→ Monitor: POST or UPSERT /rest/v1/startup_metrics_snapshots
+→ Verify: Status 201 or 200
+@browser Take screenshot
+→ Verify: Chart updates with new data
+
+# Step 4: Load insights
+@browser Scroll to insights section
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/ai_coach_insights
+→ Verify: Insights loaded
+@browser Take screenshot
+→ Verify: Insights displayed
+
+# Step 5: Load activities
+@browser Scroll to activity feed
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/crm_activities
+→ Verify: Activities loaded, ordered by date
+@browser Take screenshot
+→ Verify: Activity feed displays correctly
+```
+
+**Verification Checklist:**
+- [ ] **Network: GET /rest/v1/startup_metrics_snapshots succeeds**
+- [ ] **Console: No errors during dashboard load**
+- [ ] **Screenshot: Charts render correctly**
+- [ ] **Network: Metrics update succeeds**
+- [ ] **Screenshot: Charts update with new data**
+- [ ] **Network: Insights load successfully**
+- [ ] **Screenshot: Insights displayed**
+- [ ] **Network: Activities load successfully**
+- [ ] **Screenshot: Activity feed displays**
+
+---
+
+### Phase 5: Edge Function Calls
+
+**Service:** `services/edgeFunctions.ts`  
+**Component:** AI features, deck generation, image generation
+
+**Test Scenarios:**
+
+1. **Generate Deck**
+   - **Action:** Complete wizard, click "Generate Deck"
+   - **Expected:** `generateDeckEdge()` called
+   - **Verify:** Deck generated, slides created
+   - **Network Check:** POST `/functions/v1/generate-deck`
+
+2. **Slide AI Operations**
+   - **Action:** Use "Refine", "Expand", or "Shorten" on slide
+   - **Expected:** `slideAIEdge()` called
+   - **Verify:** Slide content updated
+   - **Network Check:** POST `/functions/v1/slide-ai`
+
+3. **Image Generation**
+   - **Action:** Click "Generate Image" on slide
+   - **Expected:** `imageAIEdge()` called
+   - **Verify:** Image generated and displayed
+   - **Network Check:** POST `/functions/v1/image-ai`
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Generate deck
+@browser Navigate to /pitch-decks/new
+@browser Fill wizard form
+@browser Click "Generate Deck"
+@chrome-devtools list_network_requests
+→ Monitor: POST /functions/v1/generate-deck
+→ Check: Request payload includes profile and template
+→ Verify: Status 200, deck data returned
+@chrome-devtools list_console_messages
+→ Verify: No errors during generation
+@browser Wait for deck to appear
+@browser Take screenshot
+→ Verify: Deck with slides displayed
+
+# Step 2: Test slide AI
+@browser Click on a slide
+@browser Click "Refine" button
+@chrome-devtools list_network_requests
+→ Monitor: POST /functions/v1/slide-ai
+→ Verify: Status 200, refined bullets returned
+@browser Take screenshot
+→ Verify: Slide content updated
+
+# Step 3: Generate image
+@browser Click "Generate Image" on slide
+@chrome-devtools list_network_requests
+→ Monitor: POST /functions/v1/image-ai
+→ Verify: Status 200, image data returned
+@browser Wait for image to appear
+@browser Take screenshot
+→ Verify: Image displayed on slide
+
+# Step 4: Verify fallback (if edge function fails)
+@chrome-devtools list_console_messages
+→ Check: Fallback messages if edge function unavailable
+→ Verify: Client-side fallback works
+```
+
+**Verification Checklist:**
+- [ ] **Network: POST /functions/v1/generate-deck succeeds**
+- [ ] **Console: No errors during deck generation**
+- [ ] **Screenshot: Deck generated with slides**
+- [ ] **Network: POST /functions/v1/slide-ai succeeds**
+- [ ] **Screenshot: Slide content updated**
+- [ ] **Network: POST /functions/v1/image-ai succeeds**
+- [ ] **Screenshot: Image displayed**
+- [ ] **Fallback: Client-side works if edge function fails**
+
+---
+
+### Phase 6: Real-Time Subscriptions
+
+**Component:** `context/hooks/useSupabaseData.ts`  
+**Feature:** Real-time data synchronization
+
+**Test Scenarios:**
+
+1. **Realtime Channel Setup**
+   - **Action:** Load application data
+   - **Expected:** Realtime channel subscribed
+   - **Verify:** Channel connected, listening for changes
+   - **Console Check:** Realtime subscription messages
+
+2. **Real-Time Updates**
+   - **Action:** Update data in another tab/window
+   - **Expected:** Changes reflected in real-time
+   - **Verify:** UI updates automatically
+   - **Console Check:** Realtime event received
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Open application
+@browser Navigate to http://localhost:3000
+@browser Wait for data to load
+@chrome-devtools list_console_messages
+→ Check: Realtime channel subscription messages
+→ Verify: Channel connected
+
+# Step 2: Open second browser/tab
+@browser Open new tab
+@browser Navigate to http://localhost:3000
+@browser Login with same user
+
+# Step 3: Update data in second tab
+@browser In second tab: Edit profile name
+@browser Click save
+
+# Step 4: Verify real-time update in first tab
+@browser Switch to first tab
+@browser Take screenshot
+→ Verify: Profile name updated automatically
+@chrome-devtools list_console_messages
+→ Check: Realtime event received
+```
+
+**Verification Checklist:**
+- [ ] **Console: Realtime channel subscribed**
+- [ ] **Console: Channel connected successfully**
+- [ ] **Real-time: Changes sync across tabs**
+- [ ] **Screenshot: UI updates automatically**
+- [ ] **Console: Realtime events logged**
+
+---
+
+### Phase 7: RLS Policy Verification
+
+**Test Scenarios:**
+
+1. **Multi-Tenant Isolation**
+   - **Action:** Login as User A, try to access User B's data
+   - **Expected:** RLS blocks access
+   - **Verify:** Empty results or 403 error
+   - **Network Check:** GET requests return empty or error
+
+2. **Own Data Access**
+   - **Action:** Login as User A, access own data
+   - **Expected:** RLS allows access
+   - **Verify:** Data returned correctly
+   - **Network Check:** GET requests succeed
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Login as User A
+@browser Navigate to http://localhost:3000
+@browser Login with user A credentials
+@browser Navigate to profile
+@chrome-devtools list_network_requests
+→ Monitor: GET /rest/v1/startups
+→ Verify: Only User A's startup returned
+
+# Step 2: Try to access User B's data (if possible)
+@chrome-devtools evaluate_script(`
+  fetch('/rest/v1/startups?user_id=eq.{user-b-id}', {
+    headers: { 'Authorization': 'Bearer {user-a-token}' }
+  }).then(r => r.json())
+`)
+→ Verify: Empty array or 403 error (RLS blocks)
+
+# Step 3: Verify own data access
+@browser Refresh profile page
+@chrome-devtools list_network_requests
+→ Verify: Own data loads successfully
+```
+
+**Verification Checklist:**
+- [ ] **RLS: Multi-tenant isolation works**
+- [ ] **RLS: Own data accessible**
+- [ ] **Network: Unauthorized requests blocked**
+- [ ] **Network: Authorized requests succeed**
+
+---
+
+### Phase 8: Error Handling & Offline Behavior
+
+**Test Scenarios:**
+
+1. **Network Errors**
+   - **Action:** Disconnect network, try to save data
+   - **Expected:** Error message displayed, data not lost
+   - **Verify:** Graceful error handling
+   - **Console Check:** Error messages logged
+
+2. **Offline Mode**
+   - **Action:** Go offline, load application
+   - **Expected:** Offline message or cached data
+   - **Verify:** Application doesn't crash
+   - **Console Check:** Offline detection works
+
+3. **API Errors**
+   - **Action:** Trigger invalid operation (e.g., duplicate key)
+   - **Expected:** Error message displayed
+   - **Verify:** User-friendly error handling
+   - **Console Check:** Error details logged
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Test offline detection
+@browser Navigate to http://localhost:3000
+@chrome-devtools evaluate_script("navigator.onLine = false; window.dispatchEvent(new Event('offline'))")
+@browser Try to save data
+@chrome-devtools list_console_messages
+→ Check: Offline error message
+@browser Take screenshot
+→ Verify: Error message displayed
+
+# Step 2: Test network error
+@browser Reconnect network
+@browser Try invalid operation (e.g., create duplicate)
+@chrome-devtools list_network_requests
+→ Monitor: Failed request (400 or 409)
+@chrome-devtools list_console_messages
+→ Check: Error handling
+@browser Take screenshot
+→ Verify: User-friendly error message
+
+# Step 3: Test connection timeout
+@browser Simulate slow network (Chrome DevTools → Network → Throttling)
+@browser Try to load data
+@chrome-devtools list_console_messages
+→ Check: Timeout handling
+@browser Take screenshot
+→ Verify: Loading state or timeout message
+```
+
+**Verification Checklist:**
+- [ ] **Offline: Application handles offline gracefully**
+- [ ] **Errors: User-friendly error messages**
+- [ ] **Console: Errors logged for debugging**
+- [ ] **Network: Failed requests handled correctly**
+- [ ] **Timeout: Connection timeouts handled**
+
+---
+
+### Phase 9: Performance Testing
+
+**Test Scenarios:**
+
+1. **Page Load Performance**
+   - **Action:** Navigate to dashboard
+   - **Expected:** Page loads in < 3 seconds
+   - **Verify:** Performance metrics acceptable
+   - **Performance Check:** Lighthouse or DevTools Performance
+
+2. **Data Loading Performance**
+   - **Action:** Load large dataset (many deals, tasks)
+   - **Expected:** Data loads efficiently
+   - **Verify:** Pagination or virtualization works
+   - **Network Check:** Request timing < 2 seconds
+
+3. **Real-Time Performance**
+   - **Action:** Receive many real-time updates
+   - **Expected:** UI remains responsive
+   - **Verify:** Updates batched or throttled
+   - **Performance Check:** No UI freezing
+
+**Browser Testing Steps:**
+
+```
+# Step 1: Performance trace
+@chrome-devtools performance_start_trace
+@browser Navigate to http://localhost:3000/dashboard
+@browser Wait for page to fully load
+@chrome-devtools performance_stop_trace
+@chrome-devtools performance_analyze_insight
+→ Review: Page load time, long tasks, layout shifts
+
+# Step 2: Network performance
+@browser Navigate to CRM page
+@chrome-devtools list_network_requests
+→ Filter: duration > 1000 (slow requests)
+→ Review: Request timing, payload sizes
+→ Verify: Requests complete in reasonable time
+
+# Step 3: Real-time performance
+@browser Open multiple tabs
+@browser Make rapid updates in one tab
+@browser Monitor other tabs
+→ Verify: UI remains responsive
+→ Check: Updates don't cause freezing
+```
+
+**Verification Checklist:**
+- [ ] **Performance: Page load < 3 seconds**
+- [ ] **Performance: No long tasks (> 50ms)**
+- [ ] **Network: Requests complete < 2 seconds**
+- [ ] **Real-time: UI remains responsive**
+- [ ] **Performance: No layout shifts**
+
+---
+
+## End-to-End Test Flow
+
+### Complete Happy Path
+
+```
+# 1. Authentication
+@browser Navigate to http://localhost:3000
+@chrome-devtools list_console_messages
+→ Verify: No errors
+@browser Take screenshot
+
+# 2. Profile Creation/Update
+@browser Navigate to /profile
+@browser Fill startup profile form
+@browser Click save
+@chrome-devtools list_network_requests
+→ Verify: Profile saved
+@browser Take screenshot
+
+# 3. CRM Operations
+@browser Navigate to /crm
+@browser Create new deal
+@browser Update deal stage
+@chrome-devtools list_network_requests
+→ Verify: CRM operations succeed
+@browser Take screenshot
+
+# 4. Dashboard Metrics
+@browser Navigate to /dashboard
+@browser Update metrics
+@chrome-devtools list_network_requests
+→ Verify: Metrics saved
+@browser Take screenshot
+
+# 5. Edge Function Calls
+@browser Navigate to /pitch-decks/new
+@browser Generate deck
+@chrome-devtools list_network_requests
+→ Verify: Edge function succeeds
+@browser Take screenshot
+
+# 6. Data Persistence
+@browser Refresh page
+@chrome-devtools list_console_messages
+→ Verify: Data loads correctly
+@browser Take screenshot
+→ Verify: All changes persisted
+
+# 7. Final Verification
+@chrome-devtools list_console_messages
+→ Filter: level='error'
+→ Count: Total errors (target: 0)
+
+@chrome-devtools list_network_requests
+→ Filter: status >= 400
+→ Count: Total failures (target: 0)
+```
+
+---
+
+## Quick Test Checklist
+
+### Authentication
+- [ ] Login works
+- [ ] Session persists
+- [ ] Logout works
+- [ ] **Console: No auth errors**
+
+### Profile
+- [ ] Profile loads
+- [ ] Profile updates save
+- [ ] Founders sync correctly
+- [ ] **Network: All profile requests succeed**
+
+### CRM
+- [ ] Deals load
+- [ ] Deals create/update
+- [ ] Tasks CRUD works
+- [ ] **Network: All CRM requests succeed**
+
+### Dashboard
+- [ ] Metrics load
+- [ ] Metrics update
+- [ ] Insights display
+- [ ] Activities load
+- [ ] **Network: All dashboard requests succeed**
+
+### Edge Functions
+- [ ] Deck generation works
+- [ ] Slide AI works
+- [ ] Image generation works
+- [ ] **Network: All edge function calls succeed**
+
+### Real-Time
+- [ ] Realtime subscriptions work
+- [ ] Updates sync across tabs
+- [ ] **Console: Realtime events received**
+
+### Error Handling
+- [ ] Offline mode works
+- [ ] Network errors handled
+- [ ] API errors handled gracefully
+- [ ] **Console: Errors logged appropriately**
+
+### Performance
+- [ ] Page load < 3 seconds
+- [ ] Data loads efficiently
+- [ ] UI remains responsive
+- [ ] **Performance: No bottlenecks**
+
+---
+
+## Success Criteria
+
+A successful test cycle should verify:
+
+- ✅ All authentication flows work correctly
+- ✅ All database CRUD operations succeed
+- ✅ All edge function calls work
+- ✅ Real-time subscriptions function
+- ✅ RLS policies enforce correctly
+- ✅ Data persists across page refreshes
+- ✅ Error handling works gracefully
+- ✅ Performance meets targets
+- ✅ **Zero console errors**
+- ✅ **Zero network failures**
+
+---
+
+## Debugging Tips
+
+### Common Issues
+
+1. **Authentication Not Working**
+   - **Check:** `lib/supabaseClient.ts` - Supabase URL and key configured
+   - **Check:** `context/AuthContext.tsx` - DEV_MODE or real auth
+   - **Console:** Look for auth errors
+   - **Network:** Check `/auth/v1/token` requests
+
+2. **Data Not Loading**
+   - **Check:** RLS policies allow access
+   - **Check:** User ID matches `user_id` column
+   - **Console:** Look for RLS errors
+   - **Network:** Check request status codes
+
+3. **Edge Functions Failing**
+   - **Check:** Edge functions deployed
+   - **Check:** Function names match
+   - **Console:** Look for function errors
+   - **Network:** Check `/functions/v1/` requests
+
+4. **Real-Time Not Working**
+   - **Check:** Realtime enabled in Supabase
+   - **Check:** Channel subscription in console
+   - **Console:** Look for realtime errors
+   - **Network:** Check WebSocket connections
+
+---
+
+## Ready-to-Use Testing Prompts
+
+### Prompt 1: Complete Supabase Integration Test
+```
+Test complete Supabase integration at http://localhost:3000:
+
+1. Test authentication flow (login, session, logout)
+2. Test profile CRUD operations
+3. Test CRM operations (deals, tasks)
+4. Test dashboard operations (metrics, insights, activities)
+5. Test edge function calls (deck generation, slide AI, image AI)
+6. Test real-time subscriptions
+7. Test RLS policy enforcement
+8. Test error handling and offline behavior
+9. Monitor console for errors
+10. Monitor network requests for failures
+
+Provide summary of:
+- Total console errors found
+- Total network failures
+- All features working correctly
+- Any issues encountered
+```
+
+### Prompt 2: Authentication & Session Test
+```
+Test authentication and session management at http://localhost:3000:
+
+1. Navigate to application
+2. Check authentication state (DEV_MODE or real auth)
+3. Test login flow
+4. Test session persistence (refresh page)
+5. Test logout
+6. Monitor console for auth errors
+7. Monitor network for auth requests
+
+Report:
+- Authentication method used
+- Session persistence works
+- Any auth errors
+- Network request status
+```
+
+### Prompt 3: Database Operations Test
+```
+Test all database operations at http://localhost:3000:
+
+1. Profile operations (create, read, update)
+2. CRM operations (deals, tasks)
+3. Dashboard operations (metrics, insights, activities)
+4. Monitor all network requests
+5. Verify data persistence
+6. Check console for errors
+
+Report:
+- All CRUD operations succeed
+- Network request status codes
+- Data persistence verified
+- Any errors encountered
+```
+
+---
+
+**Remember:** Always check console and network requests for errors. Zero errors and zero failures = production ready! 🚀

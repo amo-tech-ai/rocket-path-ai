@@ -1,0 +1,770 @@
+---
+description: Premium UI/UX design guidelines for creating distinctive, accessible interfaces that avoid generic defaults and maintain brand identity
+globs: ["**/*.tsx", "**/*.jsx", "**/*.css", "**/components/**", "**/pages/**", "**/styles/**"]
+alwaysApply: false
+---
+
+# UI/UX Design Rules for Sun AI
+
+**Purpose:** Guide for creating premium, distinctive, and accessible user interfaces  
+**Source:** Based on Claude blog on frontend design, UX Planet best practices, and industry standards  
+**Last Updated:** 2025-01-16
+
+---
+
+## 🎯 Core Principle
+
+**Avoid distributional convergence.** Generic design choices (Inter fonts, purple gradients, minimal animations) dominate training data. Without direction, AI models default to safe, universal choices that undermine brand identity and make AI-generated interfaces immediately recognizable—and dismissible.
+
+**Solution:** Provide targeted, domain-specific guidance that steers away from generic defaults toward distinctive, brand-aligned design.
+
+---
+
+## 🎨 Visual Design
+
+### Typography
+
+**Never use generic fonts:**
+- ❌ Inter, Roboto, Open Sans, Lato, default system fonts
+- ✅ Use distinctive, impactful fonts that signal quality
+
+**Font Categories & Recommendations:**
+
+**Code Aesthetic:**
+- JetBrains Mono, Fira Code, Space Grotesk
+- Use for: Technical products, developer tools, data-heavy interfaces
+
+**Editorial:**
+- Playfair Display, Crimson Pro, Newsreader
+- Use for: Content-heavy pages, blogs, documentation
+
+**Technical:**
+- IBM Plex family, Source Sans 3
+- Use for: Enterprise software, B2B products
+
+**Distinctive:**
+- Bricolage Grotesque, Newsreader, variable fonts
+- Use for: Brand-forward products, consumer apps
+
+**Typography Principles:**
+- **High contrast pairing:** Display + monospace, serif + geometric sans
+- **Use extremes:** 100/200 weight vs 800/900, not 400 vs 600
+- **Size jumps:** 3x+ differences, not 1.5x
+- **Decisive usage:** Pick one distinctive font, use it decisively
+- **Load from Google Fonts** or self-hosted fonts
+
+**Responsive Typography:**
+- Use relative units (em, rem) for font sizes
+- Adjust line heights and letter spacing for readability on small screens
+- Implement modular scale for consistent typography across breakpoints
+
+### Color Palette
+
+**Brand Colors (Sun AI):**
+- **Primary:** `#E87C4D` (brand-orange) - Warm, energetic
+- **Secondary:** `#1E293B` (brand-blue) - Professional, trustworthy
+- **Accent:** `#F3B93C` (brand-mustard) - Optimistic, attention-grabbing
+- **Background:** `#FBF8F5` (brand-off-white) - Soft, approachable
+
+**Color Principles:**
+- **Avoid:** Generic purple gradients on white backgrounds
+- **Prefer:** Atmospheric backgrounds, gradient overlays, soft glows
+- **Contrast:** Maintain WCAG 2.1 AA standard (4.5:1 for text)
+- **Cohesion:** Use color palette that reflects brand identity
+- **Semantic:** Use color meaningfully (success = green, error = red, warning = amber)
+
+### Visual Hierarchy
+
+- Establish clear visual hierarchy to guide user attention
+- Use size, color, contrast, and spacing strategically
+- Maintain consistent style across the application
+- Design with sufficient contrast for legibility
+
+### Background Effects
+
+**Avoid:**
+- Solid white/light backgrounds (too generic)
+- Simple gradients without depth
+
+**Prefer:**
+- **Atmospheric backgrounds:** Soft gradients, ambient particles, floating blobs
+- **Glassmorphism:** Backdrop blur, translucent cards, subtle borders
+- **Depth layers:** Multiple gradient layers, soft shadows, ambient glows
+- **Animated particles:** Subtle floating elements, pulse effects
+
+**Implementation:**
+```css
+/* Atmospheric background example */
+background: linear-gradient(135deg, rgba(232, 124, 77, 0.1) 0%, rgba(30, 41, 59, 0.1) 100%);
+backdrop-filter: blur(40px);
+```
+
+---
+
+## ✨ Animations & Motion
+
+### Animation Principles
+
+**Use animations judiciously:**
+- Enhance user experience, don't distract
+- Provide feedback for user actions
+- Guide attention and indicate state changes
+- Use CSS animations instead of JavaScript when possible
+
+**Animation Patterns:**
+
+**Micro-interactions:**
+- Hover states: `transform: translateY(-2px)`, `scale(1.05)`
+- Active states: Subtle scale down (`scale(0.98)`)
+- Focus states: Ring/outline animations
+
+**Page Transitions:**
+- Fade-in-up: `opacity: 0 → 1`, `translateY(30px → 0)`
+- Stagger animations: Delay children by 100-200ms
+- Smooth easing: `cubic-bezier(0.4, 0, 0.2, 1)` or `ease-out`
+
+**Loading States:**
+- Skeleton screens for content loading
+- Progress indicators for async operations
+- Smooth transitions between states
+
+**Performance:**
+- Use `transform` and `opacity` (GPU-accelerated)
+- Avoid animating `width`, `height`, `top`, `left`
+- Implement `will-change` sparingly
+- Use `requestAnimationFrame` for complex animations
+
+**Timing:**
+- Fast interactions: 150-200ms
+- Moderate transitions: 250-350ms
+- Slow, atmospheric: 500-800ms
+- Stagger delays: 100-200ms between elements
+
+---
+
+## 🎭 Theme-Based Design
+
+**Leverage Claude's understanding of popular themes:**
+
+**Examples:**
+- **RPG Theme:** Rich colors, ornate borders, fantasy elements
+- **Minimalist:** Clean lines, ample whitespace, subtle shadows
+- **Brutalist:** Bold typography, stark contrasts, geometric shapes
+- **Neumorphism:** Soft shadows, subtle highlights, tactile feel
+- **Glassmorphism:** Translucent cards, backdrop blur, layered depth
+
+**When to use themes:**
+- Match theme to product category and brand personality
+- Use themes consistently across related components
+- Adapt themes for accessibility (maintain contrast)
+
+---
+
+## 📱 Responsive Design
+
+### Mobile-First Approach
+
+**Core Principle:**
+- Design for mobile devices first, then scale up
+- Use relative units (%, em, rem) instead of fixed pixels
+- Implement CSS Grid and Flexbox for flexible layouts
+
+### Breakpoints
+
+**Standard Breakpoints:**
+- Mobile: `< 640px` (sm)
+- Tablet: `640px - 1024px` (md)
+- Desktop: `1024px - 1280px` (lg)
+- Large Desktop: `> 1280px` (xl)
+
+**Implementation:**
+```css
+/* Mobile-first */
+.container { padding: 1rem; }
+
+/* Tablet and up */
+@media (min-width: 640px) {
+  .container { padding: 2rem; }
+}
+
+/* Desktop and up */
+@media (min-width: 1024px) {
+  .container { padding: 3rem; }
+}
+```
+
+### Layout Patterns
+
+**Grid & Flexbox:**
+- Use CSS Grid for 2D layouts (cards, dashboards)
+- Use Flexbox for 1D layouts (navigation, forms)
+- Combine both for complex responsive layouts
+
+**Content Prioritization:**
+- Prioritize content display for mobile views
+- Use progressive disclosure to reveal content as needed
+- Implement off-canvas patterns for secondary content
+
+### Touch Targets
+
+**Size Requirements:**
+- Minimum: 44x44 pixels (Apple HIG) or 48x48 pixels (Material Design)
+- Provide adequate spacing between touch targets (8px minimum)
+- Consider thumb zones for important interactive elements
+
+**Interaction States:**
+- Hover states for desktop
+- Active/pressed states for touch
+- Focus states for keyboard navigation
+
+### Images & Media
+
+**Responsive Images:**
+- Use `srcset` and `sizes` attributes
+- Implement lazy loading for non-critical resources
+- Use CSS to make embedded media responsive
+- Optimize images for faster loading on mobile networks
+
+**Example:**
+```html
+<img 
+  srcset="image-320w.jpg 320w, image-640w.jpg 640w, image-1280w.jpg 1280w"
+  sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+  src="image-640w.jpg"
+  alt="Description"
+  loading="lazy"
+/>
+```
+
+---
+
+## ♿ Accessibility (WCAG 2.1 AA)
+
+### Semantic HTML
+
+- Use semantic HTML elements (`<nav>`, `<main>`, `<article>`, `<section>`)
+- Enhance screen reader compatibility
+- Provide proper heading hierarchy (h1 → h2 → h3)
+
+### Alternative Text
+
+- Provide `alt` text for all images
+- Describe non-text content (charts, icons, decorative elements)
+- Use `aria-label` for icon-only buttons
+
+### Keyboard Navigation
+
+- Ensure all interactive elements are keyboard accessible
+- Provide visible focus indicators
+- Implement logical tab order
+- Support keyboard shortcuts for common actions
+
+### Color Contrast
+
+- **Text:** 4.5:1 contrast ratio for normal text
+- **Large Text:** 3:1 contrast ratio for text 18pt+ or 14pt+ bold
+- **UI Components:** 3:1 contrast ratio for interactive elements
+- Test with contrast checkers (WebAIM, Contrast Ratio)
+
+### ARIA Labels
+
+- Use `aria-label` for icon-only buttons
+- Use `aria-describedby` for form field descriptions
+- Use `aria-live` for dynamic content updates
+- Use `role` attributes when semantic HTML isn't sufficient
+
+### Testing
+
+- Test with screen readers (NVDA, JAWS, VoiceOver)
+- Test keyboard-only navigation
+- Test with various assistive technologies
+- Use automated accessibility testing tools (axe, Lighthouse)
+
+---
+
+## 🚀 Performance Optimization
+
+### Core Web Vitals
+
+**LCP (Largest Contentful Paint):**
+- Target: < 2.5 seconds
+- Optimize images, use preload for critical resources
+- Minimize render-blocking CSS/JS
+
+**FID (First Input Delay):**
+- Target: < 100 milliseconds
+- Minimize JavaScript execution time
+- Use code splitting and lazy loading
+
+**CLS (Cumulative Layout Shift):**
+- Target: < 0.1
+- Set dimensions for images/videos
+- Avoid inserting content above existing content
+- Use `transform` for animations
+
+### Asset Optimization
+
+**Images:**
+- Use modern formats (WebP, AVIF) with fallbacks
+- Compress images appropriately
+- Use responsive images with `srcset`
+- Implement lazy loading
+
+**CSS:**
+- Implement critical CSS for above-the-fold content
+- Minify and compress CSS
+- Use CSS-in-JS efficiently (avoid runtime overhead)
+
+**JavaScript:**
+- Code splitting for route-based chunks
+- Tree shaking to remove unused code
+- Lazy load non-critical components
+- Use `React.lazy()` for component-level splitting
+
+### Loading Strategies
+
+**Critical Path:**
+- Inline critical CSS
+- Preload key resources
+- Defer non-critical JavaScript
+
+**Progressive Enhancement:**
+- Load essential content first
+- Enhance with JavaScript progressively
+- Provide fallbacks for advanced features
+
+---
+
+## 🎯 Interaction Design
+
+### Navigation Patterns
+
+**Desktop:**
+- Horizontal navigation bar
+- Sticky header for easy access
+- Breadcrumbs for deep hierarchies
+- Sidebar for secondary navigation
+
+**Mobile:**
+- Hamburger menu for primary navigation
+- Bottom navigation for main actions
+- Off-canvas patterns for secondary content
+- Swipe gestures for common actions
+
+**Accessibility:**
+- Ensure navigation is keyboard accessible
+- Provide skip links for main content
+- Use clear labeling and categorization
+
+### UI Components
+
+**Use Familiar Patterns:**
+- Reduce cognitive load with standard components
+- Follow platform conventions (iOS vs Android vs Web)
+- Provide clear affordances (buttons look clickable)
+
+**Component Guidelines:**
+- Consistent styling across similar components
+- Clear states (default, hover, active, disabled, loading)
+- Proper feedback for user actions
+- Error states with recovery options
+
+### Calls-to-Action (CTAs)
+
+**Principles:**
+- Clear, action-oriented text ("Get Started" not "Click Here")
+- Visually distinct from secondary actions
+- Appropriate size and contrast
+- Strategic placement (above fold, end of sections)
+
+**Button Hierarchy:**
+- **Primary:** Bold, high contrast, prominent
+- **Secondary:** Outlined or lower contrast
+- **Tertiary:** Text-only, subtle
+
+---
+
+## 📊 User Feedback
+
+### Loading States
+
+**Indicators:**
+- Skeleton screens for content loading
+- Progress bars for determinate operations
+- Spinners for indeterminate operations
+- Optimistic UI updates when possible
+
+**Best Practices:**
+- Show loading state immediately (< 100ms)
+- Provide context (what's loading, why)
+- Allow cancellation for long operations
+
+### Error Handling
+
+**Error Messages:**
+- Clear, user-friendly language
+- Explain what went wrong and why
+- Provide recovery options
+- Use appropriate tone (not blaming user)
+
+**Error States:**
+- Inline validation for forms
+- Clear error indicators
+- Accessible error announcements (`aria-live`)
+- Retry mechanisms for failed operations
+
+### Success Feedback
+
+- Confirmation messages for important actions
+- Visual feedback (checkmarks, animations)
+- Undo options when appropriate
+- Clear indication of completed tasks
+
+---
+
+## 🏗️ Information Architecture
+
+### Content Organization
+
+- Organize content logically to facilitate easy access
+- Use clear labeling and categorization
+- Implement effective search functionality
+- Create sitemap to visualize overall structure
+
+### Navigation Structure
+
+**Hierarchy:**
+- Clear parent-child relationships
+- Consistent depth levels
+- Logical grouping of related items
+
+**Search:**
+- Prominent search functionality
+- Autocomplete and suggestions
+- Filters and sorting options
+- Clear search results presentation
+
+---
+
+## 🧪 Testing & Iteration
+
+### A/B Testing
+
+- Conduct A/B testing for critical design decisions
+- Test CTAs, layouts, copy, and flows
+- Use statistical significance
+- Document learnings
+
+### Analytics
+
+**Track:**
+- User behavior (clicks, scrolls, interactions)
+- Conversion funnels
+- Drop-off points
+- Time on page, bounce rate
+
+**Tools:**
+- Heatmaps (Hotjar, Crazy Egg)
+- Session recordings
+- User surveys and feedback
+- Analytics platforms (Google Analytics, Mixpanel)
+
+### User Testing
+
+**Methods:**
+- Usability testing sessions
+- Remote user testing
+- Surveys and questionnaires
+- Feedback forms and in-app prompts
+
+**Iteration:**
+- Regularly gather and incorporate user feedback
+- Continuously iterate on designs based on data
+- Prioritize improvements based on impact
+
+---
+
+## 📚 Design System
+
+### Component Library
+
+**Maintain:**
+- Comprehensive style guide
+- Design patterns and component usage
+- Component variants and states
+- Usage guidelines and examples
+
+### Consistency
+
+**Visual Consistency:**
+- Consistent spacing system (4px or 8px base)
+- Consistent border radius (16-24px for cards)
+- Consistent shadows and elevations
+- Consistent color usage
+
+**Terminology:**
+- Use consistent terminology throughout interface
+- Maintain consistent positioning of recurring elements
+- Ensure visual consistency across different sections
+
+### Documentation
+
+**Create:**
+- Style guide with colors, typography, spacing
+- Component documentation with examples
+- User flow diagrams for complex interactions
+- Design asset organization system
+
+---
+
+## 🎨 Sun AI Specific Guidelines
+
+### Brand Identity
+
+**Visual Style:**
+- Premium, modern aesthetic (Stripe, Linear, Notion, Vercel style)
+- Soft gradients (sunset orange → deep blue)
+- Ambient glows + floating particles
+- Rounded cards (16-24px border radius)
+- Light glassmorphism effects
+- Elegant spacing (32-48px sections)
+
+**Color Usage:**
+- **Primary Actions:** brand-orange (#E87C4D)
+- **Secondary Actions:** brand-blue (#1E293B)
+- **Accents:** brand-mustard (#F3B93C)
+- **Backgrounds:** brand-off-white (#FBF8F5)
+
+**Typography:**
+- **Headings:** Bold, large (3xl-7xl)
+- **Body:** Readable, medium size (base-lg)
+- **Display:** Gradient text for hero sections
+- **Code:** Monospace for technical content
+
+### Animation Style
+
+**Motion Principles:**
+- Smooth, elegant transitions (150-250ms)
+- Stagger animations for lists (100-200ms delay)
+- Subtle hover effects (translateY, scale)
+- Ambient floating particles
+- Pulse glows for emphasis
+
+**Common Patterns:**
+- Fade-in-up on scroll
+- Stagger children animations
+- Hover lift effects
+- Loading skeleton screens
+
+### Component Patterns
+
+**Cards:**
+- White/translucent background with backdrop blur
+- Rounded corners (16-24px)
+- Subtle shadows (hover: larger shadow)
+- Border: `border-white/60` or `border-gray-200`
+
+**Buttons:**
+- Primary: `bg-brand-orange`, rounded-xl, shadow-lg
+- Secondary: `bg-white/80`, border, backdrop-blur
+- Hover: `hover:-translate-y-1`, `hover:shadow-xl`
+
+**Sections:**
+- Max width: `max-w-7xl mx-auto`
+- Padding: `py-24 px-4 sm:px-6 lg:px-8`
+- Background: Gradient overlays or ambient particles
+
+---
+
+## 🚨 Common JSX/React Syntax Pitfalls
+
+### Quote Nesting in JSX
+
+**❌ NEVER DO THIS:**
+```jsx
+// Nested quotes in className - WILL BREAK
+<div className="bg-[url('data:image/svg+xml,...')]"></div>
+<div className="text-[color: 'red']"></div>
+```
+
+**✅ DO THIS INSTEAD:**
+```jsx
+// Use inline styles for complex data URLs
+<div 
+  className="opacity-20"
+  style={{
+    backgroundImage: `url("data:image/svg+xml,%3Csvg...")`
+  }}
+></div>
+
+// Or use CSS variables
+<div 
+  className="pattern-bg"
+  style={{ '--pattern-url': `url("data:image/svg+xml,...")` }}
+></div>
+```
+
+### Data URLs and SVG Patterns
+
+**When to use inline styles:**
+- Data URLs with complex SVG content
+- URLs containing quotes or special characters
+- Dynamic background images
+- Base64 encoded images
+
+**When to use Tailwind classes:**
+- Simple color values
+- Standard gradients
+- Static image paths (without quotes)
+- Standard utility classes
+
+**Best Practice:**
+```jsx
+// ✅ GOOD: Inline style for data URL
+<div 
+  style={{
+    backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svgString)}")`
+  }}
+></div>
+
+// ✅ GOOD: Tailwind for simple backgrounds
+<div className="bg-gradient-to-br from-brand-blue to-brand-orange"></div>
+
+// ❌ BAD: Data URL in Tailwind arbitrary value
+<div className="bg-[url('data:image/svg+xml,...')]"></div>
+```
+
+### JSX Attribute Syntax
+
+**Common Mistakes to Avoid:**
+
+1. **Nested Quotes:**
+   - ❌ `className="text-[color: 'red']"`
+   - ✅ `className="text-red-500"` or `style={{ color: 'red' }}`
+
+2. **Complex Expressions in className:**
+   - ❌ `className={`bg-[url('${pattern}')]`}`
+   - ✅ `style={{ backgroundImage: `url("${pattern}")` }}`
+
+3. **Unescaped Special Characters:**
+   - ❌ `className="bg-[url('data:...')]"`
+   - ✅ Use `style` prop or CSS variables
+
+4. **Template Literals in Tailwind Arbitrary Values:**
+   - ❌ `className={`bg-[${color}]`}`
+   - ✅ `style={{ backgroundColor: color }}`
+
+### Background Patterns
+
+**Recommended Approach:**
+```jsx
+// Option 1: Inline style (best for data URLs)
+<div 
+  className="absolute inset-0 opacity-20"
+  style={{
+    backgroundImage: `url("data:image/svg+xml,%3Csvg...")`
+  }}
+></div>
+
+// Option 2: CSS variable (for reusable patterns)
+<div 
+  className="pattern-overlay"
+  style={{ 
+    '--pattern': `url("data:image/svg+xml,...")` 
+  }}
+></div>
+
+// Option 3: External SVG file (best for complex patterns)
+<div 
+  className="absolute inset-0 opacity-20"
+  style={{
+    backgroundImage: 'url("/patterns/grid.svg")'
+  }}
+></div>
+```
+
+### Encoding Data URLs
+
+**Always encode SVG data URLs properly:**
+```jsx
+// ✅ GOOD: Properly encoded
+const svgPattern = encodeURIComponent(`
+  <svg width="60" height="60">
+    <rect fill="#ffffff" opacity="0.05"/>
+  </svg>
+`);
+
+<div style={{ backgroundImage: `url("data:image/svg+xml,${svgPattern}")` }}></div>
+
+// ❌ BAD: Unencoded special characters
+<div style={{ backgroundImage: 'url("data:image/svg+xml,<svg>...</svg>")' }}></div>
+```
+
+---
+
+## ✅ Design Checklist
+
+Before finalizing any UI component, verify:
+
+**Code Quality:**
+- [ ] No nested quotes in JSX className attributes
+- [ ] Data URLs use inline styles, not Tailwind arbitrary values
+- [ ] SVG patterns properly encoded
+- [ ] No syntax errors in JSX attributes
+- [ ] All quotes properly escaped
+
+**Visual Design:**
+- [ ] Uses distinctive typography (not Inter/Roboto)
+- [ ] Color palette reflects brand identity
+- [ ] Sufficient contrast for accessibility (WCAG AA)
+- [ ] Clear visual hierarchy
+- [ ] Consistent styling across application
+
+**Responsive Design:**
+- [ ] Mobile-first approach implemented
+- [ ] Touch targets are 44x44px minimum
+- [ ] Responsive images with srcset
+- [ ] Tested across device sizes
+- [ ] Content prioritization for mobile
+
+**Accessibility:**
+- [ ] Semantic HTML used
+- [ ] Alt text for images
+- [ ] Keyboard navigation works
+- [ ] Focus indicators visible
+- [ ] Screen reader tested
+
+**Performance:**
+- [ ] Images optimized and lazy loaded
+- [ ] Critical CSS inlined
+- [ ] Code splitting implemented
+- [ ] Core Web Vitals optimized
+- [ ] Animations use transform/opacity
+
+**Interaction:**
+- [ ] Clear CTAs
+- [ ] Loading states implemented
+- [ ] Error handling with recovery
+- [ ] Success feedback provided
+- [ ] Intuitive navigation
+
+**Brand Alignment:**
+- [ ] Matches Sun AI visual style
+- [ ] Uses brand colors appropriately
+- [ ] Includes ambient effects/particles
+- [ ] Glassmorphism where appropriate
+- [ ] Smooth animations (150-250ms)
+
+---
+
+## 📖 References
+
+- [Claude Blog: Improving Frontend Design Through Skills](https://www.claude.com/blog/improving-frontend-design-through-skills)
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [Material Design Guidelines](https://material.io/design)
+- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
+- [Web.dev: Responsive Design](https://web.dev/responsive-web-design-basics/)
+
+---
+
+**Remember:** The goal is to create distinctive, brand-aligned interfaces that avoid generic defaults. Use targeted guidance for typography, colors, animations, and themes to steer away from distributional convergence and toward premium, memorable user experiences.

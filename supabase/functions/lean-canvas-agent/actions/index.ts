@@ -10,3 +10,9 @@ export { saveVersion, loadVersions, restoreVersion } from "./versions.ts";
 export { canvasToPitch } from "./pitch.ts";
 export { getBenchmarks } from "./benchmarks.ts";
 export { suggestPivots } from "./pivots.ts";
+export {
+  extractAssumptions,
+  suggestExperiment,
+  getAssumptions,
+  updateAssumptionStatus,
+} from "./assumptions.ts";

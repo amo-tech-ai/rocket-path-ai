@@ -1,0 +1,652 @@
+---
+description: Comprehensive testing strategy for forms and dashboards using Cursor Browser Agent
+globs: ["**/*.tsx", "**/*.ts", "**/pages/**", "**/components/**"]
+alwaysApply: false
+---
+
+# Testing Forms & Dashboards - Cursor Browser Rule
+
+## Overview
+
+Comprehensive testing strategy for all forms and dashboards in the StartupAI application. Uses Cursor Browser Agent for automated testing, visual verification, and debugging.
+
+**Testing Environment:** `http://localhost:5000` (Vite dev server)  
+**Browser Tools:** Cursor Browser Agent + Chrome DevTools MCP  
+**Reference:** [Cursor Browser Docs](https://cursor.com/docs/agent/browser)
+
+---
+
+## 🎯 Testing Strategy
+
+### Phase 1: Pre-Test Setup
+
+**1. Check Dev Server**
+```bash
+# Verify server is running
+@browser Navigate to http://localhost:5000
+@browser Take screenshot
+# If connection fails, start server: npm run dev
+```
+
+**2. Verify Environment**
+- [ ] Dev server running on correct port
+- [ ] Environment variables loaded (check `.env.local`)
+- [ ] Supabase connection active
+- [ ] Edge functions deployed
+
+**3. Clear Browser State (if needed)**
+```bash
+# For fresh test session
+@browser Navigate to http://localhost:5000
+# Browser state persists per workspace automatically
+```
+
+---
+
+## 📋 Form Testing Checklist
+
+### Standard Form Test Pattern
+
+```
+1. Navigate to form page
+2. Take screenshot (baseline)
+3. Check console for errors
+4. Fill form fields with test data
+5. Verify validation works
+6. Submit form
+7. Check network request
+8. Verify success/error state
+9. Take screenshot (result)
+10. Check console for errors
+```
+
+### Form Test Scenarios
+
+#### Test 1: Startup Wizard Forms (6 Steps)
+
+**Step 1: Context & Identity**
+```bash
+@browser Navigate to http://localhost:5000/app/wizard
+@browser Take screenshot
+@browser Check console for errors
+
+# Fill Step 1 fields
+@browser Type "https://stripe.com" in website URL field
+@browser Click "Extract from URL" button (if available)
+@browser Wait for AI extraction to complete
+@browser Take screenshot
+
+# Verify extracted data
+@browser Verify "Stripe" appears in startup name field
+@browser Verify industry is populated
+@browser Verify description is populated
+
+# Manual entry fallback
+@browser Type "Test Startup AI" in startup name field
+@browser Type "Fashion Tech" in industry field
+@browser Type "AI-powered fashion event platform" in tagline field
+@browser Click "Continue" button
+@browser Check console for errors
+@browser Take screenshot
+```
+
+**Step 2: Narrative Analysis**
+```bash
+# Verify Step 2 loads
+@browser Verify "Step 2" or "Narrative" header visible
+@browser Take screenshot
+
+# Fill problem statement
+@browser Type "Startups struggle to validate their ideas quickly" in problem field
+@browser Type "AI-powered platform that analyzes market fit" in solution field
+
+# Test AI refinement
+@browser Click "Refine with AI" button (if available)
+@browser Wait for AI response
+@browser Verify refined text appears
+@browser Check network: POST to /functions/v1/ai-helper with action: wizard_refine_narrative
+@browser Check console for errors
+@browser Take screenshot
+
+@browser Click "Continue" button
+```
+
+**Step 3: Business Model**
+```bash
+# Verify Step 3 loads
+@browser Verify "Step 3" or "Business Model" header visible
+@browser Take screenshot
+
+# Fill business model fields
+@browser Select "Commission" from revenue model dropdown
+@browser Type "Competitor A, Competitor B" in competitors field
+
+# Test AI moat analysis
+@browser Click "Analyze Moat" button (if available)
+@browser Wait for AI response
+@browser Verify moat analysis appears
+@browser Check network: POST with action: wizard_analyze_moat
+@browser Check console for errors
+@browser Take screenshot
+
+@browser Click "Continue" button
+```
+
+**Step 4: Traction**
+```bash
+# Verify Step 4 loads
+@browser Verify "Step 4" or "Traction" header visible
+@browser Take screenshot
+
+# Fill traction metrics
+@browser Type "5000" in monthly revenue field
+@browser Type "20" in MoM growth rate field
+@browser Type "150" in active users field
+@browser Type "18" in runway months field
+
+# Verify health indicator updates
+@browser Verify health indicator displays (good/warning/critical)
+@browser Check console for errors
+@browser Take screenshot
+
+@browser Click "Continue" button
+```
+
+**Step 5: Capital Planning**
+```bash
+# Verify Step 5 loads
+@browser Verify "Step 5" or "Capital" header visible
+@browser Take screenshot
+
+# Fill fundraising fields
+@browser Type "500000" in fundraising goal field
+@browser Click "Product Development" in use of funds (multi-select)
+@browser Click "Marketing" in use of funds
+
+# Test AI fundraising strategy
+@browser Click "Get Strategy" button (if available)
+@browser Wait for AI response
+@browser Verify strategy text appears
+@browser Check network: POST with action: wizard_fundraising_strategy
+@browser Check console for errors
+@browser Take screenshot
+
+@browser Click "Continue" button
+```
+
+**Step 6: Review & Submit**
+```bash
+# Verify Step 6 loads
+@browser Verify "Step 6" or "Review" header visible
+@browser Take screenshot
+
+# Verify all data displayed
+@browser Verify startup name appears
+@browser Verify tagline appears
+@browser Verify revenue model appears
+@browser Verify runway appears
+@browser Verify fundraising goal appears
+
+# Test AI readiness analysis
+@browser Wait for readiness score to appear (auto-generated)
+@browser Verify score displays (0-100)
+@browser Verify insights array displays
+@browser Verify gaps array displays
+@browser Check network: POST with action: wizard_analyze_readiness
+@browser Check console for errors
+@browser Take screenshot
+
+# Test task generation
+@browser Verify initial tasks appear (auto-generated)
+@browser Verify tasks have title, priority, category
+@browser Check network: POST with action: wizard_generate_tasks
+@browser Check console for errors
+@browser Take screenshot
+
+# Submit wizard
+@browser Click "Finish & Save" or "Complete Setup" button
+@browser Check network: POST to create startup profile
+@browser Wait for redirect
+@browser Check console for errors
+@browser Take screenshot
+```
+
+#### Test 2: Dashboard Forms
+
+**Main Dashboard**
+```bash
+@browser Navigate to http://localhost:5000/dashboard
+@browser Take screenshot
+@browser Check console for errors
+
+# Verify all widgets load
+@browser Verify FounderCommandCenter widget visible
+@browser Verify HealthScorecard widget visible
+@browser Verify AICoachWidget widget visible
+@browser Verify MilestonesTimeline widget visible
+@browser Verify AIInsightsDigest widget visible
+@browser Verify CRMSnapshot widget visible
+@browser Verify SmartAlerts widget visible
+@browser Verify SetupChecklist widget visible
+
+# Test AI Coach interaction
+@browser Click "Generate Insights" button (if present)
+@browser Wait for AI response
+@browser Check network: POST to /functions/v1/ai-helper
+@browser Check console for errors
+@browser Take screenshot
+```
+
+**User Profile Form**
+```bash
+@browser Navigate to http://localhost:5000/user-profile
+@browser Take screenshot
+@browser Check console for errors
+
+# Fill profile form
+@browser Type "John Doe" in name field
+@browser Type "john@example.com" in email field
+@browser Type "CEO & Founder" in title field
+@browser Click "Save" button
+@browser Check network: PUT/PATCH to update profile
+@browser Check console for errors
+@browser Take screenshot
+```
+
+**Company Profile Form**
+```bash
+@browser Navigate to http://localhost:5000/company-profile
+@browser Take screenshot
+@browser Check console for errors
+
+# Fill company form
+@browser Type "Test Company Inc" in company name field
+@browser Type "https://testcompany.com" in website field
+@browser Type "Fashion Tech" in industry field
+@browser Click "Save" button
+@browser Check network: PUT/PATCH to update company
+@browser Check console for errors
+@browser Take screenshot
+```
+
+#### Test 3: CRM Forms
+
+**Add Contact Form**
+```bash
+@browser Navigate to http://localhost:5000/crm
+@browser Click "Add Contact" button
+@browser Take screenshot
+
+# Fill contact form
+@browser Type "Jane Investor" in name field
+@browser Type "jane@vc.com" in email field
+@browser Type "Partner" in title field
+@browser Type "Sequoia Capital" in company field
+@browser Click "Save" button
+@browser Check network: POST to create contact
+@browser Check console for errors
+@browser Take screenshot
+```
+
+**Add Deal Form**
+```bash
+@browser Navigate to http://localhost:5000/crm
+@browser Click "Add Deal" button
+@browser Take screenshot
+
+# Fill deal form
+@browser Type "Series A Round" in deal name field
+@browser Select "Qualified" from stage dropdown
+@browser Type "500000" in value field
+@browser Select contact from dropdown
+@browser Click "Save" button
+@browser Check network: POST to create deal
+@browser Check console for errors
+@browser Take screenshot
+```
+
+---
+
+## 📊 Dashboard Testing Checklist
+
+### Standard Dashboard Test Pattern
+
+```
+1. Navigate to dashboard
+2. Take screenshot (full page)
+3. Check console for errors
+4. Verify all widgets/components load
+5. Test interactive elements
+6. Check network requests
+7. Verify data displays correctly
+8. Test navigation
+9. Test responsive design
+10. Document findings
+```
+
+### Dashboard Test Scenarios
+
+#### Test 1: Main Dashboard
+
+```bash
+@browser Navigate to http://localhost:5000/dashboard
+@browser Take screenshot
+@browser Check console for errors
+
+# Verify layout
+@browser Verify 3-panel layout (if applicable)
+@browser Verify sidebar navigation visible
+@browser Verify main content area visible
+@browser Verify right panel visible (if applicable)
+
+# Verify widgets load
+@browser Scroll through dashboard
+@browser Verify all widgets render
+@browser Check network: GET requests for data
+@browser Check console for errors
+
+# Test interactions
+@browser Click any interactive widget
+@browser Verify action completes
+@browser Check network: POST/PUT requests
+@browser Check console for errors
+@browser Take screenshot
+```
+
+#### Test 2: Projects Dashboard
+
+```bash
+@browser Navigate to http://localhost:5000/projects
+@browser Take screenshot
+@browser Check console for errors
+
+# Verify project list loads
+@browser Verify project cards visible
+@browser Verify project data displays
+@browser Check network: GET /projects or similar
+@browser Check console for errors
+
+# Test project creation
+@browser Click "New Project" button
+@browser Fill project form
+@browser Click "Create" button
+@browser Check network: POST to create project
+@browser Check console for errors
+@browser Take screenshot
+```
+
+#### Test 3: Tasks Dashboard
+
+```bash
+@browser Navigate to http://localhost:5000/tasks
+@browser Take screenshot
+@browser Check console for errors
+
+# Verify task list loads
+@browser Verify tasks visible
+@browser Verify task data displays (title, priority, status)
+@browser Check network: GET /tasks or similar
+@browser Check console for errors
+
+# Test task creation
+@browser Click "Add Task" button
+@browser Fill task form
+@browser Click "Save" button
+@browser Check network: POST to create task
+@browser Check console for errors
+@browser Take screenshot
+
+# Test task completion
+@browser Click checkbox on a task
+@browser Verify task marked complete
+@browser Check network: PUT/PATCH to update task
+@browser Check console for errors
+@browser Take screenshot
+```
+
+---
+
+## 🔍 Error Detection Strategy
+
+### Console Error Detection
+
+```bash
+# After every navigation
+@browser Check console for errors
+
+# Filter for critical errors
+# Look for:
+# - TypeError
+# - ReferenceError
+# - Network errors
+# - React errors
+# - Uncaught exceptions
+```
+
+### Network Error Detection
+
+```bash
+# After every form submission
+@browser Show network requests
+
+# Filter for failures
+# Look for:
+# - Status >= 400 (4xx, 5xx)
+# - Failed requests
+# - Timeout errors
+# - CORS errors
+```
+
+### Visual Error Detection
+
+```bash
+# After every action
+@browser Take screenshot
+
+# Look for:
+# - Error messages in UI
+# - Loading states that never complete
+# - Missing data/empty states
+# - Broken layouts
+```
+
+---
+
+## ✅ Success Criteria
+
+### Form Tests
+- [ ] All form fields are editable
+- [ ] Validation works correctly
+- [ ] Form submission succeeds (200 status)
+- [ ] Success/error messages display
+- [ ] No console errors
+- [ ] Data persists after submission
+- [ ] Redirect works correctly
+
+### Dashboard Tests
+- [ ] All widgets/components load
+- [ ] Data displays correctly
+- [ ] Interactive elements work
+- [ ] Navigation works
+- [ ] No console errors
+- [ ] Network requests succeed
+- [ ] Responsive design works
+
+### AI Feature Tests
+- [ ] AI actions trigger correctly
+- [ ] Network requests to edge functions succeed
+- [ ] AI responses display correctly
+- [ ] Response times < 10 seconds
+- [ ] Error handling works
+- [ ] Loading states display
+
+---
+
+## 🚨 Common Issues & Fixes
+
+### Issue 1: Form Not Submitting
+
+**Symptoms:**
+- Click submit, nothing happens
+- No network request
+- Console shows error
+
+**Debug Steps:**
+```bash
+@browser Check console for errors
+@browser Verify form fields are filled
+@browser Verify validation passes
+@browser Check network tab for blocked requests
+```
+
+**Common Causes:**
+- Validation preventing submission
+- Missing required fields
+- JavaScript error blocking submit
+- Network request blocked by CORS
+
+### Issue 2: Dashboard Not Loading Data
+
+**Symptoms:**
+- Empty dashboard
+- Loading spinner never stops
+- Network request fails
+
+**Debug Steps:**
+```bash
+@browser Check network requests
+@browser Filter for failed requests (>= 400)
+@browser Check console for errors
+@browser Verify auth token is sent
+```
+
+**Common Causes:**
+- Auth token missing/invalid
+- RLS policy blocking access
+- API endpoint incorrect
+- Network connectivity issue
+
+### Issue 3: AI Features Not Working
+
+**Symptoms:**
+- AI button does nothing
+- No network request
+- Error message appears
+
+**Debug Steps:**
+```bash
+@browser Check network: POST to /functions/v1/ai-helper
+@browser Check response status
+@browser Check console for errors
+@browser Verify edge function is deployed
+```
+
+**Common Causes:**
+- Edge function not deployed
+- Action name mismatch
+- Auth token missing
+- API key not configured
+
+---
+
+## 📝 Test Documentation Template
+
+```markdown
+## Test Report: [Feature Name]
+
+**Date:** [Date]
+**Tester:** [Name]
+**Environment:** http://localhost:5000
+
+### Test Results
+
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Form loads | Yes | Yes | ✅ |
+| Fields editable | Yes | Yes | ✅ |
+| Validation works | Yes | Yes | ✅ |
+| Submit succeeds | 200 | 200 | ✅ |
+| Console errors | 0 | 0 | ✅ |
+
+### Screenshots
+- [Screenshot 1: Initial state]
+- [Screenshot 2: After submission]
+- [Screenshot 3: Success state]
+
+### Issues Found
+- [List any issues]
+
+### Network Requests
+- [List relevant requests with status codes]
+
+### Console Errors
+- [List any errors]
+```
+
+---
+
+## 🎯 Quick Test Commands
+
+### Full Wizard Flow
+```bash
+@browser Navigate to http://localhost:5000/app/wizard
+@browser Complete all 6 wizard steps
+@browser Verify submission succeeds
+@browser Check console for errors
+@browser Check network for failures
+```
+
+### Dashboard Smoke Test
+```bash
+@browser Navigate to http://localhost:5000/dashboard
+@browser Verify all widgets load
+@browser Check console for errors
+@browser Check network for failures
+```
+
+### Form Validation Test
+```bash
+@browser Navigate to form page
+@browser Try to submit empty form
+@browser Verify validation errors appear
+@browser Fill required fields
+@browser Verify validation passes
+```
+
+---
+
+## 🔗 Integration with Other Tools
+
+### Chrome DevTools MCP
+```bash
+# Use Browser Agent for navigation/interaction
+@browser Navigate to http://localhost:5000/dashboard
+
+# Use Chrome DevTools for detailed debugging
+@chrome-devtools list_console_messages
+@chrome-devtools list_network_requests
+@chrome-devtools performance_start_trace
+```
+
+### Supabase MCP
+```bash
+# Verify data in database
+@supabase execute_sql "SELECT * FROM startups LIMIT 5"
+
+# Check RLS policies
+@supabase execute_sql "SELECT * FROM pg_policies WHERE tablename = 'startups'"
+```
+
+---
+
+## 📚 References
+
+- [Cursor Browser Docs](https://cursor.com/docs/agent/browser)
+- [Browser Testing Rule](../browser.mdc)
+- [Startup Wizard Testing Rule](../test-startupwizard.mdc)
+- [Pitch Deck Testing Rule](../testing-pitchdeck.mdc)
+
+---
+
+*Forms & Dashboards Testing Rule v1.0*  
+*For use with Cursor Browser Agent*

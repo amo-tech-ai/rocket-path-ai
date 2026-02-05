@@ -5,7 +5,7 @@
 
 import type { LeanCanvasData, BoxKey, PivotSuggestion } from "../types.ts";
 import { EMPTY_CANVAS } from "../types.ts";
-import { callGemini, extractJSON } from "../ai-utils.ts";
+import { callGemini, extractJSON, logAIRun } from "../ai-utils.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -26,6 +26,15 @@ export async function suggestPivots(
   canvasData: Record<string, unknown>
 ): Promise<PivotResponse> {
   console.log(`[suggestPivots] Analyzing pivot options for startup ${startupId}`);
+
+  // Get user's org_id for logging
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("org_id")
+    .eq("id", userId)
+    .single();
+
+  const orgId = profile?.org_id || null;
 
   // Fetch startup for context
   const { data: startup } = await supabase
@@ -87,8 +96,17 @@ Suggest 2-3 pivots. Return JSON:
 Pivot types: customer, problem, channel, revenue, technology
 Opportunity score: 1-10 based on likelihood of success`;
 
-  const response = await callGemini("google/gemini-3-pro-preview", systemPrompt, userPrompt);
-  const parsed = extractJSON<PivotResponse>(response);
+  const response = await callGemini(
+    "gemini-3-pro-preview",
+    systemPrompt,
+    userPrompt,
+    { jsonMode: true, maxTokens: 3000 }
+  );
+
+  // Log AI run for cost tracking
+  await logAIRun(supabase, userId, orgId, startupId, "suggest_pivots", response);
+
+  const parsed = extractJSON<PivotResponse>(response.text);
 
   if (parsed) {
     // Ensure each pivot has a complete canvas

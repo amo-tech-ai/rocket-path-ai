@@ -146,29 +146,30 @@ export function useDeleteProject() {
   });
 }
 
-// Project status options
+// Project status options (must match database CHECK constraint)
 export const PROJECT_STATUSES = [
+  { value: 'planning', label: 'Planning', color: 'bg-blue-500' },
   { value: 'active', label: 'Active', color: 'bg-sage' },
   { value: 'on_hold', label: 'On Hold', color: 'bg-warm-foreground' },
   { value: 'completed', label: 'Completed', color: 'bg-muted-foreground' },
-  { value: 'archived', label: 'Archived', color: 'bg-muted-foreground/50' },
+  { value: 'cancelled', label: 'Cancelled', color: 'bg-destructive' },
 ] as const;
 
-// Project health options
+// Project health options (must match database CHECK constraint)
 export const PROJECT_HEALTH = [
   { value: 'on_track', label: 'On Track', color: 'text-sage' },
   { value: 'at_risk', label: 'At Risk', color: 'text-warm-foreground' },
-  { value: 'off_track', label: 'Off Track', color: 'text-destructive' },
+  { value: 'behind', label: 'Behind', color: 'text-destructive' },
+  { value: 'completed', label: 'Completed', color: 'text-muted-foreground' },
 ] as const;
 
-// Project type options
+// Project type options (must match database CHECK constraint)
 export const PROJECT_TYPES = [
-  { value: 'product', label: 'Product' },
-  { value: 'engineering', label: 'Engineering' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'sales', label: 'Sales' },
   { value: 'fundraising', label: 'Fundraising' },
+  { value: 'product', label: 'Product' },
   { value: 'hiring', label: 'Hiring' },
+  { value: 'partnership', label: 'Partnership' },
+  { value: 'marketing', label: 'Marketing' },
   { value: 'operations', label: 'Operations' },
   { value: 'other', label: 'Other' },
 ] as const;

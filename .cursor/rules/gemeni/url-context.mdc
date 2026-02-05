@@ -1,0 +1,561 @@
+---
+description: Gemini URL Context Tool - Analyze web pages and extract data
+alwaysApply: false
+---
+
+# Gemini URL Context Tool - Cursor Rule
+
+## Overview
+
+The URL context tool lets you provide additional context to models in the form of URLs. The model automatically accesses content from those pages to inform and enhance its response. This is more reliable than manually including URLs in prompts.
+
+### Key Use Cases
+- **Extract Data:** Pull specific info like prices, names, or key findings from multiple URLs
+- **Compare Documents:** Analyze multiple reports, articles, or PDFs to identify differences and track trends
+- **Synthesize & Create Content:** Combine information from several source URLs to generate accurate summaries, blog posts, or reports
+- **Analyze Code & Docs:** Point to a GitHub repository or technical documentation to explain code, generate setup instructions, or answer questions
+
+## Core API Usage
+
+### ✅ CORRECT: Basic URL Context
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    "Compare the ingredients and cooking times from the recipes at https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 and https://www.allrecipes.com/recipe/21151/simple-whole-roast-chicken/",
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+
+console.log(response.text);
+
+// Verify which URLs were retrieved
+const metadata = response.candidates?.[0]?.urlContextMetadata;
+console.log(metadata);
+```
+
+### ✅ CORRECT: Multiple URLs
+
+```typescript
+// Include multiple URLs in the prompt - model will retrieve all of them
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Analyze these brand websites and extract their visual identity:
+    - https://brand1.com
+    - https://brand2.com
+    - https://brand3.com
+    
+    Provide a comparison of their color palettes, typography, and design styles.`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+```
+
+## How It Works
+
+The URL Context tool uses a **two-step retrieval process**:
+
+1. **Index Cache (First):** Attempts to fetch from an internal optimized cache for speed and cost efficiency
+2. **Live Fetch (Fallback):** If URL not in cache (e.g., very new page), automatically falls back to real-time fetch
+
+**Key Benefits:**
+- Fast retrieval from cache when available
+- Always fresh data via live fetch when needed
+- Automatic fallback - no manual configuration needed
+
+## Understanding URL Context Metadata
+
+### ✅ CORRECT: Access Metadata
+
+```typescript
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: ["Analyze https://example.com"],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+
+// Access URL context metadata
+const metadata = response.candidates?.[0]?.urlContextMetadata;
+
+if (metadata?.urlMetadata) {
+  for (const urlInfo of metadata.urlMetadata) {
+    console.log("URL:", urlInfo.retrievedUrl);
+    console.log("Status:", urlInfo.urlRetrievalStatus);
+    
+    // Status values:
+    // - URL_RETRIEVAL_STATUS_SUCCESS
+    // - URL_RETRIEVAL_STATUS_UNSAFE (failed safety check)
+    // - URL_RETRIEVAL_STATUS_ERROR (retrieval failed)
+  }
+}
+```
+
+### Metadata Structure
+
+```typescript
+{
+  urlContextMetadata: {
+    urlMetadata: [
+      {
+        retrievedUrl: string,              // The URL that was retrieved
+        urlRetrievalStatus: string          // Status of retrieval attempt
+      }
+    ]
+  }
+}
+```
+
+### Status Values
+
+- `URL_RETRIEVAL_STATUS_SUCCESS` - Successfully retrieved
+- `URL_RETRIEVAL_STATUS_UNSAFE` - Failed safety/content moderation check
+- `URL_RETRIEVAL_STATUS_ERROR` - Retrieval failed (network, timeout, etc.)
+
+## Combining with Other Tools
+
+### ✅ CORRECT: URL Context + Google Search
+
+```typescript
+// Powerful combination: Search finds URLs, then URL Context analyzes them deeply
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    "Give me a three-day event schedule based on https://example-event.com. Also tell me what needs to be taken care of considering weather and commute.",
+  ],
+  config: {
+    tools: [
+      { urlContext: {} },    // Analyze the specific URL
+      { googleSearch: {} }   // Search for weather/commute info
+    ],
+  },
+});
+
+// Check which URLs were retrieved
+const urlMetadata = response.candidates?.[0]?.urlContextMetadata;
+console.log("URLs retrieved:", urlMetadata);
+```
+
+### ✅ CORRECT: URL Context + Structured Output
+
+```typescript
+import { Type } from "https://esm.sh/@google/genai";
+
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    "Extract event details from https://fashionweek.com/events/spring-2025",
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        eventName: { type: Type.STRING },
+        date: { type: Type.STRING },
+        location: { type: Type.STRING },
+        ticketPrice: { type: Type.NUMBER }
+      },
+      required: ["eventName", "date", "location"]
+    }
+  },
+});
+```
+
+## Common Patterns
+
+### Pattern 1: Extract Data from URLs
+
+```typescript
+// ✅ GOOD - Extract specific information
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Extract the following from https://brand.com:
+    - Brand name
+    - Color palette (hex codes)
+    - Typography style
+    - Key design motifs`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+```
+
+### Pattern 2: Compare Multiple URLs
+
+```typescript
+// ✅ GOOD - Compare multiple sources
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Compare the pricing and features from:
+    - https://competitor1.com/pricing
+    - https://competitor2.com/pricing
+    - https://competitor3.com/pricing
+    
+    Identify the best value proposition.`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+```
+
+### Pattern 3: Synthesize Content from URLs
+
+```typescript
+// ✅ GOOD - Combine information from multiple sources
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Based on these sources:
+    - https://trend-report-2025.com
+    - https://fashion-industry-analysis.com
+    - https://consumer-survey-results.com
+    
+    Create a comprehensive summary of fashion trends for 2025.`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }],
+  },
+});
+```
+
+### Pattern 4: Analyze Brand URLs (FashionOS Use Case)
+
+```typescript
+// ✅ GOOD - Extract brand visual identity from URLs
+const brandUrls = [
+  "https://brand1.com",
+  "https://brand2.com/instagram",
+  "https://brand3.com/press"
+];
+
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Analyze these brand URLs to understand their visual identity:
+    ${brandUrls.map(url => `- ${url}`).join('\n')}
+    
+    Extract:
+    - Color palette (hex codes if possible)
+    - Lighting style (high contrast, soft, neon)
+    - Composition style (minimalist, cluttered, centered)
+    - Key motifs or textures
+    
+    Keep it under 50 words.`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }], // ✅ Use URL context tool instead of manual URL inclusion
+  },
+});
+```
+
+## Best Practices
+
+### ✅ DO: Provide Specific URLs
+
+```typescript
+// ✅ GOOD - Direct URLs to specific content
+contents: "Analyze https://brand.com/about and https://brand.com/products"
+```
+
+### ✅ DO: Use Complete URLs
+
+```typescript
+// ✅ GOOD - Full URL with protocol
+contents: "Check https://www.example.com/page"
+
+// ❌ BAD - Missing protocol
+contents: "Check www.example.com/page"
+```
+
+### ✅ DO: Verify URL Accessibility
+
+```typescript
+// ✅ GOOD - Check URLs before using
+// Verify URLs are:
+// - Publicly accessible (no login required)
+// - Not behind paywall
+// - Not blocked by robots.txt
+```
+
+### ✅ DO: Check Metadata for Success
+
+```typescript
+// ✅ GOOD - Verify URLs were retrieved
+const metadata = response.candidates?.[0]?.urlContextMetadata;
+const allSuccessful = metadata?.urlMetadata?.every(
+  url => url.urlRetrievalStatus === "URL_RETRIEVAL_STATUS_SUCCESS"
+);
+
+if (!allSuccessful) {
+  console.warn("Some URLs failed to retrieve:", metadata);
+}
+```
+
+### ❌ DON'T: Include URLs Manually in Prompts
+
+```typescript
+// ❌ BAD - Manual URL inclusion (old approach)
+contents: `Context URL to analyze: ${url}`
+
+// ✅ GOOD - Use URL context tool
+config: {
+  tools: [{ urlContext: {} }]
+}
+contents: `Analyze ${url}`
+```
+
+### ❌ DON'T: Use Paywalled or Private URLs
+
+```typescript
+// ❌ BAD - Won't work
+contents: "Analyze https://private-site.com/requires-login"
+
+// ❌ BAD - Won't work
+contents: "Analyze https://paywall-site.com/article"
+```
+
+### ❌ DON'T: Exceed URL Limits
+
+```typescript
+// ❌ BAD - More than 20 URLs
+const urls = [...]; // 25 URLs
+// Limit: 20 URLs per request
+```
+
+## Limitations
+
+### URL Limits
+- **Request limit:** Up to 20 URLs per request
+- **Content size:** Maximum 34MB per URL
+- **Token count:** Retrieved content counts as input tokens (affects pricing)
+
+### Supported Content Types
+
+**✅ Supported:**
+- Text: `text/html`, `application/json`, `text/plain`, `text/xml`, `text/css`, `text/javascript`, `text/csv`, `text/rtf`
+- Images: `image/png`, `image/jpeg`, `image/bmp`, `image/webp`
+- PDF: `application/pdf`
+
+**❌ Not Supported:**
+- Paywalled content
+- YouTube videos (use video understanding API instead)
+- Google Workspace files (Google Docs, Sheets, etc.)
+- Video and audio files
+
+## Token Counting
+
+URL content is counted as **input tokens** and affects pricing:
+
+```typescript
+// Check token usage
+const usage = response.usageMetadata;
+
+console.log("Prompt tokens:", usage.promptTokenCount);
+console.log("Tool use tokens:", usage.toolUsePromptTokenCount); // Includes URL content
+console.log("Total tokens:", usage.totalTokenCount);
+```
+
+**Cost Optimization:**
+- URL content counts toward input tokens
+- Large pages = more tokens = higher cost
+- Consider summarizing large pages before analysis
+
+## Error Handling
+
+### ✅ CORRECT: Robust Error Handling
+
+```typescript
+try {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [`Analyze ${url}`],
+    config: {
+      tools: [{ urlContext: {} }],
+    },
+  });
+
+  // Check URL retrieval status
+  const metadata = response.candidates?.[0]?.urlContextMetadata;
+  
+  if (metadata?.urlMetadata) {
+    for (const urlInfo of metadata.urlMetadata) {
+      switch (urlInfo.urlRetrievalStatus) {
+        case "URL_RETRIEVAL_STATUS_SUCCESS":
+          console.log(`✅ Successfully retrieved: ${urlInfo.retrievedUrl}`);
+          break;
+        case "URL_RETRIEVAL_STATUS_UNSAFE":
+          console.warn(`⚠️ URL failed safety check: ${urlInfo.retrievedUrl}`);
+          break;
+        case "URL_RETRIEVAL_STATUS_ERROR":
+          console.error(`❌ Failed to retrieve: ${urlInfo.retrievedUrl}`);
+          break;
+      }
+    }
+  }
+
+  return response.text;
+} catch (error: any) {
+  console.error("URL context error:", error);
+  throw new Error(`Failed to analyze URLs: ${error.message}`);
+}
+```
+
+## Model Support
+
+| Model | URL Context Support |
+|-------|-------------------|
+| Gemini 2.5 Pro | ✔️ |
+| Gemini 2.5 Flash | ✔️ (Recommended) |
+| Gemini 2.5 Flash-Lite | ✔️ |
+| Gemini Live 2.5 Flash Preview | ✔️ |
+| Gemini 2.0 Flash Live 001 | ✔️ |
+
+## Current Implementation Status
+
+### ⚠️ Needs Improvement
+
+**`generate-event-draft/index.ts:70-76`** - Currently includes URLs manually in prompt:
+```typescript
+// ❌ CURRENT - Manual URL inclusion
+if (url) parts.push({ text: `Context URL to analyze: ${url}` })
+if (urls && Array.isArray(urls) && urls.length > 0) {
+    parts.push({ text: `Context URLs to analyze and synthesize:\n${urls.map((u: string) => `- ${u}`).join('\n')}` })
+}
+```
+
+**Recommended Fix:**
+```typescript
+// ✅ RECOMMENDED - Use URL context tool
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: {
+    parts: [
+      { text: prompt },
+      // URLs are automatically detected in the prompt when urlContext tool is enabled
+    ]
+  },
+  config: {
+    tools: [{ urlContext: {} }], // Enable URL context
+    responseMimeType: "application/json",
+    responseSchema: schema,
+  },
+});
+```
+
+**`generate-image-preview/index.ts:23-48`** - Comment mentions URL context but doesn't use it:
+```typescript
+// ⚠️ CURRENT - Comment suggests URL context but uses manual approach
+// Note: Ideally we use the 'urlContext' tool, but plain prompt with URL works...
+```
+
+**Recommended Fix:**
+```typescript
+// ✅ RECOMMENDED - Use URL context tool
+const response = await ai.models.generateContent({
+  model: "gemini-2.5-flash",
+  contents: [
+    `Analyze these URLs to understand the visual identity:
+    ${brandUrls.join('\n')}
+    
+    Output a concise visual description covering:
+    - Color Palette (Hex codes if possible)
+    - Lighting Style
+    - Composition Style
+    - Key Motifs or Textures`,
+  ],
+  config: {
+    tools: [{ urlContext: {} }], // Enable URL context
+  },
+});
+```
+
+## Quick Reference
+
+**Basic Usage:**
+```typescript
+config: {
+  tools: [{ urlContext: {} }]
+}
+```
+
+**Include URLs in Prompt:**
+```typescript
+contents: "Analyze https://example.com and https://example2.com"
+// Model automatically detects and retrieves URLs when tool is enabled
+```
+
+**Access Metadata:**
+```typescript
+const metadata = response.candidates?.[0]?.urlContextMetadata;
+const urlMetadata = metadata?.urlMetadata;
+```
+
+**Check Status:**
+```typescript
+urlInfo.urlRetrievalStatus === "URL_RETRIEVAL_STATUS_SUCCESS"
+```
+
+**Limits:**
+- Max 20 URLs per request
+- Max 34MB per URL
+- Content counts as input tokens
+
+**Supported Models:**
+- Gemini 2.5 Flash (Recommended)
+- Gemini 2.5 Pro
+- Gemini 2.5 Flash-Lite
+
+## When Implementing URL Context
+
+1. **Enable the tool** - Add `{ urlContext: {} }` to tools array
+2. **Include URLs in prompt** - Model automatically detects URLs in prompt text
+3. **Use complete URLs** - Include protocol (https://)
+4. **Verify accessibility** - Ensure URLs are public and not paywalled
+5. **Check metadata** - Verify URLs were successfully retrieved
+6. **Handle errors** - Check `urlRetrievalStatus` for failures
+7. **Consider token costs** - URL content counts as input tokens
+8. **Combine tools** - Use with Google Search for powerful workflows
+9. **Respect limits** - Max 20 URLs per request
+10. **Use for brand analysis** - Perfect for extracting visual identity from brand URLs
+
+## Migration from Manual URL Inclusion
+
+**Before (Manual):**
+```typescript
+// ❌ OLD - Manual URL inclusion
+parts.push({ text: `Context URL to analyze: ${url}` })
+```
+
+**After (URL Context Tool):**
+```typescript
+// ✅ NEW - Use URL context tool
+config: {
+  tools: [{ urlContext: {} }]
+}
+contents: `Analyze ${url}` // Model automatically retrieves URL
+```
+
+**Benefits:**
+- More reliable URL retrieval
+- Automatic caching for performance
+- Better error handling
+- Metadata for verification
+- Supports up to 20 URLs automatically

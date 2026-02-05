@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Globe, Sparkles, Loader2, Pencil, Check, Target, Zap, Users, Quote } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { WizardFormData } from '@/hooks/useWizardSession';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface WebsiteInsightsCardProps {
   data: WizardFormData;
@@ -14,6 +16,7 @@ interface WebsiteInsightsCardProps {
   onUpdate: (updates: Partial<WizardFormData>) => void;
   onEnhance: (field: string) => Promise<void>;
   isEnhancing: Record<string, boolean>;
+  isLoading?: boolean; // Show skeletons while URL extraction is in progress
 }
 
 interface EditableChipsProps {
@@ -24,11 +27,20 @@ interface EditableChipsProps {
   onEnhance?: () => void;
   isEnhancing?: boolean;
   isInferred?: boolean;
+  isLoading?: boolean;
 }
 
-function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, isInferred }: EditableChipsProps) {
+function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, isInferred, isLoading }: EditableChipsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(values.join(', '));
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  // Reset animation state when values change from empty to populated
+  useEffect(() => {
+    if (values.length > 0 && !hasAnimated) {
+      setHasAnimated(true);
+    }
+  }, [values, hasAnimated]);
 
   const saveEdit = () => {
     const newValues = editValue.split(',').map(s => s.trim()).filter(Boolean);
@@ -49,7 +61,7 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, 
           )}
         </span>
         <div className="flex items-center gap-1">
-          {onEnhance && (
+          {onEnhance && !isLoading && (
             <Button
               variant="ghost"
               size="sm"
@@ -64,18 +76,26 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, 
               )}
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
-          </Button>
+          {!isLoading && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setIsEditing(!isEditing)}
+            >
+              {isEditing ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
+            </Button>
+          )}
         </div>
       </div>
-      
-      {isEditing ? (
+
+      {isLoading ? (
+        <div className="flex flex-wrap gap-1.5">
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-5 w-24 rounded-full" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+      ) : isEditing ? (
         <div className="space-y-2">
           <Input
             value={editValue}
@@ -89,18 +109,32 @@ function EditableChips({ label, icon, values, onChange, onEnhance, isEnhancing, 
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {values.length > 0 ? values.map((v, i) => (
-            <Badge key={i} variant="secondary" className={cn("text-xs", isInferred && "bg-primary/10 border-primary/20")}>
-              {v}
-            </Badge>
-          )) : (
-            <span className="text-sm text-muted-foreground italic flex items-center gap-1">
-              <Sparkles className="h-3 w-3" />
-              Click enhance to generate
-            </span>
-          )}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            className="flex flex-wrap gap-1.5"
+            initial={values.length > 0 ? { opacity: 0, y: 5 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {values.length > 0 ? values.map((v, i) => (
+              <motion.div
+                key={`${v}-${i}`}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: i * 0.05 }}
+              >
+                <Badge variant="secondary" className={cn("text-xs", isInferred && "bg-primary/10 border-primary/20")}>
+                  {v}
+                </Badge>
+              </motion.div>
+            )) : (
+              <span className="text-sm text-muted-foreground italic flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Click enhance to generate
+              </span>
+            )}
+          </motion.div>
+        </AnimatePresence>
       )}
     </div>
   );

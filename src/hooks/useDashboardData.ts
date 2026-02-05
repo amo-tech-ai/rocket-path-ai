@@ -17,12 +17,15 @@ export function useStartup() {
       if (authError || !user) return null;
       
       // First try: Get startup via wizard session (most reliable for onboarded users)
+      // Order by updated_at DESC to get the most recent completed session
       const { data: session } = await supabase
         .from('wizard_sessions')
         .select('startup_id')
         .eq('user_id', user.id)
         .eq('status', 'completed')
         .not('startup_id', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       if (session?.startup_id) {

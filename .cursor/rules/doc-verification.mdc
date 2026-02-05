@@ -1,0 +1,92 @@
+---
+description: Document verification before creating implementation prompts
+globs: ["**/*.md", "**/*.tsx", "**/*.ts"]
+alwaysApply: true
+---
+
+# Document Verification Rule
+
+## The Golden Rule
+> **No document becomes a prompt until it is VERIFIED.**
+
+## Before Creating Any Implementation Prompt
+
+### Step 1: Check Document Status
+Look for the status header in the document:
+- `⚪ DRAFT` - DO NOT use for prompts
+- `🟡 REVIEW` - DO NOT use for prompts
+- `🟢 VERIFIED` - ✅ Safe to create prompt
+- `✅ PROMPT-READY` - ✅ Already has prompt
+
+### Step 2: If Not Verified, Run Verification First
+
+Run these checks against the current codebase:
+
+1. **Tech Stack Check**
+   - Does it use React, TypeScript, Supabase, Gemini?
+   - No deprecated libraries or patterns?
+
+2. **File Path Check**
+   - Do all referenced file paths exist?
+   - Are paths absolute from project root?
+
+3. **Database Check**
+   - Do referenced tables exist in Supabase schema?
+   - Are column names correct?
+   - Are types accurate?
+
+4. **Edge Function Check**
+   - Do referenced edge functions exist in `/supabase/functions/`?
+   - Are function names correct?
+
+5. **Component Check**
+   - Do referenced components exist in `/components/`?
+   - Are import paths correct?
+
+6. **Type Check**
+   - Do TypeScript types exist?
+   - Are they accurate and complete?
+
+### Step 3: Update Document with Verification Block
+
+After verification passes, add this block to the document:
+
+```markdown
+## ✅ Verification
+
+**Status:** 🟢 VERIFIED  
+**Verified Date:** [Date]  
+**Verified By:** AI Verification  
+
+| Check | Status |
+|-------|--------|
+| Tech Stack | ✅ |
+| File Paths | ✅ |
+| Database | ✅ |
+| Edge Functions | ✅ |
+| Components | ✅ |
+| Types | ✅ |
+```
+
+### Step 4: Only Then Create the Prompt
+
+Include in the prompt:
+- Reference to the verified document
+- Verification date
+- Key verified facts (table names, file paths, etc.)
+
+## Quick Verification Prompt
+
+Use this to quickly verify a document:
+
+```
+Verify this document against the codebase:
+1. Check all file paths exist
+2. Check all tables/columns exist in Supabase schema
+3. Check all edge functions exist
+4. Check all components exist
+5. Flag any issues as: CRITICAL / WARNING / INFO
+```
+
+## Reference
+Full verification system: `/plan/docs/sops/01-verification-system.md`

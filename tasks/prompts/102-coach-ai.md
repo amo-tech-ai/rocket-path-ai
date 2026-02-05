@@ -28,7 +28,7 @@ ai_model: gemini-3-pro-preview
 subagents: [code-reviewer, ai-agent-dev]
 edge_function: ai-chat
 schema_tables: [validation_sessions, validation_assessments, validation_campaigns, validation_sprints, validation_conversations]
-depends_on: [101-VAL]
+depends_on: [101-coach-tables]
 ---
 ```
 
@@ -80,6 +80,10 @@ Extend the existing `ai-chat` edge function with "coach mode" - a conversational
 - [ ] Conversations persisted to validation_conversations
 - [ ] Suggested actions returned for quick replies
 - [ ] Progress indicator returned with each response
+- [ ] **Retry logic with exponential backoff (1s→2s→4s)**
+- [ ] **Timeout configuration (30s for AI, 5s for context loading)**
+- [ ] **Fallback to Gemini Flash if Pro fails**
+- [ ] **Response schema validation**
 
 ---
 
@@ -149,9 +153,15 @@ POST /functions/v1/ai-chat
     "totalSteps": number,
     "percentage": number
   },
-  "suggestedActions": string[],  // Quick reply options
+  "suggestedActions": string[],  // Quick reply text options
+  "proposedActions"?: ProposedAction[],  // Actions requiring user approval (see 216-claude-sdk.md)
   "stateUpdate"?: Partial<ValidationState>  // If state changed
 }
+
+// IMPORTANT: Coach follows "AI suggests, user approves, system writes" pattern
+// - Read operations (get_canvas, search_knowledge): Auto-execute
+// - Write operations (create_task, update_assessment): Require approval
+// - See 216-claude-sdk.md for ProposedAction interface and approval flow
 ```
 
 ---

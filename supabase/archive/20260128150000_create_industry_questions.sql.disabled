@@ -1,0 +1,357 @@
+-- =============================================================================
+-- Migration: Industry Questions Table
+-- Purpose: Create queryable industry-specific questions for Smart Interviewer
+-- Tables Affected: industry_packs (new if missing), industry_questions (new), industry_packs (updates)
+-- Special Considerations:
+--   - Questions linked to industry_packs via foreign key
+--   - industry_packs must exist before industry_questions (create if not in any prior migration)
+--   - JSONB fields for flexible AI prompt data
+--   - Public read access for frontend, authenticated write for admin
+-- =============================================================================
+
+-- ============================================================================
+-- PART 0: Create industry_packs table if it does not exist
+-- Required by industry_questions FK and by get_industry_ai_context / get_industry_questions
+-- ============================================================================
+
+create table if not exists public.industry_packs (
+  id uuid primary key default gen_random_uuid(),
+  industry text not null unique,
+  display_name text,
+  description text,
+  icon text,
+  advisor_persona text,
+  advisor_system_prompt text,
+  terminology jsonb default '[]',
+  benchmarks jsonb default '[]',
+  competitive_intel jsonb default '{}',
+  mental_models jsonb default '[]',
+  diagnostics jsonb default '[]',
+  market_context jsonb default '{}',
+  success_stories jsonb default '[]',
+  common_mistakes jsonb default '[]',
+  investor_expectations jsonb default '{}',
+  startup_types jsonb default '[]',
+  question_intro text,
+  is_active boolean default true,
+  version text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.industry_packs is
+  'Industry packs for Smart Interviewer: terminology, benchmarks, advisor persona, and AI context per industry.';
+
+-- Insert generic pack so migration 20260128223016 (universal industry questions) can reference it.
+-- Seed 03-industry-packs.sql will replace this with full data on db reset.
+insert into public.industry_packs (industry, display_name, description, is_active)
+values ('generic', 'Generic', 'Universal questions for all industries', true)
+on conflict (industry) do nothing;
+
+-- ============================================================================
+-- PART 1: Create industry_questions table
+-- This table stores industry-specific questions that power the Smart Interviewer
+-- ============================================================================
+
+create table if not exists public.industry_questions (
+  -- Primary key using UUID for consistency
+  id uuid primary key default gen_random_uuid(),
+
+  -- Foreign key to industry_packs
+  pack_id uuid not null references public.industry_packs(id) on delete cascade,
+
+  -- Question identification
+  question_key text not null,
+  category text not null,
+  display_order integer not null default 0,
+
+  -- Question content
+  question text not null,
+  why_this_matters text,
+  thinking_prompt text,
+
+  -- AI coaching instructions
+  ai_coach_prompt text,
+
+  -- Quality criteria for evaluating answers
+  -- Structure: { "brief": "...", "good": "...", "excellent": "..." }
+  quality_criteria jsonb default '{}',
+
+  -- Red flags that AI should watch for in answers
+  -- Structure: ["vague answer", "no specifics", ...]
+  red_flags jsonb default '[]',
+
+  -- Example answers for few-shot learning
+  -- Structure: [{ "context": "...", "good_answer": "...", "weak_answer": "...", "why": "..." }]
+  examples jsonb default '[]',
+
+  -- Input configuration
+  input_type text not null default 'textarea',
+  input_options jsonb default null,
+
+  -- Output mapping - where does this answer flow
+  -- Structure: ["lean_canvas", "pitch_deck", "gtm_strategy", ...]
+  outputs_to text[] default array[]::text[],
+
+  -- Context filtering
+  -- Structure: ["onboarding", "pitch_deck", "lean_canvas"]
+  contexts text[] default array['onboarding']::text[],
+
+  -- Stage filtering - which funding stages see this question
+  -- Structure: ["pre_seed", "seed", "series_a"]
+  stage_filter text[] default array['pre_seed', 'seed', 'series_a']::text[],
+
+  -- Flags
+  is_required boolean default false,
+  is_active boolean default true,
+
+  -- Timestamps
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  -- Unique constraint on pack + question key
+  unique(pack_id, question_key)
+);
+
+-- Add comment describing the table
+comment on table public.industry_questions is
+  'Industry-specific questions for Smart Interviewer. Each question is linked to an industry pack and includes AI coaching prompts, quality criteria, and example answers for few-shot learning.';
+
+-- ============================================================================
+-- PART 2: Create indexes for performance
+-- ============================================================================
+
+-- Index on pack_id for efficient joins
+create index if not exists idx_industry_questions_pack_id
+  on public.industry_questions(pack_id);
+
+-- Index on category for filtering
+create index if not exists idx_industry_questions_category
+  on public.industry_questions(category);
+
+-- Index on contexts array for filtering (GIN for array containment)
+create index if not exists idx_industry_questions_contexts
+  on public.industry_questions using gin(contexts);
+
+-- Index on stage_filter for filtering (GIN for array containment)
+create index if not exists idx_industry_questions_stage_filter
+  on public.industry_questions using gin(stage_filter);
+
+-- Index on is_active for filtering active questions only
+create index if not exists idx_industry_questions_active
+  on public.industry_questions(is_active) where is_active = true;
+
+-- ============================================================================
+-- PART 3: Enable Row Level Security
+-- ============================================================================
+
+alter table public.industry_questions enable row level security;
+
+-- ============================================================================
+-- PART 4: Create RLS Policies
+-- Industry questions are public read (reference data), authenticated write (admin)
+-- ============================================================================
+
+-- Policy: Anyone can read active industry questions (public reference data)
+create policy "Anyone can view active industry questions"
+  on public.industry_questions
+  for select
+  to anon, authenticated
+  using (is_active = true);
+
+-- Policy: Only authenticated users can insert questions (admin functionality)
+create policy "Authenticated users can create industry questions"
+  on public.industry_questions
+  for insert
+  to authenticated
+  with check (true);
+
+-- Policy: Only authenticated users can update questions (admin functionality)
+create policy "Authenticated users can update industry questions"
+  on public.industry_questions
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+-- Policy: Only authenticated users can delete questions (admin functionality)
+create policy "Authenticated users can delete industry questions"
+  on public.industry_questions
+  for delete
+  to authenticated
+  using (true);
+
+-- ============================================================================
+-- PART 5: Create trigger for updated_at
+-- ============================================================================
+
+-- Create the trigger function if it doesn't exist
+create or replace function public.update_updated_at_column()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+-- Create trigger for industry_questions
+drop trigger if exists update_industry_questions_updated_at on public.industry_questions;
+create trigger update_industry_questions_updated_at
+  before update on public.industry_questions
+  for each row
+  execute function public.update_updated_at_column();
+
+-- ============================================================================
+-- PART 6: Add new columns to industry_packs for enhanced AI context
+-- ============================================================================
+
+-- Add startup_types array for sub-categories
+alter table public.industry_packs
+  add column if not exists startup_types jsonb default '[]';
+
+-- Add question_intro - custom intro text for Smart Interviewer
+alter table public.industry_packs
+  add column if not exists question_intro text;
+
+-- Add market_context - industry-specific market context for AI
+alter table public.industry_packs
+  add column if not exists market_context jsonb default '{}';
+
+-- Add success_stories - real examples for inspiration
+alter table public.industry_packs
+  add column if not exists success_stories jsonb default '[]';
+
+-- Add common_mistakes - pitfalls AI should help founders avoid
+alter table public.industry_packs
+  add column if not exists common_mistakes jsonb default '[]';
+
+-- Add investor_expectations - what investors look for in this industry
+alter table public.industry_packs
+  add column if not exists investor_expectations jsonb default '{}';
+
+-- Add comments for new columns
+comment on column public.industry_packs.startup_types is
+  'Sub-categories within this industry (e.g., ["CRM", "Marketing Automation", "Sales Intelligence"] for AI SaaS)';
+
+comment on column public.industry_packs.question_intro is
+  'Custom introduction text for Smart Interviewer specific to this industry';
+
+comment on column public.industry_packs.market_context is
+  'Industry-specific market data: { "tam_global": "...", "growth_rate": "...", "key_trends": [...] }';
+
+comment on column public.industry_packs.success_stories is
+  'Real startup examples: [{ "company": "...", "outcome": "...", "lesson": "..." }]';
+
+comment on column public.industry_packs.common_mistakes is
+  'Pitfalls to avoid: [{ "mistake": "...", "why_bad": "...", "better_approach": "..." }]';
+
+comment on column public.industry_packs.investor_expectations is
+  'What investors want: { "key_metrics": [...], "red_flags": [...], "green_flags": [...] }';
+
+-- ============================================================================
+-- PART 7: Create helper function for fetching industry questions
+-- This function returns questions for a given industry with proper filtering
+-- ============================================================================
+
+create or replace function public.get_industry_questions(
+  p_industry text,
+  p_context text default 'onboarding',
+  p_stage text default 'seed'
+)
+returns table (
+  id uuid,
+  question_key text,
+  category text,
+  question text,
+  why_this_matters text,
+  thinking_prompt text,
+  ai_coach_prompt text,
+  quality_criteria jsonb,
+  red_flags jsonb,
+  examples jsonb,
+  input_type text,
+  input_options jsonb,
+  outputs_to text[],
+  is_required boolean,
+  display_order integer
+) as $$
+begin
+  return query
+  select
+    iq.id,
+    iq.question_key,
+    iq.category,
+    iq.question,
+    iq.why_this_matters,
+    iq.thinking_prompt,
+    iq.ai_coach_prompt,
+    iq.quality_criteria,
+    iq.red_flags,
+    iq.examples,
+    iq.input_type,
+    iq.input_options,
+    iq.outputs_to,
+    iq.is_required,
+    iq.display_order
+  from public.industry_questions iq
+  join public.industry_packs ip on ip.id = iq.pack_id
+  where ip.industry = p_industry
+    and ip.is_active = true
+    and iq.is_active = true
+    and p_context = any(iq.contexts)
+    and p_stage = any(iq.stage_filter)
+  order by iq.display_order, iq.category;
+end;
+$$ language plpgsql stable security definer;
+
+-- Add comment for the function
+comment on function public.get_industry_questions is
+  'Returns industry-specific questions filtered by context (onboarding/pitch_deck/lean_canvas) and funding stage (pre_seed/seed/series_a)';
+
+-- ============================================================================
+-- PART 8: Create helper function for assembling AI prompt context
+-- This function returns the full context needed for AI prompt assembly
+-- ============================================================================
+
+create or replace function public.get_industry_ai_context(
+  p_industry text
+)
+returns jsonb as $$
+declare
+  v_result jsonb;
+begin
+  select jsonb_build_object(
+    'industry', ip.industry,
+    'display_name', ip.display_name,
+    'description', ip.description,
+    'advisor_persona', ip.advisor_persona,
+    'advisor_system_prompt', ip.advisor_system_prompt,
+    'terminology', coalesce(ip.terminology, '[]'::jsonb),
+    'benchmarks', coalesce(ip.benchmarks, '[]'::jsonb),
+    'competitive_intel', coalesce(ip.competitive_intel, '{}'::jsonb),
+    'mental_models', coalesce(ip.mental_models, '[]'::jsonb),
+    'diagnostics', coalesce(ip.diagnostics, '[]'::jsonb),
+    'market_context', coalesce(ip.market_context, '{}'::jsonb),
+    'success_stories', coalesce(ip.success_stories, '[]'::jsonb),
+    'common_mistakes', coalesce(ip.common_mistakes, '[]'::jsonb),
+    'investor_expectations', coalesce(ip.investor_expectations, '{}'::jsonb),
+    'startup_types', coalesce(ip.startup_types, '[]'::jsonb),
+    'question_intro', ip.question_intro
+  )
+  into v_result
+  from public.industry_packs ip
+  where ip.industry = p_industry
+    and ip.is_active = true
+  limit 1;
+
+  return coalesce(v_result, '{}'::jsonb);
+end;
+$$ language plpgsql stable security definer;
+
+-- Add comment for the function
+comment on function public.get_industry_ai_context is
+  'Returns full industry context as JSONB for AI prompt assembly. Includes terminology, benchmarks, advisor persona, market context, and more.';
+
+-- ============================================================================
+-- END OF MIGRATION
+-- =============================================================================

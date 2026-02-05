@@ -1,12 +1,15 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SUPABASE_URL = "https://yvyesmiczbjqwbqtlidy.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eWVzbWljemJqcXdicXRsaWR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTA1OTcsImV4cCI6MjA4NDAyNjU5N30.eSN491MztXvWR03q4v-Zfc0zrG06mrIxdSRe_FFZDu4";
+// Use environment variables (set automatically by Supabase or via secrets)
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+// Service role key for operations that need to bypass RLS
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 interface RequestBody {
   action: string;
@@ -35,6 +38,14 @@ function getSupabaseClient(authHeader: string | null): SupabaseClient {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
   });
+}
+
+// Service role client that bypasses RLS - use for controlled admin operations
+function getServiceClient(): SupabaseClient {
+  if (!SUPABASE_SERVICE_KEY) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
+  }
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 }
 
 // Log AI run for analytics
@@ -1463,19 +1474,27 @@ async function completeWizard(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractions = (session.ai_extractions || {}) as any;
 
+  // CRITICAL FIX: Use service client to bypass RLS race condition
+  // The profile update and startup creation happen in separate transactions,
+  // so user_org_id() might return NULL during INSERT RLS checks
+  const serviceClient = getServiceClient();
+
   // CRITICAL FIX: Create organization if user doesn't have one
   if (!userOrgId) {
     console.log("User has no org_id, creating organization...");
 
     const companyName = formData.name || formData.company_name || extractions.company_name || "My Startup";
+    // Generate a unique slug from company name + timestamp
+    const baseSlug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
-    // Create organization for the user
-    const { data: newOrg, error: orgError } = await supabase
+    // Create organization for the user (using service client)
+    // Note: organizations table requires name and slug (both NOT NULL)
+    const { data: newOrg, error: orgError } = await serviceClient
       .from("organizations")
       .insert({
-        name: `${companyName}`,
-        owner_id: userId,
-        created_by: userId,
+        name: companyName,
+        slug: slug,
       })
       .select("id")
       .single();
@@ -1488,8 +1507,8 @@ async function completeWizard(
     userOrgId = newOrg.id;
     console.log("Created organization:", userOrgId);
 
-    // Update user profile with new org_id
-    await supabase
+    // Update user profile with new org_id (using service client)
+    await serviceClient
       .from("profiles")
       .update({ org_id: userOrgId })
       .eq("id", userId);
@@ -1499,13 +1518,43 @@ async function completeWizard(
   const industryValue = formData.industry || extractions.industry;
   const industryArray = Array.isArray(industryValue) ? industryValue : (industryValue ? [industryValue] : null);
 
+  // Normalize stage value to match CHECK constraint
+  // Valid values: idea, pre_seed, seed, series_a, series_b, series_c, growth, public
+  const rawStage = formData.stage || extractions.stage || "idea";
+  const stageMap: Record<string, string> = {
+    "Idea": "idea",
+    "Pre-seed": "pre_seed",
+    "Seed": "seed",
+    "Series A": "series_a",
+    "Series B": "series_b",
+    "Series C": "series_c",
+    "Growth": "growth",
+    "Public": "public",
+  };
+  const normalizedStage = stageMap[rawStage] || rawStage.toLowerCase().replace(/[\s-]+/g, '_');
+
+  // Sanitize traction_data - convert string values to proper types
+  // traction_data expects: {arr: int, mrr: int, nrr: int, users: int, customers: int, churn_rate: int, milestones: [], growth_rate_monthly: int}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawTraction = session.extracted_traction as any;
+  const sanitizedTraction = rawTraction ? {
+    arr: typeof rawTraction.arr === 'number' ? rawTraction.arr : 0,
+    mrr: typeof rawTraction.mrr === 'number' ? rawTraction.mrr : 0,
+    nrr: typeof rawTraction.nrr === 'number' ? rawTraction.nrr : 0,
+    users: typeof rawTraction.users === 'number' ? rawTraction.users : 0,
+    customers: typeof rawTraction.customers === 'number' ? rawTraction.customers : 0,
+    churn_rate: typeof rawTraction.churn_rate === 'number' ? rawTraction.churn_rate : 0,
+    milestones: Array.isArray(rawTraction.milestones) ? rawTraction.milestones : [],
+    growth_rate_monthly: typeof rawTraction.growth_rate_monthly === 'number' ? rawTraction.growth_rate_monthly : 0,
+  } : null;
+
   // Build startup data with guaranteed org_id
   const startupData: Record<string, unknown> = {
     name: formData.name || formData.company_name || extractions.company_name || "My Startup",
     description: formData.description || extractions.description,
     tagline: formData.tagline || extractions.tagline,
     industry: industryArray?.[0] || null, // Primary industry
-    stage: formData.stage || extractions.stage,
+    stage: normalizedStage,
     business_model: formData.business_model || extractions.business_model,
     website_url: formData.website_url,
     linkedin_url: formData.linkedin_url,
@@ -1514,15 +1563,15 @@ async function completeWizard(
     key_features: formData.key_features || extractions.key_features,
     competitors: extractions.competitors,
     founders: formData.founders,
-    traction_data: session.extracted_traction,
+    traction_data: sanitizedTraction,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     is_raising: (session.extracted_funding as any)?.is_raising || false,
     profile_strength: session.profile_strength,
     org_id: userOrgId, // Now guaranteed to have a value
   };
 
-  // Create startup
-  const { data: startup, error: startupError } = await supabase
+  // Create startup using service client (bypasses RLS)
+  const { data: startup, error: startupError } = await serviceClient
     .from("startups")
     .insert(startupData)
     .select()
@@ -1534,8 +1583,8 @@ async function completeWizard(
     throw new Error(`Could not create startup: ${startupError.message}`);
   }
 
-  // Update session as completed
-  await supabase
+  // Update session as completed (service client for consistency)
+  await serviceClient
     .from("wizard_sessions")
     .update({
       status: "completed",
@@ -1546,7 +1595,7 @@ async function completeWizard(
 
   // CRITICAL: Mark user profile as onboarding complete
   // This gates access to dashboard vs redirect to onboarding
-  await supabase
+  await serviceClient
     .from("profiles")
     .update({
       onboarding_completed: true,
@@ -1556,13 +1605,15 @@ async function completeWizard(
     .eq("id", userId);
 
   // Generate initial tasks
+  // IMPORTANT: status must be one of: pending, in_progress, completed, cancelled, blocked
+  // IMPORTANT: category must be one of: fundraising, product, marketing, operations, sales, hiring, legal, other
   const tasksToCreate = [
     {
       startup_id: startup.id,
       title: "Complete your pitch deck",
       description: "Create a compelling pitch deck to share with investors",
       priority: "high",
-      status: "todo",
+      status: "pending",  // Fixed: was "todo" which violates CHECK constraint
       category: "fundraising",
       ai_generated: true,
       ai_source: "onboarding",
@@ -1572,8 +1623,8 @@ async function completeWizard(
       title: "Define your ICP (Ideal Customer Profile)",
       description: "Document your ideal customer profile with specific characteristics",
       priority: "high",
-      status: "todo",
-      category: "strategy",
+      status: "pending",  // Fixed: was "todo" which violates CHECK constraint
+      category: "marketing",  // Fixed: was "strategy" which violates CHECK constraint
       ai_generated: true,
       ai_source: "onboarding",
     },
@@ -1582,14 +1633,14 @@ async function completeWizard(
       title: "Set up analytics tracking",
       description: "Implement analytics to track key metrics and user behavior",
       priority: "medium",
-      status: "todo",
+      status: "pending",  // Fixed: was "todo" which violates CHECK constraint
       category: "product",
       ai_generated: true,
       ai_source: "onboarding",
     },
   ];
 
-  const { data: tasks } = await supabase
+  const { data: tasks } = await serviceClient
     .from("tasks")
     .insert(tasksToCreate)
     .select();

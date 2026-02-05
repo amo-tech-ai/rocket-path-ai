@@ -1,0 +1,525 @@
+---
+alwaysApply: true
+---
+
+# Cursor Parallel Agents - Cursor Rule
+
+## Overview
+
+Parallel agents allow you to run multiple agents locally in parallel, or run a single prompt across multiple models at once. Each agent runs in its own Git worktree, allowing them to make edits, build, and test code without interfering with each other.
+
+### Key Concepts
+
+- **Worktree**: A Git feature that lets you use multiple branches of one repository at once. Each worktree has its own set of files and changes.
+- **1:1 Mapping**: Each agent gets its own worktree (automatically created by Cursor)
+- **Isolation**: Agents work independently without affecting your main branch
+- **Apply Pattern**: Changes are merged back to your main branch when you click "Apply"
+
+## Basic Usage
+
+### Running a Single Agent in Worktree
+
+1. Start a parallel agent from the Cursor UI
+2. Agent runs in isolated worktree
+3. Review changes made by the agent
+4. Click **"Apply"** to merge changes to your main branch
+
+**Important**: The "Apply" button is different from "Keep" in local agents. It merges worktree changes into your checked-out branch.
+
+### Viewing Worktrees
+
+Check all worktrees in your repository:
+```bash
+git worktree list
+```
+
+Output example:
+```
+/.../<repo>                                  15ae12e   [main]
+/Users/<you>/.cursor/worktrees/<repo>/98Zlw  15ae12e   [feat-1-98Zlw]
+/Users/<you>/.cursor/worktrees/<repo>/a4Xiu  15ae12e   [feat-2-a4Xiu]
+```
+
+## Best-of-N: Multiple Models at Once
+
+Run a single prompt across multiple models simultaneously to compare outputs.
+
+### Usage Flow
+
+1. **Submit Prompt**: Enter your prompt and select multiple models
+2. **View Results**: See multiple cards, one for each model's output
+3. **Compare**: Click across cards to see changes made by each agent
+4. **Apply**: Click "Apply" on the best result to merge to your branch
+
+### Best-of-N Cards
+
+Each model generates its own card showing:
+- Changes made by that agent
+- Files modified
+- Code differences
+
+Compare outputs side-by-side before applying.
+
+## Apply Functionality
+
+### How Apply Works
+
+1. **Worktree Creation**: Cursor creates a worktree with all files from your main branch (except Git-ignored files)
+2. **Agent Execution**: Agent performs work in isolation within the worktree
+3. **Change Review**: You review the changes made by the agent
+4. **Merge**: Clicking "Apply" merges changes cleanly into your primary working tree
+
+### Multiple Apply Scenarios
+
+When applying multiple times in the same Best-of-N run, Cursor asks how to proceed:
+
+**Options:**
+- **Full Overwrite**: Replace entire file contents with agent's changes
+- **Merge**: Use native conflict resolution UI to merge between multiple options
+
+**Recommendation**: Use merge for incremental improvements, full overwrite for complete rewrites.
+
+## Worktree Configuration
+
+### Configuration File Location
+
+Cursor looks for `.cursor/worktrees.json` in this order:
+1. In the worktree path
+2. In the root path of your project
+
+### Configuration Keys
+
+- `setup-worktree-unix`: Commands/script for macOS/Linux (takes precedence on Unix)
+- `setup-worktree-windows`: Commands/script for Windows (takes precedence on Windows)
+- `setup-worktree`: Generic fallback for all operating systems
+
+### Configuration Format
+
+Each key accepts either:
+- **Array of shell commands**: Executed sequentially in the worktree
+- **String filepath**: Path to script file relative to `.cursor/worktrees.json`
+
+## Project-Specific Configuration
+
+### Current Setup (React/Vite/TypeScript)
+
+**Current `.cursor/worktrees.json`:**
+```json
+{
+  "setup-worktree": [
+    "npm install"
+  ]
+}
+```
+
+### Recommended Configuration for Sun AI
+
+**Enhanced setup for this project:**
+```json
+{
+  "setup-worktree-unix": [
+    "npm install",
+    "cp $ROOT_WORKTREE_PATH/.env .env 2>/dev/null || true",
+    "cp $ROOT_WORKTREE_PATH/.env.local .env.local 2>/dev/null || true"
+  ],
+  "setup-worktree-windows": [
+    "npm install",
+    "copy %ROOT_WORKTREE_PATH%\\.env .env 2>nul || echo.",
+    "copy %ROOT_WORKTREE_PATH%\\.env.local .env.local 2>nul || echo."
+  ],
+  "setup-worktree": [
+    "npm install"
+  ]
+}
+```
+
+### Environment Variables
+
+**Important**: Copy environment files to worktree for:
+- Supabase configuration (`SUPABASE_URL`, `SUPABASE_ANON_KEY`)
+- Gemini API keys (`GEMINI_API_KEY`)
+- Edge function URLs
+
+**Pattern**: Use `$ROOT_WORKTREE_PATH` variable to reference files from main worktree.
+
+### Database Migrations (If Needed)
+
+If you add database migrations in the future:
+```json
+{
+  "setup-worktree": [
+    "npm install",
+    "cp $ROOT_WORKTREE_PATH/.env .env",
+    "npm run db:migrate"
+  ]
+}
+```
+
+## Using Script Files
+
+For complex setups, use script files instead of inline commands:
+
+### Example: Unix Script
+
+**`.cursor/setup-worktree-unix.sh`:**
+```bash
+#!/bin/bash
+set -e
+
+# Install dependencies
+npm install
+
+# Copy environment files
+cp "$ROOT_WORKTREE_PATH/.env" .env 2>/dev/null || true
+cp "$ROOT_WORKTREE_PATH/.env.local" .env.local 2>/dev/null || true
+
+# Build project (if needed)
+npm run build
+
+echo "Worktree setup complete!"
+```
+
+**`.cursor/worktrees.json`:**
+```json
+{
+  "setup-worktree-unix": "setup-worktree-unix.sh",
+  "setup-worktree-windows": "setup-worktree-windows.ps1",
+  "setup-worktree": [
+    "npm install"
+  ]
+}
+```
+
+### Example: Windows Script
+
+**`.cursor/setup-worktree-windows.ps1`:**
+```powershell
+$ErrorActionPreference = 'Stop'
+
+# Install dependencies
+npm install
+
+# Copy environment files
+Copy-Item "$env:ROOT_WORKTREE_PATH\.env" .env -ErrorAction SilentlyContinue
+Copy-Item "$env:ROOT_WORKTREE_PATH\.env.local" .env.local -ErrorAction SilentlyContinue
+
+# Build project (if needed)
+npm run build
+
+Write-Host "Worktree setup complete!"
+```
+
+## Best Practices
+
+### ✅ DO: Use Fast Package Managers
+
+**Recommended**: Use fast package managers for worktree setup:
+- **npm**: Already configured (works well)
+- **pnpm**: Faster alternative: `pnpm install`
+- **bun**: Fastest option: `bun install`
+
+**Avoid**: Symlinking dependencies (can cause issues in main worktree)
+
+### ✅ DO: Copy Environment Files
+
+Always copy `.env` files to worktree:
+```json
+{
+  "setup-worktree": [
+    "npm install",
+    "cp $ROOT_WORKTREE_PATH/.env .env"
+  ]
+}
+```
+
+### ✅ DO: Handle Missing Files Gracefully
+
+Use error handling for optional files:
+```bash
+cp $ROOT_WORKTREE_PATH/.env .env 2>/dev/null || true
+```
+
+### ❌ DON'T: Symlink Dependencies
+
+**Bad**: Symlinking `node_modules` can cause issues
+```bash
+ln -s $ROOT_WORKTREE_PATH/node_modules node_modules  # ❌ Don't do this
+```
+
+**Good**: Install dependencies fresh in each worktree
+```bash
+npm install  # ✅ Do this instead
+```
+
+### ❌ DON'T: Skip Build Steps
+
+If your project requires a build step, include it:
+```json
+{
+  "setup-worktree": [
+    "npm install",
+    "npm run build"
+  ]
+}
+```
+
+## Debugging
+
+### View Setup Output
+
+1. Open **"Output"** bottom panel in Cursor
+2. Select **"Worktrees Setup"** from dropdown
+3. View execution logs and errors
+
+### Common Issues
+
+1. **Missing Dependencies**
+   - **Symptom**: Agent can't run tests or build
+   - **Fix**: Ensure `npm install` runs in setup script
+
+2. **Missing Environment Variables**
+   - **Symptom**: API calls fail, Supabase errors
+   - **Fix**: Copy `.env` files in setup script
+
+3. **Build Failures**
+   - **Symptom**: TypeScript errors, missing types
+   - **Fix**: Ensure build step runs after install
+
+4. **Path Issues**
+   - **Symptom**: Scripts can't find files
+   - **Fix**: Use `$ROOT_WORKTREE_PATH` variable correctly
+
+## Worktree Cleanup
+
+### Automatic Cleanup
+
+Cursor automatically manages worktrees:
+- **Per-workspace limit**: Up to 20 worktrees per workspace
+- **Automatic removal**: Oldest worktrees removed when limit exceeded
+- **Per-workspace**: Worktrees from different repos don't interfere
+
+### Configuration
+
+Configure cleanup in Cursor settings:
+```json
+{
+  "cursor.worktreeCleanupIntervalHours": 6,
+  "cursor.worktreeMaxCount": 20
+}
+```
+
+**Settings:**
+- `worktreeCleanupIntervalHours`: How often to check for cleanup (default: 6)
+- `worktreeMaxCount`: Maximum worktrees per workspace (default: 20)
+
+### Manual Cleanup
+
+Remove worktrees manually:
+```bash
+# List worktrees
+git worktree list
+
+# Remove specific worktree
+git worktree remove <path>
+```
+
+## SCM Pane Integration
+
+### View Worktrees in SCM
+
+Enable worktree visualization in Source Control:
+```json
+{
+  "git.showCursorWorktrees": true
+}
+```
+
+**Default**: `false` (worktrees hidden by default)
+
+## Limitations
+
+### Language Server Protocol (LSP)
+
+**Current Limitation**: LSP is not supported in worktrees for performance reasons.
+
+**Impact:**
+- Agent cannot lint files in worktree
+- No IntelliSense/autocomplete in worktree
+- Type checking may be limited
+
+**Workaround**: Review and apply changes, then lint in main branch.
+
+**Future**: Cursor is working on LSP support for worktrees.
+
+## Use Cases for Sun AI Project
+
+### 1. Compare AI Model Outputs
+
+**Scenario**: Test different Gemini models for deck generation
+```
+Prompt: "Generate a pitch deck for a fashion tech startup"
+Models: gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro-preview
+```
+
+**Benefit**: Compare quality, speed, and accuracy across models.
+
+### 2. Parallel Feature Development
+
+**Scenario**: Develop multiple features simultaneously
+```
+Agent 1: Implement image generation feature
+Agent 2: Add slide analysis feature
+Agent 3: Build presentation mode
+```
+
+**Benefit**: Test multiple features without conflicts.
+
+### 3. A/B Testing Implementations
+
+**Scenario**: Test different approaches to same problem
+```
+Agent 1: Use Context API for state management
+Agent 2: Use Zustand for state management
+```
+
+**Benefit**: Compare implementations before committing.
+
+### 4. Refactoring Safety
+
+**Scenario**: Refactor services while maintaining working code
+```
+Agent 1: Refactor AI services
+Main branch: Keep working version
+```
+
+**Benefit**: Safe refactoring with easy rollback.
+
+## Quick Reference
+
+### Basic Commands
+
+```bash
+# List worktrees
+git worktree list
+
+# Remove worktree
+git worktree remove <path>
+
+# Check worktree status
+git status
+```
+
+### Configuration Template
+
+```json
+{
+  "setup-worktree-unix": [
+    "npm install",
+    "cp $ROOT_WORKTREE_PATH/.env .env 2>/dev/null || true"
+  ],
+  "setup-worktree-windows": [
+    "npm install",
+    "copy %ROOT_WORKTREE_PATH%\\.env .env 2>nul || echo."
+  ],
+  "setup-worktree": [
+    "npm install"
+  ]
+}
+```
+
+### Settings
+
+```json
+{
+  "cursor.worktreeCleanupIntervalHours": 6,
+  "cursor.worktreeMaxCount": 20,
+  "git.showCursorWorktrees": false
+}
+```
+
+## When to Use Parallel Agents
+
+### ✅ Good Use Cases
+
+- **Best-of-N**: Compare multiple model outputs
+- **Feature Development**: Work on multiple features simultaneously
+- **Refactoring**: Safe refactoring with isolation
+- **Testing**: Test different approaches without conflicts
+- **Code Review**: Generate multiple solutions for review
+
+### ❌ Poor Use Cases
+
+- **Simple Edits**: Use regular agents for quick fixes
+- **LSP Required**: If you need linting/IntelliSense immediately
+- **Tight Coupling**: Features that must be developed together
+
+## Troubleshooting
+
+### Agent Can't Find Files
+
+**Problem**: Scripts fail with "file not found"
+**Solution**: Use `$ROOT_WORKTREE_PATH` for absolute paths
+
+```bash
+# ✅ Correct
+cp $ROOT_WORKTREE_PATH/.env .env
+
+# ❌ Wrong
+cp ../.env .env
+```
+
+### Dependencies Not Installed
+
+**Problem**: Agent can't import modules
+**Solution**: Ensure `npm install` runs first in setup script
+
+### Environment Variables Missing
+
+**Problem**: API calls fail in worktree
+**Solution**: Copy `.env` files in setup script with error handling
+
+### Merge Conflicts on Apply
+
+**Problem**: Conflicts when applying changes
+**Solution**: 
+1. Review conflicts in merge UI
+2. Choose "Full Overwrite" if agent's version is better
+3. Manually resolve if needed
+
+## Integration with Sun AI Workflow
+
+### Typical Workflow
+
+1. **Start Parallel Agent**: Select models and prompt
+2. **Review Outputs**: Compare results across models
+3. **Select Best**: Choose best implementation
+4. **Apply Changes**: Merge to main branch
+5. **Test**: Verify changes work in main branch
+6. **Commit**: Commit merged changes
+
+### Testing After Apply
+
+Always test after applying worktree changes:
+```bash
+# After applying changes
+npm run dev          # Test development server
+npm run build        # Verify build works
+npm run lint         # Check linting (LSP works in main branch)
+```
+
+## Summary
+
+**Key Takeaways:**
+- Parallel agents run in isolated Git worktrees
+- Use Best-of-N to compare multiple model outputs
+- Configure `.cursor/worktrees.json` for project setup
+- Always copy environment files to worktree
+- Use "Apply" to merge changes to main branch
+- LSP not available in worktrees (yet)
+- Automatic cleanup prevents disk bloat
+
+**For Sun AI Project:**
+- Current setup: Basic `npm install`
+- Recommended: Add `.env` file copying
+- Use for: Comparing Gemini models, parallel feature dev
+- Avoid: When LSP/IntelliSense is critical

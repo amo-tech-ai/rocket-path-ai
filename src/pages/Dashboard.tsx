@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SummaryMetrics } from "@/components/dashboard/SummaryMetrics";
@@ -11,51 +12,72 @@ import { AIStrategicReview } from "@/components/dashboard/AIStrategicReview";
 import { EventCard } from "@/components/dashboard/EventCard";
 import { DashboardCalendar } from "@/components/dashboard/DashboardCalendar";
 import { StageGuidanceCard } from "@/components/dashboard/StageGuidanceCard";
-import { useStartup, useTasks } from "@/hooks/useDashboardData";
+import { WelcomeBanner, useFirstVisitAfterOnboarding } from "@/components/dashboard/WelcomeBanner";
+import { Day1PlanCard, Day1Task } from "@/components/dashboard/Day1PlanCard";
+import { GuidedOverlay } from "@/components/dashboard/GuidedOverlay";
+import { useStartup, useTasks, useTaskStats } from "@/hooks/useDashboardData";
 import { useDashboardMetrics, useMetricChanges } from "@/hooks/useDashboardMetrics";
 import { useDashboardRealtime } from "@/hooks/useRealtimeSubscription";
 import { useHealthScore } from "@/hooks/useHealthScore";
 import { useActionRecommender } from "@/hooks/useActionRecommender";
 import { useModuleProgress } from "@/hooks/useModuleProgress";
 import { useAuth } from "@/hooks/useAuth";
+import { useFirstVisit } from "@/hooks/useFirstVisit";
 import { StartupStage } from "@/hooks/useStageGuidance";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Bell, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { data: startup, isLoading: startupLoading } = useStartup();
   const { data: tasks = [] } = useTasks(startup?.id);
-  
+
+  // Task stats for welcome banner
+  const { data: taskStats } = useTaskStats(startup?.id);
+
+  // Guided mode for first-time visitors
+  const { isGuidedMode, hasCompletedFirstTask, dismissGuidedMode } = useFirstVisit(startup?.id);
+
   // Real dashboard metrics
   const { data: metrics } = useDashboardMetrics(startup?.id);
   const { data: changes } = useMetricChanges(startup?.id);
-  
+
   // Health score from edge function
   const { data: healthScore, isLoading: healthLoading } = useHealthScore(startup?.id);
-  
+
   // Action recommendations based on health score
   const { data: recommendations, isLoading: actionsLoading } = useActionRecommender(
-    startup?.id, 
+    startup?.id,
     healthScore?.breakdown
   );
-  
+
   // Module progress (Canvas, Pitch, Tasks, CRM)
   const { data: moduleProgress, isLoading: moduleLoading } = useModuleProgress(startup?.id);
-  
+
   // Enable real-time updates for all dashboard data
   useDashboardRealtime(startup?.id);
 
+  // Check if first visit after onboarding
+  const isFirstVisit = useFirstVisitAfterOnboarding(
+    profile?.onboarding_completed,
+    startup?.id
+  );
+
   const firstName = profile?.full_name?.split(' ')[0] || 'Founder';
-  
+  const startupName = startup?.name || 'Your Startup';
+
   // Calculate startup data for stage guidance
   const hasLeanCanvas = (metrics?.documentsCount || 0) > 0;
   const currentStage = (startup?.stage as StartupStage) || 'idea';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  // Traction data from onboarding
+  const tractionData = startup?.traction_data as { mrr?: number; users?: number; growth_rate_monthly?: number } | null;
   
   const currentDate = new Date();
   const dateString = currentDate.toLocaleDateString('en-US', { 
@@ -65,6 +87,34 @@ const Dashboard = () => {
   }).toUpperCase();
 
   const pendingTasks = metrics?.tasksCount || 0;
+
+  // Day 1 Plan tasks for guided mode
+  const day1Tasks: Day1Task[] = [
+    {
+      id: 'review-summary',
+      title: 'Review your AI Summary',
+      description: 'See what our AI learned about your startup',
+      estimatedMinutes: 2,
+      completed: false, // Could track in localStorage
+      action: () => navigate('/company-profile'),
+    },
+    {
+      id: 'first-task',
+      title: 'Complete your first task',
+      description: 'Take action on the top priority item',
+      estimatedMinutes: 10,
+      completed: hasCompletedFirstTask,
+      action: () => navigate('/tasks'),
+    },
+    {
+      id: 'lean-canvas',
+      title: 'Generate your Lean Canvas',
+      description: 'Create a strategic business model canvas',
+      estimatedMinutes: 5,
+      completed: false, // Could check if lean_canvas exists
+      action: () => navigate('/lean-canvas'),
+    },
+  ];
 
   // Right panel content
   const rightPanel = (
@@ -110,10 +160,14 @@ const Dashboard = () => {
             ) : (
               <>
                 <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
-                  {greeting}, {firstName}.
+                  {greeting}, {startup ? startupName : firstName}.
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Your command center for growth and fundraising.
+                  {startup ? (
+                    <>Your command center for <span className="text-primary font-medium">{startup.industry?.replace(/_/g, ' ') || 'startup'}</span> growth.</>
+                  ) : (
+                    'Your command center for growth and fundraising.'
+                  )}
                 </p>
               </>
             )}
@@ -140,6 +194,38 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <QuickActions />
 
+        {/* Welcome Banner - First visit after onboarding */}
+        {isFirstVisit && startup && (
+          <WelcomeBanner
+            startupName={startupName}
+            founderName={firstName}
+            profileStrength={healthScore?.overall || startup?.profile_strength || 0}
+            stage={currentStage}
+            industry={startup?.industry as string || ''}
+            tractionData={{
+              mrr: tractionData?.mrr || 0,
+              users: tractionData?.users || 0,
+              growthRate: tractionData?.growth_rate_monthly || 0,
+            }}
+            tasks={{
+              total: taskStats?.total || 0,
+              pending: taskStats?.pending || 0,
+            }}
+          />
+        )}
+
+        {/* Day 1 Plan - Guided mode for new users */}
+        <AnimatePresence>
+          {isGuidedMode && startup && (
+            <Day1PlanCard
+              startupName={startupName}
+              tasks={day1Tasks}
+              canDismiss={hasCompletedFirstTask}
+              onDismiss={dismissGuidedMode}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Summary Metrics - Using real data */}
         <SummaryMetrics 
           decksCount={metrics?.decksCount || 0}
@@ -157,21 +243,36 @@ const Dashboard = () => {
 
         {/* Startup Health & Module Progress */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StartupHealthEnhanced 
+          <StartupHealthEnhanced
             healthScore={healthScore}
             isLoading={healthLoading}
           />
-          <ModuleProgress 
-            data={moduleProgress}
-            isLoading={moduleLoading}
-          />
+          <GuidedOverlay
+            isLocked={isGuidedMode && !hasCompletedFirstTask}
+            tooltip="Complete your first task to unlock module progress"
+          >
+            <ModuleProgress
+              data={moduleProgress}
+              isLoading={moduleLoading}
+            />
+          </GuidedOverlay>
         </div>
 
         {/* Recent Activity Timeline */}
-        <RecentActivity startupId={startup?.id} />
+        <GuidedOverlay
+          isLocked={isGuidedMode && !hasCompletedFirstTask}
+          tooltip="Complete your first task to unlock activity timeline"
+        >
+          <RecentActivity startupId={startup?.id} />
+        </GuidedOverlay>
 
         {/* Insights Tabs */}
-        <InsightsTabs />
+        <GuidedOverlay
+          isLocked={isGuidedMode && !hasCompletedFirstTask}
+          tooltip="Complete your first task to unlock insights"
+        >
+          <InsightsTabs />
+        </GuidedOverlay>
       </div>
     </DashboardLayout>
   );

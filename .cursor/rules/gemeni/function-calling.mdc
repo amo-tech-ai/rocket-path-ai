@@ -1,0 +1,641 @@
+---
+description: Gemini Function Calling - 4-step flow for tool/API integration
+alwaysApply: false
+---
+
+# Gemini Function Calling - Cursor Rule
+
+## Overview
+
+Function calling connects models to external tools and APIs. The model determines when to call functions and provides parameters, allowing it to bridge natural language and real-world actions.
+
+### Use Cases
+- **Augment Knowledge:** Access databases, APIs, knowledge bases
+- **Extend Capabilities:** Use calculators, chart generators, etc.
+- **Take Actions:** Schedule appointments, send emails, control devices
+
+## Core Flow (4 Steps)
+
+1. **Define Function Declaration** - Describe function name, parameters, purpose
+2. **Call LLM with Declarations** - Model analyzes and decides to call function or respond directly
+3. **Execute Function (Your Code)** - Extract function call, execute your function
+4. **Send Result Back** - Return function result to model for final user-friendly response
+
+## Function Declaration Structure
+
+### ✅ CORRECT: Complete Declaration
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI, Type } from "https://esm.sh/@google/genai";
+
+const scheduleMeetingFunction = {
+  name: 'schedule_meeting',
+  description: 'Schedules a meeting with specified attendees at a given time and date.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      attendees: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING },
+        description: 'List of people attending the meeting.',
+      },
+      date: {
+        type: Type.STRING,
+        description: 'Date of the meeting (e.g., "2024-07-29")',
+      },
+      time: {
+        type: Type.STRING,
+        description: 'Time of the meeting (e.g., "15:00")',
+      },
+      topic: {
+        type: Type.STRING,
+        description: 'The subject or topic of the meeting.',
+      },
+    },
+    required: ['attendees', 'date', 'time', 'topic'],
+  },
+};
+```
+
+### Declaration Components
+
+- **`name`** (string): Unique function name (no spaces, use underscores or camelCase)
+- **`description`** (string): Clear, detailed explanation with examples
+- **`parameters`** (object):
+  - `type`: Overall data type (usually `Type.OBJECT`)
+  - `properties`: Individual parameters with `type`, `description`, optional `enum`
+  - `required`: Array of required parameter names
+
+## Step 1: Define Function Declaration
+
+```typescript
+// ✅ CORRECT - Well-defined function declaration
+const setLightValuesFunction = {
+  name: 'set_light_values',
+  description: 'Sets the brightness and color temperature of a light.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      brightness: {
+        type: Type.NUMBER,
+        description: 'Light level from 0 to 100. Zero is off and 100 is full brightness',
+      },
+      color_temp: {
+        type: Type.STRING,
+        enum: ['daylight', 'cool', 'warm'], // Use enum for fixed values
+        description: 'Color temperature of the light fixture.',
+      },
+    },
+    required: ['brightness', 'color_temp'],
+  },
+};
+```
+
+## Step 2: Call Model with Function Declarations
+
+```typescript
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+const config = {
+  tools: [{
+    functionDeclarations: [setLightValuesFunction]
+  }]
+};
+
+const contents = [
+  {
+    role: 'user',
+    parts: [{ text: 'Turn the lights down to a romantic level' }]
+  }
+];
+
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: contents,
+  config: config
+});
+```
+
+## Step 3: Execute Function (Your Responsibility)
+
+**CRITICAL:** The model does NOT execute functions. You must:
+1. Check for function calls in response
+2. Extract function name and arguments
+3. Execute your actual function
+4. Handle errors gracefully
+
+```typescript
+// ✅ CORRECT - Check and execute function
+if (response.functionCalls && response.functionCalls.length > 0) {
+  const functionCall = response.functionCalls[0];
+  
+  // Execute your actual function
+  let result;
+  if (functionCall.name === 'set_light_values') {
+    result = await setLightValues(
+      functionCall.args.brightness,
+      functionCall.args.color_temp
+    );
+    console.log(`Function execution result: ${JSON.stringify(result)}`);
+  } else {
+    throw new Error(`Unknown function: ${functionCall.name}`);
+  }
+} else {
+  // No function call - model provided direct text response
+  console.log(response.text);
+}
+```
+
+## Step 4: Send Result Back to Model
+
+```typescript
+// ✅ CORRECT - Complete the function calling cycle
+const functionResponsePart = {
+  name: functionCall.name,
+  response: { result: result } // Your function's return value
+};
+
+// Append model's response and function result to conversation
+contents.push(response.candidates[0].content); // Model's function call
+contents.push({
+  role: 'user',
+  parts: [{ functionResponse: functionResponsePart }]
+});
+
+// Get final user-friendly response
+const finalResponse = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: contents,
+  config: config
+});
+
+console.log(finalResponse.text); // User-friendly response incorporating function result
+```
+
+## Parallel Function Calling
+
+Call multiple independent functions simultaneously.
+
+```typescript
+// ✅ CORRECT - Multiple function declarations
+const tools = [{
+  functionDeclarations: [
+    powerDiscoBallFunction,
+    startMusicFunction,
+    dimLightsFunction
+  ]
+}];
+
+const config = {
+  tools: tools,
+  toolConfig: {
+    functionCallingConfig: {
+      mode: 'any' // Force function calling
+    }
+  }
+};
+
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: [{ role: 'user', parts: [{ text: 'Turn this place into a party!' }] }],
+  config: config
+});
+
+// Execute all function calls
+if (response.functionCalls && response.functionCalls.length > 0) {
+  const results = [];
+  
+  for (const fnCall of response.functionCalls) {
+    // Execute each function
+    const result = await executeFunction(fnCall.name, fnCall.args);
+    results.push({
+      name: fnCall.name,
+      response: { result }
+    });
+  }
+  
+  // Send all results back in same order
+  contents.push(response.candidates[0].content);
+  contents.push({
+    role: 'user',
+    parts: results.map(r => ({ functionResponse: r }))
+  });
+}
+```
+
+## Compositional Function Calling (Sequential)
+
+Chain multiple function calls where one depends on another.
+
+```typescript
+// ✅ CORRECT - Loop until no more function calls
+let contents = [
+  {
+    role: 'user',
+    parts: [{
+      text: "If it's warmer than 20°C in London, set the thermostat to 20°C, otherwise set it to 18°C."
+    }]
+  }
+];
+
+const tools = [{
+  functionDeclarations: [
+    getWeatherForecastFunction,
+    setThermostatTemperatureFunction
+  ]
+}];
+
+while (true) {
+  const result = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents,
+    config: { tools }
+  });
+
+  if (result.functionCalls && result.functionCalls.length > 0) {
+    const functionCall = result.functionCalls[0];
+    const { name, args } = functionCall;
+
+    // Execute function
+    const toolResponse = await executeFunction(name, args);
+
+    // Add function call and response to conversation
+    contents.push({
+      role: 'model',
+      parts: [{ functionCall: functionCall }]
+    });
+    contents.push({
+      role: 'user',
+      parts: [{
+        functionResponse: {
+          name: functionCall.name,
+          response: { result: toolResponse }
+        }
+      }]
+    });
+  } else {
+    // No more function calls - final response
+    console.log(result.text);
+    break;
+  }
+}
+```
+
+## Function Calling Modes
+
+Control how the model uses provided tools.
+
+### AUTO (Default)
+Model decides whether to call function or respond directly.
+
+```typescript
+// ✅ CORRECT - Default mode (can omit)
+const config = {
+  tools: [/* function declarations */],
+  // toolConfig not specified = AUTO mode
+};
+```
+
+### ANY
+Model is constrained to always call a function.
+
+```typescript
+// ✅ CORRECT - Force function calling
+const config = {
+  tools: [/* function declarations */],
+  toolConfig: {
+    functionCallingConfig: {
+      mode: 'any', // Always call a function
+      // Optional: allowedFunctionNames: ['get_weather', 'set_temperature']
+    }
+  }
+};
+```
+
+### NONE
+Model is prohibited from making function calls.
+
+```typescript
+// ✅ CORRECT - Disable function calling temporarily
+const config = {
+  tools: [/* function declarations */],
+  toolConfig: {
+    functionCallingConfig: {
+      mode: 'none' // Prohibit function calls
+    }
+  }
+};
+```
+
+## Thought Signatures (Gemini 3)
+
+**CRITICAL:** For Gemini 3 with thinking enabled, thought signatures preserve reasoning context.
+
+### ✅ CORRECT: SDKs Handle Automatically
+
+If you append the complete previous response to conversation history, **thought signatures are handled automatically**. No code changes needed.
+
+```typescript
+// ✅ CORRECT - Standard pattern (signatures handled automatically)
+contents.push(response.candidates[0].content); // Includes thought signatures
+contents.push({
+  role: 'user',
+  parts: [{ functionResponse: functionResponsePart }]
+});
+```
+
+### Manual Handling (If Needed)
+
+```typescript
+// Only if manually modifying conversation history
+const part = response.candidates[0].content.parts[0];
+if (part.thoughtSignature) {
+  // Must return signature in same Part
+  contents.push({
+    role: 'model',
+    parts: [{
+      functionCall: part.functionCall,
+      thoughtSignature: part.thoughtSignature // Preserve signature
+    }]
+  });
+}
+```
+
+### Rules for Manual Handling
+- Always send `thoughtSignature` back inside its original `Part`
+- Don't merge Parts with and without signatures
+- Don't combine two Parts that both contain signatures
+
+## Best Practices
+
+### ✅ DO: Clear Descriptions
+```typescript
+// ✅ GOOD - Specific, detailed description
+{
+  name: 'get_weather_forecast',
+  description: 'Gets the current weather temperature and conditions for a given location. Returns temperature in Celsius, humidity percentage, and weather condition (sunny, cloudy, rainy, etc.).',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      location: {
+        type: Type.STRING,
+        description: 'The city and state, e.g. "San Francisco, CA" or a zip code e.g. "95616".',
+      }
+    },
+    required: ['location']
+  }
+}
+```
+
+### ✅ DO: Use Enums for Fixed Values
+```typescript
+// ✅ GOOD - Use enum instead of just describing
+color_temp: {
+  type: Type.STRING,
+  enum: ['daylight', 'cool', 'warm'], // Better than just description
+  description: 'Color temperature of the light fixture.',
+}
+```
+
+### ✅ DO: Strong Typing
+```typescript
+// ✅ GOOD - Specific types
+brightness: {
+  type: Type.NUMBER, // Not Type.STRING
+  description: 'Light level from 0 to 100.',
+}
+```
+
+### ❌ DON'T: Vague Descriptions
+```typescript
+// ❌ BAD - Too vague
+{
+  name: 'get_data',
+  description: 'Gets some data.', // Not helpful
+  parameters: {
+    properties: {
+      input: {
+        type: Type.STRING, // Too generic
+        description: 'The input' // No examples or format
+      }
+    }
+  }
+}
+```
+
+### Tool Selection Guidelines
+- **Maximum 10-20 active tools** for best results
+- Provide only relevant tools for the context
+- Consider dynamic tool selection based on conversation
+- Too many tools increase risk of incorrect selection
+
+### Prompt Engineering
+```typescript
+// ✅ GOOD - Provide context and instructions
+const prompt = `
+You are a helpful weather assistant. 
+When users ask about weather, always use the get_weather_forecast function.
+Don't guess dates; always use a future date for forecasts.
+If the location is unclear, ask for clarification.
+`;
+```
+
+### Temperature Settings
+```typescript
+// ✅ CORRECT - Use low temperature for deterministic function calls
+const config = {
+  tools: [/* functions */],
+  temperature: 0, // More deterministic, reliable function calls
+};
+```
+
+### Error Handling
+```typescript
+// ✅ CORRECT - Robust error handling
+try {
+  const result = await executeFunction(functionCall.name, functionCall.args);
+  return { result };
+} catch (error: any) {
+  // Return informative error message model can use
+  return {
+    error: {
+      message: error.message,
+      code: error.code,
+      suggestion: 'Please check the input parameters and try again.'
+    }
+  };
+}
+```
+
+### Security
+- Use appropriate authentication for external APIs
+- Validate function call arguments before execution
+- Don't expose sensitive data in function calls
+- Sanitize inputs to prevent injection attacks
+
+## Response Parsing
+
+### ✅ CORRECT: Check for Function Calls
+
+```typescript
+// Method 1: Using response.functionCalls (if available)
+if (response.functionCalls && response.functionCalls.length > 0) {
+  const functionCall = response.functionCalls[0];
+  // Execute function...
+}
+
+// Method 2: Parsing from parts
+const parts = response.candidates[0].content.parts;
+for (const part of parts) {
+  if (part.functionCall) {
+    const functionCall = part.functionCall;
+    console.log(`Function: ${functionCall.name}`);
+    console.log(`Args: ${JSON.stringify(functionCall.args)}`);
+    // Execute function...
+  }
+}
+```
+
+## Supported Models
+
+| Model | Function Calling | Parallel | Compositional |
+|-------|------------------|----------|---------------|
+| Gemini 2.5 Pro | ✔️ | ✔️ | ✔️ |
+| Gemini 2.5 Flash | ✔️ | ✔️ | ✔️ |
+| Gemini 2.5 Flash-Lite | ✔️ | ✔️ | ✔️ |
+| Gemini 2.0 Flash | ✔️ | ✔️ | ✔️ |
+| Gemini 2.0 Flash-Lite | ❌ | ❌ | ❌ |
+
+## Common Patterns
+
+### Pattern 1: Single Function Call
+```typescript
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: { tools: [{ functionDeclarations: [myFunction] }] }
+});
+
+if (response.functionCalls?.[0]) {
+  const result = await myFunction(response.functionCalls[0].args);
+  // Send result back...
+}
+```
+
+### Pattern 2: Parallel Functions
+```typescript
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: {
+    tools: [{ functionDeclarations: [func1, func2, func3] }],
+    toolConfig: { functionCallingConfig: { mode: 'any' } }
+  }
+});
+
+// Execute all function calls in parallel
+const results = await Promise.all(
+  response.functionCalls.map(fc => executeFunction(fc.name, fc.args))
+);
+```
+
+### Pattern 3: Sequential Functions
+```typescript
+let contents = [{ role: 'user', parts: [{ text: prompt }] }];
+while (true) {
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents,
+    config: { tools }
+  });
+  
+  if (!response.functionCalls?.length) break;
+  
+  const result = await executeFunction(
+    response.functionCalls[0].name,
+    response.functionCalls[0].args
+  );
+  
+  contents.push(response.candidates[0].content);
+  contents.push({
+    role: 'user',
+    parts: [{
+      functionResponse: {
+        name: response.functionCalls[0].name,
+        response: { result }
+      }
+    }]
+  });
+}
+```
+
+## Type Definitions
+
+### Function Declaration Type
+```typescript
+interface FunctionDeclaration {
+  name: string;
+  description: string;
+  parameters: {
+    type: Type;
+    properties: Record<string, ParameterDefinition>;
+    required?: string[];
+  };
+}
+
+interface ParameterDefinition {
+  type: Type;
+  description: string;
+  enum?: string[]; // For fixed value sets
+  items?: { type: Type }; // For arrays
+}
+```
+
+### Function Call Response
+```typescript
+interface FunctionCall {
+  name: string;
+  args: Record<string, any>;
+  thoughtSignature?: string; // Gemini 3 with thinking
+}
+```
+
+## Quick Reference
+
+**Function Declaration:**
+- `name`: Unique, descriptive, no spaces
+- `description`: Clear, detailed, with examples
+- `parameters`: Strong typing, use enums for fixed values
+- `required`: List mandatory parameters
+
+**Function Calling Modes:**
+- `AUTO`: Model decides (default)
+- `ANY`: Always call function
+- `NONE`: Prohibit function calls
+
+**Best Practices:**
+- Maximum 10-20 active tools
+- Use low temperature (0) for deterministic calls
+- Clear, specific descriptions
+- Strong typing with enums
+- Robust error handling
+- Validate before execution
+
+**Thought Signatures:**
+- SDKs handle automatically if using standard pattern
+- Must preserve if manually modifying history
+- Critical for Gemini 3 with thinking enabled
+
+## When Implementing Function Calling
+
+1. **Define clear function declarations** - Detailed descriptions, strong types
+2. **Check for function calls** - Always verify before executing
+3. **Execute your functions** - Model doesn't execute, you do
+4. **Send results back** - Complete the conversation cycle
+5. **Handle errors gracefully** - Return informative error messages
+6. **Use appropriate mode** - AUTO, ANY, or NONE based on use case
+7. **Limit tool count** - 10-20 active tools maximum
+8. **Preserve thought signatures** - For Gemini 3 with thinking

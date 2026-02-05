@@ -1,0 +1,574 @@
+---
+description: Browser automation and testing workflows using @browser tool for visual verification, user interactions, and debugging
+globs: ["**/*.tsx", "**/*.ts", "**/*.test.ts", "**/*.test.tsx", "**/testing*.md", "**/test*.md"]
+alwaysApply: true
+---
+## 🛠️ Available Browser Tools
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| **Navigate** | Go to URL | `@browser Navigate to http://localhost:3000` |
+| **Click** | Click elements | `@browser Click the "Sign Up" button` |
+| **Type** | Input text | `@browser Type "test@example.com" in email field` |
+| **Scroll** | Scroll page | `@browser Scroll to footer` |
+| **Screenshot** | Capture visual state | `@browser Take screenshot of homepage` |
+| **Console Output** | Read browser console | `@browser Check console for errors` |
+| **Network Traffic** | Monitor requests | `@browser Show failed API requests` |
+
+---
+
+## 🎯 Use Cases
+
+### 1. **Web Development Workflow**
+
+**Test React App on Localhost:**
+```
+@browser Navigate to http://localhost:3000
+@browser Take screenshot of the homepage
+@browser Click "Create Pitch Deck" button
+@browser Type "AI Startup" in company name field
+@browser Click "Generate Deck"
+@browser Check console for errors
+```
+
+**Visual Regression Testing:**
+```
+@browser Navigate to http://localhost:3000/pitch-decks
+@browser Take screenshot for baseline comparison
+@browser Click each slide in the outline
+@browser Capture screenshots of all slides
+```
+
+---
+
+### 2. **Accessibility Audits (WCAG Compliance)**
+
+**Comprehensive Accessibility Check:**
+```
+@browser Navigate to http://localhost:3000
+@browser Check color contrast ratios on all text
+@browser Verify semantic HTML structure (headings, landmarks)
+@browser Test keyboard navigation (Tab through interactive elements)
+@browser Identify missing ARIA labels
+@browser Find images without alt text
+@browser Check form labels and error messages
+```
+
+**Common Accessibility Issues to Find:**
+- Color contrast < 4.5:1 for normal text
+- Color contrast < 3:1 for large text
+- Missing `alt` attributes on images
+- Form inputs without associated labels
+- Interactive elements not keyboard accessible
+- Missing ARIA attributes for complex components
+
+---
+
+### 3. **Automated Testing**
+
+**User Flow Testing:**
+```
+@browser Navigate to http://localhost:3000/pitch-decks/new
+@browser Fill wizard with test data:
+  - Business context: "AI-powered event platform"
+  - Industry: "SaaS"
+  - Stage: "Seed"
+@browser Click "Generate Deck"
+@browser Wait for deck generation (check for success message)
+@browser Verify deck editor loads with slides
+@browser Check console for JavaScript errors
+```
+
+**Form Validation Testing:**
+```
+@browser Navigate to signup page
+@browser Submit empty form (test validation)
+@browser Check error messages display correctly
+@browser Fill invalid email (test@test)
+@browser Verify email validation error shows
+@browser Fill valid data and submit
+@browser Confirm successful signup or redirect
+```
+
+**Responsive Design Testing:**
+```
+@browser Resize window to 375px width (mobile)
+@browser Take screenshot of mobile layout
+@browser Resize to 768px (tablet)
+@browser Take screenshot of tablet layout
+@browser Resize to 1920px (desktop)
+@browser Take screenshot of desktop layout
+```
+
+---
+
+### 4. **Design to Code**
+
+**Convert Design Mockup:**
+```
+@browser Open design screenshot at /path/to/mockup.png
+@browser Analyze layout, spacing, colors, typography
+@browser Extract color palette (hex codes)
+@browser Identify font families and sizes
+@browser Generate HTML structure with semantic tags
+@browser Generate Tailwind CSS classes for styling
+@browser Create responsive breakpoints
+```
+
+**Design System Extraction:**
+```
+@browser Navigate to https://example-brand.com
+@browser Identify primary/secondary/accent colors
+@browser Extract typography scale (headings, body, small)
+@browser Capture spacing system (margins, padding)
+@browser Identify button styles and variants
+@browser Document icon library used
+```
+
+---
+
+### 5. **UI Refinement from Screenshots**
+
+**Match Existing Design:**
+```
+@browser Navigate to http://localhost:3000
+@browser Take screenshot of current homepage
+@browser Compare against design mockup at /path/to/design.png
+@browser Identify spacing discrepancies
+@browser List color mismatches
+@browser Note typography differences
+@browser Generate CSS updates to match design
+```
+
+---
+
+### 6. **Debugging & Issue Resolution**
+
+**Debug Production Issues:**
+```
+@browser Navigate to https://sun100.vercel.app
+@browser Open browser console
+@browser Monitor network requests
+@browser Reproduce user-reported bug:
+  - Click "Generate Deck"
+  - Check for failed API calls
+  - Capture error messages from console
+@browser Take screenshot of error state
+```
+
+**API Failure Investigation:**
+```
+@browser Navigate to app page with issue
+@browser Open network panel
+@browser Perform action that triggers API call
+@browser Filter network requests to show only failures (status 4xx, 5xx)
+@browser Inspect failed request headers and payload
+@browser Check browser console for JavaScript errors
+```
+
+---
+
+## 📊 Testing Workflow for Sun AI Platform
+
+### Complete Pitch Deck Test Flow
+
+```
+# Step 1: Navigate to app
+@browser Navigate to http://localhost:3000
+
+# Step 2: Start deck creation
+@browser Click "Create Pitch Deck" button
+@browser Verify wizard loads (screenshot)
+
+# Step 3: Fill wizard
+@browser Type "AI Fashion Events Platform" in business context
+@browser Select "Seed" from deck type dropdown
+@browser Select "Modern" template
+@browser Click "Next"
+
+# Step 4: Fill financials
+@browser Type "500000" in funding goal
+@browser Type "50000" in MRR
+@browser Click "Generate Deck"
+
+# Step 5: Monitor generation
+@browser Wait for generation to complete
+@browser Check console for errors
+@browser Verify redirect to deck editor
+
+# Step 6: Verify deck editor
+@browser Take screenshot of slide outline
+@browser Click first slide
+@browser Verify slide content displays
+@browser Check AI Copilot sidebar is visible
+
+# Step 7: Test AI features
+@browser Click "Generate Image" button
+@browser Wait for image generation
+@browser Verify image displays in slide
+@browser Click "Analyze Slide"
+@browser Verify analysis results show
+
+# Step 8: Test presentation mode
+@browser Click "Present" button
+@browser Take screenshot of presentation view
+@browser Press right arrow key (next slide)
+@browser Verify slide navigation works
+@browser Press Escape (exit presentation)
+
+# Step 9: Final verification
+@browser Check console for any errors
+@browser Take screenshot of final state
+```
+
+---
+
+## 🔒 Security Best Practices
+
+### Tool Approval Modes
+
+| Mode | When to Use | Security Level |
+|------|-------------|----------------|
+| **Manual Approval** | Production sites, sensitive data | 🔴 Highest (Recommended) |
+| **Allow-listed Actions** | Trusted localhost testing | 🟡 Medium |
+| **Auto-run** | Local development only | 🟢 Lowest (Caution) |
+
+### Safe Navigation Patterns
+
+**✅ DO:**
+- Use manual approval for unfamiliar websites
+- Test on localhost before production
+- Review browser actions before approval
+- Use allow-lists for specific local origins (`http://localhost:3000`)
+- Monitor console logs for suspicious activity
+
+**❌ DON'T:**
+- Auto-run on untrusted websites
+- Submit forms with real user data in tests
+- Navigate to external sites without review
+- Execute untrusted JavaScript
+- Store sensitive credentials in test scripts
+
+### Origin Allowlist (Enterprise)
+
+**Recommended Allowlist:**
+```
+# Local development
+http://localhost:3000
+http://localhost:8080
+
+# Staging/Preview
+https://sun100-*.vercel.app
+
+# Production (review carefully)
+https://sun100.vercel.app
+```
+
+---
+
+## 🎨 Common Prompts for Sun AI Testing
+
+### Homepage Testing
+```
+@browser Navigate to http://localhost:3000
+@browser Take screenshot of hero section
+@browser Verify all navigation links work
+@browser Test responsive design (resize to 375px, 768px, 1920px)
+@browser Check console for warnings
+```
+
+### Dashboard Testing
+```
+@browser Navigate to http://localhost:3000/dashboard
+@browser Verify KPI cards display correctly
+@browser Click "Financial Overview" widget
+@browser Take screenshot of financial chart
+@browser Check for JavaScript errors
+```
+
+### CRM Testing
+```
+@browser Navigate to http://localhost:3000/crm
+@browser Click "Find Leads" button
+@browser Fill search form with "SaaS startups in SF"
+@browser Click "Search"
+@browser Verify results display
+@browser Click first result
+@browser Check detail panel opens
+```
+
+### Investor Docs Testing
+```
+@browser Navigate to http://localhost:3000/investor-docs
+@browser Click "Generate One-Pager"
+@browser Fill startup details
+@browser Click "Generate"
+@browser Wait for AI generation
+@browser Verify PDF preview displays
+@browser Check console for errors
+```
+
+---
+
+## 🐛 Debugging Patterns
+
+### Find Console Errors
+```
+@browser Navigate to problematic page
+@browser Open browser console
+@browser Reproduce the issue
+@browser Filter console logs to show only errors (level: error)
+@browser Capture error stack traces
+@browser Identify failing line numbers
+```
+
+### Network Request Issues
+```
+@browser Navigate to page with API calls
+@browser Open network panel
+@browser Perform action that triggers API
+@browser Filter network to show failed requests (status 4xx, 5xx)
+@browser Inspect request headers
+@browser Check request payload
+@browser Capture response body
+```
+
+### Visual Regression Detection
+```
+@browser Navigate to http://localhost:3000/pitch-decks
+@browser Take screenshot as baseline
+@browser Make code changes
+@browser Rebuild and refresh
+@browser Take new screenshot
+@browser Compare screenshots for visual differences
+```
+
+---
+
+## 📝 Best Practices
+
+### 1. **Always Start with Navigation**
+```
+@browser Navigate to http://localhost:3000
+```
+Explicitly navigate to the target page before any actions.
+
+### 2. **Use Screenshots for Verification**
+```
+@browser Take screenshot of current state
+```
+Visual verification is more reliable than text descriptions.
+
+### 3. **Check Console After Critical Actions**
+```
+@browser Click "Submit"
+@browser Check console for errors
+```
+Catch JavaScript errors immediately after interactions.
+
+### 4. **Wait for Dynamic Content**
+```
+@browser Wait for "Success" message to appear
+@browser Verify deck generation completes
+```
+Don't rush to next step before async operations complete.
+
+### 5. **Use Specific Selectors**
+```
+@browser Click the "Generate Deck" button in the wizard
+```
+Be specific about which element to interact with.
+
+### 6. **Monitor Network for API Calls**
+```
+@browser Monitor network requests
+@browser Click "Generate"
+@browser Check for failed API calls (status 500)
+```
+Track API failures during testing.
+
+---
+
+## 🔧 Troubleshooting
+
+### Issue: Browser Not Responding
+
+**Solution:**
+```
+@browser Close current tab
+@browser Open new tab
+@browser Navigate to http://localhost:3000
+```
+
+### Issue: Elements Not Found
+
+**Solution:**
+- Be more specific in element description
+- Take screenshot first to verify element exists
+- Check if page has fully loaded
+- Verify correct URL
+
+### Issue: Console Logs Too Verbose
+
+**Solution:**
+```
+@browser Write console logs to file
+@browser Grep for "error" in console logs
+@browser Show only last 20 lines of console
+```
+Agent reads logs efficiently from files.
+
+### Issue: Network Panel Shows Many Requests
+
+**Solution:**
+```
+@browser Filter network requests to show only XHR/Fetch
+@browser Filter by status code (4xx, 5xx)
+@browser Filter by domain (localhost, vercel.app)
+```
+
+---
+
+## 🚀 Quick Reference
+
+### Navigation
+- `@browser Navigate to [URL]`
+- `@browser Refresh page`
+- `@browser Go back`
+
+### Interaction
+- `@browser Click [element]`
+- `@browser Type "[text]" in [field]`
+- `@browser Scroll to [element]`
+- `@browser Press [key]` (Enter, Escape, Tab, etc.)
+
+### Inspection
+- `@browser Take screenshot`
+- `@browser Check console for errors`
+- `@browser Show network requests`
+- `@browser Inspect [element]`
+
+### Validation
+- `@browser Verify [element] exists`
+- `@browser Check [element] contains "[text]"`
+- `@browser Confirm [action] succeeded`
+
+### Debugging
+- `@browser Open browser console`
+- `@browser Filter console logs by level (error/warning)`
+- `@browser Show failed network requests`
+- `@browser Capture error stack traces`
+
+---
+
+## 🎯 Sun AI Specific Testing Checklist
+
+### Before Each Release
+
+**1. Landing Page**
+- [ ] Navigate to `/`
+- [ ] Verify hero section displays
+- [ ] Test all navigation links
+- [ ] Check responsive design (mobile/tablet/desktop)
+- [ ] Verify CTA buttons work
+
+**2. Pitch Deck Wizard**
+- [ ] Navigate to `/pitch-decks/new`
+- [ ] Fill wizard with test data
+- [ ] Generate deck
+- [ ] Verify redirect to editor
+- [ ] Check console for errors
+
+**3. Deck Editor**
+- [ ] Verify slide outline displays
+- [ ] Test slide selection
+- [ ] Use AI Copilot
+- [ ] Generate image
+- [ ] Analyze slide
+- [ ] Test presentation mode
+
+**4. CRM**
+- [ ] Navigate to `/crm`
+- [ ] Test lead search
+- [ ] Verify results display
+- [ ] Test detail panel
+- [ ] Check AI scoring
+
+**5. Investor Docs**
+- [ ] Navigate to `/investor-docs`
+- [ ] Generate one-pager
+- [ ] Test market sizing
+- [ ] Verify GTM strategy
+- [ ] Check PDF export
+
+**6. Accessibility**
+- [ ] Check color contrast
+- [ ] Test keyboard navigation
+- [ ] Verify ARIA labels
+- [ ] Check alt text on images
+- [ ] Test screen reader compatibility
+
+---
+
+## 📚 Integration with Other Tools
+
+### With Figma
+```
+@browser Open Figma design URL
+@browser Analyze component library
+@browser Extract design tokens (colors, typography, spacing)
+@browser Generate React components with Tailwind CSS
+```
+
+### With Linear
+```
+@browser Navigate to Linear issue
+@browser Read reproduction steps
+@browser Navigate to app
+@browser Reproduce issue
+@browser Capture screenshots and console errors
+```
+
+### With Supabase Dashboard
+```
+@browser Navigate to Supabase dashboard
+@browser Check Edge Function logs
+@browser Filter by function name
+@browser Identify error patterns
+```
+
+---
+
+## 💡 Pro Tips
+
+1. **Use Browser for Visual Verification**
+   - Screenshots are more reliable than text assertions
+   - Take before/after screenshots for comparisons
+
+2. **Combine with Testing Workflows**
+   - Automate E2E test scenarios
+   - Capture visual regression baselines
+
+3. **Debug Production Issues**
+   - Reproduce user-reported bugs
+   - Capture full context (console, network, screenshots)
+
+4. **Accessibility First**
+   - Run accessibility audits early and often
+   - Fix issues before they reach production
+
+5. **Design-to-Code Efficiency**
+   - Extract design systems from screenshots
+   - Generate pixel-perfect implementations
+
+---
+
+## 🔗 Related Documentation
+
+- **Testing Pitch Deck:** `.cursor/rules/testing-pitchdeck.mdc`
+- **Chrome DevTools MCP:** `.cursor/rules/chrome-mcp.mdc`
+- **Supabase Edge Functions:** `.cursor/rules/writing-supabase-edge-functions.mdc`
+
+---
+
+**Remember:** Browser automation is powerful. Always review actions before approval, especially on production sites or when handling sensitive data.

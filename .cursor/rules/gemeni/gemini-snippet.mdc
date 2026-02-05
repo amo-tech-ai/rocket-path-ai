@@ -1,0 +1,76 @@
+---
+description: Gemini AI Prompting Quick Reference - Critical rules and patterns for effective prompts
+alwaysApply: false
+---
+
+# Gemini Prompting Rules - Quick Reference
+
+---
+
+## 🤖 Gemini AI Prompting Rules
+
+### Critical Rules:
+1. **ALWAYS use few-shot examples (2-5 examples)** - Zero-shot prompts are significantly less effective
+2. **ALWAYS specify output format** - Use prefixes like "JSON:", "Answer:", or explicit format instructions
+3. **ALWAYS provide context** - Don't assume the model knows domain-specific information
+4. **ALWAYS use consistent formatting** - Examples must have identical structure
+
+### Prompt Structure:
+```
+[Context/Background]
+[Clear Instructions]
+[Constraints]
+[2-5 Few-Shot Examples with consistent formatting]
+[Input Prefix] [User Input]
+[Output Prefix]
+```
+
+### Model Parameters:
+- **Temperature:** 0.2-0.4 for structured outputs, 0.5-0.7 for creative content
+- **Max Tokens:** Set based on expected response length (100 tokens ≈ 60-80 words)
+- **Top-P:** Default 0.95, lower for more focused responses
+
+### Common Patterns:
+
+**Structured Output:**
+```
+You are [role]. Based on these examples, [task]:
+
+Example 1:
+Input: [input]
+Output: [output]
+
+Example 2:
+Input: [input]
+Output: [output]
+
+Now process: [user input]
+Output format: JSON with fields [fields]
+```
+
+**Creative Content:**
+```
+[Context about style/tone]
+[2-3 examples showing desired style]
+[Constraints]
+Generate: [user request]
+Temperature: 0.6
+```
+
+### Avoid:
+- ❌ Zero-shot prompts without examples
+- ❌ Vague instructions without constraints
+- ❌ Inconsistent formatting in examples
+- ❌ Anti-patterns (showing what NOT to do)
+- ❌ Assuming model has domain knowledge
+
+### Iteration Strategy:
+1. If results don't match: Rephrase prompt
+2. If still failing: Switch to analogous task
+3. If format issues: Change content order
+4. If fallback responses: Increase temperature
+
+---
+
+**Full guide:** See `gemini-prompting.mdc` for comprehensive documentation.
+

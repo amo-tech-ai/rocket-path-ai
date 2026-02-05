@@ -1,0 +1,497 @@
+-- ============================================================================
+-- Migration: Create Prompt Pack System
+-- Description: Creates tables for storing AI prompt packs, execution steps,
+--              run history, and startup memory for the validator module
+-- Author: StartupAI
+-- Created: 2026-01-29
+--
+-- Tables:
+--   - prompt_packs: Main prompt pack definitions
+--   - prompt_pack_steps: Individual steps within packs
+--   - prompt_runs: Execution history and tracking
+--   - startup_memory: RAG-enabled startup context storage
+--
+-- Dependencies:
+--   - auth.users (Supabase Auth)
+--   - startups table
+--   - user_roles table
+--   - profiles table
+-- ============================================================================
+
+-- enable required extensions
+create extension if not exists "uuid-ossp";
+create extension if not exists vector with schema extensions;
+
+-- ============================================================================
+-- TABLE: prompt_packs
+-- Purpose: Store prompt pack definitions (validation, pitch, canvas, etc.)
+-- ============================================================================
+create table if not exists prompt_packs (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text unique not null,
+  description text,
+  category text not null check (category in (
+    'validation', 'pitch', 'gtm', 'pricing',
+    'hiring', 'market', 'ideation', 'canvas'
+  )),
+  stage_tags text[] default '{}',
+  industry_tags text[] default '{}',
+  version int default 1,
+  is_active boolean default true,
+  source text default 'custom',
+  metadata jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- add table comment
+comment on table prompt_packs is 'Stores AI prompt pack definitions for validation, pitch generation, and other startup tools';
+comment on column prompt_packs.slug is 'URL-friendly unique identifier';
+comment on column prompt_packs.category is 'Pack category: validation, pitch, gtm, pricing, hiring, market, ideation, canvas';
+comment on column prompt_packs.stage_tags is 'Array of applicable startup stages (idea, pre-seed, seed, series-a, etc.)';
+comment on column prompt_packs.industry_tags is 'Array of applicable industries (saas, b2b, b2c, fintech, etc.)';
+comment on column prompt_packs.source is 'Origin of the pack: startupai, custom, imported';
+
+-- ============================================================================
+-- TABLE: prompt_pack_steps
+-- Purpose: Individual steps within a prompt pack
+-- ============================================================================
+create table if not exists prompt_pack_steps (
+  id uuid primary key default gen_random_uuid(),
+  pack_id uuid not null references prompt_packs(id) on delete cascade,
+  step_order int not null,
+  purpose text not null,
+  prompt_template text not null,
+  input_schema jsonb default '{}',
+  output_schema jsonb not null,
+  model_preference text default 'gemini' check (model_preference in ('gemini', 'claude', 'claude-sonnet', 'auto')),
+  max_tokens int default 2000,
+  temperature float default 0.7,
+  created_at timestamptz default now(),
+  constraint prompt_pack_steps_unique_order unique(pack_id, step_order)
+);
+
+comment on table prompt_pack_steps is 'Individual execution steps within a prompt pack';
+comment on column prompt_pack_steps.step_order is 'Execution order within the pack (1-based)';
+comment on column prompt_pack_steps.prompt_template is 'Template with {{variable}} placeholders';
+comment on column prompt_pack_steps.output_schema is 'JSON schema for validating step output';
+comment on column prompt_pack_steps.model_preference is 'Preferred AI model: gemini (fast), claude (reasoning), auto';
+
+-- ============================================================================
+-- TABLE: prompt_runs
+-- Purpose: Track prompt pack executions for analytics and debugging
+-- ============================================================================
+create table if not exists prompt_runs (
+  id uuid primary key default gen_random_uuid(),
+  startup_id uuid references startups(id) on delete cascade,
+  user_id uuid references auth.users(id),
+  pack_id uuid references prompt_packs(id),
+  step_id uuid references prompt_pack_steps(id),
+  inputs_json jsonb not null,
+  outputs_json jsonb,
+  model_used text,
+  tokens_input int,
+  tokens_output int,
+  cost_usd numeric(10, 6),
+  latency_ms int,
+  status text default 'pending' check (status in (
+    'pending', 'running', 'completed', 'failed', 'cancelled'
+  )),
+  error_message text,
+  created_at timestamptz default now(),
+  completed_at timestamptz
+);
+
+comment on table prompt_runs is 'Execution history for prompt packs with cost and latency tracking';
+comment on column prompt_runs.cost_usd is 'Estimated cost in USD for this run';
+comment on column prompt_runs.latency_ms is 'Response time in milliseconds';
+comment on column prompt_runs.status is 'Run status: pending, running, completed, failed, cancelled';
+
+-- ============================================================================
+-- TABLE: startup_memory
+-- Purpose: Store startup context for RAG-enabled AI responses
+-- ============================================================================
+create table if not exists startup_memory (
+  id uuid primary key default gen_random_uuid(),
+  startup_id uuid references startups(id) on delete cascade,
+  entity_type text not null,
+  entity_id uuid,
+  content text not null,
+  embedding extensions.vector(512),
+  source text,
+  created_at timestamptz default now()
+);
+
+comment on table startup_memory is 'RAG-enabled memory storage for startup context';
+comment on column startup_memory.entity_type is 'Type of entity: validation, pitch, canvas, contact, etc.';
+comment on column startup_memory.embedding is 'Vector embedding for semantic search (512 dimensions)';
+
+-- ============================================================================
+-- INDEXES: Performance optimization
+-- ============================================================================
+
+-- prompt_packs indexes
+create index if not exists idx_prompt_packs_category on prompt_packs(category);
+create index if not exists idx_prompt_packs_active on prompt_packs(is_active) where is_active = true;
+create index if not exists idx_prompt_packs_stage_tags on prompt_packs using gin(stage_tags);
+create index if not exists idx_prompt_packs_industry_tags on prompt_packs using gin(industry_tags);
+create index if not exists idx_prompt_packs_slug on prompt_packs(slug);
+
+-- prompt_pack_steps indexes
+create index if not exists idx_prompt_pack_steps_pack on prompt_pack_steps(pack_id);
+create index if not exists idx_prompt_pack_steps_order on prompt_pack_steps(pack_id, step_order);
+
+-- prompt_runs indexes
+create index if not exists idx_prompt_runs_startup on prompt_runs(startup_id);
+create index if not exists idx_prompt_runs_user on prompt_runs(user_id);
+create index if not exists idx_prompt_runs_pack on prompt_runs(pack_id);
+create index if not exists idx_prompt_runs_status on prompt_runs(status);
+create index if not exists idx_prompt_runs_created on prompt_runs(created_at desc);
+
+-- startup_memory indexes
+create index if not exists idx_startup_memory_startup on startup_memory(startup_id);
+create index if not exists idx_startup_memory_type on startup_memory(entity_type);
+-- Note: hnsw index for vector search - only create if pgvector extension is enabled
+-- create index if not exists idx_startup_memory_embedding on startup_memory
+--   using hnsw (embedding vector_cosine_ops);
+
+-- ============================================================================
+-- ROW LEVEL SECURITY: Enable RLS on all tables
+-- ============================================================================
+alter table prompt_packs enable row level security;
+alter table prompt_pack_steps enable row level security;
+alter table prompt_runs enable row level security;
+alter table startup_memory enable row level security;
+
+-- ============================================================================
+-- RLS POLICIES: prompt_packs
+-- ============================================================================
+
+-- SELECT: Anyone can read active prompt packs
+create policy "prompt_packs_select_active"
+  on prompt_packs for select
+  using (is_active = true);
+
+-- SELECT: Admins can read all packs (including inactive)
+create policy "prompt_packs_select_admin"
+  on prompt_packs for select
+  using (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- INSERT: Only admins can create packs
+create policy "prompt_packs_insert_admin"
+  on prompt_packs for insert
+  with check (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- UPDATE: Only admins can update packs
+create policy "prompt_packs_update_admin"
+  on prompt_packs for update
+  using (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- DELETE: Only admins can delete packs
+create policy "prompt_packs_delete_admin"
+  on prompt_packs for delete
+  using (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- ============================================================================
+-- RLS POLICIES: prompt_pack_steps
+-- ============================================================================
+
+-- SELECT: Anyone can read steps of active packs
+create policy "prompt_pack_steps_select_active"
+  on prompt_pack_steps for select
+  using (
+    exists (
+      select 1 from prompt_packs
+      where id = prompt_pack_steps.pack_id
+      and is_active = true
+    )
+  );
+
+-- INSERT: Only admins can create steps
+create policy "prompt_pack_steps_insert_admin"
+  on prompt_pack_steps for insert
+  with check (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- UPDATE: Only admins can update steps
+create policy "prompt_pack_steps_update_admin"
+  on prompt_pack_steps for update
+  using (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- DELETE: Only admins can delete steps
+create policy "prompt_pack_steps_delete_admin"
+  on prompt_pack_steps for delete
+  using (
+    exists (
+      select 1 from user_roles
+      where user_id = auth.uid()
+      and role in ('admin', 'moderator')
+    )
+  );
+
+-- ============================================================================
+-- RLS POLICIES: prompt_runs
+-- ============================================================================
+
+-- SELECT: Users can view their own runs
+create policy "prompt_runs_select_own"
+  on prompt_runs for select
+  using (user_id = auth.uid());
+
+-- INSERT: Users can create their own runs
+create policy "prompt_runs_insert_own"
+  on prompt_runs for insert
+  with check (user_id = auth.uid());
+
+-- UPDATE: Users can update their own runs
+create policy "prompt_runs_update_own"
+  on prompt_runs for update
+  using (user_id = auth.uid());
+
+-- DELETE: Users cannot delete runs (audit trail)
+-- No delete policy - runs are immutable for tracking
+
+-- ============================================================================
+-- RLS POLICIES: startup_memory
+-- ============================================================================
+
+-- SELECT: Users can view memory for their organization's startups
+create policy "startup_memory_select_org"
+  on startup_memory for select
+  using (
+    startup_id in (
+      select s.id from startups s
+      join profiles p on s.org_id = p.org_id
+      where p.id = auth.uid()
+    )
+  );
+
+-- INSERT: Users can create memory for their organization's startups
+create policy "startup_memory_insert_org"
+  on startup_memory for insert
+  with check (
+    startup_id in (
+      select s.id from startups s
+      join profiles p on s.org_id = p.org_id
+      where p.id = auth.uid()
+    )
+  );
+
+-- UPDATE: Users can update memory for their organization's startups
+create policy "startup_memory_update_org"
+  on startup_memory for update
+  using (
+    startup_id in (
+      select s.id from startups s
+      join profiles p on s.org_id = p.org_id
+      where p.id = auth.uid()
+    )
+  );
+
+-- DELETE: Users can delete memory for their organization's startups
+create policy "startup_memory_delete_org"
+  on startup_memory for delete
+  using (
+    startup_id in (
+      select s.id from startups s
+      join profiles p on s.org_id = p.org_id
+      where p.id = auth.uid()
+    )
+  );
+
+-- ============================================================================
+-- FUNCTIONS: Helper functions for prompt pack operations
+-- ============================================================================
+
+-- Function to get the next step in a pack
+create or replace function get_next_pack_step(
+  p_pack_id uuid,
+  p_current_step_order int default 0
+)
+returns table (
+  step_id uuid,
+  step_order int,
+  purpose text,
+  prompt_template text,
+  output_schema jsonb,
+  model_preference text,
+  temperature float
+)
+language sql stable
+security definer
+as $$
+  select
+    id as step_id,
+    step_order,
+    purpose,
+    prompt_template,
+    output_schema,
+    model_preference,
+    temperature
+  from prompt_pack_steps
+  where pack_id = p_pack_id
+    and step_order > p_current_step_order
+  order by step_order
+  limit 1;
+$$;
+
+comment on function get_next_pack_step is 'Get the next step in a prompt pack given the current step order';
+
+-- Function to search packs by criteria
+create or replace function search_prompt_packs(
+  p_category text default null,
+  p_industry text default null,
+  p_stage text default null,
+  p_limit int default 5
+)
+returns table (
+  pack_id uuid,
+  title text,
+  slug text,
+  category text,
+  description text,
+  step_count bigint
+)
+language sql stable
+security definer
+as $$
+  select
+    pp.id as pack_id,
+    pp.title,
+    pp.slug,
+    pp.category,
+    pp.description,
+    count(pps.id) as step_count
+  from prompt_packs pp
+  left join prompt_pack_steps pps on pps.pack_id = pp.id
+  where pp.is_active = true
+    and (p_category is null or pp.category = p_category)
+    and (p_industry is null or p_industry = any(pp.industry_tags))
+    and (p_stage is null or p_stage = any(pp.stage_tags))
+  group by pp.id
+  order by pp.version desc, pp.created_at desc
+  limit p_limit;
+$$;
+
+comment on function search_prompt_packs is 'Search prompt packs by category, industry, and stage';
+
+-- Function to get pack run statistics
+create or replace function get_pack_run_stats(p_pack_id uuid)
+returns table (
+  total_runs bigint,
+  success_rate numeric,
+  avg_latency_ms numeric,
+  total_cost_usd numeric
+)
+language sql stable
+security definer
+as $$
+  select
+    count(*) as total_runs,
+    round(
+      count(*) filter (where status = 'completed')::numeric /
+      nullif(count(*), 0) * 100, 2
+    ) as success_rate,
+    round(avg(latency_ms), 0) as avg_latency_ms,
+    sum(cost_usd) as total_cost_usd
+  from prompt_runs
+  where pack_id = p_pack_id;
+$$;
+
+comment on function get_pack_run_stats is 'Get execution statistics for a prompt pack';
+
+-- Function to get all steps for a pack (ordered)
+create or replace function get_pack_steps(p_pack_id uuid)
+returns table (
+  step_id uuid,
+  step_order int,
+  purpose text,
+  prompt_template text,
+  output_schema jsonb,
+  model_preference text,
+  temperature float
+)
+language sql stable
+security definer
+as $$
+  select
+    id as step_id,
+    step_order,
+    purpose,
+    prompt_template,
+    output_schema,
+    model_preference,
+    temperature
+  from prompt_pack_steps
+  where pack_id = p_pack_id
+  order by step_order;
+$$;
+
+comment on function get_pack_steps is 'Get all steps for a prompt pack in execution order';
+
+-- ============================================================================
+-- TRIGGERS: Auto-update timestamps
+-- ============================================================================
+
+-- Create or replace the updated_at trigger function
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+-- Apply trigger to prompt_packs
+drop trigger if exists prompt_packs_updated_at on prompt_packs;
+create trigger prompt_packs_updated_at
+  before update on prompt_packs
+  for each row execute function update_updated_at_column();
+
+-- ============================================================================
+-- GRANTS: Function permissions
+-- ============================================================================
+grant execute on function get_next_pack_step(uuid, int) to authenticated;
+grant execute on function search_prompt_packs(text, text, text, int) to authenticated;
+grant execute on function get_pack_run_stats(uuid) to authenticated;
+grant execute on function get_pack_steps(uuid) to authenticated;
+
+-- ============================================================================
+-- END OF MIGRATION
+-- ============================================================================

@@ -40,7 +40,7 @@ diagram_ref: startup-coach-design
 phase: MVP
 priority: P0
 status: Not Started
-skill: /feature-dev
+skill: /lean-canvas
 ai_model: gemini-3-flash-preview
 subagents: [frontend-designer, code-reviewer]
 edge_function: onboarding-agent
@@ -101,24 +101,57 @@ Enhance the onboarding wizard to capture the 6 essential questions needed to aut
 
 ---
 
+## 6 Core Questions
+
+| # | Main Question | Canvas Box |
+|---|---------------|------------|
+| 1 | What pain or problem are you solving? | Problem |
+| 2 | How does your product solve this? | Solution |
+| 3 | Who is your ideal first customer? | Customer Segments |
+| 4 | Why would they pay for this? | Value & Revenue |
+| 5 | How will you reach them? | Channels |
+| 6 | Why you, why now? | Unfair Advantage |
+
++ "How do they solve this today?" → Existing Alternatives
+
+---
+
+## Suggestion Chips (Bottom of Chat)
+
+After each question, show clickable chips to help founders add detail:
+
+| Question | Suggestion Chips |
+|----------|------------------|
+| 1. Problem | `What's the cost?` `How often?` `How urgent?` `Who feels it most?` |
+| 2. Solution | `Core feature?` `10x better how?` `How is it different?` |
+| 3. Customer | `Job title?` `Company size?` `Industry?` `Budget?` `Location?` |
+| 4. Value | `Time saved?` `Money earned?` `Risk reduced?` `Pain removed?` `Status gained?` |
+| 5. Channels | `LinkedIn` `Cold email` `Communities` `Referrals` `Ads` `Events` `Content` `Partnerships` |
+| 6. Advantage | `Domain expertise?` `Network?` `Technology?` `Timing?` `First-mover?` |
+
+**How it works:** User clicks a chip to add it to their response, or types freely.
+
+---
+
 ## Field Mapping
 
 ### Step 1 Form Fields (Quick Capture)
 
 | Field | Type | Placeholder | Maps to Canvas |
 |-------|------|-------------|----------------|
-| `problem` | textarea | "What problem are you solving? Be specific about the pain." | Problem |
-| `solution` | textarea | "What's your solution? How does it work?" | Solution |
+| `problem` | textarea | "What pain or problem are you solving? What's the cost?" | Problem |
+| `solution` | textarea | "How does your product solve this? What's the core feature?" | Solution |
 | `target_market` | text | (existing) | Customer Segments |
 | `business_model` | select | (existing) | Revenue Streams |
 
 ### Step 3 Interview Questions (Deeper Insight)
 
-| Question | Field | Maps to Canvas | Maps to Dimension |
-|----------|-------|----------------|-------------------|
-| "How do your target customers solve this problem today? What tools, workarounds, or alternatives do they use?" | `existing_alternatives` | Existing Alternatives | Defensibility |
-| "How will customers discover and reach your product? What channels will you use?" | `channels` | Channels | Viability |
-| "Why are you the right person to build this, and why is now the right time?" | `why_now` | Unfair Advantage | Timing, Mission |
+| Question | Field | Maps to Canvas | Suggestion Chips |
+|----------|-------|----------------|------------------|
+| "How do they solve this problem today?" | `existing_alternatives` | Existing Alternatives | `Spreadsheets` `Manual process` `Competitor` `Ignore it` |
+| "How will you reach them?" | `channels` | Channels | `LinkedIn` `Cold email` `Communities` `Referrals` `Ads` |
+| "Why would they pay for this? What's the real value?" | `value_prop` | Value & Revenue | `Time saved?` `Money earned?` `Risk reduced?` |
+| "Why you, why now?" | `why_now` | Unfair Advantage | `Domain expertise?` `Network?` `Technology?` `Timing?` |
 
 ---
 
@@ -203,46 +236,41 @@ ADD COLUMN IF NOT EXISTS why_now TEXT;
 
 ---
 
-## Step 3 Interview Questions
+## Step 3 Interview Questions with Suggestion Chips
 
-### Question 1: Existing Alternatives
+### UI Layout
 
-```typescript
-{
-  id: 'existing_alternatives',
-  topic: 'Competition',
-  question: "How do your target customers solve this problem today? What tools, workarounds, or alternatives do they use?",
-  placeholder: "e.g., They use spreadsheets, hire contractors, or just ignore the problem...",
-  followUp: "What's the biggest frustration with these alternatives?",
-  mapsTo: 'existing_alternatives'
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Coach: What pain or problem are you solving?                │
+│                                                             │
+│ [User's answer appears here...]                             │
+├─────────────────────────────────────────────────────────────┤
+│ Add details: [What's the cost?] [How often?] [How urgent?]  │
+│              [Who feels it most?]                           │
+├─────────────────────────────────────────────────────────────┤
+│ Type your answer...                                    [→]  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Question 2: Channels
+### Question Config
 
-```typescript
-{
-  id: 'channels',
-  topic: 'Go-to-Market',
-  question: "How will customers discover and reach your product? What channels will you use to acquire them?",
-  placeholder: "e.g., Content marketing, paid ads, partnerships, word of mouth...",
-  followUp: "Which channel do you think will work best initially?",
-  mapsTo: 'channels'
-}
-```
+| # | Question | Topic | Suggestion Chips | Field |
+|---|----------|-------|------------------|-------|
+| 1 | What pain or problem are you solving? | Problem | `What's the cost?` `How often?` `How urgent?` `Who feels it most?` | `problem` |
+| 2 | How does your product solve this? | Solution | `Core feature?` `10x better how?` `How is it different?` | `solution` |
+| 3 | Who is your ideal first customer? | Customer | `Job title?` `Company size?` `Industry?` `Budget?` `Location?` | `target_market` |
+| 4 | Why would they pay for this? | Value | `Time saved?` `Money earned?` `Risk reduced?` `Pain removed?` | `value_prop` |
+| 5 | How will you reach them? | Channels | `LinkedIn` `Cold email` `Communities` `Referrals` `Ads` `Events` | `channels` |
+| 6 | Why you, why now? | Advantage | `Domain expertise?` `Network?` `Technology?` `Timing?` | `why_now` |
+| + | How do they solve this today? | Competition | `Spreadsheets` `Manual process` `Competitor` `Ignore it` | `existing_alternatives` |
 
-### Question 3: Why Now
+### Chip Behavior
 
-```typescript
-{
-  id: 'why_now',
-  topic: 'Timing & Team',
-  question: "Why are you the right person to build this, and why is now the right time?",
-  placeholder: "e.g., I spent 5 years in this industry and see a shift happening because of AI...",
-  followUp: "What's your unfair advantage?",
-  mapsTo: 'why_now'
-}
-```
+- Click chip → appends to current answer as prompt
+- Example: User clicks `What's the cost?` → adds "The cost is approximately..." to their input
+- Multiple chips can be clicked
+- Chips disappear after question answered
 
 ---
 

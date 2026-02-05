@@ -1,0 +1,400 @@
+---
+description: Gemini 3 Pro - Advanced features, thinking levels, media resolution
+alwaysApply: false
+---
+
+# Gemini 3 Pro - Cursor Rule
+
+## Model Overview
+
+Gemini 3 is the most intelligent model family with state-of-the-art reasoning capabilities, designed for agentic workflows, autonomous coding, and complex multimodal tasks.
+
+### Available Models
+
+| Model ID | Context Window | Knowledge Cutoff | Best For |
+|----------|---------------|------------------|----------|
+| `gemini-3-pro-preview` | 1M / 64k | Jan 2025 | Complex reasoning, broad world knowledge, multimodal tasks |
+| `gemini-3-pro-image-preview` | 65k / 32k | Jan 2025 | Image generation, editing, 4K resolution, text rendering |
+
+## Core API Usage
+
+### ✅ CORRECT: Basic Usage
+
+**JavaScript/TypeScript (Deno Edge Functions):**
+```typescript
+import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+
+// ✅ CORRECT - Text Generation
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: "Find the race condition in this multi-threaded C++ snippet: [code here]",
+    config: {
+        thinkingLevel: 'high', // 'low' | 'high' (default: 'high')
+        // temperature: 1.0 (default, strongly recommended)
+    }
+});
+
+console.log(response.text);
+```
+
+## Thinking Level Parameter
+
+**CRITICAL:** Controls the maximum depth of internal reasoning before producing a response.
+
+### Options
+- `'low'`: Minimizes latency and cost. Best for simple instruction following, chat, high-throughput
+- `'high'` (Default): Maximizes reasoning depth. Longer first token time, but more carefully reasoned output
+- `'medium'`: Coming soon (not supported at launch)
+
+### ⚠️ WARNING
+- **DO NOT** use both `thinkingLevel` and legacy `thinkingBudget` in the same request (400 error)
+- **DO NOT** set temperature below 1.0 (may cause looping or degraded performance)
+
+### Usage
+```typescript
+// ✅ CORRECT - Explicit thinking level
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    config: {
+        thinkingLevel: 'high', // For complex reasoning
+        // OR
+        thinkingLevel: 'low', // For simple tasks, faster responses
+    }
+});
+```
+
+## Media Resolution Parameter
+
+**CRITICAL:** Controls multimodal vision processing quality. Requires `v1alpha` API version.
+
+### API Version Requirement
+```typescript
+// ✅ CORRECT - Use v1alpha for media_resolution
+const ai = new GoogleGenAI({ 
+    apiKey: Deno.env.get('GEMINI_API_KEY'),
+    apiVersion: 'v1alpha' // Required for media_resolution
+});
+```
+
+### Recommended Settings
+
+| Media Type | Recommended Setting | Max Tokens | Usage |
+|------------|---------------------|------------|-------|
+| **Images** | `media_resolution_high` | 1120 | Most image analysis tasks |
+| **PDFs** | `media_resolution_medium` | 560 | Document understanding (optimal) |
+| **Video (General)** | `media_resolution_low` | 70/frame | Action recognition, description |
+| **Video (Text-heavy)** | `media_resolution_high` | 280/frame | Dense text OCR in video |
+
+### Usage
+```typescript
+// ✅ CORRECT - Per-part media resolution
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: [
+        {
+            parts: [
+                { text: "What is in this image?" },
+                {
+                    inlineData: {
+                        mimeType: "image/jpeg",
+                        data: base64ImageData,
+                    },
+                    mediaResolution: {
+                        level: "media_resolution_high" // Per-part setting
+                    }
+                }
+            ]
+        }
+    ]
+});
+```
+
+## Temperature Settings
+
+### ⚠️ CRITICAL RECOMMENDATION
+**Keep temperature at default 1.0** for Gemini 3.
+
+- Previous models benefited from temperature tuning
+- Gemini 3 is optimized for default temperature
+- Setting temperature < 1.0 may cause:
+  - Looping behavior
+  - Degraded performance on complex tasks
+  - Unexpected behavior in mathematical/reasoning tasks
+
+```typescript
+// ✅ CORRECT - Use default (or omit temperature)
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
+    // config: { temperature: 1.0 } // Default, can omit
+});
+
+// ❌ WRONG - Don't lower temperature
+// config: { temperature: 0.7 } // May cause issues
+```
+
+## Thought Signatures
+
+**CRITICAL:** Thought signatures maintain reasoning context across API calls. They are encrypted representations of the model's internal thought process.
+
+### When Signatures Are Required (Strict Validation)
+
+1. **Function Calling (Strict):** Missing signatures = 400 error
+2. **Image Generation/Editing (Strict):** Missing signatures = 400 error
+3. **Text/Chat (Recommended):** Not strictly enforced, but omitting degrades reasoning quality
+
+### ✅ CORRECT: SDKs Handle Automatically
+
+If using official SDKs (Python, Node, Java) with standard chat history, **thought signatures are handled automatically**. You don't need to manually manage them.
+
+### Manual Handling (If Needed)
+
+```typescript
+// For function calling - signatures on functionCall parts
+const modelResponse = {
+    role: "model",
+    parts: [
+        {
+            functionCall: { name: "check_flight", args: {...} },
+            thoughtSignature: "<Sig_A>" // MUST return this
+        }
+    ]
+};
+
+// For image editing - signatures on first part and all image parts
+const imageResponse = {
+    role: "model",
+    parts: [
+        {
+            text: "I will generate...",
+            thoughtSignature: "<Signature_D>" // First part always has signature
+        },
+        {
+            inlineData: {...},
+            thoughtSignature: "<Signature_E>" // All image parts have signatures
+        }
+    ]
+};
+```
+
+### Migration Workaround
+
+If transferring from another model or injecting custom function calls:
+```typescript
+// Use this dummy string to bypass strict validation
+thoughtSignature: "context_engineering_is_the_way_to_go"
+```
+
+## Structured Outputs with Tools
+
+Gemini 3 allows combining Structured Outputs with built-in tools (Google Search, URL Context, Code Execution).
+
+```typescript
+// ✅ CORRECT - Structured output with tools
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: "Search for all details for the latest Euro.",
+    config: {
+        tools: [
+            { googleSearch: {} },
+            { urlContext: {} }
+        ],
+        responseMimeType: "application/json",
+        responseJsonSchema: {
+            type: "object",
+            properties: {
+                winner: { type: "string", description: "The name of the winner." },
+                final_match_score: { type: "string", description: "The final score." },
+                scorers: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "The name of the scorer."
+                }
+            },
+            required: ["winner", "final_match_score", "scorers"]
+        }
+    }
+});
+```
+
+## Image Generation (Gemini 3 Pro Image)
+
+### New Capabilities
+- **4K & Text Rendering:** Sharp, legible text and diagrams (2K and 4K resolutions)
+- **Grounded Generation:** Use `googleSearch` tool to verify facts before generating
+- **Conversational Editing:** Multi-turn editing using Thought Signatures
+
+### ✅ CORRECT: Image Generation with Grounding
+
+```typescript
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-image-preview',
+    contents: "Generate an infographic of the current weather in Tokyo.",
+    config: {
+        tools: [{ googleSearch: {} }],
+        imageConfig: {
+            aspectRatio: "16:9",
+            imageSize: "4K" // '1K', '2K', or '4K'
+        }
+    }
+});
+
+// Parse response
+for (const part of response.candidates[0].content.parts) {
+    if (part.inlineData) {
+        const imageData = part.inlineData.data; // Base64 string
+        // Process image...
+    }
+}
+```
+
+## Migration from Gemini 2.5
+
+### Key Changes
+
+1. **Thinking:** Simplify prompts, use `thinkingLevel: "high"` instead of complex prompt engineering
+2. **Temperature:** Remove explicit temperature settings, use default 1.0
+3. **PDF/Document:** Default OCR resolution changed. Use `media_resolution_high` for dense documents
+4. **Token Consumption:** 
+   - May **increase** for PDFs (higher default resolution)
+   - May **decrease** for video (optimized compression)
+5. **Image Segmentation:** Not supported in Gemini 3 Pro. Use Gemini 2.5 Flash or Gemini Robotics-ER 1.5
+
+### Migration Checklist
+
+```typescript
+// ❌ OLD (Gemini 2.5)
+const response = await ai.models.generateContent({
+    model: 'gemini-2.5-pro',
+    contents: prompt,
+    config: {
+        temperature: 0.7, // Remove this
+        thinkingBudget: 1000, // Replace with thinkingLevel
+    }
+});
+
+// ✅ NEW (Gemini 3)
+const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-preview',
+    contents: prompt, // Simplify prompt, remove complex CoT
+    config: {
+        thinkingLevel: 'high', // Replace thinkingBudget
+        // temperature: 1.0 (default, omit)
+    }
+});
+```
+
+## Prompting Best Practices
+
+### ✅ DO: Precise Instructions
+- Be concise and direct
+- Place specific instructions/questions at the end of long contexts
+- Anchor questions with "Based on the information above..."
+
+### ❌ DON'T: Over-Engineer Prompts
+- Don't use complex Chain-of-Thought for simple tasks
+- Don't be overly verbose (Gemini 3 prefers direct answers)
+- Don't place instructions at the beginning of large contexts
+
+### Example
+```typescript
+// ✅ GOOD - Direct, concise
+const prompt = "Find the race condition in this code: [code]";
+
+// ✅ GOOD - Long context with question at end
+const prompt = `
+[Large codebase or document here...]
+
+Based on the information above, what are the security vulnerabilities?
+`;
+
+// ❌ BAD - Over-engineered
+const prompt = `
+Let me think step by step. First, I need to analyze this code carefully.
+Then I'll identify potential issues. After that, I'll categorize them.
+Finally, I'll provide recommendations. Here's the code: [code]
+`;
+```
+
+## Context Management
+
+### Large Datasets Strategy
+1. Place data context first
+2. Place specific instructions/questions at the end
+3. Anchor with "Based on the information above..."
+
+```typescript
+// ✅ CORRECT - Context first, question last
+const prompt = `
+[Entire codebase or document - up to 1M tokens]
+
+Based on the codebase above, identify all SQL injection vulnerabilities.
+`;
+```
+
+## Supported Tools
+
+Gemini 3 supports:
+- ✅ Google Search
+- ✅ File Search
+- ✅ Code Execution
+- ✅ URL Context
+- ✅ Function Calling (custom tools)
+- ❌ Google Maps (not supported)
+- ❌ Computer Use (not supported)
+
+## API Version Requirements
+
+- **Standard features:** `v1beta` (default)
+- **Media resolution:** `v1alpha` required
+- **Image generation:** `v1beta` (standard)
+
+```typescript
+// For media_resolution
+const ai = new GoogleGenAI({ 
+    apiKey: Deno.env.get('GEMINI_API_KEY'),
+    apiVersion: 'v1alpha' // Required for media_resolution
+});
+
+// For standard features
+const ai = new GoogleGenAI({ 
+    apiKey: Deno.env.get('GEMINI_API_KEY'),
+    // apiVersion: 'v1beta' (default)
+});
+```
+
+## Quick Reference
+
+**Models:**
+- `'gemini-3-pro-preview'` - Text, reasoning, multimodal (1M context)
+- `'gemini-3-pro-image-preview'` - Image generation, editing (4K, text rendering)
+
+**Thinking:**
+- `thinkingLevel: 'low'` - Fast, simple tasks
+- `thinkingLevel: 'high'` - Complex reasoning (default)
+
+**Temperature:**
+- Use default 1.0 (don't lower it)
+
+**Media Resolution:**
+- Images: `media_resolution_high` (1120 tokens)
+- PDFs: `media_resolution_medium` (560 tokens)
+- Video: `media_resolution_low` (70 tokens/frame)
+
+**Thought Signatures:**
+- SDKs handle automatically
+- Required for function calling and image editing
+- Must return exactly as received
+
+## When Implementing Gemini 3
+
+1. **Choose the right model** - `gemini-3-pro-preview` for reasoning, `gemini-3-pro-image-preview` for images
+2. **Set thinking level** - `high` for complex tasks, `low` for simple/fast
+3. **Use default temperature** - Don't lower it
+4. **Handle thought signatures** - SDKs do this automatically
+5. **Use media resolution** - Set appropriately for media type
+6. **Simplify prompts** - Direct instructions work best
+7. **Place questions at end** - For large contexts

@@ -1,0 +1,113 @@
+---
+description: Master index for all Cursor rules - reference guide for dynamic context discovery
+alwaysApply: true
+---
+
+# Cursor Rules - Master Index
+
+**Purpose:** Quick reference index for all Cursor rules. Use dynamic context discovery - reference files, don't load all.
+
+---
+
+## 📚 Rules by Category
+
+### Core Development Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `react-vite.mdc` | React + Vite + TypeScript standards | Frontend development |
+| `vite-runtime.mdc` | Vite runtime & import safety | Debugging import errors |
+| `dynamic-context-discovery.mdc` | Context optimization patterns | Organizing files/docs |
+
+### AI & Gemini Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `gemeni/00-gemini-index.mdc` | Gemini API master index | **Start here for Gemini** |
+| `gemeni/gemini-snippet.mdc` | Quick prompting reference | Daily Gemini prompts |
+| `gemeni/nano-banana.mdc` | Image generation | Creating images |
+| `gemeni/function-calling.mdc` | Function calling | Tool integration |
+| `gemeni/structured-output.mdc` | JSON schemas | Structured data |
+| `gemeni/gemeni-3.mdc` | Gemini 3 Pro features | Using Gemini 3 |
+| `gemeni/google-search.mdc` | Google Search grounding | Real-time info |
+| `gemeni/url-context.mdc` | URL context tool | Web page analysis |
+| `gemeni/file-search.mdc` | File Search (RAG) | Knowledge base |
+
+### Supabase Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `supabase/supabase-cli.mdc` | CLI commands | Local development |
+| `supabase/supabase-auth.mdc` | Authentication | Auth features |
+| `supabase/writing-supabase-edge-functions.mdc` | Edge Functions | Creating functions |
+| `supabase/supabase-create-migration.mdc` | Migrations | Schema changes |
+| `supabase/supabase-create-rls-policies.mdc` | RLS policies | Security |
+| `supabase/supabase-postgres-sql-style-guide.mdc` | SQL style | Writing SQL |
+| `supabase/supabase-schema.mdc` | Schema management | Database design |
+
+### Testing Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `testing-pitchdeck.mdc` | Pitch deck testing | Testing deck features |
+| `test-startupwizard.mdc` | Wizard testing | Testing wizards |
+| `test-forms-dashboards.mdc` | Form testing | Testing forms |
+| `crm-testing.mdc` | CRM testing | Testing CRM features |
+| `chrome-mcp.mdc` | Chrome DevTools MCP | Browser debugging |
+
+### Agent & Skills Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `agent-skills.mdc` | Creating skills | Building Agent Skills |
+| `skills-usage.mdc` | Using skills | Daily skill usage |
+| `using-skills.mdc` | Practical guide | Skill workflows |
+| `subagents.mdc` | Subagents | Multi-agent systems |
+| `claude-sdk-agents.mdc` | Claude SDK | Claude agents |
+| `parallel-agents.mdc` | Parallel agents | Concurrent work |
+
+### Browser & Automation
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `browser.mdc` | Browser automation | E2E testing |
+| `cursor-browser.mdc` | Cursor browser | Visual testing |
+| `chrome-mcp.mdc` | Chrome DevTools | Performance debugging |
+
+### Documentation & Workflow
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `doc-verification.mdc` | Document verification | Before creating prompts |
+| `github-update.mdc` | GitHub workflow | Git operations |
+| `mermaid.mdc` | Mermaid diagrams | Creating diagrams |
+
+### UI/UX Rules
+| File | Purpose | When to Use |
+|------|---------|-------------|
+| `ui-design.mdc` | UI/UX standards | Design work |
+
+---
+
+## 🚀 Usage Pattern
+
+**When you need a rule:**
+1. Check this index for the relevant category
+2. Reference the specific rule file
+3. Read only when implementing that feature
+
+**Example:**
+```
+Need Gemini image generation? → See `gemeni/00-gemini-index.mdc` → `nano-banana.mdc`
+Need Supabase migration? → See `supabase/supabase-create-migration.mdc`
+Need testing? → See `testing-pitchdeck.mdc` or `test-startupwizard.mdc`
+```
+
+---
+
+## 💡 Dynamic Context Discovery
+
+**This index follows dynamic context discovery:**
+- ✅ References files instead of loading all content
+- ✅ Agent reads specific files only when needed
+- ✅ Reduces context usage by ~47% (per Cursor research)
+- ✅ Better focus and faster responses
+
+**Reference:** [Cursor Blog: Dynamic Context Discovery](https://cursor.com/blog/dynamic-context-discovery)
+
+---
+
+**Note:** Individual rule files contain full examples and patterns. This index provides quick navigation.

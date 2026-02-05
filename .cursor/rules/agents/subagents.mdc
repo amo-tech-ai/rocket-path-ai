@@ -1,0 +1,759 @@
+---
+description: Guide for creating and using Subagents - specialized AI assistants that Agent delegates to for complex tasks, context isolation, and parallel execution
+globs: ["**/.cursor/agents/**", "**/.claude/agents/**"]
+alwaysApply: true
+---
+
+# Subagents — Cursor Rule
+
+**Purpose:** Create specialized AI assistants that Agent delegates to for complex tasks, context isolation, and parallel execution  
+**Based on:** [Cursor Docs: Subagents](https://cursor.com/docs/context/subagents)  
+**Best for:** Complex tasks requiring context isolation, parallel workstreams, specialized expertise
+
+**Note:** Subagents are available in **Nightly** release channel. Switch via Settings → Beta → Update channel → Nightly.
+
+---
+
+## What Are Subagents?
+
+Subagents are **specialized AI assistants** that Cursor's agent can delegate tasks to. Each subagent operates in its own context window, handles specific types of work, and returns results to the parent agent.
+
+**Key Features:**
+- **Context Isolation:** Each subagent has its own context window — long research tasks don't consume space in main conversation
+- **Parallel Execution:** Launch multiple subagents simultaneously — work on different parts of codebase without waiting
+- **Specialized Expertise:** Configure subagents with custom prompts, tool access, and models for domain-specific tasks
+- **Reusability:** Define custom subagents and use them across projects
+
+---
+
+## When to Use Subagents
+
+### ✅ Use Subagents When
+
+| Scenario | Why Subagents Help |
+|----------|-------------------|
+| **Long research tasks** | Context isolation — doesn't bloat main conversation |
+| **Multiple workstreams in parallel** | Parallel execution — multiple subagents work simultaneously |
+| **Specialized expertise across many steps** | Focused subagent with domain knowledge |
+| **Independent verification of work** | Separate context for validation (e.g., verifier subagent) |
+| **Complex workflows with sequential steps** | Orchestrator pattern — planner → implementer → verifier |
+
+### ❌ Use Skills Instead When
+
+| Scenario | Why Skills Are Better |
+|----------|----------------------|
+| **Single-purpose tasks** | Skills are faster (e.g., "generate changelog", "format imports") |
+| **Quick, repeatable actions** | Skills don't need separate context window |
+| **Task completes in one shot** | Skills are more efficient for simple tasks |
+
+### ❌ Use Slash Commands Instead When
+
+| Scenario | Why Commands Are Better |
+|----------|------------------------|
+| **Very simple, single-purpose tasks** | No context isolation needed |
+| **File operations** | Commands are faster for simple file operations |
+
+---
+
+## Subagent File Structure
+
+### Supported Locations
+
+Subagents are automatically discovered from these locations:
+
+| Location | Scope | Example |
+|----------|-------|---------|
+| `.cursor/agents/` | Project-level | `.cursor/agents/verifier.md` |
+| `~/.cursor/agents/` | User-level (global) | User-wide subagents |
+
+**Project subagents take precedence when names conflict.**
+
+### File Format
+
+Each subagent is a **markdown file** with YAML frontmatter:
+
+```markdown
+---
+name: verifier
+description: Validates completed work. Use after tasks are marked done to confirm implementations are functional.
+model: fast
+readonly: false
+is_background: false
+---
+
+You are a skeptical validator. Your job is to verify that work claimed as complete actually works.
+
+When invoked:
+1. Identify what was claimed to be completed
+2. Check that the implementation exists and is functional
+3. Run relevant tests or verification steps
+4. Look for edge cases that may have been missed
+
+Be thorough and skeptical. Report:
+- What was verified and passed
+- What was claimed but incomplete or broken
+- Specific issues that need to be addressed
+```
+
+---
+
+## Configuration Fields
+
+### Frontmatter Fields
+
+| Field | Required | Description | Default | Example |
+|-------|----------|-------------|---------|---------|
+| `name` | ❌ No | Unique identifier. Use lowercase letters and hyphens. Defaults to filename without extension. | Filename | `"verifier"` |
+| `description` | ❌ No | When to use this subagent. Agent reads this to decide delegation. | `""` | `"Validates completed work. Use after tasks are marked done."` |
+| `model` | ❌ No | Model to use: `fast`, `inherit`, or specific model ID. Defaults to `inherit`. | `"inherit"` | `"fast"`, `"inherit"`, `"claude-3.5-sonnet"` |
+| `readonly` | ❌ No | If `true`, subagent runs with restricted write permissions. | `false` | `true` (for reviewers, auditors) |
+| `is_background` | ❌ No | If `true`, subagent runs in background without waiting for completion. | `false` | `true` (for long-running tasks) |
+
+### Model Options
+
+| Model Value | Description | Best For |
+|-------------|-------------|----------|
+| `fast` | Fast model for quick tasks | Verification, simple checks |
+| `inherit` | Use same model as parent agent | Most tasks (default) |
+| `claude-3.5-sonnet` | Specific model ID | Specialized tasks requiring specific model |
+
+### Execution Modes
+
+| Mode | `is_background` | Behavior | Best For |
+|------|----------------|----------|----------|
+| **Foreground** | `false` (default) | Blocks until subagent completes. Returns result immediately. | Sequential tasks where you need output |
+| **Background** | `true` | Returns immediately. Subagent works independently. | Long-running tasks, parallel workstreams |
+
+**Background subagents:**
+- Write output to `~/.cursor/subagents/`
+- Can be resumed later with agent ID
+- Useful for long-running tasks that span multiple invocations
+
+---
+
+## Creating Subagents
+
+### Quick Start
+
+**Ask Agent to create a subagent:**
+
+```
+Create a subagent file at .cursor/agents/verifier.md with YAML frontmatter containing name and description. The verifier subagent should validate completed work, check that implementations are functional, run tests, and report what passed vs what's incomplete.
+```
+
+**Or create manually:**
+
+1. Create file: `.cursor/agents/verifier.md`
+2. Add YAML frontmatter with configuration
+3. Write clear, focused prompt
+4. Test by invoking: `/verifier test the auth flow`
+
+### File Naming Convention
+
+**Use lowercase with hyphens:**
+- ✅ `verifier.md`
+- ✅ `security-auditor.md`
+- ✅ `test-runner.md`
+- ❌ `Verifier.md` (avoid uppercase)
+- ❌ `security_auditor.md` (use hyphens, not underscores)
+
+**Name is used for:**
+- File identifier (if `name` field omitted)
+- Invocation: `/verifier`, `/security-auditor`
+
+### Description Best Practices
+
+**Good Description:**
+```markdown
+description: Validates completed work. Use after tasks are marked done to confirm implementations are functional. Proactively checks tests and edge cases.
+```
+
+**Why Good:**
+- Clear purpose ("Validates completed work")
+- Trigger specified ("Use after tasks are marked done")
+- Behavior described ("checks tests and edge cases")
+- Includes "proactively" for automatic delegation
+
+**Bad Description:**
+```markdown
+description: Helps with code.
+```
+
+**Why Bad:**
+- Too vague — agent won't know when to use
+- No specific triggers
+- Doesn't describe behavior
+
+### Prompt Guidelines
+
+**✅ DO:**
+- Be specific and direct
+- Include step-by-step instructions
+- Define clear output format
+- Specify what to check/verify
+- Keep prompts focused (not rambling)
+
+**❌ DON'T:**
+- Write vague, generic prompts
+- Make prompts too long (keep under 200 lines)
+- Duplicate what slash commands do
+- Create dozens of generic subagents
+
+---
+
+## Using Subagents
+
+### Automatic Delegation
+
+Agent proactively delegates tasks based on:
+- Task complexity and scope
+- Custom subagent descriptions in your project
+- Current context and available tools
+
+**Encourage automatic delegation:**
+Include phrases like "use proactively" or "always use for" in `description` field.
+
+**Example:**
+```markdown
+description: Test automation expert. Use proactively to run tests and fix failures when code changes are made.
+```
+
+### Explicit Invocation
+
+**Using `/name` syntax:**
+```
+/verifier confirm the auth flow is complete
+/debugger investigate this error
+/security-auditor review the payment module
+```
+
+**Mentioning naturally:**
+```
+Use the verifier subagent to confirm the auth flow is complete
+Have the debugger subagent investigate this error
+Run the security-auditor subagent on the payment module
+```
+
+### Parallel Execution
+
+Launch multiple subagents concurrently:
+
+```
+Review the API changes and update the documentation in parallel
+```
+
+Agent sends multiple Task tool calls, so subagents run simultaneously.
+
+**Result:** Maximum throughput for independent tasks.
+
+### Resuming Subagents
+
+Subagents can be resumed to continue previous conversations:
+
+```
+Resume agent abc123 and analyze the remaining test failures
+```
+
+**When useful:**
+- Long-running tasks spanning multiple invocations
+- Background subagents that complete later
+- Continuing complex workflows
+
+Each subagent execution returns an agent ID. Pass this ID to resume with full context preserved.
+
+---
+
+## Common Subagent Patterns
+
+### 1. Verifier Subagent
+
+**Purpose:** Independently validates completed work
+
+```markdown
+---
+name: verifier
+description: Validates completed work. Use after tasks are marked done to confirm implementations are functional.
+model: fast
+readonly: false
+---
+
+You are a skeptical validator. Your job is to verify that work claimed as complete actually works.
+
+When invoked:
+1. Identify what was claimed to be completed
+2. Check that the implementation exists and is functional
+3. Run relevant tests or verification steps
+4. Look for edge cases that may have been missed
+
+Be thorough and skeptical. Report:
+- What was verified and passed
+- What was claimed but incomplete or broken
+- Specific issues that need to be addressed
+
+Do not accept claims at face value. Test everything.
+```
+
+**Use cases:**
+- Validate features work end-to-end before marking tickets complete
+- Catch partially implemented functionality
+- Ensure tests actually pass (not just that test files exist)
+
+### 2. Debugger Subagent
+
+**Purpose:** Root cause analysis for errors and test failures
+
+```markdown
+---
+name: debugger
+description: Debugging specialist for errors and test failures. Use when encountering issues.
+model: inherit
+readonly: false
+---
+
+You are an expert debugger specializing in root cause analysis.
+
+When invoked:
+1. Capture error message and stack trace
+2. Identify reproduction steps
+3. Isolate the failure location
+4. Implement minimal fix
+5. Verify solution works
+
+For each issue, provide:
+- Root cause explanation
+- Evidence supporting the diagnosis
+- Specific code fix
+- Testing approach
+
+Focus on fixing the underlying issue, not symptoms.
+```
+
+**Use cases:**
+- Debugging production errors
+- Investigating test failures
+- Root cause analysis for complex issues
+
+### 3. Test Runner Subagent
+
+**Purpose:** Proactively run tests and fix failures
+
+```markdown
+---
+name: test-runner
+description: Test automation expert. Use proactively to run tests and fix failures when code changes are made.
+model: fast
+is_background: false
+---
+
+You are a test automation expert.
+
+When you see code changes, proactively run appropriate tests.
+
+If tests fail:
+1. Analyze the failure output
+2. Identify the root cause
+3. Fix the issue while preserving test intent
+4. Re-run to verify
+
+Report test results with:
+- Number of tests passed/failed
+- Summary of any failures
+- Changes made to fix issues
+```
+
+**Use cases:**
+- Automatically run tests after code changes
+- Fix test failures while preserving test intent
+- Maintain test coverage
+
+### 4. Security Auditor Subagent
+
+**Purpose:** Security specialist for auth, payments, sensitive data
+
+```markdown
+---
+name: security-auditor
+description: Security specialist. Use when implementing auth, payments, or handling sensitive data.
+model: inherit
+readonly: true
+---
+
+You are a security expert auditing code for vulnerabilities.
+
+When invoked:
+1. Identify security-sensitive code paths
+2. Check for common vulnerabilities (injection, XSS, auth bypass)
+3. Verify secrets are not hardcoded
+4. Review input validation and sanitization
+
+Report findings by severity:
+- Critical (must fix before deploy)
+- High (fix soon)
+- Medium (address when possible)
+```
+
+**Use cases:**
+- Security review before deployments
+- Auditing authentication flows
+- Checking payment processing code
+
+### 5. Orchestrator Pattern
+
+**Complex workflows with multiple specialist subagents:**
+
+```
+Planner → Analyzes requirements, creates technical plan
+    ↓
+Implementer → Builds feature based on plan
+    ↓
+Verifier → Confirms implementation matches requirements
+```
+
+**Each handoff:**
+- Includes structured output
+- Provides clear context to next agent
+- Preserves workflow state
+
+---
+
+## Best Practices
+
+### ✅ DO
+
+1. **Write Focused Subagents**
+   - Each subagent should have single, clear responsibility
+   - Avoid generic "helper" agents
+   - One domain per subagent
+
+2. **Invest in Descriptions**
+   - `description` field determines when Agent delegates
+   - Include keywords that help agent recognize relevance
+   - Test by making prompts and checking if right subagent triggers
+   - Use "proactively" or "always use for" for automatic delegation
+
+3. **Keep Prompts Concise**
+   - Long, rambling prompts dilute focus
+   - Be specific and direct
+   - Under 200 lines recommended
+
+4. **Add to Version Control**
+   - Check `.cursor/agents/` into repository
+   - Team benefits from shared subagents
+   - Version control subagent definitions
+
+5. **Start with Agent-Generated Subagents**
+   - Let Agent help draft initial configuration
+   - Then customize for your needs
+   - Faster than writing from scratch
+
+6. **Use Readonly for Reviewers**
+   - Set `readonly: true` for auditors, reviewers
+   - Prevents accidental modifications
+   - Safe for validation tasks
+
+7. **Use Background for Long Tasks**
+   - Set `is_background: true` for long-running tasks
+   - Subagent works independently
+   - Can be resumed later
+
+### ❌ DON'T
+
+1. **Don't Create Dozens of Generic Subagents**
+   - ❌ 50+ subagents with vague instructions like "helps with coding"
+   - ✅ 2-3 focused subagents with clear purposes
+
+2. **Don't Use Vague Descriptions**
+   - ❌ "Use for general tasks" — no signal about when to delegate
+   - ✅ "Use when implementing authentication flows with OAuth providers" — specific trigger
+
+3. **Don't Overly Long Prompts**
+   - ❌ 2,000-word prompt doesn't make subagent smarter
+   - ✅ Concise, focused prompt is more effective
+
+4. **Don't Duplicate Slash Commands**
+   - ❌ Creating subagent for simple, single-purpose task like "format imports"
+   - ✅ Use slash command instead — faster and simpler
+
+5. **Don't Create Too Many Subagents**
+   - ❌ Starting with 20+ subagents
+   - ✅ Start with 2-3 focused subagents, add more only when needed
+
+---
+
+## Anti-Patterns to Avoid
+
+### ⚠️ Warning: Too Many Generic Subagents
+
+**Don't create dozens of generic subagents.** Having 50+ subagents with vague instructions like "helps with coding" is ineffective. Agent won't know when to use them, and you'll waste time maintaining them.
+
+**Better approach:**
+- Start with 2-3 focused subagents
+- Add more only when you have clear, distinct use cases
+- Combine similar functionality into single subagent
+
+### Common Mistakes
+
+1. **Generic "Helper" Subagent**
+   ```
+   ❌ name: helper
+      description: Helps with code
+   ```
+
+2. **Overlapping Subagents**
+   ```
+   ❌ verifier.md + validator.md + checker.md (all do same thing)
+   ```
+
+3. **Simple Task as Subagent**
+   ```
+   ❌ format-imports.md (should be slash command instead)
+   ```
+
+---
+
+## Performance and Cost
+
+### Trade-offs
+
+| Benefit | Trade-off |
+|---------|-----------|
+| **Context Isolation** | Startup overhead (each subagent gathers its own context) |
+| **Parallel Execution** | Higher token usage (multiple contexts running simultaneously) |
+| **Specialized Focus** | Latency (may be slower than main agent for simple tasks) |
+
+### Token and Cost Considerations
+
+**Subagents consume tokens independently:**
+- Each subagent has its own context window and token usage
+- Running 5 subagents in parallel uses roughly 5x the tokens of a single agent
+- Evaluate the overhead — for quick tasks, main agent is often faster
+
+**When subagents make sense:**
+- ✅ Complex, long-running tasks
+- ✅ Parallel workstreams
+- ✅ Context isolation needed
+
+**When main agent is better:**
+- ❌ Quick, simple tasks
+- ❌ Single-purpose operations
+- ❌ No context isolation needed
+
+### Model Selection
+
+| Model | Best For | Trade-off |
+|-------|----------|-----------|
+| `fast` | Quick verification, simple checks | Less capable, but faster and cheaper |
+| `inherit` | Most tasks (default) | Same capabilities as parent |
+| Specific model | Specialized tasks | May be more expensive |
+
+---
+
+## Project-Specific Recommendations
+
+### Recommended Subagents for This Project
+
+**1. Verifier** (`.cursor/agents/verifier.md`)
+- Purpose: Validate completed dashboard features
+- Use: After implementing User Profile, Company Profile dashboards
+- Model: `fast`
+
+**2. Dashboard Tester** (`.cursor/agents/dashboard-tester.md`)
+- Purpose: Test 3-panel layout implementation across dashboards
+- Use: When implementing or updating dashboard screens
+- Model: `inherit`
+
+**3. Supabase Migrator** (`.cursor/agents/supabase-migrator.md`)
+- Purpose: Create and validate Supabase migrations
+- Use: When modifying database schema
+- Model: `inherit`
+
+**4. AI Agent Integrator** (`.cursor/agents/ai-agent-integrator.md`)
+- Purpose: Integrate Gemini AI agents into features
+- Use: When adding AI functionality (ProfileExtractor, ProfileEnhancer, etc.)
+- Model: `inherit`
+
+### Subagent Organization
+
+**Structure:**
+```
+.cursor/agents/
+├── verifier.md              # Validates completed work
+├── dashboard-tester.md      # Tests 3-panel layouts
+├── supabase-migrator.md     # Database migrations
+└── ai-agent-integrator.md   # AI agent integration
+```
+
+**Naming Convention:**
+- Use kebab-case: `verifier.md`, `dashboard-tester.md`
+- Be descriptive: `ai-agent-integrator.md` ✅, `ai.md` ❌
+
+---
+
+## Examples
+
+### Example 1: Creating a Verifier Subagent
+
+**User request:**
+```
+Create a subagent file at .cursor/agents/verifier.md with YAML frontmatter containing name and description. The verifier subagent should validate completed work, check that implementations are functional, run tests, and report what passed vs what's incomplete.
+```
+
+**Agent creates:**
+```markdown
+---
+name: verifier
+description: Validates completed work. Use after tasks are marked done to confirm implementations are functional.
+model: fast
+---
+
+You are a skeptical validator...
+```
+
+### Example 2: Using Subagent for Verification
+
+**User request:**
+```
+Implement User Profile dashboard, then have the verifier confirm it works
+```
+
+**Agent behavior:**
+1. Implements User Profile dashboard
+2. Invokes `/verifier` subagent
+3. Verifier checks:
+   - Dashboard loads correctly
+   - 3-panel layout implemented
+   - Forms work and save data
+   - LinkedIn sync functional
+4. Returns verification report
+
+### Example 3: Parallel Execution
+
+**User request:**
+```
+Review the API changes and update the documentation in parallel
+```
+
+**Agent behavior:**
+1. Launches two subagents simultaneously:
+   - Subagent 1: Reviews API changes
+   - Subagent 2: Updates documentation
+2. Both run in parallel
+3. Results returned independently
+
+---
+
+## Managing Subagents
+
+### Creating Subagents
+
+**Easiest way:** Ask Agent to create one
+```
+Create a subagent file at .cursor/agents/verifier.md with YAML frontmatter...
+```
+
+**Manual creation:**
+1. Create file: `.cursor/agents/subagent-name.md`
+2. Add YAML frontmatter with configuration
+3. Write focused prompt
+4. Test by invoking: `/subagent-name test task`
+
+### Viewing Subagents
+
+**Check directory:**
+```bash
+ls .cursor/agents/
+```
+
+**In Agent chat:**
+- Agent includes all custom subagents in available tools
+- See which subagents are configured by checking directory
+
+### Debugging Misbehaving Subagents
+
+**If subagent doesn't trigger:**
+1. Check `description` field — ensure it includes keywords that match your prompts
+2. Test explicitly: `/subagent-name simple task`
+3. Review prompt — ensure it's specific and clear
+
+**If subagent triggers incorrectly:**
+1. Make `description` more specific
+2. Add exclusions or conditions
+3. Test with different prompts
+
+---
+
+## FAQ
+
+**Q: Can subagents launch other subagents?**  
+A: Yes. Custom subagents inherit all tools from parent, including Task tool, so they can spawn other subagents. Built-in `computerUse` subagent cannot spawn additional subagents.
+
+**Q: How do I see what a subagent is doing?**  
+A: Background subagents write output to `~/.cursor/subagents/`. Parent agent can read these files to check progress.
+
+**Q: What happens if a subagent fails?**  
+A: Subagent returns error status to parent agent. Parent can retry, resume with additional context, or handle failure differently.
+
+**Q: Can I use MCP tools in subagents?**  
+A: Yes. Subagents inherit all tools from parent, including MCP tools from configured servers.
+
+**Q: How do I debug a misbehaving subagent?**  
+A: Check subagent's `description` and prompt. Ensure instructions are specific and unambiguous. Test by invoking explicitly with simple task.
+
+---
+
+## Quick Reference
+
+### File Structure
+```
+.cursor/agents/
+└── subagent-name.md    # Markdown file with YAML frontmatter
+```
+
+### Required Frontmatter
+```markdown
+---
+name: subagent-name          # Optional: defaults to filename
+description: When to use...  # Optional: helps agent decide delegation
+model: inherit               # Optional: fast, inherit, or model ID
+readonly: false              # Optional: restrict write permissions
+is_background: false         # Optional: run in background
+---
+```
+
+### Invocation
+- **Automatic:** Agent delegates based on `description` field
+- **Explicit:** `/subagent-name task description`
+- **Natural:** "Use the subagent-name subagent to..."
+
+### Execution Modes
+- **Foreground** (`is_background: false`): Blocks until complete
+- **Background** (`is_background: true`): Runs independently, can resume
+
+### Best Practices
+- Focused subagents (one domain per subagent)
+- Clear descriptions with keywords
+- Concise prompts (under 200 lines)
+- Version control subagents
+- Start with 2-3, add more only when needed
+
+---
+
+## Reference
+
+- **Cursor Docs:** [Subagents](https://cursor.com/docs/context/subagents)
+- **Related:** Agent Skills (`.cursor/rules/agent-skills.mdc`)
+- **Related:** Dynamic Context Discovery (`.cursor/rules/dynamic-context-discovery.mdc`)
+
+---
+
+## Key Takeaways
+
+1. **Subagents are specialized assistants** with their own context windows
+2. **Use for complex tasks** requiring context isolation or parallel execution
+3. **File location:** `.cursor/agents/subagent-name.md`
+4. **Clear descriptions** help agent decide when to delegate
+5. **Focused subagents** work better than generic helpers
+6. **Start small** — 2-3 focused subagents, add more when needed
+7. **Foreground vs background** — choose based on whether you need immediate results
+
+**Result:** Break down complex tasks, work in parallel, preserve main conversation context, specialize expertise without context bloat.

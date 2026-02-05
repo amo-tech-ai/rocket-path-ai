@@ -1,0 +1,627 @@
+---
+description: Comprehensive guide for using Agent Skills - when to use which skills, how to activate them, and integration with skills.md master index
+globs: ["**/.cursor/skills/**", "**/.claude/skills/**", "**/skills.md"]
+alwaysApply: true
+---
+
+# Skills Usage Guide - Cursor Rule
+
+**Purpose:** Master guide for using Agent Skills in this project  
+**Master Index:** `skills.md` (comprehensive skill reference)  
+**Skills Location:** `.cursor/skills/`  
+**Related Rule:** `.cursor/rules/using-skills.mdc` (practical usage)
+
+---
+
+## 🎯 Quick Reference
+
+### Skill Activation Commands
+
+| Command | Skill Triggered | Use Case |
+|---------|----------------|----------|
+| `/edge-functions` | Edge Functions | Creating Supabase serverless functions |
+| `/supabase` | Supabase Database | Database migrations, RLS, schema |
+| `/dashboards` | Dashboards | 3-panel dashboard layouts |
+| `/ai-agents` | AI Agents | Gemini AI integration |
+| `/testing` | Testing | Unit, E2E, integration tests |
+| `/claude-sdk` | Claude SDK | Claude Agent SDK setup |
+| `/agent-best-practices` | Agent Best Practices | Agent collaboration patterns |
+
+### Skill Activation Matrix
+
+**Use this matrix to identify which skills to activate:**
+
+| Task Type | Primary Skill | Secondary Skills | Reference |
+|-----------|---------------|------------------|-----------|
+| **New Dashboard/Page** | `dashboards` | `feature-dev`, `supabase` | `figma/`, `docs/style-guide.md` |
+| **New API Endpoint** | `edge-functions` | `supabase`, `testing` | `supabase/functions/` |
+| **Database Schema Change** | `supabase` | `feature-dev` | `supabase/migrations/` |
+| **New AI Agent** | `claude-sdk` | `feature-dev`, `testing` | `claude-sdk/`, `claude-reference/agents/` |
+| **AI Feature Integration** | `ai-agents` + `claude-sdk` | `edge-functions` | `claude-sdk/04-claudevsgemeni.md` |
+| **New Feature (multi-file)** | `feature-dev` | `dashboards`, `supabase` | `plan/` |
+| **UI Component** | `dashboards` | — | `docs/style-guide.md` |
+| **Testing Suite** | `testing` | `feature-dev` | `claude-reference/testing/` |
+
+---
+
+## 📚 Skills Master Index Reference
+
+**Always consult `skills.md` for:**
+- Complete skill inventory (21+ skills)
+- Detailed skill documentation
+- Community skills (verified top 10)
+- Skill evaluation criteria
+- Industry-specific skills
+- Skill workflow integration
+
+**Key Sections in `skills.md`:**
+- **Skill Activation Matrix** (lines 81-111) - Task type → Skills mapping
+- **Detailed Skill Documentation** (lines 114-410) - Each skill's purpose and workflow
+- **Community Skills** (lines 410-460) - Verified external skills
+- **Skill Workflow Integration** (lines 541-567) - Mermaid diagrams
+
+---
+
+## 🔄 How Skills Work
+
+### Automatic Discovery
+
+**When Cursor starts:**
+1. Scans `.cursor/skills/` directory
+2. Reads `SKILL.md` files with YAML frontmatter
+3. Extracts `name` and `description` fields
+4. Makes skills available to Agent
+
+**Agent behavior:**
+- Sees skill names and descriptions only (lightweight)
+- Decides relevance based on your request keywords
+- Dynamically loads full skill content when needed
+- **Result:** ~47% token reduction vs loading all skills upfront
+
+### Manual Invocation
+
+**To explicitly use a skill:**
+1. Type `/` in Agent chat
+2. Search for skill name (e.g., `/edge-functions`)
+3. Select the skill
+4. Agent loads and uses that skill
+
+**Example:**
+```
+/edge-functions create a function that enriches user profiles from LinkedIn URLs
+```
+
+---
+
+## 📋 Available Skills in This Project
+
+### Core Development Skills
+
+| Skill | Location | Purpose | Priority |
+|-------|----------|---------|----------|
+| **edge-functions** | `.cursor/skills/edge-functions/` | Supabase Edge Functions with Deno, TypeScript, JWT auth | 🔴 Critical |
+| **supabase** | `.cursor/skills/supabase/` | Database migrations, RLS policies, SQL queries | 🔴 Critical |
+| **dashboards** | `.cursor/skills/dashboards/` | 3-panel dashboard layouts (Context + Work + Intelligence) | 🔴 Critical |
+| **testing** | `.cursor/skills/testing/` | Testing strategies and patterns | 🟡 High |
+
+### AI & Agent Skills
+
+| Skill | Location | Purpose | Priority |
+|-------|----------|---------|----------|
+| **ai-agents** | `.cursor/skills/ai-agents/` | Gemini AI integration into features | 🔴 Critical |
+| **claude-sdk** | `.cursor/skills/claude-sdk/` | Claude Agent SDK setup and patterns | 🔴 Critical |
+| **agent-best-practices** | `.cursor/skills/agent-best-practices/` | Agent collaboration best practices | 🟡 High |
+
+### Additional Skills (Referenced in `skills.md`)
+
+**These skills are documented in `skills.md` but may be in `.claude/` directories:**
+
+- **feature-dev** - Multi-file feature development (7-phase workflow)
+- **frontend-design** - Premium UI/UX creation
+- **doc-coauthoring** - Technical documentation, PRDs
+- **events-management** - Events management workflows
+
+**See `skills.md` lines 114-410 for complete documentation.**
+
+---
+
+## 🎯 When to Use Which Skill
+
+### By Task Type
+
+**Frontend/UI Work:**
+- **Primary:** `dashboards` (for dashboard pages)
+- **Reference:** `skills.md` → Frontend Design section (line 149)
+- **Pattern:** 3-panel layout (Left = Context, Main = Work, Right = Intelligence)
+
+**Backend/API Work:**
+- **Primary:** `edge-functions` (for Supabase functions)
+- **Secondary:** `supabase` (for database operations)
+- **Reference:** `skills.md` → Edge Functions section (line 179)
+
+**Database Work:**
+- **Primary:** `supabase` (for migrations, RLS, schema)
+- **Reference:** `skills.md` → Supabase Database section (line 212)
+- **Pattern:** Migration files, RLS policies, database functions
+
+**AI Integration:**
+- **Primary:** `ai-agents` (for Gemini) OR `claude-sdk` (for Claude)
+- **Secondary:** `edge-functions` (for backend integration)
+- **Reference:** `skills.md` → AI Tools & Models section (line 301)
+
+**Testing:**
+- **Primary:** `testing`
+- **Reference:** `skills.md` → Testing Strategy section (line 378)
+- **Pattern:** Unit → Integration → E2E
+
+**Multi-File Features:**
+- **Primary:** `feature-dev` (if exists in `.claude/feature-dev/`)
+- **Reference:** `skills.md` → Feature Development section (line 116)
+- **Pattern:** 7-phase workflow (Requirements → Exploration → Design → Implementation → Testing → Review → Documentation)
+
+---
+
+## 🔍 Skill Discovery Process
+
+### Step 1: Identify Task Type
+
+**Ask yourself:**
+- What am I building? (Dashboard, API, Database, AI feature, etc.)
+- What files will be touched? (Frontend, Backend, Database, etc.)
+- What's the primary domain? (UI, API, Data, AI, etc.)
+
+### Step 2: Check Skill Activation Matrix
+
+**In `skills.md` (lines 81-111):**
+- Find your task type
+- Identify primary and secondary skills
+- Note reference documentation
+
+### Step 3: Read Skill Documentation
+
+**For each skill:**
+1. Read `skills.md` detailed section (lines 114-410)
+2. Read `.cursor/skills/{skill-name}/SKILL.md` for workflow
+3. Check `examples/` folder for usage patterns
+4. Review `references/` folder for detailed docs
+
+### Step 4: Activate Skills
+
+**Automatic (Recommended):**
+- Just describe your task
+- Agent will automatically use relevant skills
+- Most efficient approach
+
+**Manual (If Needed):**
+- Type `/skill-name` to force specific skill
+- Useful when multiple skills could apply
+- Focuses Agent on specific patterns
+
+---
+
+## 📖 Skill File Structure
+
+### Standard Skill Structure
+
+```
+.cursor/skills/
+└── skill-name/
+    ├── SKILL.md          # Required: YAML frontmatter + instructions
+    ├── examples/         # Optional: Example files
+    │   └── example.md
+    ├── references/        # Optional: Reference documentation
+    │   └── reference.md
+    └── scripts/          # Optional: Executable scripts
+        └── helper.sh
+```
+
+### SKILL.md Format
+
+**Required YAML frontmatter:**
+```yaml
+---
+name: skill-name
+description: Clear description with keywords. Use when [triggers]. Best for [use cases].
+---
+
+# Skill Name
+
+[Detailed instructions follow...]
+```
+
+**Key Elements:**
+- **When to Use** - Clear triggers for when Agent should use this skill
+- **Instructions** - Step-by-step guidance for the Agent
+- **Examples** - Show correct usage patterns
+- **Best Practices** - Domain-specific conventions
+
+---
+
+## 🎨 Skill Usage Patterns
+
+### Pattern 1: Single Skill (Simple Task)
+
+**Example:** "Create a new edge function for contact enrichment"
+
+**Agent behavior:**
+1. Sees "edge function" keyword
+2. Activates `edge-functions` skill
+3. Follows skill instructions
+4. Creates function following patterns
+
+**Result:** Edge function created with proper structure
+
+### Pattern 2: Multiple Skills (Complex Task)
+
+**Example:** "Add AI-powered profile enrichment to the dashboard"
+
+**Agent behavior:**
+1. Sees "dashboard" → activates `dashboards` skill
+2. Sees "AI-powered" → activates `ai-agents` skill
+3. Sees "enrichment" → activates `edge-functions` skill
+4. Combines all three skills
+5. Creates complete feature
+
+**Result:** Dashboard page with AI backend integration
+
+### Pattern 3: Skill Chain (Sequential Tasks)
+
+**Example:** "Create a new feature: investor matching dashboard"
+
+**Agent behavior:**
+1. **Phase 1:** `feature-dev` → Requirements analysis, architecture design
+2. **Phase 2:** `supabase` → Database schema, migrations
+3. **Phase 3:** `edge-functions` → Backend API endpoints
+4. **Phase 4:** `dashboards` → Frontend dashboard page
+5. **Phase 5:** `ai-agents` → AI matching logic
+6. **Phase 6:** `testing` → Test suite
+
+**Result:** Complete feature with all components
+
+---
+
+## ✅ Best Practices
+
+### For Users
+
+1. **Trust Automatic Selection**
+   - Agent usually picks the right skill(s)
+   - Only override when needed
+   - Clear keywords help Agent match correctly
+
+2. **Use Clear Keywords**
+   - "Create edge function" → triggers `edge-functions`
+   - "Add dashboard page" → triggers `dashboards`
+   - "Write migration" → triggers `supabase`
+   - Clear requests = better skill matching
+
+3. **Reference Skills Explicitly When Needed**
+   - "Use the dashboards skill pattern"
+   - "Follow the edge-functions skill for this"
+   - Explicitly guides Agent
+
+4. **Consult `skills.md` for Complex Tasks**
+   - Check Skill Activation Matrix
+   - Review detailed skill documentation
+   - Understand workflow phases
+
+### For Skill Creators
+
+1. **Write Clear Descriptions**
+   - Include keywords that match common requests
+   - Specify use cases and triggers
+   - Make it obvious when to use the skill
+
+2. **Provide Examples**
+   - Add `examples/` directory
+   - Show correct usage patterns
+   - Demonstrate best practices
+
+3. **Keep Skills Focused**
+   - One domain per skill
+   - Clear, single purpose
+   - Avoid overlapping functionality
+
+4. **Update `skills.md`**
+   - Add new skills to master index
+   - Update Skill Activation Matrix
+   - Document skill location and purpose
+
+---
+
+## 🚨 Common Mistakes to Avoid
+
+### ❌ DON'T
+
+1. **Don't Skip Skill Discovery**
+   - Always check `skills.md` for available skills
+   - Don't reinvent patterns that skills already cover
+
+2. **Don't Override Without Reason**
+   - Agent's automatic selection is usually correct
+   - Only override if you need specific focus
+
+3. **Don't Create Duplicate Skills**
+   - Check existing skills first
+   - Extend existing skills if needed
+   - Avoid overlapping functionality
+
+4. **Don't Ignore Skill Workflows**
+   - Skills have defined workflows for a reason
+   - Don't skip phases or steps
+   - Follow the complete workflow
+
+### ✅ DO
+
+1. **Do Consult `skills.md` First**
+   - Check Skill Activation Matrix
+   - Review detailed skill documentation
+   - Understand available skills
+
+2. **Do Use Clear Keywords**
+   - Match keywords to skill descriptions
+   - Be specific about task type
+   - Include domain indicators
+
+3. **Do Follow Skill Workflows**
+   - Complete all phases
+   - Use skill checklists
+   - Verify quality gates
+
+4. **Do Combine Skills When Appropriate**
+   - Complex tasks often need multiple skills
+   - Let Agent combine automatically
+   - Or explicitly request multiple skills
+
+---
+
+## 🔗 Integration with Other Rules
+
+### Related Rules
+
+- **`.cursor/rules/using-skills.mdc`** - Practical usage guide (automatic vs manual)
+- **`.cursor/rules/agent-skills.mdc`** - Skill creation guide
+- **`.cursor/rules/dynamic-context-discovery.mdc`** - How skills use dynamic loading
+
+### Master Documentation
+
+- **`skills.md`** - Complete skill reference (616 lines)
+  - Skill Activation Matrix (lines 81-111)
+  - Detailed skill docs (lines 114-410)
+  - Community skills (lines 410-460)
+  - Workflow integration (lines 541-567)
+
+---
+
+## 📊 Skill Inventory Summary
+
+### Current Skills (`.cursor/skills/`)
+
+| Skill | Status | Purpose |
+|-------|--------|---------|
+| `edge-functions` | ✅ Active | Supabase Edge Functions |
+| `supabase` | ✅ Active | Database & Schema |
+| `dashboards` | ✅ Active | 3-Panel Dashboards |
+| `ai-agents` | ✅ Active | Gemini Integration |
+| `testing` | ✅ Active | Testing Strategies |
+| `claude-sdk` | ✅ Active | Claude SDK Agents |
+| `agent-best-practices` | ✅ Active | Agent Collaboration |
+
+### Documented Skills (`skills.md`)
+
+**Additional skills documented but may be in `.claude/` directories:**
+- `feature-dev` - Feature Development (7-phase workflow)
+- `frontend-design` - Premium UI/UX
+- `doc-coauthoring` - Documentation & PRDs
+- `events-management` - Events Management
+
+**See `skills.md` for complete inventory (21+ skills total).**
+
+---
+
+## 🎯 Quick Decision Tree
+
+```
+Start Task
+    ↓
+What am I building?
+    ↓
+├─ Dashboard/Page → Use `dashboards` skill
+├─ API/Function → Use `edge-functions` skill
+├─ Database → Use `supabase` skill
+├─ AI Feature → Use `ai-agents` or `claude-sdk` skill
+├─ Multi-file Feature → Use `feature-dev` skill (if available)
+├─ Testing → Use `testing` skill
+└─ Documentation → Use `doc-coauthoring` skill (if available)
+    ↓
+Check `skills.md` for detailed workflow
+    ↓
+Let Agent automatically use skill OR manually invoke with `/skill-name`
+    ↓
+Follow skill workflow phases
+    ↓
+Complete quality checklist
+    ↓
+Done ✅
+```
+
+---
+
+## 📝 Example Usage Scenarios
+
+### Scenario 1: Creating a Dashboard Page
+
+**User Request:**
+```
+Create a new dashboard page for investor management with AI insights panel
+```
+
+**Agent Process:**
+1. Identifies "dashboard page" → activates `dashboards` skill
+2. Identifies "AI insights" → activates `ai-agents` skill
+3. Reads `skills.md` → Frontend Design section for UI patterns
+4. Reads `.cursor/skills/dashboards/SKILL.md` → 3-panel layout instructions
+5. Creates dashboard with:
+   - Left panel: Navigation
+   - Main panel: Investor list/form
+   - Right panel: AI insights (using `ai-agents` skill)
+6. Follows Tailwind CSS patterns from `docs/style-guide.md`
+
+**Result:** Complete dashboard page following project patterns
+
+### Scenario 2: Creating an Edge Function
+
+**User Request:**
+```
+Create an edge function that enriches startup profiles from LinkedIn URLs using Gemini
+```
+
+**Agent Process:**
+1. Identifies "edge function" → activates `edge-functions` skill
+2. Identifies "Gemini" → activates `ai-agents` skill
+3. Reads `.cursor/skills/edge-functions/SKILL.md` → Function structure
+4. Reads `skills.md` → Edge Functions section (line 179) for patterns
+5. Creates function with:
+   - Deno.serve pattern
+   - JWT authentication
+   - CORS handling
+   - Gemini API integration (from `ai-agents` skill)
+   - Error handling
+6. Follows project patterns from `supabase/functions/`
+
+**Result:** Edge function with proper structure and AI integration
+
+### Scenario 3: Database Migration
+
+**User Request:**
+```
+Add a new table for event sponsors with RLS policies
+```
+
+**Agent Process:**
+1. Identifies "table", "RLS", "migration" → activates `supabase` skill
+2. Reads `.cursor/skills/supabase/SKILL.md` → Migration patterns
+3. Reads `skills.md` → Supabase Database section (line 212)
+4. Creates migration with:
+   - Table definition
+   - RLS enabled
+   - Granular policies (SELECT/INSERT/UPDATE/DELETE)
+   - Indexes
+   - Foreign keys
+5. Follows SQL style guide from `supabase/docs/`
+
+**Result:** Migration with proper RLS policies
+
+---
+
+## 🔍 Troubleshooting
+
+### Skill Not Being Used
+
+**If Agent isn't using a skill:**
+
+1. **Check Keywords**
+   - Do your keywords match skill descriptions?
+   - Are you using clear, specific terms?
+   - Try using exact skill trigger phrases
+
+2. **Check `skills.md`**
+   - Is the skill documented?
+   - What are the activation triggers?
+   - Review Skill Activation Matrix
+
+3. **Try Manual Invocation**
+   - Type `/skill-name` explicitly
+   - Forces Agent to use that skill
+   - Useful for debugging
+
+4. **Improve Skill Description**
+   - Add more keywords to skill description
+   - Make description more specific
+   - Update `.cursor/skills/{skill-name}/SKILL.md`
+
+### Skill Not Found
+
+**If skill doesn't appear:**
+
+1. **Check Location**
+   - Is it in `.cursor/skills/`?
+   - Does folder name match skill name?
+   - Check for typos
+
+2. **Check SKILL.md**
+   - Does `SKILL.md` exist?
+   - Is YAML frontmatter correct?
+   - Is `description` field present?
+
+3. **Restart Cursor**
+   - Skills are discovered on startup
+   - Restart to refresh skill list
+   - Check Settings → Rules → Agent Decides
+
+### Multiple Skills Apply
+
+**If multiple skills could apply:**
+
+1. **Let Agent Decide**
+   - Agent usually picks the best one
+   - Or combines multiple skills automatically
+   - Trust automatic selection
+
+2. **Manual Selection**
+   - Type `/skill-name` to focus on one
+   - Useful for focused tasks
+   - Prevents skill confusion
+
+3. **Explicit Combination**
+   - "Use edge-functions and ai-agents skills to..."
+   - Guides Agent to use both
+   - Ensures both patterns are followed
+
+---
+
+## 📚 Reference Documentation
+
+### Primary References
+
+- **`skills.md`** - Master skills index (616 lines)
+  - Skill Activation Matrix
+  - Detailed skill documentation
+  - Community skills
+  - Workflow integration
+
+- **`.cursor/rules/using-skills.mdc`** - Practical usage guide
+  - Automatic vs manual invocation
+  - Skill matching logic
+  - Troubleshooting
+
+- **`.cursor/rules/agent-skills.mdc`** - Skill creation guide
+  - How to create new skills
+  - SKILL.md format
+  - Best practices
+
+### Skill-Specific References
+
+Each skill has its own documentation:
+- `.cursor/skills/{skill-name}/SKILL.md` - Main skill definition
+- `.cursor/skills/{skill-name}/examples/` - Usage examples
+- `.cursor/skills/{skill-name}/references/` - Detailed docs
+
+---
+
+## 🎯 Key Takeaways
+
+1. **Always consult `skills.md` first** - Complete skill reference with activation matrix
+2. **Skills are used automatically** - Agent decides when to use them based on keywords
+3. **Manual invocation available** - Type `/skill-name` to force specific skill usage
+4. **Multiple skills can apply** - Agent combines them for complex tasks
+5. **Follow skill workflows** - Each skill has defined phases and checklists
+6. **Use clear keywords** - Better keywords = better skill matching
+7. **Trust automatic selection** - Agent usually picks the right skill(s)
+
+**Result:** Consistent, high-quality code following project patterns and best practices.
+
+---
+
+**Last Updated:** 2025-01-21  
+**Related Files:** `skills.md`, `.cursor/rules/using-skills.mdc`, `.cursor/rules/agent-skills.mdc`
