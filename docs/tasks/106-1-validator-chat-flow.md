@@ -218,18 +218,55 @@ sequenceDiagram
 
 ## Testing Checklist
 
-1. ✅ Navigate to `/` → See wider chat card
-2. ✅ Enter startup idea (10+ chars) → Generate button enables
-3. ✅ Click Generate (logged out) → Redirect to login with return URL
-4. ✅ After login → Redirect to `/validate?hasIdea=true`
-5. ✅ Chat shows idea pre-populated → AI asks follow-up
-6. ✅ Click Generate → 4-phase overlay (30-60 seconds)
-7. ✅ Auto-navigate to `/validator?showReport=true`
-8. ✅ 14-section report populated with chat context
+ 1. ✅ Navigate to `/` → See wider chat card (1100px)
+ 2. ✅ Enter startup idea (10+ chars) → Generate button enables
+ 3. ✅ Click Generate (logged out) → Redirect to login with return URL
+ 4. ✅ After login → Redirect to `/validate?hasIdea=true`
+ 5. ✅ Chat shows idea pre-populated → AI asks follow-up
+ 6. ✅ Click Generate → Calls validator-start edge function
+ 7. ✅ Navigates to `/validator/run/:sessionId` → Pipeline progress page
+ 8. ✅ 7 agents run sequentially with real-time status updates
+ 9. ✅ Auto-navigate to `/validator/report/:reportId` when complete
+ 10. ✅ Verified badge shows if all agents passed + citations present
+ 11. ✅ Trace drawer shows each agent's model, status, citations
 
 ---
 
 ## Production Verification
+ 
+ ### New Edge Functions
+ 
+ 1. **validator-start** - POST `/functions/v1/validator-start`
+    - Input: `{ input_text: string, startup_id?: string }`
+    - Creates session, runs 7-agent pipeline sequentially
+    - Returns: `{ session_id, report_id, status, verified, warnings }`
+ 
+ 2. **validator-status** - GET `/functions/v1/validator-status?session_id=`
+    - Returns current pipeline status with step-by-step progress
+ 
+ 3. **validator-regenerate** - POST `/functions/v1/validator-regenerate`
+    - Re-runs specific agent or full pipeline
+ 
+ ### New Database Tables
+ 
+ - `validator_sessions` - Tracks each validation session
+ - `validator_runs` - Individual agent execution logs with citations
+ - `validation_reports` - Updated with `session_id`, `verified`, `verification_json`
+ 
+ ### New UI Pages
+ 
+ - `/validator/run/:sessionId` - Real-time pipeline progress
+ - `/validator/report/:reportId` - Verified report with trace drawer
+ 
+ ### Agent Pipeline (7 agents)
+ 
+ 1. **ExtractorAgent** (Flash) - Parse input → StartupProfile
+ 2. **ResearchAgent** (Pro + Search) - Market sizing with citations
+ 3. **CompetitorAgent** (Pro + Search) - Competitor analysis with citations
+ 4. **ScoringAgent** (Pro) - Scores + verdict + risks
+ 5. **MVPAgent** (Flash) - MVP scope + 7 next steps
+ 6. **ComposerAgent** (Pro) - Final 8-section report JSON
+ 7. **VerifierAgent** (Flash) - Validates all sections populated + citations
 
 ```bash
 # Deploy edge function

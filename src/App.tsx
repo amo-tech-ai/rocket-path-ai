@@ -41,6 +41,8 @@ import AIChat from "./pages/AIChat";
 import Analytics from "./pages/Analytics";
 import Validator from "./pages/Validator";
 import ValidateIdea from "./pages/ValidateIdea";
+ import ValidatorProgress from "./pages/ValidatorProgress";
+ import ValidatorReport from "./pages/ValidatorReport";
 
 const queryClient = new QueryClient();
 
@@ -257,6 +259,22 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+             <Route
+               path="/validator/run/:sessionId"
+               element={
+                 <ProtectedRoute>
+                   <ValidatorProgress />
+                 </ProtectedRoute>
+               }
+             />
+             <Route
+               path="/validator/report/:reportId"
+               element={
+                 <ProtectedRoute>
+                   <ValidatorReport />
+                 </ProtectedRoute>
+               }
+             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
