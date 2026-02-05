@@ -767,6 +767,7 @@ Be specific, data-driven, and actionable. Use industry-specific terminology and 
     ? `Generate a ${reportType} validation report for this startup based on the founder's own description:\n\n**Chat Transcript:**\n${chatTranscript}\n\n**Startup Profile:**\n${JSON.stringify(startupContext, null, 2)}`
     : `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}`;
 
+  // Use Gemini 3 with Google Search grounding for real-time market data
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -776,11 +777,20 @@ Be specific, data-driven, and actionable. Use industry-specific terminology and 
         contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: {
-          temperature: 0.6,
+          temperature: 0.5,
           maxOutputTokens: 8192,
           responseMimeType: 'application/json',
         },
-        tools: [{ google_search: {} }]
+        // Gemini 3 features: Google Search grounding for real-time market intelligence
+        tools: [{ 
+          googleSearch: {} 
+        }],
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       }),
     }
   );

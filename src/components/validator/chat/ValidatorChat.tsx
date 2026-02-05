@@ -13,6 +13,7 @@ import ValidatorChatMessage, { ChatMessage } from './ValidatorChatMessage';
 import ValidatorProcessingAnimation from './ValidatorProcessingAnimation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+ import { useValidatorPipeline } from '@/hooks/useValidatorPipeline';
 
 interface ValidatorChatProps {
   startupId: string;
@@ -47,10 +48,11 @@ export default function ValidatorChat({
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialIdeaProcessed = useRef(false);
+   const { startValidation, isStarting } = useValidatorPipeline();
   
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+   const [isProcessing, setIsProcessing] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [extractedData, setExtractedData] = useState<Record<string, string>>({});
 
@@ -164,56 +166,13 @@ Click **Generate** when you're ready, or tell me more details.`);
     setTimeout(() => {
       setIsProcessing(true);
     }, 1000);
-  }, [canGenerate, messages, addAIMessage]);
-
-  // Handle processing complete - call the AI agent
-  const handleProcessingComplete = useCallback(async () => {
-    try {
-      const ideaDescription = messages
-        .filter(m => m.role === 'user')
-        .map(m => m.content)
-        .join('\n\n');
-
-      // Call the validation agent with chat data
-      const { data, error } = await supabase.functions.invoke('industry-expert-agent', {
-        body: {
-          action: 'generate_validation_report',
-          startup_id: startupId,
-          report_type: 'deep',
-          chat_context: {
-            messages: messages.map(m => ({ role: m.role, content: m.content })),
-            extracted_data: extractedData,
-            idea_description: ideaDescription,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      setIsProcessing(false);
-
-      // Navigate to report view or callback
-      if (onValidationComplete && data?.report?.id) {
-        onValidationComplete(data.report.id);
-      } else {
-        // Navigate to validator with report loaded
-        navigate('/validator?showReport=true');
-      }
-
-      toast({
-        title: 'Validation Complete',
-        description: 'Your 14-section report is ready!',
-      });
-    } catch (error) {
-      console.error('Validation error:', error);
-      setIsProcessing(false);
-      toast({
-        title: 'Validation Failed',
-        description: 'Please try again',
-        variant: 'destructive',
-      });
-    }
-  }, [messages, extractedData, startupId, onValidationComplete, navigate, toast]);
+     
+     // Start the actual pipeline after brief animation
+     setTimeout(async () => {
+       await startValidation(ideaDescription, startupId, true);
+       setIsProcessing(false);
+     }, 2000);
+   }, [canGenerate, messages, addAIMessage, startValidation, startupId]);
 
   return (
     <>
@@ -222,7 +181,7 @@ Click **Generate** when you're ready, or tell me more details.`);
         {isProcessing && (
           <ValidatorProcessingAnimation
             isActive={isProcessing}
-            onComplete={handleProcessingComplete}
+             onComplete={() => {}} // Pipeline handles navigation now
           />
         )}
       </AnimatePresence>
@@ -230,22 +189,25 @@ Click **Generate** when you're ready, or tell me more details.`);
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="font-semibold text-foreground">Idea Validator</h2>
               <p className="text-xs text-muted-foreground">
-                {canGenerate ? 'Ready to generate' : 'Tell me about your idea'}
+                {canGenerate ? '✓ Ready to generate your 14-section report' : 'Describe your startup idea to begin'}
               </p>
             </div>
+            {canGenerate && (
+              <div className="w-2 h-2 rounded-full bg-sage animate-pulse" />
+            )}
           </div>
         </div>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          <div className="space-y-4 max-w-2xl mx-auto">
+         {/* Messages - Wide container */}
+         <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollRef}>
+           <div className="space-y-4 max-w-[1100px] mx-auto">
             {messages.map((message) => (
               <ValidatorChatMessage
                 key={message.id}
@@ -268,15 +230,15 @@ Click **Generate** when you're ready, or tell me more details.`);
           </div>
         </ScrollArea>
 
-        {/* Input Area */}
-        <div className="flex-shrink-0 p-4 border-t border-border bg-background/50 backdrop-blur-sm">
-          <div className="max-w-2xl mx-auto">
+         {/* Input Area - Wide */}
+         <div className="flex-shrink-0 p-4 md:p-6 border-t border-border bg-background/50 backdrop-blur-sm">
+           <div className="max-w-[1100px] mx-auto">
             <ValidatorChatInput
               onSendMessage={handleSendMessage}
               onGenerate={handleGenerate}
               isProcessing={isProcessing}
               canGenerate={canGenerate}
-              placeholder="I'm thinking about building..."
+              placeholder="Describe your startup idea in detail..."
             />
           </div>
         </div>
