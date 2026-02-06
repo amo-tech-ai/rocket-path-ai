@@ -1,6 +1,6 @@
 /**
  * Report Section Content
- * Individual section display with citations
+ * Premium consulting-grade section display with citations
  */
 
 import { motion } from 'framer-motion';
@@ -48,71 +48,115 @@ const SECTION_ICONS: Record<number, React.ComponentType<{ className?: string }>>
   14: BookOpen,      // Appendix
 };
 
+// Agent mapping for sections (muted label)
+const SECTION_AGENTS: Record<number, string> = {
+  1: 'ComposerAgent',
+  2: 'ExtractorAgent',
+  3: 'ExtractorAgent',
+  4: 'ResearchAgent',
+  5: 'CompetitorAgent',
+  6: 'ExtractorAgent',
+  7: 'ExtractorAgent',
+  8: 'ExtractorAgent',
+  9: 'ResearchAgent',
+  10: 'ScoringAgent',
+  11: 'ScoringAgent',
+  12: 'VerifierAgent',
+  13: 'MVPAgent',
+  14: 'ComposerAgent',
+};
+
 export default function ReportSectionContent({ section, className }: ReportSectionContentProps) {
   const sectionInfo = SECTION_TITLES[section.number];
   const Icon = SECTION_ICONS[section.number] || FileText;
+  const agentName = SECTION_AGENTS[section.number];
   
   const getScoreVariant = (score: number) => {
-    if (score >= 8) return 'bg-sage-light text-sage-foreground';
-    if (score >= 6) return 'bg-warm text-warm-foreground';
-    return 'bg-destructive/10 text-destructive';
+    if (score >= 8) return 'text-primary';
+    if (score >= 6) return 'text-amber-600';
+    return 'text-destructive';
   };
   
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn("card-premium overflow-hidden", className)}
+    <motion.article
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+      className={cn("bg-card border border-border rounded-2xl overflow-hidden", className)}
     >
       {/* Section Header */}
-      <div className="px-6 py-5 border-b border-border bg-muted/30">
+      <header className="px-8 py-6 border-b border-border bg-muted/20">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Icon className="w-5 h-5 text-primary" />
             </div>
             <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+                  Section {section.number}
+                </span>
+                {agentName && (
+                  <span className="text-xs text-muted-foreground/60">
+                    via {agentName}
+                  </span>
+                )}
+              </div>
               <h2 className="font-display text-xl font-semibold text-foreground">
-                {section.number}. {section.title}
+                {section.title}
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 {sectionInfo?.description}
               </p>
             </div>
           </div>
           
           {section.score !== undefined && (
-            <Badge className={cn("px-3 py-1", getScoreVariant(section.score))}>
-              {section.score}/10
-            </Badge>
+            <div className="text-right flex-shrink-0">
+              <span className={cn(
+                "font-display text-2xl font-semibold tabular-nums",
+                getScoreVariant(section.score)
+              )}>
+                {section.score}
+              </span>
+              <span className="text-sm text-muted-foreground">/10</span>
+            </div>
           )}
         </div>
-      </div>
+      </header>
       
       {/* Section Content */}
-      <div className="p-6">
-        <div className="prose prose-sm max-w-none dark:prose-invert">
+      <div className="px-8 py-8">
+        <div className="prose prose-sm max-w-none">
           <ReactMarkdown
             components={{
               p: ({ children }) => (
-                <p className="text-foreground leading-relaxed mb-4">{children}</p>
+                <p className="text-foreground leading-relaxed mb-5 last:mb-0">{children}</p>
               ),
               ul: ({ children }) => (
-                <ul className="space-y-2 mb-4">{children}</ul>
+                <ul className="space-y-2.5 mb-5 last:mb-0">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="space-y-2.5 mb-5 last:mb-0 list-decimal list-inside">{children}</ol>
               ),
               li: ({ children }) => (
-                <li className="flex items-start gap-2 text-foreground">
-                  <span className="text-primary mt-1">•</span>
-                  <span>{children}</span>
+                <li className="flex items-start gap-2.5 text-foreground leading-relaxed">
+                  <span className="text-primary mt-1.5 text-xs">•</span>
+                  <span className="flex-1">{children}</span>
                 </li>
               ),
               strong: ({ children }) => (
                 <strong className="font-semibold text-foreground">{children}</strong>
               ),
               h3: ({ children }) => (
-                <h3 className="font-display text-lg font-semibold text-foreground mt-6 mb-3">
+                <h3 className="font-display text-lg font-semibold text-foreground mt-8 mb-4 first:mt-0">
                   {children}
                 </h3>
+              ),
+              h4: ({ children }) => (
+                <h4 className="font-medium text-foreground mt-6 mb-3 first:mt-0">
+                  {children}
+                </h4>
               ),
             }}
           >
@@ -122,10 +166,10 @@ export default function ReportSectionContent({ section, className }: ReportSecti
         
         {/* Citations */}
         {section.citations && section.citations.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-border">
-            <div className="flex items-center gap-2 mb-3">
+          <footer className="mt-8 pt-6 border-t border-border">
+            <div className="flex items-center gap-2 mb-4">
               <Quote className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                 Sources
               </span>
             </div>
@@ -134,10 +178,10 @@ export default function ReportSectionContent({ section, className }: ReportSecti
                 <CitationBadge key={i} citation={citation} />
               ))}
             </div>
-          </div>
+          </footer>
         )}
       </div>
-    </motion.div>
+    </motion.article>
   );
 }
 
@@ -150,13 +194,13 @@ function CitationBadge({ citation }: CitationBadgeProps) {
     <Badge 
       variant="outline" 
       className={cn(
-        "text-xs",
-        citation.url && "cursor-pointer hover:bg-muted"
+        "text-xs font-normal py-1 px-2.5",
+        citation.url && "cursor-pointer hover:bg-muted transition-colors"
       )}
     >
       {citation.source}
-      {citation.year && <span className="ml-1 text-muted-foreground">({citation.year})</span>}
-      {citation.url && <ExternalLink className="w-3 h-3 ml-1" />}
+      {citation.year && <span className="ml-1.5 text-muted-foreground">({citation.year})</span>}
+      {citation.url && <ExternalLink className="w-3 h-3 ml-1.5" />}
     </Badge>
   );
   
