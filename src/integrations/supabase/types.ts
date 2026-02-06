@@ -5621,6 +5621,7 @@ export type Database = {
           run_id: string | null
           score: number | null
           session_id: string | null
+          startup_id: string | null
           summary: string | null
           updated_at: string | null
           verification_json: Json | null
@@ -5635,6 +5636,7 @@ export type Database = {
           run_id?: string | null
           score?: number | null
           session_id?: string | null
+          startup_id?: string | null
           summary?: string | null
           updated_at?: string | null
           verification_json?: Json | null
@@ -5649,6 +5651,7 @@ export type Database = {
           run_id?: string | null
           score?: number | null
           session_id?: string | null
+          startup_id?: string | null
           summary?: string | null
           updated_at?: string | null
           verification_json?: Json | null
@@ -5660,6 +5663,20 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "validator_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_reports_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "validation_reports_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -5982,6 +5999,7 @@ export type Database = {
         Row: {
           created_at: string
           error_message: string | null
+          failed_steps: string[] | null
           id: string
           input_text: string
           startup_id: string | null
@@ -5992,6 +6010,7 @@ export type Database = {
         Insert: {
           created_at?: string
           error_message?: string | null
+          failed_steps?: string[] | null
           id?: string
           input_text: string
           startup_id?: string | null
@@ -6002,6 +6021,7 @@ export type Database = {
         Update: {
           created_at?: string
           error_message?: string | null
+          failed_steps?: string[] | null
           id?: string
           input_text?: string
           startup_id?: string | null
