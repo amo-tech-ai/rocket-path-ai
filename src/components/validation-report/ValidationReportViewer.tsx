@@ -1,6 +1,6 @@
 /**
  * Full Validation Report Viewer
- * Premium 14-section report display
+ * Premium consulting-grade 14-section report display
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -12,12 +12,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Sparkles
+  ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ValidationReport } from '@/types/validation-report';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import ExecutiveSummaryCard from './ExecutiveSummaryCard';
 import TAMSAMSOMChart from './TAMSAMSOMChart';
 import DimensionScoresChart from './DimensionScoresChart';
@@ -30,6 +29,7 @@ interface ValidationReportViewerProps {
   onRegenerate?: () => void;
   onExport?: () => void;
   onShare?: () => void;
+  onBack?: () => void;
   isRegenerating?: boolean;
   className?: string;
 }
@@ -39,6 +39,7 @@ export default function ValidationReportViewer({
   onRegenerate,
   onExport,
   onShare,
+  onBack,
   isRegenerating = false,
   className,
 }: ValidationReportViewerProps) {
@@ -66,33 +67,37 @@ export default function ValidationReportViewer({
 
   return (
     <div className={cn("min-h-screen bg-background", className)}>
-      {/* Header */}
+      {/* Header - Quiet, editorial */}
       <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Title */}
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-primary" />
+            {/* Back link + Title */}
+            <div className="flex items-center gap-4">
+              {onBack && (
+                <button 
+                  onClick={onBack}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
               <div>
                 <h1 className="font-display text-lg font-semibold text-foreground">
                   Validation Report
                 </h1>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
                     {new Date(report.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
+                      month: 'long',
                       day: 'numeric',
                       year: 'numeric',
                     })}
                   </span>
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {report.reportType}
-                  </Badge>
                 </div>
               </div>
             </div>
@@ -105,6 +110,7 @@ export default function ValidationReportViewer({
                   size="sm"
                   onClick={onRegenerate}
                   disabled={isRegenerating}
+                  className="text-muted-foreground"
                 >
                   <RefreshCw className={cn(
                     "w-4 h-4 mr-2",
@@ -114,13 +120,13 @@ export default function ValidationReportViewer({
                 </Button>
               )}
               {onShare && (
-                <Button variant="ghost" size="sm" onClick={onShare}>
+                <Button variant="ghost" size="sm" onClick={onShare} className="text-muted-foreground">
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
               )}
               {onExport && (
-                <Button variant="default" size="sm" onClick={onExport}>
+                <Button variant="outline" size="sm" onClick={onExport}>
                   <Download className="w-4 h-4 mr-2" />
                   Export PDF
                 </Button>
@@ -129,29 +135,35 @@ export default function ValidationReportViewer({
           </div>
           
           {/* View mode tabs */}
-          <div className="flex gap-1 pb-3">
-            <Button
-              variant={viewMode === 'overview' ? 'default' : 'ghost'}
-              size="sm"
+          <div className="flex gap-1 pb-4">
+            <button
               onClick={() => setViewMode('overview')}
-              className="text-xs"
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                viewMode === 'overview' 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
             >
               Overview
-            </Button>
-            <Button
-              variant={viewMode === 'sections' ? 'default' : 'ghost'}
-              size="sm"
+            </button>
+            <button
               onClick={() => setViewMode('sections')}
-              className="text-xs"
+              className={cn(
+                "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
+                viewMode === 'sections' 
+                  ? "bg-primary text-primary-foreground" 
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
             >
               Full Report
-            </Button>
+            </button>
           </div>
         </div>
       </motion.header>
       
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-6 lg:px-8 py-10">
         <AnimatePresence mode="wait">
           {viewMode === 'overview' ? (
             <motion.div
@@ -159,7 +171,7 @@ export default function ValidationReportViewer({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-8"
+              className="space-y-10"
             >
               {/* Executive Summary */}
               <ExecutiveSummaryCard
@@ -171,11 +183,11 @@ export default function ValidationReportViewer({
                 percentile={report.benchmarks.percentile}
               />
               
-              {/* TAM/SAM/SOM + Dimensions Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <TAMSAMSOMChart data={report.marketSizing} />
-                <DimensionScoresChart scores={report.dimensionScores} />
-              </div>
+              {/* Market Sizing */}
+              <TAMSAMSOMChart data={report.marketSizing} />
+              
+              {/* Dimension Analysis */}
+              <DimensionScoresChart scores={report.dimensionScores} />
               
               {/* Factors Breakdown */}
               <FactorsBreakdownCard
@@ -187,8 +199,8 @@ export default function ValidationReportViewer({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-center py-8"
+                transition={{ delay: 0.4 }}
+                className="text-center py-6"
               >
                 <Button 
                   size="lg" 
@@ -206,23 +218,23 @@ export default function ValidationReportViewer({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex gap-8"
+              className="flex gap-10"
             >
               {/* Section Navigation (Desktop) */}
-              <div className="hidden lg:block w-64 flex-shrink-0">
-                <div className="sticky top-24">
+              <aside className="hidden lg:block w-72 flex-shrink-0">
+                <div className="sticky top-28">
                   <SectionNavigation
                     activeSection={activeSection}
                     onSectionChange={setActiveSection}
                     completedSections={completedSections}
                   />
                 </div>
-              </div>
+              </aside>
               
               {/* Section Content */}
               <div ref={contentRef} className="flex-1 min-w-0 space-y-6">
                 {/* Mobile section nav */}
-                <div className="lg:hidden flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                <div className="lg:hidden flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border">
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -231,7 +243,7 @@ export default function ValidationReportViewer({
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <span className="font-medium text-foreground">
+                  <span className="font-medium text-foreground text-sm">
                     Section {activeSection} of 14
                   </span>
                   <Button 
@@ -255,23 +267,25 @@ export default function ValidationReportViewer({
                 </AnimatePresence>
                 
                 {/* Section pagination */}
-                <div className="flex items-center justify-between pt-6 border-t border-border">
+                <nav className="flex items-center justify-between pt-8 border-t border-border">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     onClick={handlePrevSection}
                     disabled={activeSection === 1}
+                    className="text-muted-foreground"
                   >
                     <ChevronLeft className="w-4 h-4 mr-2" />
                     Previous
                   </Button>
                   <Button
-                    variant={activeSection === 14 ? 'default' : 'outline'}
+                    variant={activeSection === 14 ? 'default' : 'ghost'}
                     onClick={activeSection === 14 ? () => setViewMode('overview') : handleNextSection}
+                    className={activeSection !== 14 ? "text-muted-foreground" : ""}
                   >
                     {activeSection === 14 ? 'Back to Overview' : 'Next'}
                     {activeSection !== 14 && <ChevronRight className="w-4 h-4 ml-2" />}
                   </Button>
-                </div>
+                </nav>
               </div>
             </motion.div>
           )}
