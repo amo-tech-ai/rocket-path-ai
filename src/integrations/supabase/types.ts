@@ -3430,13 +3430,17 @@ export type Database = {
           confidence: string
           content: string
           created_at: string
+          document_id: string | null
           embedding: string | null
           fetch_count: number
           id: string
           industry: string | null
           last_fetched_at: string | null
+          page_end: number | null
+          page_start: number | null
           region: string | null
           sample_size: number | null
+          section_title: string | null
           source: string
           source_type: string
           source_url: string | null
@@ -3451,13 +3455,17 @@ export type Database = {
           confidence?: string
           content: string
           created_at?: string
+          document_id?: string | null
           embedding?: string | null
           fetch_count?: number
           id?: string
           industry?: string | null
           last_fetched_at?: string | null
+          page_end?: number | null
+          page_start?: number | null
           region?: string | null
           sample_size?: number | null
+          section_title?: string | null
           source: string
           source_type: string
           source_url?: string | null
@@ -3472,13 +3480,17 @@ export type Database = {
           confidence?: string
           content?: string
           created_at?: string
+          document_id?: string | null
           embedding?: string | null
           fetch_count?: number
           id?: string
           industry?: string | null
           last_fetched_at?: string | null
+          page_end?: number | null
+          page_start?: number | null
           region?: string | null
           sample_size?: number | null
+          section_title?: string | null
           source?: string
           source_type?: string
           source_url?: string | null
@@ -3487,6 +3499,41 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
           year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_documents: {
+        Row: {
+          created_at: string
+          id: string
+          llama_parse_id: string | null
+          source_type: string | null
+          title: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          llama_parse_id?: string | null
+          source_type?: string | null
+          title: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          llama_parse_id?: string | null
+          source_type?: string | null
+          title?: string
+          year?: number | null
         }
         Relationships: []
       }
@@ -3574,6 +3621,81 @@ export type Database = {
           },
           {
             foreignKeyName: "lean_canvases_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_research: {
+        Row: {
+          ai_generated: boolean | null
+          confidence_score: number | null
+          created_at: string | null
+          emerging_players: Json | null
+          id: string
+          market_leaders: Json | null
+          methodology: string | null
+          sam_source: string | null
+          sam_value: number | null
+          som_source: string | null
+          som_value: number | null
+          sources: Json | null
+          startup_id: string
+          tam_source: string | null
+          tam_value: number | null
+          trends: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          emerging_players?: Json | null
+          id?: string
+          market_leaders?: Json | null
+          methodology?: string | null
+          sam_source?: string | null
+          sam_value?: number | null
+          som_source?: string | null
+          som_value?: number | null
+          sources?: Json | null
+          startup_id: string
+          tam_source?: string | null
+          tam_value?: number | null
+          trends?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          emerging_players?: Json | null
+          id?: string
+          market_leaders?: Json | null
+          methodology?: string | null
+          sam_source?: string | null
+          sam_value?: number | null
+          som_source?: string | null
+          som_value?: number | null
+          sources?: Json | null
+          startup_id?: string
+          tam_source?: string | null
+          tam_value?: number | null
+          trends?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_research_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "market_research_startup_id_fkey"
             columns: ["startup_id"]
             isOneToOne: false
             referencedRelation: "startups"
@@ -3929,6 +4051,75 @@ export type Database = {
           why_matters?: string | null
         }
         Relationships: []
+      }
+      opportunity_canvas: {
+        Row: {
+          adoption_barriers: Json | null
+          competitive_advantage: number | null
+          created_at: string | null
+          enablers: Json | null
+          execution_capability: number | null
+          id: string
+          market_readiness: number | null
+          opportunity_score: number | null
+          reasoning: string | null
+          recommendation: string | null
+          startup_id: string
+          strategic_fit: string | null
+          technical_feasibility: number | null
+          timing_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          adoption_barriers?: Json | null
+          competitive_advantage?: number | null
+          created_at?: string | null
+          enablers?: Json | null
+          execution_capability?: number | null
+          id?: string
+          market_readiness?: number | null
+          opportunity_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          startup_id: string
+          strategic_fit?: string | null
+          technical_feasibility?: number | null
+          timing_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          adoption_barriers?: Json | null
+          competitive_advantage?: number | null
+          created_at?: string | null
+          enablers?: Json | null
+          execution_capability?: number | null
+          id?: string
+          market_readiness?: number | null
+          opportunity_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          startup_id?: string
+          strategic_fit?: string | null
+          technical_feasibility?: number | null
+          timing_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_canvas_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "opportunity_canvas_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       org_members: {
         Row: {
@@ -7037,6 +7228,7 @@ export type Database = {
           status: string
         }[]
       }
+      cleanup_zombie_sessions: { Args: never; Returns: number }
       complete_wizard_atomic: {
         Args: {
           p_session_id: string
