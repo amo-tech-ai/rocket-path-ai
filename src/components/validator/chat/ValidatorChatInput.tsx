@@ -3,7 +3,7 @@
  * Premium input area with suggestions and generate button
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ interface ValidatorChatInputProps {
   isProcessing: boolean;
   canGenerate: boolean;
   placeholder?: string;
+  prefillText?: string;
 }
 
 const SUGGESTION_CHIPS = [
@@ -31,9 +32,21 @@ export default function ValidatorChatInput({
   isProcessing,
   canGenerate,
   placeholder = "Describe your startup idea, problem, or goal...",
+  prefillText,
 }: ValidatorChatInputProps) {
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Handle prefill from suggestion chips
+  useEffect(() => {
+    if (prefillText) {
+      setInput(prefillText);
+      setShowSuggestions(false);
+      // Focus the textarea so user can edit/send
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [prefillText]);
 
   const handleSend = () => {
     if (!input.trim() || isProcessing) return;
@@ -84,6 +97,7 @@ export default function ValidatorChatInput({
       {/* Input Area */}
       <div className="relative">
         <Textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

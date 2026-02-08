@@ -3,7 +3,7 @@
   * Shows real-time pipeline status with step progression
   */
  
- import { useState, useEffect } from 'react';
+ import { useState, useEffect, useRef } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
  import { motion, AnimatePresence } from 'framer-motion';
  import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -73,15 +73,35 @@
    const [status, setStatus] = useState<SessionStatus | null>(null);
    const [error, setError] = useState<string | null>(null);
    const [polling, setPolling] = useState(true);
- 
+   const pollingStart = useRef(Date.now());
+   const statusRef = useRef<SessionStatus | null>(null);
+   const MAX_POLL_MS = 180_000; // P03: 3 min max (edge fn has 150s wall-clock + 140s pipeline timeout)
+
+   // Keep ref in sync with state so the polling closure always has latest value
+   useEffect(() => {
+     statusRef.current = status;
+   }, [status]);
+
    // Poll for status updates
    useEffect(() => {
      if (!sessionId || !polling) return;
  
      const fetchStatus = async () => {
+       // F9: Stop polling after 3 minutes — show current state instead of generic error
+       // FIX: Use statusRef.current instead of `status` to avoid stale closure.
+       // The `status` variable is captured once when the effect runs (deps: [sessionId, polling])
+       // and never updates. The ref always has the latest value.
+       if (Date.now() - pollingStart.current > MAX_POLL_MS) {
+         setPolling(false);
+         if (statusRef.current) {
+           setStatus(prev => prev ? { ...prev, status: 'failed', error: prev.error || 'Pipeline timed out after 3 minutes. The zombie cleanup will mark this session as failed.' } : prev);
+         } else {
+           setError('Pipeline timed out. Please try again.');
+         }
+         return;
+       }
+
        try {
-        // Use supabase.functions.invoke with body containing session_id
-        // The edge function reads session_id from URL params, so we need direct fetch
         const session = await supabase.auth.getSession();
         const token = session.data.session?.access_token;
         
@@ -110,8 +130,8 @@
         const result = await response.json();
          setStatus(result);
  
-         // Stop polling when complete
-         if (result.status === 'complete' || result.status === 'failed') {
+         // F6: Stop polling on ALL terminal states (partial is also terminal)
+         if (result.status === 'complete' || result.status === 'partial' || result.status === 'failed') {
            setPolling(false);
          }
        } catch (e) {
@@ -126,9 +146,9 @@
      return () => clearInterval(interval);
    }, [sessionId, polling]);
  
-   // Auto-navigate to report when complete and verified
+   // F7: Auto-navigate to report for ANY terminal state with a report
    useEffect(() => {
-     if (status?.status === 'complete' && status.report?.verified) {
+     if ((status?.status === 'complete' || status?.status === 'partial') && status.report?.id) {
        const timer = setTimeout(() => {
          navigate(`/validator/report/${status.report?.id}`);
        }, 2000);
@@ -173,7 +193,7 @@
            <XCircle className="w-16 h-16 text-destructive" />
            <h1 className="text-xl font-semibold text-foreground">Error</h1>
            <p className="text-muted-foreground">{error}</p>
-           <Button onClick={() => navigate('/validator')}>Back to Validator</Button>
+           <Button onClick={() => navigate('/validate')}>Back to Validator</Button>
          </div>
        </DashboardLayout>
      );
@@ -192,16 +212,22 @@
                {status?.status?.toUpperCase() || 'INITIALIZING'}
              </Badge>
              <h1 className="text-3xl font-semibold text-foreground">
-               {status?.status === 'complete' 
-                 ? 'Validation Complete!' 
-                 : status?.status === 'failed'
-                   ? 'Validation Failed'
-                   : 'Running AI Agents...'}
+               {status?.status === 'complete'
+                 ? 'Validation Complete!'
+                 : status?.status === 'partial'
+                   ? 'Partial Results Available'
+                   : status?.status === 'failed'
+                     ? 'Validation Failed'
+                     : 'Running AI Agents...'}
              </h1>
              <p className="text-muted-foreground">
                {status?.status === 'complete'
                  ? 'Your 14-section report is ready'
-                 : 'Multi-agent pipeline analyzing your startup idea'}
+                 : status?.status === 'partial'
+                   ? `${status.steps?.filter(s => s.status === 'ok' || s.status === 'partial').length || 0} of ${status.steps?.length || 7} agents completed`
+                   : status?.status === 'failed'
+                     ? status.error || 'Pipeline encountered errors during analysis'
+                     : 'Multi-agent pipeline analyzing your startup idea'}
              </p>
            </motion.div>
  
@@ -321,11 +347,10 @@
                    {!status.report.verified && (
                      <Button
                        variant="outline"
-                       onClick={() => setPolling(true)}
-                       disabled={polling}
+                       onClick={() => navigate('/validator')}
                      >
-                       <RefreshCw className={`w-4 h-4 mr-2 ${polling ? 'animate-spin' : ''}`} />
-                       Regenerate
+                       <RefreshCw className="w-4 h-4 mr-2" />
+                       Try Again
                      </Button>
                    )}
                    <Button onClick={() => navigate(`/validator/report/${status.report?.id}`)}>
@@ -350,15 +375,58 @@
            )}
          </AnimatePresence>
  
-         {/* Back button for failed state */}
-         {status?.status === 'failed' && (
+         {/* Partial results summary — show what agents completed on failure */}
+         {(status?.status === 'failed' || (status?.status === 'partial' && !status?.report)) && status?.steps && (
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="card-premium p-6 space-y-4"
+           >
+             <h2 className="text-lg font-semibold text-foreground">Pipeline Summary</h2>
+             {status.error && (
+               <p className="text-sm text-muted-foreground bg-destructive/5 border border-destructive/20 rounded-lg p-3">
+                 {status.error}
+               </p>
+             )}
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+               {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').map(step => (
+                 <div key={step.agent} className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                   <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                   <span className="text-sm text-foreground">{step.name}</span>
+                   {step.duration_ms && (
+                     <span className="text-xs text-muted-foreground ml-auto">{(step.duration_ms / 1000).toFixed(1)}s</span>
+                   )}
+                 </div>
+               ))}
+               {status.steps.filter(s => s.status === 'failed').map(step => (
+                 <div key={step.agent} className="flex items-center gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+                   <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                   <div className="min-w-0">
+                     <span className="text-sm text-foreground">{step.name}</span>
+                     {step.error && (
+                       <p className="text-xs text-muted-foreground truncate">{step.error}</p>
+                     )}
+                   </div>
+                 </div>
+               ))}
+             </div>
+             <p className="text-xs text-muted-foreground">
+               {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').length} agents completed,{' '}
+               {status.steps.filter(s => s.status === 'failed').length} failed.
+               {' '}Try again — the pipeline has been updated with longer timeouts.
+             </p>
+           </motion.div>
+         )}
+
+         {/* F8: Actions for failed/partial state */}
+         {(status?.status === 'failed' || status?.status === 'partial') && (
            <div className="flex justify-center gap-4">
-             <Button variant="outline" onClick={() => navigate('/validator')}>
+             <Button variant="outline" onClick={() => navigate('/validate')}>
                Start Over
              </Button>
-             <Button onClick={() => setPolling(true)}>
+             <Button onClick={() => navigate('/validate')}>
                <RefreshCw className="w-4 h-4 mr-2" />
-               Retry
+               Try Again
              </Button>
            </div>
          )}

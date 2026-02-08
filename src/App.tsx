@@ -1,49 +1,56 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AIAssistantProvider } from "@/providers/AIAssistantProvider";
 import { PlaybookProvider } from "@/providers/PlaybookProvider";
 import { GlobalAIAssistant } from "@/components/ai";
-import Index from "./pages/Index";
-import HowItWorks from "./pages/HowItWorks";
-import Features from "./pages/Features";
-import Login from "./pages/Login";
-import AuthCallback from "./pages/AuthCallback";
-import Dashboard from "./pages/Dashboard";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import Tasks from "./pages/Tasks";
-import CRM from "./pages/CRM";
-import Documents from "./pages/Documents";
-import Investors from "./pages/Investors";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
-import LeanCanvas from "./pages/LeanCanvas";
-import UserProfile from "./pages/UserProfile";
-import CompanyProfile from "./pages/CompanyProfile";
-import Events from "./pages/Events";
-import EventDetail from "./pages/EventDetail";
-import EventWizard from "./pages/EventWizard";
-import OnboardingWizard from "./pages/OnboardingWizard";
-import OnboardingComplete from "./pages/OnboardingComplete";
-import PublicEventsDirectory from "./pages/PublicEventsDirectory";
-import PublicEventDetail from "./pages/PublicEventDetail";
-import BlogIndex from "./pages/BlogIndex";
-import BlogPost from "./pages/BlogPost";
-import PitchDeckWizard from "./pages/PitchDeckWizard";
-import PitchDecksDashboard from "./pages/PitchDecksDashboard";
-import PitchDeckEditor from "./pages/PitchDeckEditor";
-import PitchDeckGenerating from "./pages/PitchDeckGenerating";
-import AIChat from "./pages/AIChat";
-import Analytics from "./pages/Analytics";
-import Validator from "./pages/Validator";
-import ValidateIdea from "./pages/ValidateIdea";
- import ValidatorProgress from "./pages/ValidatorProgress";
- import ValidatorReport from "./pages/ValidatorReport";
+
+// Lazy-loaded pages — each becomes its own chunk
+const Index = lazy(() => import("./pages/Index"));
+const HowItWorks = lazy(() => import("./pages/HowItWorks"));
+const Features = lazy(() => import("./pages/Features"));
+const Login = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const CRM = lazy(() => import("./pages/CRM"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Investors = lazy(() => import("./pages/Investors"));
+const Settings = lazy(() => import("./pages/Settings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const LeanCanvas = lazy(() => import("./pages/LeanCanvas"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
+const CompanyProfile = lazy(() => import("./pages/CompanyProfile"));
+const Events = lazy(() => import("./pages/Events"));
+const EventDetail = lazy(() => import("./pages/EventDetail"));
+const EventWizard = lazy(() => import("./pages/EventWizard"));
+const OnboardingWizard = lazy(() => import("./pages/OnboardingWizard"));
+const OnboardingComplete = lazy(() => import("./pages/OnboardingComplete"));
+const PublicEventsDirectory = lazy(() => import("./pages/PublicEventsDirectory"));
+const PublicEventDetail = lazy(() => import("./pages/PublicEventDetail"));
+const BlogIndex = lazy(() => import("./pages/BlogIndex"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const PitchDeckWizard = lazy(() => import("./pages/PitchDeckWizard"));
+const PitchDecksDashboard = lazy(() => import("./pages/PitchDecksDashboard"));
+const PitchDeckEditor = lazy(() => import("./pages/PitchDeckEditor"));
+const PitchDeckGenerating = lazy(() => import("./pages/PitchDeckGenerating"));
+const AIChat = lazy(() => import("./pages/AIChat"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Validator = lazy(() => import("./pages/Validator"));
+const ValidateIdea = lazy(() => import("./pages/ValidateIdea"));
+const ValidatorProgress = lazy(() => import("./pages/ValidatorProgress"));
+const ValidatorReport = lazy(() => import("./pages/ValidatorReport"));
+const Experiments = lazy(() => import("./pages/Experiments"));
+const SprintPlan = lazy(() => import("./pages/SprintPlan"));
+const MarketResearch = lazy(() => import("./pages/MarketResearch"));
+const OpportunityCanvas = lazy(() => import("./pages/OpportunityCanvas"));
 
 const queryClient = new QueryClient();
 
@@ -58,6 +65,7 @@ const App = () => (
             <PlaybookProvider>
             {/* Global AI Assistant - visible on ALL pages */}
             <GlobalAIAssistant />
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
             <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
@@ -268,25 +276,58 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-             <Route
-               path="/validator/run/:sessionId"
-               element={
-                 <ProtectedRoute>
-                   <ValidatorProgress />
-                 </ProtectedRoute>
-               }
-             />
-             <Route
-               path="/validator/report/:reportId"
-               element={
-                 <ProtectedRoute>
-                   <ValidatorReport />
-                 </ProtectedRoute>
-               }
-             />
+            <Route
+              path="/validator/run/:sessionId"
+              element={
+                <ProtectedRoute>
+                  <ValidatorProgress />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/validator/report/:reportId"
+              element={
+                <ProtectedRoute>
+                  <ValidatorReport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/experiments"
+              element={
+                <ProtectedRoute>
+                  <Experiments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sprint-plan"
+              element={
+                <ProtectedRoute>
+                  <SprintPlan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/market-research"
+              element={
+                <ProtectedRoute>
+                  <MarketResearch />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/opportunity-canvas"
+              element={
+                <ProtectedRoute>
+                  <OpportunityCanvas />
+                </ProtectedRoute>
+              }
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+            </Suspense>
             </PlaybookProvider>
           </AIAssistantProvider>
         </BrowserRouter>
