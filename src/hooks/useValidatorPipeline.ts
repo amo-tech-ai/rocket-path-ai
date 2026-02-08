@@ -47,6 +47,12 @@
      setError(null);
  
      try {
+       // Ensure we have a valid session before calling the edge function
+       const { data: { session } } = await supabase.auth.getSession();
+       if (!session) {
+         throw new Error('Please sign in to validate your idea');
+       }
+
        const { data, error: fnError } = await supabase.functions.invoke('validator-start', {
          body: {
            input_text: inputText.trim(),
@@ -62,40 +68,22 @@
  
        const result: PipelineResult = {
          session_id: data.session_id,
-         report_id: data.report_id,
+         report_id: data.report_id || null,
          status: data.status,
-         verified: data.verified,
+         verified: data.verified || false,
          failed_agents: data.failed_agents || [],
          warnings: data.warnings || [],
        };
- 
-       // Navigate to progress or report page
+
+       // Navigate to progress page (pipeline runs in background)
        if (redirectToProgress) {
-         if (result.status === 'complete' && result.report_id) {
-           navigate(`/validator/report/${result.report_id}`);
-         } else {
-           navigate(`/validator/run/${result.session_id}`);
-         }
+         navigate(`/validator/run/${result.session_id}`);
        }
- 
-       // Show appropriate toast
-       if (result.status === 'complete' && result.verified) {
-         toast({
-           title: 'Validation Complete',
-           description: 'Your AI-verified report is ready!',
-         });
-       } else if (result.status === 'complete') {
-         toast({
-           title: 'Validation Complete',
-           description: 'Report generated with some warnings',
-         });
-       } else if (result.status === 'partial') {
-         toast({
-           title: 'Partial Validation',
-           description: `Some agents failed: ${result.failed_agents.join(', ')}`,
-           variant: 'destructive',
-         });
-       }
+
+       toast({
+         title: 'Validation Started',
+         description: 'Your report is being generated...',
+       });
  
        return result;
  

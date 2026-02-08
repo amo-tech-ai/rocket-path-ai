@@ -17,7 +17,11 @@ import {
   Presentation,
   MessageSquare,
   BarChart3,
-  GitBranch
+  GitBranch,
+  Beaker,
+  Target,
+  DollarSign,
+  Lightbulb
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -36,8 +40,12 @@ const navItems = [
   { label: "CRM", path: "/crm", icon: Users },
   { label: "Documents", path: "/documents", icon: FileText },
   { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
-  { label: "Investors", path: "/investors", icon: TrendingUp },
+  { label: "Market Research", path: "/market-research", icon: TrendingUp },
+  { label: "Investors", path: "/investors", icon: DollarSign },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
+  { label: "Experiments", path: "/experiments", icon: Beaker },
+  { label: "90-Day Plan", path: "/sprint-plan", icon: Target },
+  { label: "Opportunity", path: "/opportunity-canvas", icon: Lightbulb },
   { label: "Diagrams", path: "/diagrams", icon: GitBranch },
   // AI Chat removed from nav - now accessible via floating assistant
 ];

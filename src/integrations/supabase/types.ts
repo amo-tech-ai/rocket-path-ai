@@ -3581,6 +3581,81 @@ export type Database = {
           },
         ]
       }
+      market_research: {
+        Row: {
+          ai_generated: boolean | null
+          confidence_score: number | null
+          created_at: string | null
+          emerging_players: Json | null
+          id: string
+          market_leaders: Json | null
+          methodology: string | null
+          sam_source: string | null
+          sam_value: number | null
+          som_source: string | null
+          som_value: number | null
+          sources: Json | null
+          startup_id: string
+          tam_source: string | null
+          tam_value: number | null
+          trends: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_generated?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          emerging_players?: Json | null
+          id?: string
+          market_leaders?: Json | null
+          methodology?: string | null
+          sam_source?: string | null
+          sam_value?: number | null
+          som_source?: string | null
+          som_value?: number | null
+          sources?: Json | null
+          startup_id: string
+          tam_source?: string | null
+          tam_value?: number | null
+          trends?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_generated?: boolean | null
+          confidence_score?: number | null
+          created_at?: string | null
+          emerging_players?: Json | null
+          id?: string
+          market_leaders?: Json | null
+          methodology?: string | null
+          sam_source?: string | null
+          sam_value?: number | null
+          som_source?: string | null
+          som_value?: number | null
+          sources?: Json | null
+          startup_id?: string
+          tam_source?: string | null
+          tam_value?: number | null
+          trends?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_research_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "market_research_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           ai_confidence: number | null
@@ -3929,6 +4004,75 @@ export type Database = {
           why_matters?: string | null
         }
         Relationships: []
+      }
+      opportunity_canvas: {
+        Row: {
+          adoption_barriers: Json | null
+          competitive_advantage: number | null
+          created_at: string | null
+          enablers: Json | null
+          execution_capability: number | null
+          id: string
+          market_readiness: number | null
+          opportunity_score: number | null
+          reasoning: string | null
+          recommendation: string | null
+          startup_id: string
+          strategic_fit: string | null
+          technical_feasibility: number | null
+          timing_score: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          adoption_barriers?: Json | null
+          competitive_advantage?: number | null
+          created_at?: string | null
+          enablers?: Json | null
+          execution_capability?: number | null
+          id?: string
+          market_readiness?: number | null
+          opportunity_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          startup_id: string
+          strategic_fit?: string | null
+          technical_feasibility?: number | null
+          timing_score?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          adoption_barriers?: Json | null
+          competitive_advantage?: number | null
+          created_at?: string | null
+          enablers?: Json | null
+          execution_capability?: number | null
+          id?: string
+          market_readiness?: number | null
+          opportunity_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          startup_id?: string
+          strategic_fit?: string | null
+          technical_feasibility?: number | null
+          timing_score?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_canvas_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "opportunity_canvas_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       org_members: {
         Row: {
@@ -5618,9 +5762,10 @@ export type Database = {
           id: string
           key_findings: string[] | null
           report_type: string
-          run_id: string
+          run_id: string | null
           score: number | null
           session_id: string | null
+          startup_id: string | null
           summary: string | null
           updated_at: string | null
           verification_json: Json | null
@@ -5632,9 +5777,10 @@ export type Database = {
           id?: string
           key_findings?: string[] | null
           report_type: string
-          run_id: string
+          run_id?: string | null
           score?: number | null
           session_id?: string | null
+          startup_id?: string | null
           summary?: string | null
           updated_at?: string | null
           verification_json?: Json | null
@@ -5646,9 +5792,10 @@ export type Database = {
           id?: string
           key_findings?: string[] | null
           report_type?: string
-          run_id?: string
+          run_id?: string | null
           score?: number | null
           session_id?: string | null
+          startup_id?: string | null
           summary?: string | null
           updated_at?: string | null
           verification_json?: Json | null
@@ -5656,17 +5803,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "validation_reports_run_id_fkey"
-            columns: ["run_id"]
-            isOneToOne: false
-            referencedRelation: "validation_runs"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "validation_reports_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "validator_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "validation_reports_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_metrics"
+            referencedColumns: ["startup_id"]
+          },
+          {
+            foreignKeyName: "validation_reports_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "startups"
             referencedColumns: ["id"]
           },
         ]
@@ -5989,6 +6143,7 @@ export type Database = {
         Row: {
           created_at: string
           error_message: string | null
+          failed_steps: string[] | null
           id: string
           input_text: string
           startup_id: string | null
@@ -5999,6 +6154,7 @@ export type Database = {
         Insert: {
           created_at?: string
           error_message?: string | null
+          failed_steps?: string[] | null
           id?: string
           input_text: string
           startup_id?: string | null
@@ -6009,6 +6165,7 @@ export type Database = {
         Update: {
           created_at?: string
           error_message?: string | null
+          failed_steps?: string[] | null
           id?: string
           input_text?: string
           startup_id?: string | null

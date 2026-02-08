@@ -1,30 +1,31 @@
 /**
  * Validator Chat
  * Main chat-to-validation experience component
+ * Uses AI-powered follow-up questions via Gemini Flash
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ValidatorChatInput from './ValidatorChatInput';
 import ValidatorChatMessage, { ChatMessage } from './ValidatorChatMessage';
 import ValidatorProcessingAnimation from './ValidatorProcessingAnimation';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
- import { useValidatorPipeline } from '@/hooks/useValidatorPipeline';
+import { useValidatorPipeline } from '@/hooks/useValidatorPipeline';
+import { useValidatorFollowup, type FollowupCoverage } from '@/hooks/useValidatorFollowup';
 
 interface ValidatorChatProps {
-  startupId: string;
+  startupId?: string;
   onValidationComplete?: (reportId: string) => void;
   initialIdea?: string;
+  onCoverageUpdate?: (coverage: FollowupCoverage, canGenerate: boolean) => void;
+  prefillText?: string;
 }
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: `Welcome! I'm your validation coach. 
+  content: `Welcome! I'm your validation coach.
 
 Tell me about your startup idea — **what problem are you solving and for whom?**
 
@@ -32,29 +33,63 @@ I'll help turn it into a clear, validated plan.`,
   timestamp: new Date(),
 };
 
-const FOLLOW_UP_QUESTIONS = [
-  "Who specifically experiences this problem? Tell me about your target customer.",
-  "How are people currently solving this? What alternatives exist?",
-  "What makes your solution different or better?",
-  "Have you talked to potential customers yet? Any early validation?",
+// Fallback questions used when the edge function fails — ordered by topic priority.
+// Each has keywords to detect if the topic was already discussed in chat.
+const FALLBACK_QUESTIONS: { question: string; keywords: string[] }[] = [
+  { question: "Who specifically would use this? What's their role, industry, or situation?", keywords: ['customer', 'consumer', 'user', 'traveler', 'traveller', 'nomad', 'founder', 'agent', 'buyer', 'audience', 'demographic', 'segment', 'persona', 'target'] },
+  { question: "What alternatives or workarounds do these people use today?", keywords: ['competitor', 'alternative', 'workaround', 'currently', 'existing', 'today', 'instead', 'compare', 'mindtrip', 'tripit', 'kayak', 'google travel'] },
+  { question: "What's novel about your approach — why now and why you?", keywords: ['novel', 'unique', 'different', 'approach', 'innovation', 'why now', 'advantage', 'special', 'better than', 'unlike'] },
+  { question: "What's your unfair advantage or moat that competitors can't easily copy?", keywords: ['moat', 'advantage', 'defensible', 'patent', 'network effect', 'data', 'proprietary'] },
+  { question: "Do you have any evidence people want this — conversations, waitlists, or surveys?", keywords: ['evidence', 'waitlist', 'survey', 'interview', 'feedback', 'pilot', 'beta', 'users signed', 'traction', 'demand'] },
+  { question: "Have you done any market research? What did you learn about the opportunity size?", keywords: ['market size', 'tam', 'sam', 'research', 'opportunity', 'billion', 'million', 'growth', 'report'] },
 ];
+
+/**
+ * Find the next fallback question that hasn't already been covered in conversation.
+ * Checks user messages for keyword overlap to avoid re-asking answered topics.
+ */
+function pickFallbackQuestion(messages: ChatMessage[], startIndex: number): { question: string; nextIndex: number } {
+  const userText = messages
+    .filter(m => m.role === 'user')
+    .map(m => m.content.toLowerCase())
+    .join(' ');
+
+  for (let i = 0; i < FALLBACK_QUESTIONS.length; i++) {
+    const idx = (startIndex + i) % FALLBACK_QUESTIONS.length;
+    const fb = FALLBACK_QUESTIONS[idx];
+    const alreadyCovered = fb.keywords.some(kw => userText.includes(kw.toLowerCase()));
+    if (!alreadyCovered) {
+      return { question: fb.question, nextIndex: idx + 1 };
+    }
+  }
+  // All topics seem covered — return a generic prompt
+  return {
+    question: "Tell me anything else about your idea, or click **Generate** to start the analysis.",
+    nextIndex: startIndex + FALLBACK_QUESTIONS.length,
+  };
+}
+
+const MIN_EXCHANGES = 2;
+const MAX_EXCHANGES = 7;
 
 export default function ValidatorChat({
   startupId,
   onValidationComplete,
   initialIdea,
+  onCoverageUpdate,
+  prefillText,
 }: ValidatorChatProps) {
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialIdeaProcessed = useRef(false);
-   const { startValidation, isStarting } = useValidatorPipeline();
-  
+  const followupInFlight = useRef(false); // G1: Guard against concurrent AI calls
+  const { startValidation, isStarting } = useValidatorPipeline();
+  const { getNextQuestion, isLoading: isFollowupLoading } = useValidatorFollowup();
+
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
-   const [isProcessing, setIsProcessing] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [extractedData, setExtractedData] = useState<Record<string, string>>({});
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [canGenerate, setCanGenerate] = useState(false);
+  const [fallbackIndex, setFallbackIndex] = useState(0);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -63,55 +98,156 @@ export default function ValidatorChat({
     }
   }, [messages, isTyping]);
 
-  // Check if we have enough info to generate
-  const userMessages = messages.filter(m => m.role === 'user');
-  const canGenerate = userMessages.length >= 1;
+  const userMessageCount = messages.filter(m => m.role === 'user').length;
+
+  // Build conversation messages for the edge function (exclude welcome and typing)
+  const buildConversationMessages = useCallback((msgs: ChatMessage[]) => {
+    return msgs
+      .filter(m => m.id !== 'welcome' && m.id !== 'typing')
+      .map(m => ({ role: m.role as "user" | "assistant", content: m.content }));
+  }, []);
+
+  // Ask AI for the next question, with fallback and concurrency guard
+  const askFollowup = useCallback(async (currentMessages: ChatMessage[]) => {
+    // G1: Prevent concurrent AI calls
+    if (followupInFlight.current) return;
+    followupInFlight.current = true;
+
+    const conversationMessages = buildConversationMessages(currentMessages);
+    const currentUserCount = currentMessages.filter(m => m.role === 'user').length;
+
+    // Hard cap: always enable Generate after MAX_EXCHANGES user messages
+    if (currentUserCount >= MAX_EXCHANGES) {
+      setCanGenerate(true);
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        followupInFlight.current = false;
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `Great, I have a solid picture of your idea!\n\n**Ready to run the validation analysis?** This will take about 30 seconds.\n\nClick **Generate** when you're ready, or tell me more details.`,
+          timestamp: new Date(),
+        }]);
+      }, 800);
+      return;
+    }
+
+    setIsTyping(true);
+
+    try {
+      const result = await getNextQuestion(conversationMessages);
+
+      if (result) {
+        // Notify parent of coverage updates
+        if (result.coverage && onCoverageUpdate) {
+          const willBeReady = result.action === 'ready' && currentUserCount >= MIN_EXCHANGES;
+          onCoverageUpdate(result.coverage, willBeReady || currentUserCount >= MAX_EXCHANGES);
+        }
+
+        // Ignore "ready" signal before MIN_EXCHANGES
+        if (result.action === 'ready' && currentUserCount >= MIN_EXCHANGES) {
+          setCanGenerate(true);
+          setTimeout(() => {
+            setIsTyping(false);
+            followupInFlight.current = false;
+            setMessages(prev => [...prev, {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: `Great, I have a solid picture of your idea!\n\n**Ready to run the validation analysis?** This will take about 30 seconds.\n\nClick **Generate** when you're ready, or tell me more details.`,
+              timestamp: new Date(),
+            }]);
+          }, 800);
+        } else {
+          // Ask the AI-generated question, with context-aware fallback if empty
+          let question = result.question;
+          if (!question) {
+            const fb = pickFallbackQuestion(currentMessages, fallbackIndex);
+            question = fb.question;
+            setFallbackIndex(fb.nextIndex);
+          }
+          setTimeout(() => {
+            setIsTyping(false);
+            followupInFlight.current = false;
+            setMessages(prev => [...prev, {
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: question,
+              timestamp: new Date(),
+            }]);
+          }, 800);
+        }
+      } else {
+        // Edge function failed — use context-aware fallback (skips covered topics)
+        console.warn('[ValidatorChat] AI followup failed, using context-aware fallback');
+        const fb = pickFallbackQuestion(currentMessages, fallbackIndex);
+        setFallbackIndex(fb.nextIndex);
+
+        // Enable Generate after enough fallback exchanges
+        if (currentUserCount >= MIN_EXCHANGES + 1 && fallbackIndex >= 2) {
+          setCanGenerate(true);
+        }
+
+        setTimeout(() => {
+          setIsTyping(false);
+          followupInFlight.current = false;
+          setMessages(prev => [...prev, {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: fb.question,
+            timestamp: new Date(),
+          }]);
+        }, 800);
+      }
+    } catch {
+      // Network error — use context-aware fallback (skips covered topics)
+      console.warn('[ValidatorChat] Network error, using context-aware fallback');
+      const fb = pickFallbackQuestion(currentMessages, fallbackIndex);
+      setFallbackIndex(fb.nextIndex);
+
+      if (currentUserCount >= MIN_EXCHANGES + 1 && fallbackIndex >= 2) {
+        setCanGenerate(true);
+      }
+
+      setIsTyping(false);
+      followupInFlight.current = false;
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: fb.question,
+        timestamp: new Date(),
+      }]);
+    }
+  }, [buildConversationMessages, getNextQuestion, fallbackIndex, onCoverageUpdate]);
 
   // Process initial idea from homepage if provided
   useEffect(() => {
     if (initialIdea && !initialIdeaProcessed.current) {
       initialIdeaProcessed.current = true;
-      
-      // Add the user's idea as a message
+
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'user',
         content: initialIdea,
         timestamp: new Date(),
       };
-      
-      setMessages(prev => [...prev, userMessage]);
-      setExtractedData({ idea: initialIdea });
-      
-      // Show ready message after a short delay
+
+      const introMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: "Great start! I've captured your idea. Let me ask a few quick questions to strengthen the analysis.",
+        timestamp: new Date(),
+      };
+
+      const updatedMessages = [...[WELCOME_MESSAGE], userMessage, introMessage];
+      setMessages(updatedMessages);
+
+      // Get first AI-powered follow-up based on the idea
       setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `Great idea! I've captured your startup concept.
-
-**Ready to analyze?** Click **Generate** to get your comprehensive validation report, or tell me more about your target customers and solution.`,
-          timestamp: new Date(),
-        }]);
-      }, 1000);
+        askFollowup(updatedMessages);
+      }, 500);
     }
-  }, [initialIdea]);
-
-  // Add AI message with typing effect
-  const addAIMessage = useCallback((content: string) => {
-    const newMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content,
-      timestamp: new Date(),
-    };
-    
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [...prev, newMessage]);
-    }, 800);
-  }, []);
+  }, [initialIdea]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle user message
   const handleSendMessage = useCallback((content: string) => {
@@ -121,33 +257,14 @@ export default function ValidatorChat({
       content,
       timestamp: new Date(),
     };
-    
-    setMessages(prev => [...prev, userMessage]);
 
-    // Store extracted data based on question index
-    const dataKeys = ['idea', 'customer', 'alternatives', 'differentiation', 'validation'];
-    setExtractedData(prev => ({
-      ...prev,
-      [dataKeys[questionIndex] || 'extra']: content,
-    }));
-
-    // Ask follow-up question if we haven't asked enough
-    if (questionIndex < FOLLOW_UP_QUESTIONS.length && userMessages.length < 3) {
-      setTimeout(() => {
-        addAIMessage(FOLLOW_UP_QUESTIONS[questionIndex]);
-        setQuestionIndex(prev => prev + 1);
-      }, 500);
-    } else if (userMessages.length >= 2) {
-      // Suggest generating after enough context
-      setTimeout(() => {
-        addAIMessage(`Great, I have a good picture of your idea! 
-
-**Ready to run the validation analysis?** This will take about 30 seconds.
-
-Click **Generate** when you're ready, or tell me more details.`);
-      }, 500);
-    }
-  }, [questionIndex, userMessages.length, addAIMessage]);
+    setMessages(prev => {
+      const updated = [...prev, userMessage];
+      // Trigger AI follow-up after state update
+      setTimeout(() => askFollowup(updated), 100);
+      return updated;
+    });
+  }, [askFollowup]);
 
   // Handle generate validation
   const handleGenerate = useCallback(async () => {
@@ -160,19 +277,28 @@ Click **Generate** when you're ready, or tell me more details.`);
       .join('\n\n');
 
     // Add confirmation message
-    addAIMessage("Perfect! Starting validation analysis now... 🚀");
+    setIsTyping(true);
+    setTimeout(() => {
+      setIsTyping(false);
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: "Perfect! Starting validation analysis now...",
+        timestamp: new Date(),
+      }]);
+    }, 800);
 
     // Start processing animation
     setTimeout(() => {
       setIsProcessing(true);
     }, 1000);
-     
-     // Start the actual pipeline after brief animation
-     setTimeout(async () => {
-       await startValidation(ideaDescription, startupId, true);
-       setIsProcessing(false);
-     }, 2000);
-   }, [canGenerate, messages, addAIMessage, startValidation, startupId]);
+
+    // Start the actual pipeline after brief animation
+    setTimeout(async () => {
+      await startValidation(ideaDescription, startupId, true);
+      setIsProcessing(false);
+    }, 2000);
+  }, [canGenerate, messages, startValidation, startupId]);
 
   return (
     <>
@@ -181,7 +307,7 @@ Click **Generate** when you're ready, or tell me more details.`);
         {isProcessing && (
           <ValidatorProcessingAnimation
             isActive={isProcessing}
-             onComplete={() => {}} // Pipeline handles navigation now
+            onComplete={() => {}} // Pipeline handles navigation now
           />
         )}
       </AnimatePresence>
@@ -196,7 +322,7 @@ Click **Generate** when you're ready, or tell me more details.`);
             <div className="flex-1">
               <h2 className="font-semibold text-foreground">Idea Validator</h2>
               <p className="text-xs text-muted-foreground">
-                {canGenerate ? '✓ Ready to generate your 14-section report' : 'Describe your startup idea to begin'}
+                {canGenerate ? 'Ready to generate your 14-section report' : 'Describe your startup idea to begin'}
               </p>
             </div>
             {canGenerate && (
@@ -205,16 +331,16 @@ Click **Generate** when you're ready, or tell me more details.`);
           </div>
         </div>
 
-         {/* Messages - Wide container */}
-         <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollRef}>
-           <div className="space-y-4 max-w-[1100px] mx-auto">
+        {/* Messages - Wide container */}
+        <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollRef}>
+          <div className="space-y-4 max-w-[1100px] mx-auto">
             {messages.map((message) => (
               <ValidatorChatMessage
                 key={message.id}
                 message={message}
               />
             ))}
-            
+
             {/* Typing indicator */}
             {isTyping && (
               <ValidatorChatMessage
@@ -230,15 +356,16 @@ Click **Generate** when you're ready, or tell me more details.`);
           </div>
         </ScrollArea>
 
-         {/* Input Area - Wide */}
-         <div className="flex-shrink-0 p-4 md:p-6 border-t border-border bg-background/50 backdrop-blur-sm">
-           <div className="max-w-[1100px] mx-auto">
+        {/* Input Area - Wide */}
+        <div className="flex-shrink-0 p-4 md:p-6 border-t border-border bg-background/50 backdrop-blur-sm">
+          <div className="max-w-[1100px] mx-auto">
             <ValidatorChatInput
               onSendMessage={handleSendMessage}
               onGenerate={handleGenerate}
-              isProcessing={isProcessing}
+              isProcessing={isProcessing || isTyping}
               canGenerate={canGenerate}
               placeholder="Describe your startup idea in detail..."
+              prefillText={prefillText}
             />
           </div>
         </div>

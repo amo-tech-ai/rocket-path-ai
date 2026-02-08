@@ -3,20 +3,48 @@
  * Chat-based startup idea validation experience
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Target, ArrowLeft } from 'lucide-react';
+import { Sparkles, Target, ArrowLeft, ListChecks, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { ValidatorChat } from '@/components/validator/chat';
+import { ContextPanel } from '@/components/validator/chat/ContextPanel';
+import { ExtractionPanel } from '@/components/validator/chat/ExtractionPanel';
 import { useStartup } from '@/hooks/useDashboardData';
+import type { FollowupCoverage } from '@/hooks/useValidatorFollowup';
 
 export default function ValidateIdea() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: startup, isLoading } = useStartup();
   const [initialIdea, setInitialIdea] = useState<string | undefined>();
-  
+  const [coverage, setCoverage] = useState<FollowupCoverage | null>(null);
+  const [canGenerate, setCanGenerate] = useState(false);
+  const [messageCount, setMessageCount] = useState(0);
+  const [prefillText, setPrefillText] = useState<string | undefined>();
+
+  // Coverage callback from ValidatorChat
+  const handleCoverageUpdate = useCallback((newCoverage: FollowupCoverage, ready: boolean) => {
+    setCoverage(newCoverage);
+    setCanGenerate(ready);
+    setMessageCount(prev => prev + 1);
+  }, []);
+
+  // Suggestion chip clicked — prefill chat input
+  const handleSuggestionClick = useCallback((text: string) => {
+    // Clear first, then set — ensures useEffect re-fires even for same text
+    setPrefillText(undefined);
+    requestAnimationFrame(() => setPrefillText(text));
+  }, []);
+
   // Check for pending idea from homepage
   useEffect(() => {
     const hasIdea = searchParams.get('hasIdea') === 'true';
@@ -106,31 +134,84 @@ export default function ValidateIdea() {
         </motion.p>
       </motion.div>
 
-      {/* Main Chat Area - Full width layout */}
-       <div className="flex-1 flex flex-col max-w-[1100px] mx-auto w-full px-4">
-        <div className="flex-1 bg-card/30 rounded-2xl border border-border mt-4 mb-2 overflow-hidden shadow-sm">
-          {startup?.id ? (
+      {/* Main Content - 3 Panel Layout */}
+      <div className="flex-1 flex max-w-[1400px] mx-auto w-full px-4 gap-4">
+        {/* Left Panel - Context */}
+        <aside className="hidden lg:block w-72 flex-shrink-0 mt-4 mb-2">
+          <div className="sticky top-4">
+            <ContextPanel coverage={coverage} messageCount={messageCount} />
+          </div>
+        </aside>
+
+        {/* Center - Chat */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 bg-card/30 rounded-2xl border border-border mt-4 mb-2 overflow-hidden shadow-sm">
             <ValidatorChat
-              startupId={startup.id}
+              startupId={startup?.id}
               onValidationComplete={handleValidationComplete}
               initialIdea={initialIdea}
+              onCoverageUpdate={handleCoverageUpdate}
+              prefillText={prefillText}
             />
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Target className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="font-medium text-foreground mb-2">No Startup Selected</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Please create a startup profile first.
-                </p>
-                <Button onClick={() => navigate('/onboarding')}>
-                  Get Started
-                </Button>
+          </div>
+        </div>
+
+        {/* Right Panel - Extraction */}
+        <aside className="hidden xl:block w-72 flex-shrink-0 mt-4 mb-2">
+          <div className="sticky top-4">
+            <ExtractionPanel coverage={coverage} canGenerate={canGenerate} onSuggestionClick={handleSuggestionClick} />
+          </div>
+        </aside>
+      </div>
+
+      {/* Mobile Panel Tabs — visible only when panels are hidden */}
+      <div className="lg:hidden flex-shrink-0 border-t border-border bg-card/80 backdrop-blur-sm px-4 py-2">
+        <div className="flex items-center justify-center gap-2">
+          {/* Context Sheet */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 flex-1 max-w-[160px]">
+                <ListChecks className="w-4 h-4" />
+                Fields
+                {coverage && (
+                  <span className="text-xs text-primary font-medium">
+                    {Object.values(coverage).filter(Boolean).length}/8
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Extraction Progress</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <ContextPanel coverage={coverage} messageCount={messageCount} />
               </div>
-            </div>
-          )}
+            </SheetContent>
+          </Sheet>
+
+          {/* Extraction Sheet */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 flex-1 max-w-[160px]">
+                <BarChart3 className="w-4 h-4" />
+                Readiness
+                {coverage && (
+                  <span className={`text-xs font-medium ${canGenerate ? 'text-emerald-500' : 'text-muted-foreground'}`}>
+                    {Math.round((Object.values(coverage).filter(Boolean).length / 8) * 100)}%
+                  </span>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Validation Readiness</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <ExtractionPanel coverage={coverage} canGenerate={canGenerate} onSuggestionClick={handleSuggestionClick} />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 

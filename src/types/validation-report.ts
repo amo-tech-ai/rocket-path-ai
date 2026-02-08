@@ -168,3 +168,104 @@ export function formatMarketSize(value: number): string {
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value}`;
 }
+
+export function formatCurrency(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return `$${value.toLocaleString()}`;
+}
+
+// P02: New report section types (matching backend validator-start/types.ts)
+export interface TechnologyAssessment {
+  stack_components: Array<{ name: string; choice: 'build' | 'buy' | 'open_source'; rationale: string }>;
+  feasibility: 'high' | 'medium' | 'low';
+  feasibility_rationale: string;
+  technical_risks: Array<{ risk: string; likelihood: 'high' | 'medium' | 'low'; mitigation: string }>;
+  mvp_timeline_weeks: number;
+}
+
+export interface RevenueModelAssessment {
+  recommended_model: string;
+  reasoning: string;
+  alternatives: Array<{ model: string; pros: string[]; cons: string[] }>;
+  unit_economics: { cac: number; ltv: number; ltv_cac_ratio: number; payback_months: number };
+}
+
+export interface TeamAssessment {
+  current_gaps: string[];
+  mvp_roles: Array<{ role: string; priority: number; rationale: string; monthly_cost: number }>;
+  monthly_burn: number;
+  advisory_needs: string[];
+}
+
+export interface KeyQuestion {
+  question: string;
+  why_it_matters: string;
+  validation_method: string;
+  risk_level: 'fatal' | 'important' | 'minor';
+}
+
+export interface ResourceCategory {
+  category: string;
+  links: Array<{ title: string; url: string; description: string }>;
+}
+
+export interface ScoresMatrixData {
+  dimensions: Array<{ name: string; score: number; weight: number }>;
+  overall_weighted: number;
+}
+
+// P02 Task 32: Competition deep dive types
+export interface SWOT {
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
+}
+
+export interface FeatureComparison {
+  features: string[];
+  competitors: Array<{
+    name: string;
+    has_feature: boolean[];
+  }>;
+}
+
+export interface CompetitorPosition {
+  name: string;
+  x: number; // 0-100
+  y: number; // 0-100
+  is_founder: boolean;
+}
+
+export interface PositioningMatrix {
+  x_axis: string;
+  y_axis: string;
+  positions: CompetitorPosition[];
+}
+
+// P02 Tasks 33+35: Financial projections types
+export interface RevenueScenario {
+  name: string; // "Conservative", "Base", "Optimistic"
+  y1_revenue: number;
+  y3_revenue: number;
+  y5_revenue: number;
+  assumptions: string[];
+}
+
+export interface MonthlyRevenue {
+  month: number;
+  revenue: number;
+  users: number;
+}
+
+export interface FinancialProjections {
+  scenarios: RevenueScenario[];
+  monthly_y1?: MonthlyRevenue[];
+  break_even: {
+    months: number;
+    revenue_required: number;
+    assumptions: string;
+  };
+  key_assumption: string;
+}

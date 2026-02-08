@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.9.0] - 2026-02-08
+
+### Added
+- **Validator Pipeline (7-agent)** — Full E2E pipeline: Extractor, Research, Competitors, Scoring, MVP, Composer, Verifier
+- **Shared Gemini client** (`_shared/gemini.ts`) — `callGemini()` with `Promise.race` hard timeout, `extractJSON` multi-fallback parser with truncated JSON repair
+- **Rate limiting** (`_shared/rate-limit.ts`) — In-memory sliding window per user/endpoint
+- **Validator Follow-up** (`validator-followup`) — Gemini Flash chat with 8 coverage topics, anti-repetition rules
+- **Validator Panel Detail** (`validator-panel-detail`) — On-demand deep-dive for report sections
+- **Validator Report UI** — 14-section report with ScoreCircle, ReportScorePanel, ReportSection, ReportRightPanel
+- **Validator Chat UI** — ValidatorChat, ValidatorChatInput, ContextPanel, ExtractionPanel
+- **Visual charts** — TAMSAMSOMChart, DimensionScoresChart radar, FactorsBreakdownCard, revenue AreaChart
+- **Scoring data injection** — pipeline.ts injects highlights, red_flags, market_factors, execution_factors into report before DB INSERT
+- **Forensic audit** (`tasks/validator/strategy/06-improved-plan-audit.md`) — 12 findings verified against official Supabase/Gemini docs, 6 Mermaid diagrams
+- **v2 strategy docs** (`tasks/validator/strategy/`) — 7 documents covering agent strategy, user journey, workflows, architecture, audit
+- **EdgeRuntime.waitUntil()** — Official Supabase pattern for background pipeline work with fire-and-forget fallback
+- **MAX_TOKENS logging** — Detects and logs Gemini truncated responses via finishReason
+
+### Fixed
+- **Report showing no content** — Gemini wrapped JSON in array `[{}]`; added array unwrap in Composer, ValidatorReport frontend, and extractJSON
+- **ComposerAgent JSON extraction failed** — maxOutputTokens 4096 caused mid-stream truncation; increased to 8192 with truncated JSON repair fallback
+- **Pipeline deadline too tight** — Increased 115s to 300s (paid plan allows 400s wall-clock)
+- **Composer budget too tight** — Increased hard cap from 30s to 90s
+- **Zombie cleanup killing valid sessions** — Threshold was 180s but pipeline runs up to 300s; increased to 360s (300s + 60s buffer)
+- **validator-followup HTTP 502** — Parse failures returned 502 (proxy error); now returns 200 with structured `{ success: false }` JSON
+- **Strengths/Concerns empty** — Pipeline now injects scoring agent data into report before DB INSERT
+- **Followup re-asking covered topics** — Prompt updated with explicit coverage rules; fallback questions use keyword-based context awareness
+
+### Changed
+- Composer maxOutputTokens: 4096 to 8192
+- Composer budget cap: 30s to 90s
+- Pipeline deadline: 115s to 300s
+- Zombie cleanup threshold: 180s to 360s
+- Competitors agent runs as background promise (non-blocking critical path)
+- Grace period before Composer waits for Competitors (min 5s, protects Composer budget)
+
 ## [0.8.2] - 2026-02-03
 
 ### Added
