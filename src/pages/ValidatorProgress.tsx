@@ -3,7 +3,7 @@
   * Shows real-time pipeline status with step progression
   */
  
- import { useState, useEffect, useRef } from 'react';
+ import { useState, useEffect, useRef, useCallback } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
  import { motion, AnimatePresence } from 'framer-motion';
  import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -75,7 +75,27 @@
    const [polling, setPolling] = useState(true);
    const pollingStart = useRef(Date.now());
    const statusRef = useRef<SessionStatus | null>(null);
-   const MAX_POLL_MS = 180_000; // P03: 3 min max (edge fn has 150s wall-clock + 140s pipeline timeout)
+   const MAX_POLL_MS = 360_000; // B3 fix: 6 min (pipeline deadline 300s + 60s buffer)
+   const [navigating, setNavigating] = useState(false);
+
+   const goToReport = useCallback(async () => {
+     if (!sessionId) return;
+     const reportId = status?.report?.id;
+     if (reportId) {
+       navigate(`/validator/report/${reportId}`);
+       return;
+     }
+     setNavigating(true);
+     const { data } = await supabase
+       .from('validator_reports')
+       .select('id')
+       .eq('session_id', sessionId)
+       .order('created_at', { ascending: false })
+       .limit(1)
+       .maybeSingle();
+     setNavigating(false);
+     if (data?.id) navigate(`/validator/report/${data.id}`);
+   }, [sessionId, status?.report?.id, navigate]);
 
    // Keep ref in sync with state so the polling closure always has latest value
    useEffect(() => {
@@ -148,13 +168,33 @@
  
    // F7: Auto-navigate to report for ANY terminal state with a report
    useEffect(() => {
-     if ((status?.status === 'complete' || status?.status === 'partial') && status.report?.id) {
-       const timer = setTimeout(() => {
-         navigate(`/validator/report/${status.report?.id}`);
-       }, 2000);
+     if (status?.status !== 'complete' && status?.status !== 'partial') return;
+     const reportId = status.report?.id;
+     if (reportId) {
+       const timer = setTimeout(() => navigate(`/validator/report/${reportId}`), 1000);
        return () => clearTimeout(timer);
      }
-   }, [status, navigate]);
+     // Fallback: status API sometimes returns complete without report (race/RLS). Fetch by session_id.
+     if (!sessionId) return;
+     let cancelled = false;
+     const resolveReport = async () => {
+       const { data } = await supabase
+         .from('validator_reports')
+         .select('id')
+         .eq('session_id', sessionId)
+         .order('created_at', { ascending: false })
+         .limit(1)
+         .maybeSingle();
+       if (!cancelled && data?.id) {
+         navigate(`/validator/report/${data.id}`);
+       }
+     };
+     const timer = setTimeout(resolveReport, 500);
+     return () => {
+       cancelled = true;
+       clearTimeout(timer);
+     };
+   }, [status, navigate, sessionId]);
  
    const getStepIcon = (step: PipelineStep) => {
      const Icon = STEP_ICONS[step.agent as keyof typeof STEP_ICONS] || Circle;
@@ -374,7 +414,32 @@
              </motion.div>
            )}
          </AnimatePresence>
- 
+
+         {/* Complete but report missing in status response — manual View Report */}
+         {(status?.status === 'complete' || status?.status === 'partial') && !status?.report && sessionId && (
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="card-premium p-6 space-y-4"
+           >
+             <h2 className="text-xl font-semibold text-foreground">Report Ready</h2>
+             <p className="text-muted-foreground">Your validation report is complete.</p>
+             <Button onClick={goToReport} disabled={navigating}>
+               {navigating ? (
+                 <>
+                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                   Loading...
+                 </>
+               ) : (
+                 <>
+                   View Report
+                   <ArrowRight className="w-4 h-4 ml-2" />
+                 </>
+               )}
+             </Button>
+           </motion.div>
+         )}
+
          {/* Partial results summary — show what agents completed on failure */}
          {(status?.status === 'failed' || (status?.status === 'partial' && !status?.report)) && status?.steps && (
            <motion.div

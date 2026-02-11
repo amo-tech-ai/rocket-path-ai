@@ -15,6 +15,7 @@ import type {
   MVPPlan,
   ValidatorReport,
   VerificationResult,
+  InterviewContext,
 } from "./types.ts";
 import {
   runExtractor,
@@ -36,7 +37,8 @@ export async function runPipeline(
   supabaseAdmin: SupabaseClient,
   sessionId: string,
   input_text: string,
-  startup_id?: string
+  startup_id?: string,
+  interviewContext?: InterviewContext | null,
 ) {
 // FIX: Use a start timestamp + deadline check instead of setTimeout.
 // setTimeout was unreliable on Deno Deploy — the callback never fired when
@@ -65,7 +67,7 @@ try {
   const failedAgents: string[] = [];
 
   try {
-    profile = await runExtractor(supabaseAdmin, sessionId, input_text);
+    profile = await runExtractor(supabaseAdmin, sessionId, input_text, interviewContext || undefined);
     if (!profile) failedAgents.push('ExtractorAgent');
   } catch (e) {
     console.error('[ExtractorAgent] Failed:', e);
@@ -107,7 +109,7 @@ try {
 
   try {
     if (profile) {
-      scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis);
+      scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, interviewContext || undefined);
       if (!scoring) failedAgents.push('ScoringAgent');
     }
   } catch (e) {
@@ -176,15 +178,15 @@ try {
   // With 8192 maxOutputTokens, Composer needs ~30-50s typical, up to 90s worst case.
   const COMPOSER_MAX_BUDGET_MS = 90_000;
   const composerBudget = Math.min(remainingMs() - 10_000, COMPOSER_MAX_BUDGET_MS);
-  if (composerBudget < 15_000) {
-    console.error(`[pipeline] Only ${composerBudget}ms left for Composer — skipping (need 15s minimum)`);
+  if (composerBudget < 45_000) {
+    console.error(`[pipeline] Only ${composerBudget}ms left for Composer — skipping (need 45s minimum)`);
     failedAgents.push('ComposerAgent');
   } else {
     console.log(`[pipeline] Composer budget: ${composerBudget}ms (${remainingMs()}ms remaining)`);
     // M4: Only run composer if we have at least the profile (some data to compose from)
     try {
       if (profile) {
-        report = await runComposer(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, scoring, mvpPlan, composerBudget);
+        report = await runComposer(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, scoring, mvpPlan, composerBudget, interviewContext || undefined);
         if (!report) failedAgents.push('ComposerAgent');
       } else {
         failedAgents.push('ComposerAgent');
@@ -220,7 +222,7 @@ try {
     }
 
     const { error: reportError } = await supabaseAdmin
-      .from('validation_reports')
+      .from('validator_reports')
       .insert({
         run_id: null,
         session_id: sessionId,

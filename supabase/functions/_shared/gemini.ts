@@ -124,11 +124,17 @@ export async function callGemini(
         result = await doFetch();
       }
     } catch (fetchErr) {
-      if (fetchErr instanceof Error && fetchErr.message.includes('hard timeout')) {
-        throw fetchErr;
-      }
-      if (fetchErr instanceof DOMException && (fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError')) {
-        throw new Error(`Gemini API timed out after ${timeoutMs}ms`);
+      // P07: Timeouts are now retryable — Gemini cold starts and body streaming delays
+      // are transient. Allow the retry loop to handle them instead of throwing immediately.
+      const isTimeout = (fetchErr instanceof Error && fetchErr.message.includes('hard timeout'))
+        || (fetchErr instanceof DOMException && (fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError'));
+      if (isTimeout) {
+        console.warn(`[callGemini] Timeout on attempt ${attempt + 1}/${maxRetries + 1}: ${fetchErr instanceof Error ? fetchErr.message : 'AbortError'}`);
+        lastError = new Error(`Gemini API hard timeout after ${timeoutMs}ms`);
+        if (attempt < maxRetries) {
+          continue; // Let the retry loop handle it
+        }
+        throw lastError;
       }
       throw fetchErr;
     }

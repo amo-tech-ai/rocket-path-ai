@@ -1,5 +1,124 @@
 # Changelog
 
+## [0.10.3] - 2026-02-11
+
+### Fixed — Validator Auth & Gateway 401
+
+- **Gateway 401 root cause** — `validator-start` was deployed with `verify_jwt=true` (v42) despite `config.toml` saying `false`. Gateway rejected all requests before function code ran. Redeployed v43 with `--no-verify-jwt`
+- **Stale JWT in hooks** — Both `useValidatorPipeline.ts` and `useValidatorFollowup.ts` now call `refreshSession()` + pass explicit `Authorization: Bearer <token>` header to `functions.invoke()`
+- **3 successful E2E runs** — Restaurant (72/100), InboxPilot (68/100), Travel AI (62/100)
+
+### Changed — Skills Consolidation
+
+- 34 skills migrated from `.claude/` to `.agents/skills/` with `SKILL.md` + `references/` structure
+- 34 placeholder skills archived to `.agents/skills/_archive/placeholders/`
+- Updated `.claude/settings.json`, `.gitignore`, `CLAUDE.md` for new paths
+- Updated `tasks/index-progress.md` to v7.5, `tasks/next-steps.md` to v8.2
+
+## [0.10.2] - 2026-02-10
+
+### Added — Prompts Forensic Audit (19-prompts-audit)
+
+- **Path corrections** — All broken `lean/prompts/*` refs → `tasks/*` (diagrams, notes, strategy) across 15 prompts
+- **Index accuracy** — `tasks/prompts/index-prompts.md`: Notes `tasks/notes/`, Wireframes `tasks/WIREFRAMES/` (core) + `tasks/wireframes/` (advanced), Strategy `tasks/data/validator-v3-strategy.md`
+- **Edge function acceptance criteria** — Task 21: `insights-generator` MUST implement `compute_readiness`; Task 22: `compute_outcomes`
+- **Audit doc** — `tasks/audit/19-prompts-audit.md` with % correct per domain (paths 98%, schema 95%, EF 78%)
+
+### Fixed
+
+- Prompts 10–14: `lean/prompts/notes/` → `tasks/notes/`
+- Prompts 15–20: `lean/prompts/data/diagrams/` → `tasks/data/diagrams/`, strategy → `tasks/data/validator-v3-strategy.md`
+
+### Changed
+
+- Updated `tasks/index-progress.md` to v7.4 (prompts audit complete)
+- Updated `tasks/next-steps.md` with prompts audit blockers (insights-generator actions, validator-orchestrate)
+
+## [0.10.1] - 2026-02-10
+
+### Added — Verification & Compliance Pass
+
+- **Gemini compliance 8/8** — prompt-pack and ai-chat migrated to shared patterns (_shared/cors.ts, _shared/rate-limit.ts, npm: imports, Deno.serve())
+- **Soft delete frontend** — 40 `.is('deleted_at', null)` filters across 16 hook files (startups, contacts, deals, documents, projects, tasks)
+- **Knowledge search wiring** — useKnowledgeSearch imported into AIChat.tsx with search UI and results display
+- **Task prompt verification** — All 25 task prompts cross-referenced against actual codebase (schema, edge functions, hooks)
+- **Migration integrity** — 2 backfill migrations: document_versions (8 cols, 4 RLS) and opportunity_canvas (15 cols, 4 RLS)
+- **Config.toml completeness** — 9 edge functions added (31 → 41): 6 validator-agent-* (service_role) + 3 validator-board-* (internal auth)
+
+### Fixed
+
+- Task 23 prompt: `knowledge_base` → `knowledge_chunks` (3 occurrences)
+- Task 14 prompt: `useLeanCanvasRealtime` → `useCanvasRealtime` (matched existing hook)
+- Task 02 prompt: `industry_packs` → `prompt_packs` (archived table reference)
+- checkReadiness tests: aligned thresholds with implementation logic (106/106 passing)
+- TypeScript: 0 errors (`npx tsc --noEmit`)
+
+### Changed
+
+- Updated `tasks/index-progress.md` to v7.3 (overall 95%, Gemini 100%, edge functions 42)
+- Updated `tasks/next-steps.md` to v7.0 (Phase 1.5 DONE, updated execution order)
+- Updated `tasks/audit/17-audit-checklist.md` with task prompt verification results
+
+## [0.10.0] - 2026-02-10
+
+### Added — Data Strategy (Weeks 1-6)
+
+- **Security hardening (Week 1)**
+  - 40 RLS policies changed from `public` to `authenticated` role — zero anon access now
+  - 22 edge functions set to `verify_jwt = true` in config.toml
+  - 15 missing foreign key indexes added
+
+- **Legacy cleanup (Week 2)**
+  - 8 unused `validation_*` tables dropped (were causing confusion with active `validator_*` tables)
+  - 5 legacy helper functions removed
+  - 12 code files updated to remove dead references
+  - `validation_reports` renamed to `validator_reports` (16 rows preserved)
+
+- **Edge function migration (Week 3)**
+  - 6 Grade-D functions rewritten to shared patterns: insights-generator, task-agent, crm-agent, event-agent, documents-agent, investor-agent
+  - Each now uses `_shared/gemini.ts`, `_shared/cors.ts`, `_shared/rate-limit.ts`
+  - Each has a new `prompt.ts` with Gemini G1 JSON schemas
+  - Auth added: `supabase.auth.getUser()` + 401 on every function
+
+- **Smart Interviewer data layer (Week 4)**
+  - 6 ALTER TABLEs: added `risk_type`, `is_locked`, `depth`, `hypothesis_id` to interview_insights; `interview_mode`, `readiness_score` to interviews
+  - 1 CREATE TABLE: `interview_questions` with RLS, indexes, updated_at trigger
+  - Lock enforcement: UPDATE policy blocks writes when `is_locked = true`
+
+- **Control layer tables (Week 5)**
+  - `decisions` table: pivot/persevere/launch/kill decisions with evidence linking
+  - `decision_evidence` table: polymorphic evidence links (assumptions, experiments, interviews, metrics)
+  - `shareable_links` table: token-based public URLs with expiry and revocation. Anon read via `x-share-token` header
+  - `ai_usage_limits` table: per-org monthly AI budget caps with spend tracking
+  - 19 RLS policies (all `authenticated` except 1 `anon` for token-based share access), 15 indexes, 2 triggers
+
+- **Core feature schema + soft delete (Week 6)**
+  - `assumptions` table: added `risk_score` (0-100) and `evidence_count` columns for assumption board
+  - `weekly_reviews` table: AI-generated weekly summaries with metrics, learnings, priorities. Unique per startup+week.
+  - Soft delete: `deleted_at timestamptz` added to 6 core tables (startups, contacts, deals, documents, projects, tasks)
+  - 18 RLS policies updated: SELECT/UPDATE/DELETE now include `AND deleted_at IS NULL`
+  - 6 partial indexes for cleanup queries (`WHERE deleted_at IS NOT NULL`)
+  - 5 RLS policies + 5 indexes + 1 trigger for weekly_reviews
+
+### Added — Validator Enhancements
+
+- **Industry playbooks (001-EFN)** — 8 industry-specific question banks (SaaS, FinTech, HealthTech, EdTech, AI/ML, E-commerce, Food, Real Estate) auto-injected into follow-up prompts based on keyword detection
+- **Context passthrough (002-EFN)** — Chat interview data (extracted fields, coverage, confidence) now flows into the pipeline. Extractor runs in "refine" mode instead of re-deriving. Research agent gets targeted search queries.
+- **Confidence tracking (009-SI)** — Each extracted field gets low/medium/high confidence (hedging = low, cited source = high). Shown as colored badges in the context panel.
+- **Confidence-weighted scoring (010-SI)** — Scoring agent now discounts low-confidence fields and notes when key dimensions rely on guesses.
+
+### Added — Documentation
+
+- **6 mermaid diagrams** in `lean/mermaid/`:
+  - System overview, Lean Canvas 3-panel, Dashboard layout, Onboarding wizard
+  - Validator pipeline flow, Chat state machine
+  - All exported as SVGs
+
+### Changed
+- TypeScript types regenerated with all new columns and tables
+- `data-progress.md` updated to v3.4 (overall ~95%, was 92%). All 16/16 data tasks complete.
+- Database counts: 83 tables (+6), 516 indexes (+31), 321 RLS policies (+29), 166 FKs (+11)
+
 ## [0.9.0] - 2026-02-08
 
 ### Added
