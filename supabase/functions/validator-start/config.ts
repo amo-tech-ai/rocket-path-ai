@@ -20,16 +20,19 @@ export type AgentName = keyof typeof AGENTS;
 
 // F2: Per-agent timeout budgets
 // Critical path (Competitors decoupled to background):
-//   Extractor(10s) + Research(40s) + Scoring(15s) + MVP(30s) + grace(5s) + Composer(~35s) + Verifier(5s) = ~140s
-// Pipeline deadline is 115s. Composer budget is dynamically capped to remaining time minus 10s buffer.
-// P04: Composer maxOutputTokens halved (8192→4096), now typically completes in 20-30s.
+//   Extractor(60s) + Research(40s) + Scoring(15s) + MVP(30s) + grace(5s) + Composer(~90s) + Verifier(5s) = ~245s
+// Pipeline deadline is 300s (paid plan 400s). Composer budget is dynamically capped to remaining time minus 10s buffer.
+// P04→P06: Composer maxOutputTokens restored to 8192 (P04 halved to 4096, but P06 reverted — 4096 caused truncation).
+// Composer budget is dynamically capped in pipeline.ts (COMPOSER_MAX_BUDGET_MS = 90s).
 // MVP increased from 15s to 30s — was timing out on cold starts. Typical ~11s, worst ~20s.
+// P07: Extractor increased from 30s to 60s — 30s was hitting hard timeout on complex inputs with
+// interview context (002-EFN refine mode). Gemini cold start + schema validation + body streaming = 30-50s.
 export const AGENT_TIMEOUTS: Record<string, number> = {
-  extractor: 10_000,    // Flash model, simple extraction (~6s typical)
+  extractor: 60_000,    // Flash model, extraction (~6s typical, up to 50s with cold start + interview context + schema)
   research: 40_000,     // Flash model + Google Search + URL Context (parallel, bumped from 30s — URL Context is slow)
   competitors: 45_000,  // Runs as background promise now — longer timeout is safe
   scoring: 15_000,      // Flash model + thinking: high (~13s typical)
   mvp: 30_000,          // Flash model (~10s typical, up to 20s on cold starts)
-  composer: 40_000,     // P04: Reduced from 55s — maxOutputTokens halved (4096), prompt streamlined
+  composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s). maxOutputTokens: 8192 (set in composer.ts)
   verifier: 5_000,      // P03: Pure JS validation (no Gemini call), 5s safety net
 };
