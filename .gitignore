@@ -9,11 +9,27 @@ lerna-debug.log*
 
 node_modules
 dist
+.venv-docling
 dist-ssr
 *.local
 
 # Backup archives (consolidated)
 .backups/
+
+# Large binary files — never commit
+*.pdf
+*.pptx
+*.docx
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.mp4
+*.mov
+pm/screenshots/
+plan/
 
 # Editor directories and files
 .vscode/*
