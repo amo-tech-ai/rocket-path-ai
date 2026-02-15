@@ -60,6 +60,9 @@ export function useCanvasRealtime(
       lastSaved: payload.timestamp,
     }));
 
+    // Invalidate to pick up saved content (replaces postgres_changes listener)
+    queryClient.invalidateQueries({ queryKey: ['lean-canvas', documentId] });
+
     if (options.showToasts) {
       toast.success('Canvas saved', { duration: 1500 });
     }
@@ -109,20 +112,7 @@ export function useCanvasRealtime(
       })
       .on('broadcast', { event: 'canvas_prefilled' }, ({ payload }) => {
         handleCanvasPrefilled(payload as CanvasPayload);
-      })
-      // Listen for document changes
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'documents',
-          filter: `id=eq.${documentId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['lean-canvas', documentId] });
-        }
-      );
+      });
 
     channelRef.current = channel;
 

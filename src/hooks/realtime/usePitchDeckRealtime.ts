@@ -123,23 +123,7 @@ export function usePitchDeckRealtime(
       })
       .on('broadcast', { event: 'deck_ready' }, ({ payload }) => {
         handleDeckReady(payload as DeckReadyPayload);
-      })
-      // Listen for document updates
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'documents',
-          filter: `id=eq.${deckId}`,
-        },
-        (payload) => {
-          const doc = payload.new as { status?: string };
-          if (doc.status === 'completed') {
-            queryClient.invalidateQueries({ queryKey: ['pitch-deck', deckId] });
-          }
-        }
-      );
+      });
 
     channelRef.current = channel;
 

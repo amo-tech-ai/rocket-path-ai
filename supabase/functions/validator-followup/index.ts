@@ -2,12 +2,16 @@
  * Validator Follow-up Edge Function
  * Analyzes conversation and generates the next best follow-up question.
  * Uses Gemini Flash for fast, contextual question generation.
+ * v4: URL context, Google Search, DB playbooks, discovered entities.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { callGemini, extractJSON } from "../_shared/gemini.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { detectIndustry, formatPlaybookPrompt } from "../_shared/playbooks/index.ts";
+import { getIndustryContext, formatContextForPrompt } from "../_shared/industry-context.ts";
 import { FOLLOWUP_SYSTEM_PROMPT } from "./prompt.ts";
 import { followupResponseSchema, type FollowupResponse } from "./schema.ts";
 
@@ -64,7 +68,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { messages } = body;
+    const { messages, sessionId } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -86,18 +90,71 @@ Deno.serve(async (req) => {
 
     const userMessageCount = sanitizedMessages.filter((m: { role: string }) => m.role === 'user').length;
 
-    const userPrompt = `Here is the conversation so far (${userMessageCount} user messages):\n\n${conversationText}\n\nAnalyze the coverage and generate the next follow-up question (or signal "ready" if enough info is gathered).`;
+    // --- Industry Detection: in-memory playbooks + DB playbook enrichment ---
+    const playbook = detectIndustry(conversationText);
+    let systemPrompt = playbook
+      ? FOLLOWUP_SYSTEM_PROMPT + formatPlaybookPrompt(playbook)
+      : FOLLOWUP_SYSTEM_PROMPT;
 
-    // Gemini Flash — 25s timeout, 1 retry, capped output tokens for cost
+    if (playbook) {
+      console.log(`[validator-followup] Industry detected: ${playbook.industry}`);
+
+      // 1C: Try DB-backed playbook for richer context (falls back to in-memory if DB fails)
+      try {
+        // Map keyword-based industry name to industry_id format
+        const industryId = playbook.industry.toLowerCase().replace(/[\s/]+/g, '_').replace(/_+/g, '_');
+        const dbContext = await getIndustryContext(industryId, 'validator', undefined, supabase);
+        if (dbContext) {
+          const dbBlock = formatContextForPrompt(dbContext, 'validator');
+          systemPrompt += '\n\n' + dbBlock;
+          console.log(`[validator-followup] DB playbook injected for: ${dbContext.display_name}`);
+        }
+      } catch (dbErr) {
+        console.warn('[validator-followup] DB playbook lookup failed, using in-memory only:', dbErr);
+      }
+    }
+
+    // --- Detect URLs in conversation for URL context ---
+    const urlPattern = /https?:\/\/[^\s,)"']+/gi;
+    const detectedUrls = conversationText.match(urlPattern) || [];
+    const hasUrls = detectedUrls.length > 0;
+
+    // --- Determine if search should be enabled ---
+    // Enable search after 2+ user messages when competitors or research topics are uncovered.
+    // We can't check coverage before calling Gemini (chicken-and-egg), so we use keyword heuristics.
+    const lowerConv = conversationText.toLowerCase();
+    const hasCompetitorMention = ['competitor', 'alternative', 'rival', 'vs', 'compared to'].some(kw => lowerConv.includes(kw));
+    const hasMarketMention = ['market size', 'tam', 'sam', 'billion', 'million', 'growth rate', 'market research'].some(kw => lowerConv.includes(kw));
+    const enableSearch = userMessageCount >= 2 && (!hasCompetitorMention || !hasMarketMention);
+
+    // --- Build user prompt with conditional URL inclusion ---
+    let userPrompt = `Here is the conversation so far (${userMessageCount} user messages):\n\n${conversationText}`;
+
+    if (hasUrls) {
+      userPrompt += `\n\nFounder's websites: ${detectedUrls.join(', ')}`;
+    }
+
+    userPrompt += `\n\nAnalyze the coverage and generate the next follow-up question (or signal "ready" if enough info is gathered).`;
+
+    // --- Timeout: base 25s, +10s if search enabled, +5s if URL context enabled ---
+    let timeoutMs = 25000;
+    if (enableSearch) timeoutMs += 10000;
+    if (hasUrls) timeoutMs += 5000;
+
+    console.log(`[validator-followup] Features: search=${enableSearch}, urlContext=${hasUrls}, timeout=${timeoutMs}ms, urls=${detectedUrls.length}`);
+
+    // Gemini Flash call with conditional tools
     const result = await callGemini(
       'gemini-3-flash-preview',
-      FOLLOWUP_SYSTEM_PROMPT,
+      systemPrompt,
       userPrompt,
       {
         responseJsonSchema: followupResponseSchema,
-        timeoutMs: 25000,
+        timeoutMs,
         maxRetries: 1,
         maxOutputTokens: 2048,
+        useSearch: enableSearch,
+        useUrlContext: hasUrls,
       }
     );
 
@@ -112,7 +169,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`[validator-followup] action=${parsed.action}, coverage=${JSON.stringify(parsed.coverage)}, q#=${parsed.questionNumber}`);
+    // Ensure discoveredEntities arrays exist even if Gemini returned partial object
+    if (!parsed.discoveredEntities) {
+      parsed.discoveredEntities = { competitors: [], urls: [], marketData: [] };
+    }
+    if (!Array.isArray(parsed.discoveredEntities.urls)) parsed.discoveredEntities.urls = [];
+    if (!Array.isArray(parsed.discoveredEntities.competitors)) parsed.discoveredEntities.competitors = [];
+    if (!Array.isArray(parsed.discoveredEntities.marketData)) parsed.discoveredEntities.marketData = [];
+    if (!Array.isArray(parsed.contradictions)) parsed.contradictions = [];
+
+    // Enrich discoveredEntities with search grounding results
+    if (result.searchGrounding && result.citations?.length) {
+      for (const citation of result.citations) {
+        if (citation.url && !parsed.discoveredEntities.urls.includes(citation.url)) {
+          parsed.discoveredEntities.urls.push(citation.url);
+        }
+      }
+    }
+
+    console.log(`[validator-followup] action=${parsed.action}, coverage=${JSON.stringify(parsed.coverage)}, q#=${parsed.questionNumber}, contradictions=${parsed.contradictions?.length || 0}`);
+    if (parsed.extracted) {
+      const filledFields = Object.entries(parsed.extracted).filter(([, v]) => v).length;
+      console.log(`[validator-followup] extracted=${filledFields}/8 fields, discovered=${JSON.stringify(parsed.discoveredEntities)}`);
+    }
+
+    // RT-5: Broadcast follow-up to validator channel if sessionId provided
+    if (sessionId && typeof sessionId === 'string') {
+      try {
+        const channel = supabase.channel(`validator:${sessionId}`);
+        await channel.send({
+          type: 'broadcast',
+          event: 'followup_ready',
+          payload: {
+            sessionId,
+            action: parsed.action,
+            question: parsed.question,
+            coverage: parsed.coverage,
+            questionNumber: parsed.questionNumber,
+            timestamp: Date.now(),
+          },
+        });
+        await supabase.removeChannel(channel);
+      } catch (e) {
+        console.warn('[validator-followup] followup_ready broadcast failed:', e);
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -120,7 +221,12 @@ Deno.serve(async (req) => {
         action: parsed.action,
         question: parsed.question,
         summary: parsed.summary,
+        readiness_reason: parsed.readiness_reason || '',
         coverage: parsed.coverage,
+        extracted: parsed.extracted || {},
+        confidence: parsed.confidence || {},
+        contradictions: parsed.contradictions || [],
+        discoveredEntities: parsed.discoveredEntities,
         questionNumber: parsed.questionNumber,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -130,7 +236,7 @@ Deno.serve(async (req) => {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[validator-followup] Error:', msg);
     // Differentiate timeout vs generic — but never leak internal details
-    const isTimeout = msg.includes('timed out');
+    const isTimeout = msg.includes('timed out') || msg.includes('hard timeout');
     return new Response(
       JSON.stringify({ success: false, error: isTimeout ? 'AI request timed out — please try again' : 'Internal server error' }),
       { status: isTimeout ? 504 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

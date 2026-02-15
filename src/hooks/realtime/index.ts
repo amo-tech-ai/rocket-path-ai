@@ -15,11 +15,12 @@
  */
 
 // Shared realtime channel hook (new production pattern)
-export { 
-  useRealtimeChannel, 
+export {
+  useRealtimeChannel,
   useTableChanges,
   type RealtimeChannelOptions,
   type RealtimeChannelResult,
+  type RealtimeChannelMetrics,
   type TableChangeOptions,
 } from './useRealtimeChannel';
 
@@ -40,6 +41,7 @@ export { useChatRealtime } from './useChatRealtime';
 export { useEventsRealtime } from './useEventsRealtime';
 export { useRealtimeChatRoom, type UseRealtimeChatRoomOptions, type UseRealtimeChatRoomReturn } from './useRealtimeChatRoom';
 export { useRealtimeAIChat, type UseRealtimeAIChatReturn, type RealtimeAIMessage } from './useRealtimeAIChat';
+export { useValidatorRealtime, type UseValidatorRealtimeOptions, type UseValidatorRealtimeReturn, type ValidatorFollowupPayload } from './useValidatorRealtime';
 
 // Re-export enhanced versions from main subscription hook
 export { 

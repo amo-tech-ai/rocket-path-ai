@@ -26,6 +26,8 @@ import {
   runComposer,
   runVerifier,
 } from "./agents/index.ts";
+import { completeRun } from "./db.ts";
+import { broadcastPipelineEvent, AGENT_STEPS, TOTAL_STEPS } from "./broadcast.ts";
 
 // P03: Global pipeline wall-clock budget.
 // Supabase paid plan: 400s wall-clock. Free plan: 150s.
@@ -33,12 +35,131 @@ import {
 // Increased from 115s after discovering paid plan supports 400s (was 150s).
 const PIPELINE_TIMEOUT_MS = 300_000;
 
+/**
+ * Auto-create org + startup from extracted profile when user has none.
+ * Mirrors the onboarding-agent pattern: create org → startup → update profile + session.
+ * Returns the new startup_id, or null if creation failed.
+ */
+async function autoCreateStartup(
+  supabaseAdmin: SupabaseClient,
+  userId: string,
+  sessionId: string,
+  profile: StartupProfile,
+): Promise<string | null> {
+  try {
+    // Check if user already has an org
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('org_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    let orgId = existingProfile?.org_id;
+
+    // If user has an org, check if they already have a startup
+    if (orgId) {
+      const { data: existingStartup } = await supabaseAdmin
+        .from('startups')
+        .select('id')
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (existingStartup?.id) {
+        // User already has a startup — link it to this session
+        await supabaseAdmin
+          .from('validator_sessions')
+          .update({ startup_id: existingStartup.id })
+          .eq('id', sessionId);
+        console.log(`[autoCreateStartup] User already has startup ${existingStartup.id}, linked to session`);
+        return existingStartup.id;
+      }
+    }
+
+    // Derive startup name from extracted idea (first sentence or first 60 chars)
+    const ideaName = profile.idea
+      ? (profile.idea.match(/^[^.!?]+/)?.[0] || profile.idea).slice(0, 60).trim()
+      : 'My Startup';
+    const startupName = ideaName.length < 5 ? 'My Startup' : ideaName;
+
+    // Create org if user doesn't have one
+    if (!orgId) {
+      const baseSlug = startupName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const slug = `${baseSlug}-${Date.now().toString(36)}`;
+
+      const { data: newOrg, error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .insert({ name: startupName, slug })
+        .select('id')
+        .single();
+
+      if (orgError || !newOrg) {
+        console.error('[autoCreateStartup] Org creation failed:', orgError?.message);
+        return null;
+      }
+      orgId = newOrg.id;
+
+      // Link user profile to org
+      await supabaseAdmin
+        .from('profiles')
+        .update({ org_id: orgId })
+        .eq('id', userId);
+
+      console.log(`[autoCreateStartup] Created org ${orgId} for user ${userId}`);
+    }
+
+    // Create startup from extracted data
+    const { data: startup, error: startupError } = await supabaseAdmin
+      .from('startups')
+      .insert({
+        org_id: orgId,
+        name: startupName,
+        description: profile.idea || null,
+        industry: profile.industry || null,
+        problem: profile.problem || null,
+        problem_statement: profile.problem || null,
+        solution: profile.solution || null,
+        solution_description: profile.solution || null,
+        unique_value: profile.differentiation || null,
+        existing_alternatives: profile.alternatives || null,
+        target_customers: profile.customer ? [profile.customer] : [],
+        stage: 'idea',
+        validation_stage: 'idea',
+      })
+      .select('id')
+      .single();
+
+    if (startupError || !startup) {
+      console.error('[autoCreateStartup] Startup creation failed:', startupError?.message);
+      return null;
+    }
+
+    // Add user as startup owner (matches onboarding pattern)
+    await supabaseAdmin
+      .from('startup_members')
+      .insert({ startup_id: startup.id, user_id: userId, role: 'owner' })
+      .single();
+
+    // Link startup to validator session
+    await supabaseAdmin
+      .from('validator_sessions')
+      .update({ startup_id: startup.id })
+      .eq('id', sessionId);
+
+    console.log(`[autoCreateStartup] Created startup ${startup.id}, linked to session ${sessionId}`);
+    return startup.id;
+  } catch (e) {
+    console.error('[autoCreateStartup] Unexpected error:', e);
+    return null;
+  }
+}
+
 export async function runPipeline(
   supabaseAdmin: SupabaseClient,
   sessionId: string,
   input_text: string,
   startup_id?: string,
   interviewContext?: InterviewContext | null,
+  user_id?: string,
 ) {
 // FIX: Use a start timestamp + deadline check instead of setTimeout.
 // setTimeout was unreliable on Deno Deploy — the callback never fired when
@@ -66,12 +187,41 @@ try {
   let verification: VerificationResult | null = null;
   const failedAgents: string[] = [];
 
+  // RT-1: Broadcast agent_started for Extractor
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+    agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
+  });
   try {
     profile = await runExtractor(supabaseAdmin, sessionId, input_text, interviewContext || undefined);
-    if (!profile) failedAgents.push('ExtractorAgent');
+    if (!profile) {
+      failedAgents.push('ExtractorAgent');
+      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+        agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
+        error: 'Extractor returned null',
+      });
+    } else {
+      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+        agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
+        durationMs: Date.now() - pipelineStart,
+      });
+    }
   } catch (e) {
     console.error('[ExtractorAgent] Failed:', e);
     failedAgents.push('ExtractorAgent');
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+      agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
+  }
+
+  // Auto-create startup profile if user doesn't have one yet
+  // This allows new users to validate ideas without completing onboarding first
+  if (profile && !startup_id && user_id) {
+    const newStartupId = await autoCreateStartup(supabaseAdmin, user_id, sessionId, profile);
+    if (newStartupId) {
+      startup_id = newStartupId;
+      console.log(`[pipeline] Auto-created startup ${startup_id} from extraction`);
+    }
   }
 
   // FIX: Deadline check before parallel agents
@@ -84,20 +234,70 @@ try {
   // Scoring doesn't need competitor data; Composer gets it via grace period.
   let competitorPromise: Promise<CompetitorAnalysis | null> | null = null;
   if (profile) {
+    // RT-1: Broadcast agent_started for Competitors (background)
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+      agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
+    });
+    const competitorStartMs = Date.now();
     competitorPromise = runCompetitors(supabaseAdmin, sessionId, profile)
+      .then((result) => {
+        if (result) {
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+            agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
+            durationMs: Date.now() - competitorStartMs,
+          });
+        } else {
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+            agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
+            error: 'Returned null',
+          });
+        }
+        return result;
+      })
       .catch((e) => {
         console.error('[CompetitorAgent] Failed:', e);
         failedAgents.push('CompetitorAgent');
+        broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
+          error: e instanceof Error ? e.message : 'Unknown error',
+        });
         return null;
       });
 
+    // RT-1: Broadcast agent_started for Research
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+      agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+    });
+    const researchStartMs = Date.now();
     // Await only Research on the critical path
     try {
       marketResearch = await runResearch(supabaseAdmin, sessionId, profile);
-      if (!marketResearch) failedAgents.push('ResearchAgent');
+      if (!marketResearch) {
+        failedAgents.push('ResearchAgent');
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+          error: 'Returned null',
+        });
+      } else {
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+          agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+          durationMs: Date.now() - researchStartMs,
+        });
+      }
     } catch (e) {
       console.error('[ResearchAgent] Failed:', e);
       failedAgents.push('ResearchAgent');
+      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+        agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+        error: e instanceof Error ? e.message : 'Unknown error',
+      });
+    }
+  } else {
+    // B2 fix: Mark downstream agents as "skipped" when ExtractorAgent fails
+    const skippedAgents = ['ResearchAgent', 'CompetitorAgent', 'ScoringAgent', 'MVPAgent', 'ComposerAgent'];
+    for (const agentName of skippedAgents) {
+      await completeRun(supabaseAdmin, sessionId, agentName, 'skipped', null, [], 'Skipped: ExtractorAgent failed');
+      failedAgents.push(agentName);
     }
   }
 
@@ -107,14 +307,33 @@ try {
     throw new Error('Pipeline exceeded wall-clock limit');
   }
 
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+    agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+  });
+  const scoringStartMs = Date.now();
   try {
     if (profile) {
       scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, interviewContext || undefined);
-      if (!scoring) failedAgents.push('ScoringAgent');
+      if (!scoring) {
+        failedAgents.push('ScoringAgent');
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+          error: 'Returned null',
+        });
+      } else {
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+          agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+          durationMs: Date.now() - scoringStartMs,
+        });
+      }
     }
   } catch (e) {
     console.error('[ScoringAgent] Failed:', e);
     failedAgents.push('ScoringAgent');
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+      agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
   }
 
   // FIX: Deadline check before MVP
@@ -123,14 +342,41 @@ try {
     throw new Error('Pipeline exceeded wall-clock limit');
   }
 
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+    agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
+  });
+  const mvpStartMs = Date.now();
   try {
     if (profile && scoring) {
       mvpPlan = await runMVP(supabaseAdmin, sessionId, profile, scoring);
-      if (!mvpPlan) failedAgents.push('MVPAgent');
+      if (!mvpPlan) {
+        failedAgents.push('MVPAgent');
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
+          error: 'Returned null',
+        });
+      } else {
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+          agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
+          durationMs: Date.now() - mvpStartMs,
+        });
+      }
+    } else if (profile && !scoring) {
+      // B2 fix: Skip MVP when Scoring failed (MVP depends on scoring data)
+      await completeRun(supabaseAdmin, sessionId, 'MVPAgent', 'skipped', null, [], 'Skipped: ScoringAgent failed');
+      failedAgents.push('MVPAgent');
+      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+        agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
+        error: 'Skipped: ScoringAgent failed',
+      });
     }
   } catch (e) {
     console.error('[MVPAgent] Failed:', e);
     failedAgents.push('MVPAgent');
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+      agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
   }
 
   // COMPETITORS GRACE PERIOD: Give Competitors a chance to finish before Composer.
@@ -178,29 +424,70 @@ try {
   // With 8192 maxOutputTokens, Composer needs ~30-50s typical, up to 90s worst case.
   const COMPOSER_MAX_BUDGET_MS = 90_000;
   const composerBudget = Math.min(remainingMs() - 10_000, COMPOSER_MAX_BUDGET_MS);
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+    agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+  });
+  const composerStartMs = Date.now();
   if (composerBudget < 45_000) {
     console.error(`[pipeline] Only ${composerBudget}ms left for Composer — skipping (need 45s minimum)`);
+    await completeRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', null, [], 'Skipped: insufficient time budget');
     failedAgents.push('ComposerAgent');
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+      agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+      error: 'Skipped: insufficient time budget',
+    });
   } else {
     console.log(`[pipeline] Composer budget: ${composerBudget}ms (${remainingMs()}ms remaining)`);
     // M4: Only run composer if we have at least the profile (some data to compose from)
     try {
       if (profile) {
         report = await runComposer(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, scoring, mvpPlan, composerBudget, interviewContext || undefined);
-        if (!report) failedAgents.push('ComposerAgent');
+        if (!report) {
+          failedAgents.push('ComposerAgent');
+          await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+            agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+            error: 'Returned null',
+          });
+        } else {
+          await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+            agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+            durationMs: Date.now() - composerStartMs,
+          });
+        }
       } else {
+        await completeRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', null, [], 'Skipped: no profile data available');
         failedAgents.push('ComposerAgent');
+        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+          error: 'Skipped: no profile data',
+        });
       }
     } catch (e) {
       console.error('[ComposerAgent] Failed:', e);
       failedAgents.push('ComposerAgent');
+      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+        agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
+        error: e instanceof Error ? e.message : 'Unknown error',
+      });
     }
   }
 
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+    agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
+  });
+  const verifierStartMs = Date.now();
   try {
     verification = await runVerifier(supabaseAdmin, sessionId, report, failedAgents);
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+      agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
+      durationMs: Date.now() - verifierStartMs,
+    });
   } catch (e) {
     console.error('[VerifierAgent] Failed:', e);
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+      agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
   }
 
   const finalStatus = failedAgents.length === 0 ? 'complete' :
@@ -219,6 +506,7 @@ try {
       if (scoring.red_flags?.length) enriched.red_flags = scoring.red_flags;
       if (scoring.market_factors?.length) enriched.market_factors = scoring.market_factors;
       if (scoring.execution_factors?.length) enriched.execution_factors = scoring.execution_factors;
+      if (scoring.scores_matrix) enriched.scores_matrix = scoring.scores_matrix;
     }
 
     const { error: reportError } = await supabaseAdmin
@@ -255,6 +543,16 @@ try {
     console.error('[pipeline] Session UPDATE failed:', sessionUpdateError.message);
   }
 
+  // RT-1: Broadcast pipeline completion with report ID for instant frontend navigation
+  const reportId = report ? await getReportId(supabaseAdmin, sessionId) : undefined;
+  await broadcastPipelineEvent(supabaseAdmin, sessionId,
+    finalStatus === 'failed' ? 'pipeline_failed' : 'pipeline_complete', {
+    status: finalStatus,
+    score: scoring?.overall_score,
+    reportId: reportId || undefined,
+    durationMs: Date.now() - pipelineStart,
+  });
+
   console.log(`[pipeline] Done in ${Date.now() - pipelineStart}ms: ${finalStatus}, failed: [${failedAgents.join(',')}]`);
 
 } catch (unhandled) {
@@ -271,5 +569,24 @@ try {
   if (safetyError) {
     console.error('[pipeline] Safety net UPDATE also failed:', safetyError.message);
   }
+
+  // RT-1: Broadcast pipeline failure
+  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'pipeline_failed', {
+    status: 'failed',
+    error: unhandled instanceof Error ? unhandled.message : 'Pipeline crashed',
+    durationMs: Date.now() - pipelineStart,
+  });
 }
+}
+
+/** Fetch the report ID after INSERT — needed for pipeline_complete broadcast */
+async function getReportId(supabase: SupabaseClient, sessionId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('validator_reports')
+    .select('id')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.id || null;
 }

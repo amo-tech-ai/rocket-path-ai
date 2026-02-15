@@ -45,6 +45,8 @@ export interface RealtimeAIChatState {
   isConnected: boolean;
   isLoading: boolean;
   isStreaming: boolean;
+  isThinking: boolean;
+  thinkingModel: string | null;
   error: string | null;
 }
 
@@ -64,6 +66,8 @@ const initialState: RealtimeAIChatState = {
   isConnected: false,
   isLoading: false,
   isStreaming: false,
+  isThinking: false,
+  thinkingModel: null,
   error: null,
 };
 
@@ -117,6 +121,12 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
     // Listen for AI response chunks (if edge function broadcasts them)
     channel.on('broadcast', { event: 'token_chunk' }, ({ payload }) => {
       handleTokenChunk(payload as { messageId: string; token: string });
+    });
+
+    // Listen for AI thinking indicator (RT-2)
+    channel.on('broadcast', { event: 'ai_thinking' }, ({ payload }) => {
+      const p = payload as { model?: string; provider?: string; startedAt?: number };
+      setState(prev => ({ ...prev, isThinking: true, thinkingModel: p.model || null }));
     });
 
     // Listen for complete AI messages
@@ -206,6 +216,8 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
           messages: updated,
           isStreaming: false,
           isLoading: false,
+          isThinking: false,
+          thinkingModel: null,
         };
       }
 
@@ -214,6 +226,8 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
         messages: [...prev.messages, { ...message, isStreaming: false }],
         isStreaming: false,
         isLoading: false,
+        isThinking: false,
+        thinkingModel: null,
       };
     });
 
@@ -351,6 +365,8 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
     isConnected: state.isConnected,
     isLoading: state.isLoading,
     isStreaming: state.isStreaming,
+    isThinking: state.isThinking,
+    thinkingModel: state.thinkingModel,
     error: state.error,
 
     // Methods

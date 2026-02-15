@@ -5,11 +5,14 @@
  
  import { useState, useEffect, useRef, useCallback } from 'react';
  import { useParams, useNavigate } from 'react-router-dom';
+ import { useQueryClient } from '@tanstack/react-query';
  import { motion, AnimatePresence } from 'framer-motion';
  import DashboardLayout from '@/components/layout/DashboardLayout';
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
  import { supabase } from '@/integrations/supabase/client';
+ import { useValidatorRealtime } from '@/hooks/realtime/useValidatorRealtime';
+ import type { ValidatorPipelineCompletePayload } from '@/hooks/realtime/types';
  import { 
    CheckCircle2, 
    Circle, 
@@ -23,14 +26,15 @@
    BarChart3,
    Rocket,
    FileText,
-   Shield
+   Shield,
+   SkipForward
  } from 'lucide-react';
  
  interface PipelineStep {
    step: number;
    name: string;
    agent: string;
-   status: 'queued' | 'running' | 'ok' | 'partial' | 'failed';
+   status: 'queued' | 'running' | 'ok' | 'partial' | 'failed' | 'skipped';
    started_at?: string;
    finished_at?: string;
    duration_ms?: number;
@@ -70,6 +74,7 @@
  export default function ValidatorProgress() {
    const { sessionId } = useParams<{ sessionId: string }>();
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
    const [status, setStatus] = useState<SessionStatus | null>(null);
    const [error, setError] = useState<string | null>(null);
    const [polling, setPolling] = useState(true);
@@ -77,6 +82,23 @@
    const statusRef = useRef<SessionStatus | null>(null);
    const MAX_POLL_MS = 360_000; // B3 fix: 6 min (pipeline deadline 300s + 60s buffer)
    const [navigating, setNavigating] = useState(false);
+
+   // RT-1: Realtime pipeline progress — instant agent status updates
+   const handleRealtimeComplete = useCallback((p: ValidatorPipelineCompletePayload) => {
+     if (p.reportId) {
+       // Instant navigation — no need to wait for polling
+       setTimeout(() => navigate(`/validator/report/${p.reportId}`), 500);
+     }
+   }, [navigate]);
+
+   const rt = useValidatorRealtime({
+     sessionId,
+     enabled: !!sessionId,
+     onPipelineComplete: handleRealtimeComplete,
+   });
+
+   // RT-1: When realtime is connected and receiving events, slow down polling (10s instead of 2s)
+   const pollInterval = rt.isConnected && rt.eventCount > 0 ? 10_000 : 2_000;
 
    const goToReport = useCallback(async () => {
      if (!sessionId) return;
@@ -161,11 +183,19 @@
      };
  
      fetchStatus();
-     const interval = setInterval(fetchStatus, 2000); // Poll every 2 seconds
- 
+     // RT-1: Slow down polling when realtime is active (10s vs 2s)
+     const interval = setInterval(fetchStatus, pollInterval);
+
      return () => clearInterval(interval);
-   }, [sessionId, polling]);
+   }, [sessionId, polling, pollInterval]);
  
+   // Invalidate startup query on completion so auto-created startup is picked up
+   useEffect(() => {
+     if (status?.status === 'complete' || status?.status === 'partial') {
+       queryClient.invalidateQueries({ queryKey: ['startup'] });
+     }
+   }, [status?.status, queryClient]);
+
    // F7: Auto-navigate to report for ANY terminal state with a report
    useEffect(() => {
      if (status?.status !== 'complete' && status?.status !== 'partial') return;
@@ -211,6 +241,8 @@
          return <Loader2 className="w-5 h-5 text-primary animate-spin" />;
        case 'failed':
          return <XCircle className="w-5 h-5 text-destructive" />;
+       case 'skipped':
+         return <SkipForward className="w-5 h-5 text-muted-foreground/70" />;
        default:
          return <Circle className="w-5 h-5 text-muted-foreground" />;
      }
@@ -271,79 +303,104 @@
              </p>
            </motion.div>
  
-           {/* Progress bar */}
+           {/* Progress bar — RT-1: prefer realtime progress */}
            <div className="w-full max-w-md mx-auto">
              <div className="h-2 bg-muted rounded-full overflow-hidden">
                <motion.div
                  className="h-full bg-primary"
                  initial={{ width: 0 }}
-                 animate={{ width: `${status?.progress || 0}%` }}
+                 animate={{ width: `${rt.eventCount > 0 ? rt.progress : (status?.progress || 0)}%` }}
                  transition={{ duration: 0.5 }}
                />
              </div>
              <p className="text-sm text-muted-foreground mt-2">
-               {status?.progress || 0}% complete
+               {rt.eventCount > 0 ? rt.progress : (status?.progress || 0)}% complete
              </p>
            </div>
          </div>
  
-         {/* Pipeline Steps */}
+         {/* Pipeline Steps — RT-1: merge realtime agent data with polling data */}
          <div className="card-premium p-6">
+           {/* RT-1: Realtime connection indicator */}
+           {rt.isConnected && rt.eventCount > 0 && (
+             <div className="flex items-center gap-2 mb-4 text-xs text-emerald-500">
+               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+               Live updates active
+             </div>
+           )}
            <div className="space-y-4">
-             {status?.steps?.map((step, index) => {
-               const Icon = getStepIcon(step);
-               const isActive = step.status === 'running';
-               const isDone = step.status === 'ok' || step.status === 'partial';
-               
+             {(status?.steps || rt.agents.map(a => ({
+               step: a.step,
+               name: a.name.replace('Agent', ' Agent'),
+               agent: a.name,
+               status: a.status,
+               duration_ms: a.durationMs,
+               has_citations: false,
+               error: a.error,
+             }))).map((step, index) => {
+               // RT-1: Prefer realtime status when available (more responsive)
+               const rtAgent = rt.eventCount > 0 ? rt.agents.find(a => a.name === step.agent) : null;
+               const mergedStatus = rtAgent && rtAgent.status !== 'queued' ? rtAgent.status : step.status;
+               const mergedDuration = rtAgent?.durationMs || step.duration_ms;
+               const mergedError = rtAgent?.error || step.error;
+
+               const mergedStep = { ...step, status: mergedStatus, duration_ms: mergedDuration, error: mergedError };
+               const Icon = getStepIcon(mergedStep);
+               const isActive = mergedStep.status === 'running';
+               const isDone = mergedStep.status === 'ok' || mergedStep.status === 'partial';
+               const isSkipped = mergedStep.status === 'skipped';
+
                return (
                  <motion.div
-                   key={step.agent}
+                   key={mergedStep.agent}
                    initial={{ opacity: 0, x: -20 }}
                    animate={{ opacity: 1, x: 0 }}
                    transition={{ delay: index * 0.1 }}
                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                     isActive 
-                       ? 'border-primary/50 bg-primary/5' 
-                       : isDone 
+                     isActive
+                       ? 'border-primary/50 bg-primary/5'
+                       : isDone
                          ? 'border-emerald-500/30 bg-emerald-500/5'
-                         : step.status === 'failed'
+                         : mergedStep.status === 'failed'
                            ? 'border-destructive/30 bg-destructive/5'
-                           : 'border-border bg-card'
+                           : isSkipped
+                             ? 'border-muted-foreground/20 bg-muted/30 opacity-60'
+                             : 'border-border bg-card'
                    }`}
                  >
                    {/* Step number */}
                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                     isDone ? 'bg-emerald-500/20' : isActive ? 'bg-primary/20' : 'bg-muted'
+                     isDone ? 'bg-emerald-500/20' : isActive ? 'bg-primary/20' : isSkipped ? 'bg-muted/50' : 'bg-muted'
                    }`}>
                      <Icon className={`w-5 h-5 ${
-                       isDone ? 'text-emerald-500' : isActive ? 'text-primary' : 'text-muted-foreground'
+                       isDone ? 'text-emerald-500' : isActive ? 'text-primary' : isSkipped ? 'text-muted-foreground/50' : 'text-muted-foreground'
                      }`} />
                    </div>
- 
+
                    {/* Step info */}
                    <div className="flex-1 min-w-0">
                      <div className="flex items-center gap-2">
-                       <span className="font-medium text-foreground">{step.name}</span>
-                       {step.has_citations && (
+                       <span className="font-medium text-foreground">{mergedStep.name}</span>
+                       {mergedStep.has_citations && (
                          <Badge variant="outline" className="text-xs">
-                           Citations ✓
+                           Citations
                          </Badge>
                        )}
                      </div>
                      <p className="text-sm text-muted-foreground truncate">
-                       {step.error || step.agent}
+                       {mergedStep.error || mergedStep.agent}
                      </p>
                    </div>
- 
+
                    {/* Status */}
                    <div className="flex-shrink-0">
-                     {getStatusIcon(step.status)}
+                     {getStatusIcon(mergedStep.status)}
                    </div>
- 
+
                    {/* Duration */}
-                   {step.duration_ms && (
+                   {mergedStep.duration_ms && (
                      <span className="text-xs text-muted-foreground flex-shrink-0">
-                       {(step.duration_ms / 1000).toFixed(1)}s
+                       {(mergedStep.duration_ms / 1000).toFixed(1)}s
                      </span>
                    )}
                  </motion.div>
@@ -474,10 +531,22 @@
                    </div>
                  </div>
                ))}
+               {status.steps.filter(s => s.status === 'skipped').map(step => (
+                 <div key={step.agent} className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-muted-foreground/10">
+                   <SkipForward className="w-4 h-4 text-muted-foreground/70 flex-shrink-0" />
+                   <div className="min-w-0">
+                     <span className="text-sm text-muted-foreground">{step.name}</span>
+                     {step.error && (
+                       <p className="text-xs text-muted-foreground/60 truncate">{step.error}</p>
+                     )}
+                   </div>
+                 </div>
+               ))}
              </div>
              <p className="text-xs text-muted-foreground">
-               {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').length} agents completed,{' '}
-               {status.steps.filter(s => s.status === 'failed').length} failed.
+               {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').length} agents completed
+               {status.steps.filter(s => s.status === 'failed').length > 0 && `, ${status.steps.filter(s => s.status === 'failed').length} failed`}
+               {status.steps.filter(s => s.status === 'skipped').length > 0 && `, ${status.steps.filter(s => s.status === 'skipped').length} skipped`}.
                {' '}Try again — the pipeline has been updated with longer timeouts.
              </p>
            </motion.div>

@@ -1,11 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { handleCoachMode, getWelcomeMessage } from "./coach/index.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getRAGContext } from "./rag.ts";
+import { corsHeaders, getCorsHeaders, handleCors } from '../_shared/cors.ts';
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '../_shared/rate-limit.ts';
 
 // OpenAI Embeddings API
 const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
@@ -80,10 +78,9 @@ PRICING INFO (if asked):
 - Enterprise: Custom solutions for accelerators and VCs
 Suggest they visit the pricing page or sign up for details.`;
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+Deno.serve(async (req: Request) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -98,9 +95,26 @@ serve(async (req) => {
 
     // Try to get user - allow unauthenticated for public mode
     const { data: { user } } = await supabase.auth.getUser();
-    
-    const body: ChatRequest = await req.json();
-    const { 
+
+    // Rate limit authenticated users
+    if (user) {
+      const rateCheck = checkRateLimit(user.id, 'ai-chat', RATE_LIMITS.standard);
+      if (!rateCheck.allowed) {
+        return rateLimitResponse(rateCheck, corsHeaders);
+      }
+    }
+
+    let body: ChatRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const {
       messages, 
       message, 
       session_id, 
@@ -276,6 +290,15 @@ serve(async (req) => {
         is_raising: startup?.is_raising,
         screen: context?.screen || 'dashboard',
       });
+
+      // RAG: Search knowledge base before LLM; inject server-side (no raw chunks to client)
+      const ragBlock = await getRAGContext(supabase, userMessage, startup?.industry);
+      if (ragBlock) {
+        systemPrompt += `
+
+KNOWLEDGE BASE (use when relevant for market data, benchmarks, or industry context):
+${ragBlock}`;
+      }
     }
 
     // Get model config for this action
@@ -285,6 +308,26 @@ serve(async (req) => {
     let responseText = '';
     let inputTokens = 0;
     let outputTokens = 0;
+
+    // RT-2: Broadcast "AI is thinking" before calling the model
+    if (!isPublicMode && user && room_id && context?.startup_id) {
+      try {
+        const thinkingTopic = `chat:${context.startup_id}:${room_id}:events`;
+        const thinkingChannel = supabase.channel(thinkingTopic);
+        await thinkingChannel.send({
+          type: 'broadcast',
+          event: 'ai_thinking',
+          payload: {
+            model: modelConfig.model,
+            provider: modelConfig.provider,
+            startedAt: Date.now(),
+          },
+        });
+        await supabase.removeChannel(thinkingChannel);
+      } catch (e) {
+        console.warn('[AI Chat] ai_thinking broadcast failed:', e);
+      }
+    }
 
     if (modelConfig.provider === 'anthropic') {
       const result = await callAnthropic(modelConfig.model, systemPrompt, messages || [], userMessage, context);
@@ -423,52 +466,64 @@ async function callAnthropic(
   }
   messages.push({ role: 'user', content: currentMessage });
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'context-management-2025-06-27'
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2048,
-      system: [{
-        type: 'text',
-        text: systemPrompt,
-        cache_control: { type: 'ephemeral' }  // Cache system prompt
-      }],
-      messages,
-      // Context management: clear old tool results when context grows
-      context_management: {
-        edits: [
-          {
-            type: 'clear_tool_uses_20250919',
-            trigger: { type: 'input_tokens', value: 50000 },
-            keep: { type: 'tool_uses', value: 5 }
-          }
-        ]
+  const TIMEOUT_MS = 30_000;
+
+  const doFetch = async () => {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'context-management-2025-06-27'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 2048,
+        system: [{
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' }
+        }],
+        messages,
+        context_management: {
+          edits: [
+            {
+              type: 'clear_tool_uses_20250919',
+              trigger: { type: 'input_tokens', value: 50000 },
+              keep: { type: 'tool_uses', value: 5 }
+            }
+          ]
+        }
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
       }
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Anthropic API error:', response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
-    throw new Error(`Anthropic API error: ${response.status}`);
-  }
 
-  const data = await response.json();
-  return {
-    text: data.content?.[0]?.text || '',
-    inputTokens: data.usage?.input_tokens || 0,
-    outputTokens: data.usage?.output_tokens || 0
+    const data = await response.json();
+    return {
+      text: data.content?.[0]?.text || '',
+      inputTokens: data.usage?.input_tokens || 0,
+      outputTokens: data.usage?.output_tokens || 0
+    };
   };
+
+  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
+  return await Promise.race([
+    doFetch(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Anthropic API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    ),
+  ]);
 }
 
 async function callGemini(
@@ -498,40 +553,54 @@ async function callGemini(
   }
   contents.push({ role: 'user', parts: [{ text: currentMessage }] });
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        }
-      }),
-    }
-  );
+  const TIMEOUT_MS = 30_000;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Gemini API error:', response.status, errorText);
-    
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
+  const doFetch = async () => {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            temperature: 1.0,
+            maxOutputTokens: 2048,
+          }
+        }),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      }
+    );
 
-  const data = await response.json();
-  return {
-    text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
-    inputTokens: data.usageMetadata?.promptTokenCount || 0,
-    outputTokens: data.usageMetadata?.candidatesTokenCount || 0
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText);
+
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+      inputTokens: data.usageMetadata?.promptTokenCount || 0,
+      outputTokens: data.usageMetadata?.candidatesTokenCount || 0
+    };
   };
+
+  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
+  return await Promise.race([
+    doFetch(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    ),
+  ]);
 }
 
 function buildSystemPrompt(action: string, context: Record<string, unknown>): string {

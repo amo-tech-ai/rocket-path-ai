@@ -49,6 +49,27 @@ export interface RealtimeChannelOptions {
    * Whether to wait for acknowledgment (default: true)
    */
   ack?: boolean;
+
+  /**
+   * RT-8: Broadcast replay config for catching up on missed events.
+   * Only replays messages published via DB triggers (Broadcast from Database).
+   * Requires private channels.
+   */
+  replay?: {
+    /** Epoch timestamp (ms) — replay messages since this time */
+    since: number;
+    /** Max messages to replay (1-25, default 25) */
+    limit?: number;
+  };
+}
+
+export interface RealtimeChannelMetrics {
+  /** Timestamp when connection was established */
+  connectedAt: number | null;
+  /** Number of reconnection attempts */
+  reconnectCount: number;
+  /** Timestamp of last received broadcast message */
+  lastMessageAt: number | null;
 }
 
 export interface RealtimeChannelResult {
@@ -60,6 +81,8 @@ export interface RealtimeChannelResult {
   error: string | null;
   /** Manually trigger resubscription */
   reconnect: () => Promise<void>;
+  /** RT-7: Connection quality metrics */
+  metrics: RealtimeChannelMetrics;
 }
 
 /**
@@ -84,11 +107,20 @@ export function useRealtimeChannel({
   private: isPrivate = true,
   self = true,
   ack = true,
+  replay,
 }: RealtimeChannelOptions): RealtimeChannelResult {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  // RT-7: Connection quality metrics
+  const metricsRef = useRef<RealtimeChannelMetrics>({
+    connectedAt: null,
+    reconnectCount: 0,
+    lastMessageAt: null,
+  });
+  const [metrics, setMetrics] = useState<RealtimeChannelMetrics>(metricsRef.current);
+
   // Store handlers in ref to avoid dependency issues
   const handlersRef = useRef(onBroadcast);
   handlersRef.current = onBroadcast;
@@ -109,9 +141,14 @@ export function useRealtimeChannel({
     setError(null);
 
     // Create channel with private: true for RLS authorization
+    // RT-8: Include replay config if provided (replays DB-trigger broadcasts)
+    const broadcastConfig: Record<string, unknown> = { self, ack };
+    if (replay && isPrivate) {
+      broadcastConfig.replay = { since: replay.since, limit: replay.limit ?? 25 };
+    }
     const channel = supabase.channel(topic, {
       config: {
-        broadcast: { self, ack },
+        broadcast: broadcastConfig,
         private: isPrivate,
       },
     });
@@ -123,6 +160,9 @@ export function useRealtimeChannel({
       Object.entries(handlersRef.current).forEach(([event, handler]) => {
         channel.on('broadcast', { event }, ({ payload }) => {
           console.log(`[Realtime] ${topic} received ${event}:`, payload);
+          // RT-7: Track last message time
+          metricsRef.current.lastMessageAt = Date.now();
+          setMetrics({ ...metricsRef.current });
           handler(payload);
         });
       });
@@ -137,6 +177,11 @@ export function useRealtimeChannel({
       // Subscribe
       channel.subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
+          // RT-7: Track connection time and reconnect count
+          const wasConnected = metricsRef.current.connectedAt !== null;
+          metricsRef.current.connectedAt = Date.now();
+          if (wasConnected) metricsRef.current.reconnectCount++;
+          setMetrics({ ...metricsRef.current });
           setIsSubscribed(true);
           setError(null);
           console.log(`[Realtime] ✓ Subscribed to ${topic}`);
@@ -186,6 +231,7 @@ export function useRealtimeChannel({
     isSubscribed,
     error,
     reconnect: subscribe,
+    metrics,
   };
 }
 

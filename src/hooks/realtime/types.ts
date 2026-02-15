@@ -241,3 +241,50 @@ export interface EventsRealtimeState {
   recommendations: Array<{ eventId: string; matchScore: number }>;
   sponsorMatches: Array<{ name: string; fitScore: number }>;
 }
+
+// ============ RT-1: Validator Pipeline Events ============
+export type ValidatorRealtimeEventType =
+  | 'agent_started'
+  | 'agent_completed'
+  | 'agent_failed'
+  | 'pipeline_complete'
+  | 'pipeline_failed';
+
+export interface ValidatorAgentPayload {
+  sessionId: string;
+  agent: string;
+  step: number;
+  totalSteps: number;
+  timestamp: number;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface ValidatorPipelineCompletePayload {
+  sessionId: string;
+  timestamp: number;
+  status: 'complete' | 'partial' | 'failed';
+  score?: number;
+  reportId?: string;
+  durationMs?: number;
+  error?: string;
+}
+
+export type ValidatorAgentStatus = 'queued' | 'running' | 'ok' | 'partial' | 'failed' | 'skipped';
+
+export interface ValidatorRealtimeAgent {
+  name: string;
+  step: number;
+  status: ValidatorAgentStatus;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface ValidatorRealtimeState {
+  agents: ValidatorRealtimeAgent[];
+  pipelineStatus: 'running' | 'complete' | 'partial' | 'failed';
+  reportId: string | null;
+  score: number | null;
+  lastEvent: ValidatorRealtimeEventType | null;
+  isConnected: boolean;
+}
