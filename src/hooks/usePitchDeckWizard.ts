@@ -85,6 +85,7 @@ export function usePitchDeckWizard(options: UsePitchDeckWizardOptions = {}) {
         const { data: startup } = await supabase
           .from('startups')
           .select('*')
+          .is('deleted_at', null)
           .eq('org_id', profile.org_id)
           .maybeSingle();
 
@@ -104,7 +105,7 @@ export function usePitchDeckWizard(options: UsePitchDeckWizardOptions = {}) {
 
           if (deckError || !deck) {
             toast.error('Deck not found');
-            navigate('/app/pitch-deck');
+            navigate('/app/pitch-decks');
             return;
           }
 

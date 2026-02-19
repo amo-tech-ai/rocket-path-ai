@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { setReturnPathOnce } from '@/lib/authReturnPath';
 
 // Processing phases
 const PHASES = [
@@ -34,9 +35,10 @@ const HeroSection = () => {
 
     // If not logged in, redirect to login with return URL
     if (!user) {
-      // Store the idea in sessionStorage for after login
+      const returnPath = '/validate?hasIdea=true';
       sessionStorage.setItem('pendingIdea', input);
-      navigate('/login?redirect=/validate&hasIdea=true');
+      setReturnPathOnce(returnPath);
+      navigate('/login?redirect=' + encodeURIComponent(returnPath));
       return;
     }
 

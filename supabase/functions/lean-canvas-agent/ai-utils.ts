@@ -3,7 +3,7 @@
  * Uses direct Gemini API via npm:@google/genai
  */
 
-import { GoogleGenAI, Type } from "npm:@google/genai@^0.21.0";
+import { GoogleGenAI, Type } from "npm:@google/genai@^1.0.0";
 
 // =============================================================================
 // Types
@@ -48,6 +48,7 @@ export async function callGemini(
   }
 
   const startTime = Date.now();
+  const TIMEOUT_MS = 30_000;
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -60,12 +61,18 @@ export async function callGemini(
     config.responseMimeType = 'application/json';
   }
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: userPrompt,
-    systemInstruction: systemPrompt,
-    config,
-  });
+  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
+  const response = await Promise.race([
+    ai.models.generateContent({
+      model,
+      contents: userPrompt,
+      systemInstruction: systemPrompt,
+      config,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    ),
+  ]);
 
   const latencyMs = Date.now() - startTime;
 
@@ -97,20 +104,27 @@ export async function callGeminiStructured<T>(
   }
 
   const startTime = Date.now();
+  const TIMEOUT_MS = 30_000;
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: userPrompt,
-    systemInstruction: systemPrompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: schema,
-      temperature: 1.0,
-      maxOutputTokens: 2048,
-    },
-  });
+  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
+  const response = await Promise.race([
+    ai.models.generateContent({
+      model,
+      contents: userPrompt,
+      systemInstruction: systemPrompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        temperature: 1.0,
+        maxOutputTokens: 2048,
+      },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    ),
+  ]);
 
   const latencyMs = Date.now() - startTime;
   const usage = response.usageMetadata || {};

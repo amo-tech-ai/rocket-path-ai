@@ -75,6 +75,7 @@ export function usePitchDecks() {
       const { data: startup } = await supabase
         .from('startups')
         .select('id')
+        .is('deleted_at', null)
         .eq('org_id', profile.org_id)
         .maybeSingle();
 

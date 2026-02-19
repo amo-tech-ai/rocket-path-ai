@@ -48,9 +48,9 @@ import { useEvent, useEventAttendees, useEventSponsors, useEventVenues } from '@
 // Status badge styling
 const statusStyles: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
-  planning: 'bg-amber-100 text-amber-800',
-  confirmed: 'bg-emerald-500 text-white',
-  in_progress: 'bg-blue-500 text-white',
+  planning: 'bg-status-warning-light text-status-warning',
+  confirmed: 'bg-status-success text-white',
+  in_progress: 'bg-status-info text-white',
   completed: 'bg-gray-100 text-gray-700',
   cancelled: 'bg-red-100 text-red-800',
 };
@@ -58,22 +58,22 @@ const statusStyles: Record<string, string> = {
 // RSVP status styling
 const rsvpStyles: Record<string, string> = {
   invited: 'bg-muted text-muted-foreground',
-  pending: 'bg-amber-100 text-amber-800 border-amber-200',
-  registered: 'bg-blue-100 text-blue-800 border-blue-200',
-  confirmed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  pending: 'bg-status-warning-light text-status-warning border-status-warning/20',
+  registered: 'bg-status-info-light text-status-info border-status-info/20',
+  confirmed: 'bg-status-success-light text-status-success border-status-success/20',
   declined: 'bg-red-100 text-red-800 border-red-200',
-  waitlist: 'bg-purple-100 text-purple-800 border-purple-200',
-  checked_in: 'bg-emerald-500 text-white',
+  waitlist: 'bg-primary/10 text-primary border-primary/20',
+  checked_in: 'bg-status-success text-white',
 };
 
 // Sponsor tier styling
 const tierStyles: Record<string, string> = {
   platinum: 'bg-gradient-to-r from-slate-200 to-slate-300 text-slate-800',
-  gold: 'bg-gradient-to-r from-amber-200 to-amber-300 text-amber-900',
+  gold: 'bg-gradient-to-r from-status-warning/30 to-status-warning/40 text-status-warning',
   silver: 'bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800',
-  bronze: 'bg-gradient-to-r from-orange-200 to-orange-300 text-orange-800',
+  bronze: 'bg-gradient-to-r from-warm to-warm text-warm-foreground',
   community: 'bg-muted text-muted-foreground',
-  in_kind: 'bg-blue-100 text-blue-800',
+  in_kind: 'bg-status-info-light text-status-info',
 };
 
 // Placeholder image based on event type
@@ -227,7 +227,7 @@ export default function EventDetail() {
             >
               <Card className="border-0 shadow-sm bg-card">
                 <CardContent className="p-5">
-                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-2">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wide mb-2">
                     Guests
                   </p>
                   <div className="flex items-baseline gap-2">
@@ -239,7 +239,7 @@ export default function EventDetail() {
               
               <Card className="border-0 shadow-sm bg-card">
                 <CardContent className="p-5">
-                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-2">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wide mb-2">
                     Budget
                   </p>
                   <div className="flex items-baseline gap-2">
@@ -252,7 +252,7 @@ export default function EventDetail() {
               
               <Card className="border-0 shadow-sm bg-card">
                 <CardContent className="p-5">
-                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide mb-2">
+                  <p className="text-xs font-medium text-primary uppercase tracking-wide mb-2">
                     Status
                   </p>
                   <div className="flex items-baseline gap-2">
@@ -300,7 +300,7 @@ export default function EventDetail() {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                       <CardTitle className="text-lg font-semibold">Guest List</CardTitle>
-                      <Button variant="ghost" size="sm" className="text-emerald-600 hover:text-emerald-700">
+                      <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
                         <Plus className="h-4 w-4 mr-1" />
                         Add Guest
                       </Button>
@@ -309,9 +309,9 @@ export default function EventDetail() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Name</TableHead>
-                            <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Role</TableHead>
-                            <TableHead className="text-xs font-semibold text-emerald-600 uppercase">RSVP</TableHead>
+                            <TableHead className="text-xs font-semibold text-primary uppercase">Name</TableHead>
+                            <TableHead className="text-xs font-semibold text-primary uppercase">Role</TableHead>
+                            <TableHead className="text-xs font-semibold text-primary uppercase">RSVP</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -363,7 +363,7 @@ export default function EventDetail() {
                           className="w-full h-full object-cover opacity-60"
                         />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg">
                             <MapPin className="h-4 w-4 text-white" />
                           </div>
                         </div>
@@ -372,28 +372,28 @@ export default function EventDetail() {
                       {primaryVenue ? (
                         <>
                           <div>
-                            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Location</p>
+                            <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Location</p>
                             <p className="font-medium">{primaryVenue.name}</p>
                             {primaryVenue.address && <p className="text-sm text-muted-foreground">{primaryVenue.address}</p>}
                           </div>
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Arrival</p>
+                              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Arrival</p>
                               <p className="font-medium">{formattedTime || 'TBD'}</p>
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Catering</p>
+                              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-1">Catering</p>
                               <p className="font-medium">{primaryVenue.catering_available ? 'Available' : 'Self-catered'}</p>
                             </div>
                           </div>
 
                           {(primaryVenue.wifi_available || primaryVenue.av_equipment) && (
                             <div>
-                              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Tech Requirements</p>
+                              <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">Tech Requirements</p>
                               <ul className="text-sm space-y-1">
-                                {primaryVenue.wifi_available && <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> WiFi Available</li>}
-                                {primaryVenue.av_equipment && <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> AV Equipment</li>}
+                                {primaryVenue.wifi_available && <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-status-success" /> WiFi Available</li>}
+                                {primaryVenue.av_equipment && <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-status-success" /> AV Equipment</li>}
                               </ul>
                             </div>
                           )}
@@ -441,11 +441,11 @@ export default function EventDetail() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Name</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Email</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Company</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Role</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">RSVP</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Name</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Email</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Company</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Role</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">RSVP</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -494,11 +494,11 @@ export default function EventDetail() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Name</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Contact</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Tier</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Amount</TableHead>
-                          <TableHead className="text-xs font-semibold text-emerald-600 uppercase">Status</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Name</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Contact</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Tier</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Amount</TableHead>
+                          <TableHead className="text-xs font-semibold text-primary uppercase">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -513,7 +513,7 @@ export default function EventDetail() {
                             </TableCell>
                             <TableCell>${(sponsor.amount || 0).toLocaleString()}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={sponsor.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : ''}>
+                              <Badge variant="outline" className={sponsor.status === 'confirmed' ? 'bg-status-success-light text-status-success' : ''}>
                                 {sponsor.status.charAt(0).toUpperCase() + sponsor.status.slice(1)}
                               </Badge>
                             </TableCell>
@@ -605,23 +605,23 @@ export default function EventDetail() {
           <div className="p-5 space-y-6">
             {/* Header */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-emerald-600" />
+              <div className="w-8 h-8 rounded-lg bg-sage-light flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-primary" />
               </div>
               <span className="font-semibold">AI Event Coach</span>
             </div>
 
             {/* Smart Suggestions */}
             <div className="space-y-3">
-              <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+              <h3 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Smart Suggestions
               </h3>
               <div className="space-y-3">
-                <div className="p-3 border-l-2 border-emerald-500 bg-card rounded-r-lg">
+                <div className="p-3 border-l-2 border-primary bg-card rounded-r-lg">
                   <p className="text-sm font-medium mb-2">Send 24h reminder</p>
                   <Button variant="outline" size="sm" className="w-full">Draft Email</Button>
                 </div>
-                <div className="p-3 border-l-2 border-amber-500 bg-card rounded-r-lg">
+                <div className="p-3 border-l-2 border-status-warning bg-card rounded-r-lg">
                   <p className="text-sm font-medium mb-2">Check microphone setup</p>
                   <Button variant="outline" size="sm" className="w-full">Ping Tech Team</Button>
                 </div>
@@ -630,7 +630,7 @@ export default function EventDetail() {
 
             {/* Event Health */}
             <div className="space-y-3">
-              <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wide">
+              <h3 className="text-xs font-bold text-primary uppercase tracking-wide">
                 Event Health
               </h3>
               <div className="space-y-2">
@@ -649,7 +649,7 @@ export default function EventDetail() {
             <Card className="bg-muted/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  <Lightbulb className="h-4 w-4 text-status-warning" />
                   <span className="text-xs font-bold uppercase">Protip</span>
                 </div>
                 <p className="text-xs text-muted-foreground">

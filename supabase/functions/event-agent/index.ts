@@ -1,14 +1,30 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+/**
+ * Event Agent - Main Handler
+ * Discovers events, analyzes fit, researches speakers, generates prep, tracks attendance.
+ * Migrated to shared patterns (006-EFN): G1 schemas, shared CORS, rate limiting.
+ */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callGemini, extractJSON } from "../_shared/gemini.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import {
+  DISCOVER_EVENTS_SYSTEM,
+  ANALYZE_EVENT_SYSTEM,
+  RESEARCH_SPEAKERS_ARCHETYPES_SYSTEM,
+  RESEARCH_SPEAKERS_ANALYSIS_SYSTEM,
+  GENERATE_PREP_SYSTEM,
+  TRACK_ATTENDANCE_SYSTEM,
+  discoverEventsSchema,
+  analyzeEventSchema,
+  researchSpeakersArchetypesSchema,
+  researchSpeakersAnalysisSchema,
+  generatePrepSchema,
+  trackAttendanceInsightsSchema,
+} from "./prompt.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const MODEL = "gemini-3-flash-preview";
 
 // ============ TYPES ============
 
@@ -40,62 +56,8 @@ interface Startup {
   target_market?: string;
 }
 
-// ============ HELPERS ============
-
-async function callGemini(prompt: string, systemPrompt?: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("[event-agent] Gemini API error:", error);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
-
-function parseJsonResponse<T>(text: string): T {
-  const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
-                    text.match(/\{[\s\S]*\}/) ||
-                    text.match(/\[[\s\S]*\]/);
-  
-  if (jsonMatch) {
-    const jsonStr = jsonMatch[1] || jsonMatch[0];
-    return JSON.parse(jsonStr);
-  }
-  throw new Error("Could not parse JSON from response");
-}
-
-function createSupabaseClient(authHeader: string) {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
-}
-
-type SupabaseClient = ReturnType<typeof createSupabaseClient>;
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 
 // ============ ACTION HANDLERS ============
 
@@ -129,7 +91,7 @@ async function discoverEvents(
 
   const existingNames = (existingEvents || []).map((e: { name: string }) => e.name).join(", ");
 
-  const prompt = `Suggest 5-8 relevant industry events for this startup:
+  const userPrompt = `Suggest 5-8 relevant industry events for this startup:
 
 STARTUP:
 - Name: ${startupData?.name || "Startup"}
@@ -146,34 +108,14 @@ SEARCH CRITERIA:
 
 ALREADY TRACKING: ${existingNames || "None"}
 
-Generate relevant events as JSON:
-{
-  "events": [
-    {
-      "name": "Event Name",
-      "event_type": "conference|meetup|summit|demo_day|pitch_competition|trade_show",
-      "relevance_score": 85,
-      "industry_fit": "Why this event matches the startup",
-      "expected_attendees": "Who typically attends",
-      "networking_value": "high|medium|low",
-      "typical_date": "March 2026",
-      "typical_location": "San Francisco, CA",
-      "estimated_cost": "$500-1000",
-      "key_benefits": ["Benefit 1", "Benefit 2"],
-      "application_deadline": "2 months before",
-      "website_hint": "example.com or 'search for [event name]'"
-    }
-  ],
-  "event_strategy": "Overall recommendation for event attendance",
-  "priority_events": ["Top 2-3 must-attend events"]
-}`;
+Generate relevant events as JSON.`;
 
-  const response = await callGemini(
-    prompt,
-    "You are an expert at identifying valuable networking and industry events for startups. Suggest realistic, well-known events that match the startup's profile."
-  );
+  const result = await callGemini(MODEL, DISCOVER_EVENTS_SYSTEM, userPrompt, {
+    responseJsonSchema: discoverEventsSchema,
+    timeoutMs: 30_000,
+  });
 
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     events: Array<{
       name: string;
       event_type: string;
@@ -188,14 +130,14 @@ Generate relevant events as JSON:
     }>;
     event_strategy: string;
     priority_events: string[];
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     startup_id: startupId,
-    events: result.events,
-    strategy: result.event_strategy,
-    priority_events: result.priority_events,
+    events: parsed?.events || [],
+    strategy: parsed?.event_strategy || "",
+    priority_events: parsed?.priority_events || [],
     criteria_used: criteria,
   };
 }
@@ -220,7 +162,7 @@ async function analyzeEvent(
     throw new Error("Event not found");
   }
 
-  const prompt = `Analyze the fit between this startup and event:
+  const userPrompt = `Analyze the fit between this startup and event:
 
 STARTUP:
 - Name: ${startup?.name}
@@ -238,29 +180,14 @@ EVENT:
 - Target Audience: ${event.target_audience}
 - Cost: ${event.ticket_price ? `$${event.ticket_price}` : "Unknown"}
 
-Provide analysis as JSON:
-{
-  "fit_score": 85,
-  "value_breakdown": {
-    "networking": { "score": 90, "reason": "..." },
-    "learning": { "score": 75, "reason": "..." },
-    "visibility": { "score": 80, "reason": "..." },
-    "deals": { "score": 70, "reason": "..." }
-  },
-  "should_attend": true,
-  "recommendation": "Strong recommendation with reasoning",
-  "preparation_tips": ["Tip 1", "Tip 2", "Tip 3"],
-  "networking_targets": ["Who to connect with"],
-  "roi_estimate": "Expected return on time/money investment",
-  "risks": ["Potential downsides"]
-}`;
+Provide analysis as JSON.`;
 
-  const response = await callGemini(
-    prompt,
-    "You are an expert at evaluating event value for startups. Provide honest, actionable assessments."
-  );
+  const result = await callGemini(MODEL, ANALYZE_EVENT_SYSTEM, userPrompt, {
+    responseJsonSchema: analyzeEventSchema,
+    timeoutMs: 30_000,
+  });
 
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     fit_score: number;
     value_breakdown: Record<string, { score: number; reason: string }>;
     should_attend: boolean;
@@ -269,13 +196,22 @@ Provide analysis as JSON:
     networking_targets: string[];
     roi_estimate: string;
     risks: string[];
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     event_id: eventId,
     event_name: event.name,
-    ...result,
+    ...(parsed || {
+      fit_score: 0,
+      value_breakdown: {},
+      should_attend: false,
+      recommendation: "",
+      preparation_tips: [],
+      networking_targets: [],
+      roi_estimate: "",
+      risks: [],
+    }),
   };
 }
 
@@ -304,41 +240,31 @@ async function researchSpeakers(
 
   if (speakers.length === 0) {
     // Generate hypothetical speaker profiles
-    const prompt = `For an event like "${event?.name}" in the ${startup?.industry || "tech"} industry, suggest typical speaker profiles:
+    const userPrompt = `For an event like "${event?.name}" in the ${startup?.industry || "tech"} industry, suggest typical speaker profiles:
 
 EVENT: ${event?.name} (${event?.event_type})
 STARTUP INDUSTRY: ${startup?.industry}
 
-Generate 5-7 speaker archetypes as JSON:
-{
-  "speaker_types": [
-    {
-      "type": "Industry Expert",
-      "typical_title": "VP of Product",
-      "typical_companies": ["FAANG", "Top Startups"],
-      "topics_covered": ["Topic 1", "Topic 2"],
-      "networking_value": "high|medium|low",
-      "approach_strategy": "How to connect with this type"
-    }
-  ],
-  "key_connections": "Who would be most valuable to connect with",
-  "research_tips": ["How to find actual speakers"]
-}`;
+Generate 5-7 speaker archetypes as JSON.`;
 
-    const response = await callGemini(prompt);
-    const result = parseJsonResponse<{
+    const result = await callGemini(MODEL, RESEARCH_SPEAKERS_ARCHETYPES_SYSTEM, userPrompt, {
+      responseJsonSchema: researchSpeakersArchetypesSchema,
+      timeoutMs: 30_000,
+    });
+
+    const parsed = extractJSON<{
       speaker_types: unknown[];
       key_connections: string;
       research_tips: string[];
-    }>(response);
+    }>(result.text);
 
     return {
       success: true,
       event_id: eventId,
       speakers_found: false,
-      speaker_types: result.speaker_types,
-      key_connections: result.key_connections,
-      research_tips: result.research_tips,
+      speaker_types: parsed?.speaker_types || [],
+      key_connections: parsed?.key_connections || "",
+      research_tips: parsed?.research_tips || [],
     };
   }
 
@@ -346,7 +272,7 @@ Generate 5-7 speaker archetypes as JSON:
     (s) => `- ${s.speaker_name} (${s.speaker_title || "Unknown"} at ${s.speaker_company || "Unknown"})`
   ).join("\n");
 
-  const prompt = `Analyze these speakers for networking opportunities:
+  const userPrompt = `Analyze these speakers for networking opportunities:
 
 STARTUP:
 - Name: ${startup?.name}
@@ -356,28 +282,14 @@ STARTUP:
 EVENT SPEAKERS:
 ${speakerList}
 
-Analyze and prioritize as JSON:
-{
-  "speaker_analysis": [
-    {
-      "name": "Speaker Name",
-      "relevance_score": 85,
-      "connection_value": "Why valuable to connect",
-      "common_ground": "Shared interests or background",
-      "approach_strategy": "How to initiate conversation",
-      "key_questions": ["Question to ask them"]
-    }
-  ],
-  "priority_connections": ["Top 3 speakers to prioritize"],
-  "networking_plan": "Overall strategy for speaker networking"
-}`;
+Analyze and prioritize as JSON.`;
 
-  const response = await callGemini(
-    prompt,
-    "You are a networking strategist helping startups connect with event speakers."
-  );
+  const result = await callGemini(MODEL, RESEARCH_SPEAKERS_ANALYSIS_SYSTEM, userPrompt, {
+    responseJsonSchema: researchSpeakersAnalysisSchema,
+    timeoutMs: 30_000,
+  });
 
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     speaker_analysis: Array<{
       name: string;
       relevance_score: number;
@@ -388,14 +300,18 @@ Analyze and prioritize as JSON:
     }>;
     priority_connections: string[];
     networking_plan: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     event_id: eventId,
     speakers_found: true,
     total_speakers: speakers.length,
-    ...result,
+    ...(parsed || {
+      speaker_analysis: [],
+      priority_connections: [],
+      networking_plan: "",
+    }),
   };
 }
 
@@ -419,7 +335,7 @@ async function generatePrep(
     throw new Error("Event not found");
   }
 
-  const prompt = `Create comprehensive event preparation materials:
+  const userPrompt = `Create comprehensive event preparation materials:
 
 STARTUP:
 - Name: ${startup?.name}
@@ -433,43 +349,14 @@ EVENT:
 - Location: ${event.venue_name || event.city}
 - Type: ${event.event_type}
 
-Generate preparation materials as JSON:
-{
-  "elevator_pitch": {
-    "15_second": "Ultra-short pitch",
-    "30_second": "Standard elevator pitch",
-    "60_second": "Extended pitch with traction"
-  },
-  "talking_points": [
-    {
-      "topic": "Topic name",
-      "key_message": "What to communicate",
-      "supporting_fact": "Data point or story"
-    }
-  ],
-  "questions_to_ask": [
-    {
-      "target": "Who to ask",
-      "question": "The question",
-      "why": "Why this matters"
-    }
-  ],
-  "goals": {
-    "primary": "Main goal",
-    "secondary": ["Other goals"],
-    "success_metrics": ["How to measure success"]
-  },
-  "logistics_checklist": ["Item 1", "Item 2"],
-  "materials_needed": ["Business cards", "Deck", "etc"],
-  "follow_up_template": "Post-event follow-up email template"
-}`;
+Generate preparation materials as JSON.`;
 
-  const response = await callGemini(
-    prompt,
-    "You are an expert at preparing founders for networking events. Create practical, actionable preparation materials."
-  );
+  const result = await callGemini(MODEL, GENERATE_PREP_SYSTEM, userPrompt, {
+    responseJsonSchema: generatePrepSchema,
+    timeoutMs: 30_000,
+  });
 
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     elevator_pitch: Record<string, string>;
     talking_points: Array<{ topic: string; key_message: string; supporting_fact: string }>;
     questions_to_ask: Array<{ target: string; question: string; why: string }>;
@@ -477,13 +364,21 @@ Generate preparation materials as JSON:
     logistics_checklist: string[];
     materials_needed: string[];
     follow_up_template: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     event_id: eventId,
     event_name: event.name,
-    ...result,
+    ...(parsed || {
+      elevator_pitch: {},
+      talking_points: [],
+      questions_to_ask: [],
+      goals: { primary: "", secondary: [], success_metrics: [] },
+      logistics_checklist: [],
+      materials_needed: [],
+      follow_up_template: "",
+    }),
   };
 }
 
@@ -514,7 +409,7 @@ async function trackAttendance(
 
   // Update event with attendance data
   const metadata = (event.metadata as Record<string, unknown>) || {};
-  
+
   await supabase
     .from("events")
     .update({
@@ -533,7 +428,7 @@ async function trackAttendance(
   // Generate insights if attended
   let insights = null;
   if (attendance.status === "attended" && attendance.rating) {
-    const prompt = `Based on this event attendance, provide follow-up insights:
+    const userPrompt = `Based on this event attendance, provide follow-up insights:
 
 EVENT: ${event.name}
 RATING: ${attendance.rating}/5
@@ -541,21 +436,19 @@ CONNECTIONS: ${attendance.connections_made || 0}
 LEADS: ${attendance.leads_generated || 0}
 NOTES: ${attendance.notes || "None"}
 
-Provide insights as JSON:
-{
-  "roi_assessment": "Was this event worth it?",
-  "follow_up_actions": ["Action 1", "Action 2"],
-  "lessons_learned": ["Lesson 1", "Lesson 2"],
-  "similar_events": ["Events to consider based on this experience"]
-}`;
+Provide insights as JSON.`;
 
-    const response = await callGemini(prompt);
-    insights = parseJsonResponse<{
+    const result = await callGemini(MODEL, TRACK_ATTENDANCE_SYSTEM, userPrompt, {
+      responseJsonSchema: trackAttendanceInsightsSchema,
+      timeoutMs: 30_000,
+    });
+
+    insights = extractJSON<{
       roi_assessment: string;
       follow_up_actions: string[];
       lessons_learned: string[];
       similar_events: string[];
-    }>(response);
+    }>(result.text);
   }
 
   return {
@@ -569,11 +462,16 @@ Provide insights as JSON:
 
 // ============ MAIN HANDLER ============
 
-serve(async (req) => {
-  // Handle CORS
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
+
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -584,15 +482,25 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createSupabaseClient(authHeader);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    // Verify user
+    // Auth check
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Rate limit
+    const rateResult = checkRateLimit(user.id, "event-agent", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     const body = await req.json();

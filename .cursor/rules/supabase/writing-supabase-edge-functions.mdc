@@ -11,24 +11,45 @@ You're an expert in writing TypeScript and Deno JavaScript runtime. Generate **h
 
 1. Try to use Web APIs and Deno’s core APIs instead of external dependencies (eg: use fetch instead of Axios, use WebSockets API instead of node-ws)
 2. If you are reusing utility methods between Edge Functions, add them to `supabase/functions/_shared` and import using a relative path. Do NOT have cross dependencies between Edge Functions.
-3. Do NOT use bare specifiers when importing dependecnies. If you need to use an external dependency, make sure it's prefixed with either `npm:` or `jsr:`. For example, `@supabase/supabase-js` should be written as `npm:@supabase/supabase-js`.
-4. For external imports, always define a version. For example, `npm:@express` should be written as `npm:express@4.18.2`.
-5. For external dependencies, importing via `npm:` and `jsr:` is preferred. Minimize the use of imports from @`deno.land/x` , `esm.sh` and @`unpkg.com` . If you have a package from one of those CDNs, you can replace the CDN hostname with `npm:` specifier.
-6. You can also use Node built-in APIs. You will need to import them using `node:` specifier. For example, to import Node process: `import process from "node:process". Use Node APIs when you find gaps in Deno APIs.
+3. Do NOT use bare specifiers when importing dependencies. If you need to use an external dependency, make sure it's prefixed with either `npm:` or `jsr:`. For example, `@supabase/supabase-js` should be written as `npm:@supabase/supabase-js`.
+4. For external imports, always define a version. For example, `npm:express` should be written as `npm:express@4.18.2`.
+5. For external dependencies, importing via `npm:` and `jsr:` is preferred. Minimize imports from `deno.land/x`, `esm.sh`, and `unpkg.com`. Replace CDN hostnames with `npm:` specifier when possible.
+6. You can use Node built-in APIs via the `node:` specifier. For example: `import process from "node:process"`, `import { randomBytes } from "node:crypto"`. Use Node APIs when Deno has no equivalent.
 7. Do NOT use `import { serve } from "https://deno.land/std@0.168.0/http/server.ts"`. Instead use the built-in `Deno.serve`.
 8. Following environment variables (ie. secrets) are pre-populated in both local and hosted Supabase environments. Users don't need to manually set them:
    - SUPABASE_URL
-   - SUPABASE_PUBLISHABLE_OR_ANON_KEY
+   - SUPABASE_ANON_KEY
    - SUPABASE_SERVICE_ROLE_KEY
    - SUPABASE_DB_URL
-9. To set other environment variables (ie. secrets) users can put them in a env file and run the `supabase secrets set --env-file path/to/env-file`
+9. To set other secrets, add them to an `.env` file and run `supabase secrets set --env-file .env`
 10. A single Edge Function can handle multiple routes. It is recommended to use a library like Express or Hono to handle the routes as it's easier for developer to understand and maintain. Each route must be prefixed with `/function-name` so they are routed correctly.
-11. File write operations are ONLY permitted on `/tmp` directory. You can use either Deno or Node File APIs.
-12. Use `EdgeRuntime.waitUntil(promise)` static method to run long-running tasks in the background without blocking response to a request. Do NOT assume it is available in the request / execution context.
+11. File write operations are ONLY permitted on `/tmp` directory (ephemeral storage). You can use Deno or Node File APIs.
+12. Use `EdgeRuntime.waitUntil(promise)` to run long-running tasks in the background without blocking the response. It is globally available in the Supabase Edge Functions runtime. Do NOT `await` the promise—return the response immediately. Do NOT assume it is available on the request object. For local testing, set `policy="per_worker"` in `supabase/config.toml` so background tasks complete.
+
+## Runtime Types
+
+Always import the Supabase Edge Runtime type definitions at the top of every function:
+
+```tsx
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+```
+
+## Rate Limiting
+
+Use shared rate limiting from `_shared/rate-limit.ts` after auth:
+
+```tsx
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+
+const rateResult = checkRateLimit(user.id, "function-name", RATE_LIMITS.standard);
+if (!rateResult.allowed) return rateLimitResponse(rateResult, corsHeaders);
+```
+
+Tiers: `standard` (30/60s), `heavy` (5/300s), `light` (120/60s).
 
 ## CORS Headers
 
-Always include CORS headers for browser-callable functions:
+Always include CORS headers for browser-callable functions. Prefer shared `_shared/cors.ts`:
 
 ```tsx
 const corsHeaders = {
@@ -39,7 +60,7 @@ const corsHeaders = {
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Your logic here
@@ -56,7 +77,7 @@ Always use structured error handling:
 ```tsx
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -86,10 +107,11 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in function:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -98,10 +120,14 @@ Deno.serve(async (req: Request) => {
 
 ## AI Functions with Structured Output
 
-For AI functions using Gemini, use structured output:
+For AI functions using Gemini, use structured output. Prefer `supabase/functions/_shared/gemini.ts` when available (handles timeout, retry, CORS). For direct calls:
+
+- Use `responseJsonSchema` (REST API) or `responseSchema` (SDK) with `responseMimeType: "application/json"` for guaranteed JSON.
+- API key: pass in `x-goog-api-key` header (never query param).
+- Gemini 3: use `temperature: 1.0` (lower can cause looping).
 
 ```tsx
-import { GoogleGenAI, Type } from "npm:@google/genai@^0.21.0";
+import { GoogleGenAI, Type } from "npm:@google/genai@^1.0.0";
 
 const schema = {
   type: Type.OBJECT,
@@ -123,12 +149,12 @@ Deno.serve(async (req: Request) => {
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-preview',
+    model: 'gemini-3-flash-preview',
     contents: prompt,
     config: {
       responseMimeType: "application/json",
       responseSchema: schema,
-      temperature: 0.3
+      temperature: 1.0  // Gemini 3: keep at 1.0
     }
   });
 
@@ -144,6 +170,8 @@ Deno.serve(async (req: Request) => {
 ### Simple Hello World Function
 
 ```tsx
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 interface reqPayload {
   name: string
 }
@@ -164,44 +192,65 @@ Deno.serve(async (req: Request) => {
 
 ### Example Function using Node built-in API
 
-```tsx
-import { randomBytes } from 'node:crypto'
-import { createServer } from 'node:http'
-import process from 'node:process'
+Use `node:` for built-ins when Deno has no equivalent (e.g. `node:crypto`):
 
-const generateRandomString = (length) => {
+```tsx
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { randomBytes } from 'node:crypto'
+
+const generateRandomString = (length: number) => {
   const buffer = randomBytes(length)
   return buffer.toString('hex')
 }
 
-const randomString = generateRandomString(10)
-console.log(randomString)
-
-const server = createServer((req, res) => {
-  const message = `Hello`
-  res.end(message)
+Deno.serve(async (req: Request) => {
+  const token = generateRandomString(32)
+  return new Response(JSON.stringify({ token }), {
+    headers: { 'Content-Type': 'application/json' }
+  })
 })
-
-server.listen(9999)
 ```
 
-### Using npm packages in Functions
+### Multi-route function with Hono
+
+For multi-route functions, use `Deno.serve` with a library like Hono (preferred over Express). Each route must be prefixed with the function name:
 
 ```tsx
-import express from 'npm:express@4.18.2'
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { Hono } from "jsr:@hono/hono@4";
 
-const app = express()
+const app = new Hono().basePath("/my-function");
 
-app.get(/(.*)/, (req, res) => {
-  res.send('Welcome to Supabase')
-})
+app.get("/", (c) => c.json({ message: "Welcome to Supabase" }));
+app.post("/data", async (c) => {
+  const body = await c.req.json();
+  return c.json({ received: body });
+});
 
-app.listen(8000)
+Deno.serve(app.fetch);
 ```
 
-### Generate embeddings using built-in @Supabase.ai API
+> **Note:** Do NOT use `app.listen()` — Edge Functions must use `Deno.serve()` as entrypoint.
+
+### Background task (fire-and-forget)
 
 ```tsx
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+Deno.serve(async (req: Request) => {
+  EdgeRuntime.waitUntil(sendToLoggingService(data))
+  return new Response(JSON.stringify({ accepted: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+})
+```
+
+### Generate embeddings using Supabase AI
+
+```tsx
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 const model = new Supabase.ai.Session('gte-small')
 
 Deno.serve(async (req: Request) => {
@@ -209,10 +258,11 @@ Deno.serve(async (req: Request) => {
   const input = params.get('text')
   const output = await model.run(input, { mean_pool: true, normalize: true })
   return new Response(JSON.stringify(output), {
-    headers: {
-      'Content-Type': 'application/json',
-      Connection: 'keep-alive',
-    },
+    headers: { 'Content-Type': 'application/json' }
   })
 })
 ```
+
+---
+
+**Official docs:** [Supabase Edge Functions](https://supabase.com/docs/guides/functions), [Background Tasks](https://supabase.com/docs/guides/functions/background-tasks), [Secrets](https://supabase.com/docs/guides/functions/secrets)

@@ -193,10 +193,12 @@ Deno.serve(async (req) => {
       console.log(`[validator-followup] extracted=${filledFields}/8 fields, discovered=${JSON.stringify(parsed.discoveredEntities)}`);
     }
 
-    // RT-5: Broadcast follow-up to validator channel if sessionId provided
+    // RT-5 + L3: Broadcast follow-up with streaming tokens if sessionId provided
     if (sessionId && typeof sessionId === 'string') {
       try {
         const channel = supabase.channel(`validator:${sessionId}`);
+
+        // RT-5: Send metadata immediately so frontend can update coverage/extraction state
         await channel.send({
           type: 'broadcast',
           event: 'followup_ready',
@@ -209,9 +211,55 @@ Deno.serve(async (req) => {
             timestamp: Date.now(),
           },
         });
+
+        // L3: Stream question text token-by-token for progressive display
+        const questionText = parsed.question || '';
+        if (questionText.length > 0) {
+          const messageId = crypto.randomUUID();
+
+          // Send metadata event first
+          await channel.send({
+            type: 'broadcast',
+            event: 'followup_metadata',
+            payload: {
+              messageId,
+              coverage: parsed.coverage,
+              extracted: parsed.extracted || {},
+              confidence: parsed.confidence || {},
+              contradictions: parsed.contradictions || [],
+              discoveredEntities: parsed.discoveredEntities,
+              action: parsed.action,
+              summary: parsed.summary,
+              readiness_reason: parsed.readiness_reason || '',
+              questionNumber: parsed.questionNumber,
+            },
+          });
+
+          // Stream tokens (split by word boundaries for natural reading)
+          const tokens = questionText.match(/\S+\s*/g) || [questionText];
+          for (let i = 0; i < tokens.length; i++) {
+            await channel.send({
+              type: 'broadcast',
+              event: 'token_chunk',
+              payload: { messageId, token: tokens[i], index: i },
+            });
+            // 30ms per token ≈ natural reading speed (keeps total under 2s for typical questions)
+            if (i < tokens.length - 1) {
+              await new Promise(r => setTimeout(r, 30));
+            }
+          }
+
+          // Signal completion
+          await channel.send({
+            type: 'broadcast',
+            event: 'message_complete',
+            payload: { messageId, totalTokens: tokens.length },
+          });
+        }
+
         await supabase.removeChannel(channel);
       } catch (e) {
-        console.warn('[validator-followup] followup_ready broadcast failed:', e);
+        console.warn('[validator-followup] broadcast failed:', e);
       }
     }
 

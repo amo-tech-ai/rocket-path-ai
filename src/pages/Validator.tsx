@@ -381,9 +381,11 @@ export default function Validator() {
                         <Badge variant="outline" className="text-xs">
                           {report.sections.length} Sections
                         </Badge>
+                        {report.marketSizing?.tam && (
                         <Badge variant="outline" className="text-xs">
                           TAM: ${(report.marketSizing.tam / 1_000_000_000).toFixed(1)}B
                         </Badge>
+                        )}
                         <Badge variant="outline" className="text-xs capitalize">
                           {report.reportType}
                         </Badge>

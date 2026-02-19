@@ -8,7 +8,7 @@ import { ProfileMappingBanner } from '@/components/leancanvas/ProfileMappingBann
 import { useLeanCanvas, useSaveLeanCanvas, LeanCanvasData, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
 import { useCanvasAutosave } from '@/hooks/useCanvasAutosave';
 import { useMapProfile, usePrefillCanvas, type BoxKey, type CoverageLevel } from '@/hooks/useLeanCanvasAgent';
-import { exportToPDF, exportToPNG } from '@/lib/canvasExport';
+// PDF/PNG export dynamically imported on demand to keep jsPDF out of initial bundle
 import { useStartup } from '@/hooks/useDashboardData';
 import { 
   LayoutGrid, 
@@ -180,13 +180,15 @@ const LeanCanvas = () => {
 
     setIsExporting(true);
     try {
-      const filename = `lean-canvas-${startup?.name?.toLowerCase().replace(/\s+/g, '-') || 'export'}`;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const filename = `lean-canvas-${startup?.name?.toLowerCase().replace(/\s+/g, '-') || 'export'}-${dateStr}`;
       const options = {
         title: 'Lean Canvas',
         companyName: startup?.name,
         includeDate: true,
       };
 
+      const { exportToPDF, exportToPNG } = await import('@/lib/canvasExport');
       if (format === 'pdf') {
         await exportToPDF(canvasRef.current, `${filename}.pdf`, options);
         toast.success('PDF exported successfully');
@@ -209,6 +211,18 @@ const LeanCanvas = () => {
       canvasData={canvasData}
       onPreFillApply={handlePreFillApply}
       onValidationComplete={handleValidationComplete}
+      startup={{
+        name: startup.name || '',
+        industry: startup.industry || '',
+        stage: startup.stage || '',
+        description: startup.description || '',
+      }}
+      onApplySuggestion={(boxKey, item) => {
+        handleBoxUpdate(boxKey as keyof LeanCanvasData, [
+          ...(canvasData[boxKey as keyof LeanCanvasData]?.items || []),
+          item,
+        ]);
+      }}
     />
   ) : null;
 

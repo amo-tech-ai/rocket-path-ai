@@ -216,6 +216,162 @@ export function useWeeklySummary() {
 }
 
 // ============================================================================
+// Business Readiness (P1: Task 21)
+// ============================================================================
+
+export interface ReadinessDimension {
+  score: number;
+  label: string;
+  evidence: string[];
+  gaps: string[];
+}
+
+export interface ReadinessBlocker {
+  title: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  dimension: string;
+  fix: string;
+}
+
+export interface LaunchPlanWeek {
+  week: number;
+  goal: string;
+  tasks: string[];
+}
+
+export interface BusinessReadinessResult {
+  success: boolean;
+  startup_id?: string;
+  generated_at?: string;
+  overall_score?: number;
+  verdict?: 'GREEN' | 'YELLOW' | 'RED';
+  summary?: string;
+  dimensions?: {
+    trust: ReadinessDimension;
+    reliability: ReadinessDimension;
+    cost_control: ReadinessDimension;
+    support: ReadinessDimension;
+  };
+  blockers?: ReadinessBlocker[];
+  launch_plan?: LaunchPlanWeek[];
+  error?: string;
+}
+
+/**
+ * Compute business readiness assessment (4 dimensions, verdict, blockers, launch plan)
+ */
+export function useBusinessReadiness() {
+  return useMutation({
+    mutationFn: async ({ startupId }: { startupId: string }) => {
+      return invokeInsightsGenerator<BusinessReadinessResult>('compute_readiness', {
+        startup_id: startupId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success && data.verdict) {
+        const icon = data.verdict === 'GREEN' ? 'Ready!' : data.verdict === 'YELLOW' ? 'Almost there' : 'Not ready';
+        toast.info(`Readiness: ${data.overall_score}/100 — ${icon}`);
+      } else {
+        toast.error(data.error || 'Failed to compute readiness');
+      }
+    },
+    onError: (error) => {
+      console.error('Business readiness error:', error);
+      toast.error('Failed to compute business readiness');
+    },
+  });
+}
+
+// ============================================================================
+// Outcomes & ROI (P2: Task 22)
+// ============================================================================
+
+export interface OutcomeCards {
+  decisions_made: number;
+  plans_completed: number;
+  experiments_validated: number;
+  assumptions_tested: number;
+  interviews_conducted: number;
+}
+
+export interface TimeSaved {
+  hours_per_month: number;
+  value_estimate: string;
+  breakdown: { area: string; hours: number }[];
+}
+
+export interface CostPerInsight {
+  total_ai_cost: number;
+  total_insights: number;
+  cost_per_insight: number;
+  trend: 'improving' | 'stable' | 'worsening';
+}
+
+export interface RetentionStage {
+  stage: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ROIMirage {
+  detected: boolean;
+  activity_count: number;
+  outcome_count: number;
+  ratio: number;
+  warnings: string[];
+}
+
+export interface FounderDecision {
+  area: string;
+  recommendation: 'Double Down' | 'Adjust' | 'Stop';
+  reason: string;
+  action: string;
+}
+
+export interface OutcomesResult {
+  success: boolean;
+  startup_id?: string;
+  generated_at?: string;
+  summary?: string;
+  outcome_cards?: OutcomeCards;
+  time_saved?: TimeSaved;
+  cost_per_insight?: CostPerInsight;
+  retention_funnel?: RetentionStage[];
+  roi_mirage?: ROIMirage;
+  founder_decisions?: FounderDecision[];
+  raw_stats?: Record<string, unknown>;
+  error?: string;
+}
+
+/**
+ * Compute outcomes & ROI dashboard (outcome cards, time saved, ROI Mirage detection)
+ */
+export function useOutcomes() {
+  return useMutation({
+    mutationFn: async ({ startupId }: { startupId: string }) => {
+      return invokeInsightsGenerator<OutcomesResult>('compute_outcomes', {
+        startup_id: startupId,
+      });
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        if (data.roi_mirage?.detected) {
+          toast.warning('ROI Mirage detected — high activity but low outcomes');
+        } else {
+          toast.success('Outcomes analysis complete');
+        }
+      } else {
+        toast.error(data.error || 'Failed to compute outcomes');
+      }
+    },
+    onError: (error) => {
+      console.error('Outcomes error:', error);
+      toast.error('Failed to compute outcomes');
+    },
+  });
+}
+
+// ============================================================================
 // Composite Hook
 // ============================================================================
 
@@ -224,5 +380,7 @@ export function useInsightsAgent() {
     dailyInsights: useDailyInsights(),
     stageRecommendations: useStageRecommendations(),
     weeklySummary: useWeeklySummary(),
+    businessReadiness: useBusinessReadiness(),
+    outcomes: useOutcomes(),
   };
 }

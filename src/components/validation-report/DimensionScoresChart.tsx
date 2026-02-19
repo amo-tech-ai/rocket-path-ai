@@ -13,6 +13,7 @@ interface DimensionScoresChartProps {
 }
 
 export default function DimensionScoresChart({ scores, className }: DimensionScoresChartProps) {
+  if (!scores?.length) return null;
   // Sort by score for visual hierarchy
   const sortedScores = [...scores].sort((a, b) => b.score - a.score);
   

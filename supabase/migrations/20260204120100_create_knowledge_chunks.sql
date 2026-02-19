@@ -57,7 +57,7 @@ create table if not exists public.knowledge_chunks (
 
   -- content
   content text not null,
-  embedding vector(768) not null,
+  embedding vector(1536) not null,
 
   -- source metadata
   source text not null,
@@ -89,7 +89,7 @@ create table if not exists public.knowledge_chunks (
 -- add table comments
 comment on table public.knowledge_chunks is 'RAG knowledge base - embedded statistics from Tier A sources for Coach answers with citations.';
 comment on column public.knowledge_chunks.content is 'The statistic or fact text to be embedded and retrieved';
-comment on column public.knowledge_chunks.embedding is 'Vector embedding from text-embedding-004 (768 dimensions)';
+comment on column public.knowledge_chunks.embedding is 'Vector embedding from OpenAI text-embedding-3-small (1536 dimensions)';
 comment on column public.knowledge_chunks.source is 'Human-readable source name (e.g., "Deloitte State of AI 2026")';
 comment on column public.knowledge_chunks.source_type is 'Tier A source category';
 comment on column public.knowledge_chunks.sample_size is 'Sample size (n) for statistical credibility';
@@ -163,7 +163,7 @@ create policy "service role can manage knowledge"
 
 -- Main search function - returns relevant chunks with similarity score
 create or replace function public.search_knowledge(
-  query_embedding vector(768),
+  query_embedding vector(1536),
   match_threshold float default 0.75,
   match_count int default 5,
   filter_category text default null,

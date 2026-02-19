@@ -46,7 +46,7 @@ export function ReportSection({
         </div>
         <div className="flex items-center gap-2">
           {verified && (
-            <Badge variant="outline" className="text-xs text-emerald-500">
+            <Badge variant="outline" className="text-xs text-status-success">
               <CheckCircle2 className="w-3 h-3 mr-1" />
               {agent}
             </Badge>

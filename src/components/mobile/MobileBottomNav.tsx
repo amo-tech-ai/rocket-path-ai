@@ -4,10 +4,10 @@
  */
 
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  Users, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  Users,
   FolderKanban,
   Menu
 } from 'lucide-react';

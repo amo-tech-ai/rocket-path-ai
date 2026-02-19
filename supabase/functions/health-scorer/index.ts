@@ -1,9 +1,13 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+/**
+ * Health Scorer Edge Function
+ * Calculate and cache startup health scores across 6 dimensions.
+ * Migrated to shared patterns: JWT auth, rate limiting, shared CORS.
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform',
-};
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface HealthScore {
   overall: number;
@@ -21,15 +25,18 @@ interface HealthScore {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  const corsHeaders = getCorsHeaders(req);
 
+  try {
     // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -39,14 +46,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+    // User-scoped client (RLS enforced)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Rate limit (standard — does computation)
+    const rateResult = checkRateLimit(user.id, "health-scorer", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -59,7 +77,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user access to startup
+    // Verify user access to startup (defense-in-depth — RLS also enforces)
     const { data: membership } = await supabase
       .from('startup_members')
       .select('id')
@@ -218,10 +236,10 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
   const previousScore = startup?.health_score || overall;
   const trend = overall - previousScore;
 
-  // Update startup with new health score
+  // Update startup with new health score (RLS allows member updates)
   await supabase
     .from('startups')
-    .update({ 
+    .update({
       health_score: overall,
       score_breakdown: breakdown,
       last_health_check: new Date().toISOString()
@@ -251,7 +269,7 @@ async function getCachedScore(supabase: any, startupId: string): Promise<HealthS
   // If cached score is older than 1 hour, recalculate
   const lastCheck = new Date(startup.last_health_check || 0);
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  
+
   if (lastCheck < oneHourAgo) {
     return calculateHealthScore(supabase, startupId);
   }

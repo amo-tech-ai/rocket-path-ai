@@ -26,33 +26,23 @@ function transformReport(data: any): ValidationReport {
   const details = data.details || {};
   const dimensionScores: DimensionScore[] = DIMENSION_CONFIG.map(dim => ({
     name: dim.name,
-    score: details.dimensions?.[dim.key] || Math.round(overallScore * (0.8 + Math.random() * 0.4)),
+    score: details.dimensions?.[dim.key] ?? 0,
     weight: dim.weight,
     factors: dim.factors,
   }));
   
   // Extract market factors
-  const marketFactors: MarketFactor[] = details.marketFactors || [
-    { name: 'Market Size', score: 7, description: 'Large addressable market with growth potential', status: 'strong' },
-    { name: 'Growth Rate', score: 6, description: 'Industry growing at moderate pace', status: 'moderate' },
-    { name: 'Competition', score: 5, description: 'Competitive landscape requires differentiation', status: 'moderate' },
-    { name: 'Timing', score: 8, description: 'Market conditions favorable for entry', status: 'strong' },
-  ];
-  
+  const marketFactors: MarketFactor[] = details.marketFactors || [];
+
   // Extract execution factors
-  const executionFactors: ExecutionFactor[] = details.executionFactors || [
-    { name: 'Team', score: 7, description: 'Strong founding team with relevant experience', status: 'strong' },
-    { name: 'Product', score: 6, description: 'MVP with early validation signals', status: 'moderate' },
-    { name: 'Go-to-Market', score: 5, description: 'Strategy needs refinement', status: 'moderate' },
-    { name: 'Unit Economics', score: 4, description: 'Path to profitability unclear', status: 'weak' },
-  ];
+  const executionFactors: ExecutionFactor[] = details.executionFactors || [];
   
   // Generate sections from key_findings and details
   const sections: ReportSection[] = Array.from({ length: 14 }, (_, i) => ({
     number: i + 1,
     title: getSectionTitle(i + 1),
     content: details.sections?.[i + 1] || generatePlaceholderContent(i + 1, data),
-    score: i < 12 ? Math.round(6 + Math.random() * 3) : undefined,
+    score: details.sectionScores?.[i + 1] ?? undefined,
     citations: details.citations?.[i + 1] || [],
   }));
   
@@ -63,30 +53,17 @@ function transformReport(data: any): ValidationReport {
     verdict: getVerdict(overallScore),
     overallScore,
     dimensionScores,
-    marketSizing: details.marketSizing || {
-      tam: 12_000_000_000,
-      sam: 1_200_000_000,
-      som: 120_000_000,
-      methodology: 'Top-down analysis using industry reports and comparable company data',
-      growthRate: 15,
-    },
-    highlights: data.key_findings?.filter((_: string, i: number) => i < 4) || [
-      'Strong problem-solution fit',
-      'Clear value proposition',
-      'Experienced founding team',
-    ],
-    redFlags: details.redFlags || [
-      'Limited customer validation',
-      'Competitive market landscape',
-    ],
-    executiveSummary: data.summary || 'This startup shows promising fundamentals with room for improvement in key areas.',
+    marketSizing: details.marketSizing || undefined,
+    highlights: data.key_findings?.filter((_: string, i: number) => i < 4) || [],
+    redFlags: details.redFlags || [],
+    executiveSummary: data.summary || '',
     marketFactors,
     executionFactors,
-    benchmarks: {
+    benchmarks: details.benchmarks || {
       industry: details.industry || 'Technology',
       averageScore: 65,
       topPerformers: 85,
-      percentile: Math.min(95, Math.round(overallScore * 1.1)),
+      percentile: overallScore > 0 ? Math.min(95, Math.round(overallScore * 1.1)) : undefined,
     },
     sections,
     reportType: (data.report_type as ValidationReportType) || 'quick',
@@ -143,7 +120,7 @@ function generatePlaceholderContent(sectionNum: number, data: any): string {
 // Fetch latest report for a startup
 async function fetchLatestReport(startupId: string): Promise<ValidationReport | null> {
   const { data, error } = await supabase
-    .from('validation_reports')
+    .from('validator_reports')
     .select('*')
     .eq('run_id', startupId)
     .order('created_at', { ascending: false })
@@ -158,7 +135,7 @@ async function fetchLatestReport(startupId: string): Promise<ValidationReport | 
 // Fetch all reports for a startup
 async function fetchReportHistory(startupId: string): Promise<ValidationReport[]> {
   const { data, error } = await supabase
-    .from('validation_reports')
+    .from('validator_reports')
     .select('*')
     .eq('run_id', startupId)
     .order('created_at', { ascending: false })

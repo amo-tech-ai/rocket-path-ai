@@ -1,10 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  CheckSquare, 
-  Users, 
-  FileText, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  Users,
+  FileText,
   TrendingUp,
   Settings,
   Menu,
@@ -13,44 +12,73 @@ import {
   User,
   Building2,
   CalendarDays,
-  Sparkles,
   Presentation,
-  MessageSquare,
   BarChart3,
-  GitBranch,
-  Beaker,
-  Target,
   DollarSign,
-  Lightbulb
+  SearchCheck,
+  BookOpen,
+  ChevronDown,
+  type LucideIcon
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MobileAISheet } from "@/components/mobile/MobileAISheet";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { NotificationCenter } from "@/components/notifications";
 
-const navItems = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Onboarding", path: "/onboarding", icon: Sparkles },
-  { label: "Pitch Decks", path: "/app/pitch-decks", icon: Presentation },
-  { label: "Projects", path: "/projects", icon: FolderKanban },
-  { label: "Tasks", path: "/tasks", icon: CheckSquare },
-  { label: "Events", path: "/app/events", icon: CalendarDays },
-  { label: "CRM", path: "/crm", icon: Users },
-  { label: "Documents", path: "/documents", icon: FileText },
-  { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
-  { label: "Market Research", path: "/market-research", icon: TrendingUp },
-  { label: "Investors", path: "/investors", icon: DollarSign },
-  { label: "Analytics", path: "/analytics", icon: BarChart3 },
-  { label: "Experiments", path: "/experiments", icon: Beaker },
-  { label: "90-Day Plan", path: "/sprint-plan", icon: Target },
-  { label: "Opportunity", path: "/opportunity-canvas", icon: Lightbulb },
-  { label: "Diagrams", path: "/diagrams", icon: GitBranch },
-  // AI Chat removed from nav - now accessible via floating assistant
+interface NavItem {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Primary",
+    items: [
+      { label: "Command Centre", path: "/dashboard", icon: LayoutDashboard },
+      { label: "Startup Validator", path: "/validate", icon: SearchCheck },
+      { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
+    ],
+  },
+  {
+    label: "Execution",
+    items: [
+      { label: "Tasks", path: "/tasks", icon: CheckSquare },
+      { label: "Weekly Review", path: "/weekly-review", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { label: "Market Research", path: "/market-research", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "Fundraising",
+    items: [
+      { label: "Pitch Decks", path: "/app/pitch-decks", icon: Presentation },
+      { label: "Investors", path: "/investors", icon: DollarSign },
+      { label: "CRM", path: "/crm", icon: Users },
+    ],
+  },
+  {
+    label: "Library",
+    items: [
+      { label: "Documents", path: "/documents", icon: FileText },
+      { label: "Analytics", path: "/analytics", icon: BarChart3 },
+      { label: "Events", path: "/app/events", icon: CalendarDays },
+    ],
+  },
 ];
 
-const profileItems = [
+const profileItems: NavItem[] = [
   { label: "User Profile", path: "/user-profile", icon: User },
   { label: "Company Profile", path: "/company-profile", icon: Building2 },
 ];
@@ -61,9 +89,29 @@ interface DashboardLayoutProps {
   hideBottomNav?: boolean;
 }
 
+const STORAGE_KEY = "sidebar-collapsed";
+
+function getInitialCollapsed(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
 const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: DashboardLayoutProps) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(getInitialCollapsed);
+
+  const toggleGroup = useCallback((label: string) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -114,31 +162,57 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
           </Button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {/* Main nav items */}
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+        <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
+          {navGroups.map((group) => {
+            const isCollapsed = collapsed[group.label];
+            const hasActiveItem = group.items.some(
+              (item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+            );
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors touch-manipulation",
-                  isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors"
+                >
+                  <span>{group.label}</span>
+                  <ChevronDown className={cn(
+                    "w-3.5 h-3.5 transition-transform duration-200",
+                    isCollapsed && "-rotate-90"
+                  )} />
+                </button>
+                {!isCollapsed && (
+                  <div className="mt-0.5 space-y-0.5">
+                    {group.items.map((item) => {
+                      const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setSidebarOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors touch-manipulation",
+                            isActive
+                              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                              : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                          )}
+                        >
+                          <item.icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </Link>
+                {isCollapsed && hasActiveItem && (
+                  <div className="ml-3 mt-0.5 w-1.5 h-1.5 rounded-full bg-sidebar-primary" />
+                )}
+              </div>
             );
           })}
-          
+
           {/* Divider */}
-          <div className="h-px bg-sidebar-border my-4" />
-          
+          <div className="h-px bg-sidebar-border my-2" />
+
           {/* Profile items */}
           {profileItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -148,13 +222,13 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors touch-manipulation",
-                  isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors touch-manipulation",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                 )}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <item.icon className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
               </Link>
             );

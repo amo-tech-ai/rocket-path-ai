@@ -2,7 +2,7 @@
 -- This migration updates the vector dimension from 768 (Gemini) to 1536 (OpenAI)
 
 -- First, drop the existing index
-DROP INDEX IF EXISTS knowledge_chunks_embedding_idx;
+DROP INDEX IF EXISTS idx_knowledge_chunks_embedding;
 
 -- Make embedding nullable first (if not already), then set all to NULL
 ALTER TABLE public.knowledge_chunks ALTER COLUMN embedding DROP NOT NULL;

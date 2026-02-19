@@ -1,6 +1,6 @@
 /**
  * RAG search for validator pipeline.
- * Calls load-knowledge Edge Function with action test_search; used by Research agent.
+ * Calls knowledge-search Edge Function (search-only). Ingest uses knowledge-ingest (X-Internal-Token).
  */
 
 export interface KnowledgeChunk {
@@ -13,6 +13,11 @@ export interface KnowledgeChunk {
   category: string | null;
   industry: string | null;
   similarity: number;
+  document_id?: string | null;
+  document_title?: string | null;
+  section_title?: string | null;
+  page_start?: number | null;
+  page_end?: number | null;
 }
 
 export interface KnowledgeSearchResult {
@@ -24,7 +29,7 @@ export interface KnowledgeSearchResult {
 const LOAD_KNOWLEDGE_TIMEOUT_MS = 15_000;
 
 /**
- * Search the vector knowledge base via load-knowledge test_search.
+ * Search the vector knowledge base via knowledge-search Edge Function.
  * Returns top chunks for the query; optional filter_industry (e.g. "fashion") narrows results.
  */
 export async function searchKnowledge(
@@ -33,9 +38,8 @@ export async function searchKnowledge(
   query: string,
   filterIndustry?: string | null
 ): Promise<KnowledgeSearchResult> {
-  const url = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/load-knowledge`;
+  const url = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/knowledge-search`;
   const body: Record<string, unknown> = {
-    action: "test_search",
     query: query.trim(),
   };
   if (filterIndustry?.trim()) {
@@ -54,7 +58,7 @@ export async function searchKnowledge(
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`load-knowledge test_search failed: ${res.status} ${errText}`);
+    throw new Error(`knowledge-search failed: ${res.status} ${errText}`);
   }
 
   const data = (await res.json()) as KnowledgeSearchResult;
@@ -73,7 +77,11 @@ export function formatKnowledgeForPrompt(chunks: KnowledgeChunk[], maxChars = 40
 
   let out = "";
   for (const c of chunks) {
-    const line = `- [${c.source}${c.year ? ` ${c.year}` : ""}] (similarity ${(c.similarity ?? 0).toFixed(2)}): ${c.content}`;
+    const title = c.document_title || c.source;
+    const section = c.section_title ? ` — ${c.section_title}` : "";
+    const year = c.year ? ` ${c.year}` : "";
+    const page = c.page_start != null ? `, p.${c.page_start}` : "";
+    const line = `- [${title}${section}${year}${page}] (similarity ${(c.similarity ?? 0).toFixed(2)}): ${c.content}`;
     if (out.length + line.length + 2 > maxChars) break;
     out += (out ? "\n" : "") + line;
   }

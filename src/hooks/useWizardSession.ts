@@ -40,6 +40,7 @@ export function useWizardSession() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingFormDataRef = useRef<WizardFormData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const createPromiseRef = useRef<Promise<string> | null>(null);
@@ -248,6 +249,7 @@ export function useWizardSession() {
       }
 
       setIsSaving(true);
+      pendingFormDataRef.current = formData;
 
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
@@ -258,6 +260,7 @@ export function useWizardSession() {
           sessionId: session.id,
           updates: { form_data: formData },
         });
+        pendingFormDataRef.current = null;
       }, DEBOUNCE_MS);
     },
     [session?.id, updateSessionMutation]
@@ -276,6 +279,7 @@ export function useWizardSession() {
         debounceRef.current = null;
       }
 
+      pendingFormDataRef.current = null;
       setIsSaving(true);
       try {
         await updateSessionMutation.mutateAsync({
@@ -335,6 +339,23 @@ export function useWizardSession() {
       }
     };
   }, []);
+
+  // Flush pending form data on beforeunload (tab close/refresh)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (debounceRef.current && pendingFormDataRef.current && session?.id) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+        updateSessionMutation.mutate({
+          sessionId: session.id,
+          updates: { form_data: pendingFormDataRef.current },
+        });
+        pendingFormDataRef.current = null;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session?.id, updateSessionMutation]);
 
   // Check if wizard is complete
   const isWizardComplete = session?.status === 'completed' && session?.startup_id !== null;

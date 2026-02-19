@@ -1,18 +1,18 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 /**
  * Stage Analyzer Edge Function
- * 
+ * Analyze startup stage, criteria, and transition readiness.
+ * Migrated to shared patterns: JWT auth, rate limiting, shared CORS.
+ *
  * Actions:
- * - analyze_stage: Determine current stage from metrics
- * - get_stage_criteria: Return criteria for each stage
- * - suggest_stage_transition: Check if ready for next stage
+ * - analyze_stage: Determine current stage from metrics (auth required)
+ * - get_stage_criteria: Return criteria for each stage (public — static data)
+ * - suggest_stage_transition: Check if ready for next stage (auth required)
  */
+
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 type StartupStage = 'ideation' | 'validation' | 'mvp' | 'growth' | 'scale';
 
@@ -46,25 +46,25 @@ interface StartupMetrics {
   has_business_model: boolean;
   has_market_research: boolean;
   has_competitor_analysis: boolean;
-  
+
   // Validation (20-40)
   customer_interviews: number;
   has_prototype: boolean;
   has_landing_page: boolean;
   waitlist_signups: number;
-  
+
   // MVP (40-60)
   has_product: boolean;
   active_users: number;
   has_feedback_loop: boolean;
   feature_releases: number;
-  
+
   // Growth (60-80)
   mrr: number;
   team_size: number;
   has_marketing: boolean;
   month_over_month_growth: number;
-  
+
   // Scale (80-100)
   funding_raised: number;
   growth_rate: number;
@@ -113,19 +113,22 @@ const STAGE_CRITERIA: Record<StartupStage, StageCriteria> = {
 const STAGE_ORDER: StartupStage[] = ['ideation', 'validation', 'mvp', 'growth', 'scale'];
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  const corsHeaders = getCorsHeaders(req);
 
+  try {
     const body = await req.json().catch(() => ({}));
     const { action, startupId } = body;
 
-    // Allow get_stage_criteria without auth (static data)
+    // Allow get_stage_criteria without auth (static data, no DB access)
     if (action === 'get_stage_criteria') {
       console.log(`[stage-analyzer] Action: get_stage_criteria, No auth required`);
       return new Response(
@@ -143,14 +146,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+    // User-scoped client (RLS enforced)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Rate limit (standard — does computation)
+    const rateResult = checkRateLimit(user.id, "stage-analyzer", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     if (!startupId) {
@@ -166,9 +180,6 @@ Deno.serve(async (req) => {
     switch (action) {
       case 'analyze_stage':
         result = await analyzeStage(supabase, auth);
-        break;
-      case 'get_stage_criteria':
-        result = getStageCriteria();
         break;
       case 'suggest_stage_transition':
         result = await suggestStageTransition(supabase, auth);
@@ -243,25 +254,25 @@ async function gatherStartupMetrics(supabase: any, auth: AuthContext): Promise<S
     has_business_model: (leanCanvas.data?.length || 0) > 0,
     has_market_research: docs.some((d: any) => d.type === 'market_research'),
     has_competitor_analysis: (startupData.competitors?.length || 0) > 0,
-    
+
     // Validation
     customer_interviews: customerContacts.length,
     has_prototype: projectList.some((p: any) => p.status === 'active' || p.status === 'completed'),
     has_landing_page: !!startupData.website_url,
     waitlist_signups: 0, // Would need dedicated tracking
-    
+
     // MVP
     has_product: projectList.some((p: any) => p.status === 'completed'),
     active_users: customerContacts.length, // Proxy metric
     has_feedback_loop: completedTasks.length > 5,
     feature_releases: completedTasks.filter((t: any) => t.category === 'feature').length,
-    
+
     // Growth
     mrr: totalRevenue / 12, // Rough estimate
     team_size: team.count || 1,
     has_marketing: docs.some((d: any) => d.type === 'marketing'),
     month_over_month_growth: 0, // Would need historical data
-    
+
     // Scale
     funding_raised: startupData.funding_raised || 0,
     growth_rate: 0, // Would need historical data
@@ -310,7 +321,7 @@ function calculateStageScore(metrics: StartupMetrics): { total: number; categori
   if (metrics.has_partnerships) categories.scale += 5;
 
   const total = Object.values(categories).reduce((sum, val) => sum + val, 0);
-  
+
   return { total, categories };
 }
 
@@ -400,24 +411,24 @@ async function analyzeStage(supabase: any, auth: AuthContext): Promise<StageAnal
     .single();
 
   const currentStage = (startup?.stage || 'ideation') as StartupStage;
-  
+
   // Gather metrics
   const metrics = await gatherStartupMetrics(supabase, auth);
-  
+
   // Calculate score
   const { total: score, categories } = calculateStageScore(metrics);
-  
+
   // Determine detected stage
   const detectedStage = determineStage(score);
-  
+
   // Get next stage and missing requirements
   const nextStage = getNextStage(detectedStage);
   const missingRequirements = nextStage ? getMissingRequirements(metrics, nextStage) : [];
-  
+
   // Check transition readiness
-  const readyForTransition = detectedStage !== currentStage && 
+  const readyForTransition = detectedStage !== currentStage &&
     STAGE_ORDER.indexOf(detectedStage) > STAGE_ORDER.indexOf(currentStage);
-  
+
   // Generate recommendations
   const recommendations = generateRecommendations(metrics, detectedStage);
 
@@ -447,12 +458,12 @@ async function suggestStageTransition(supabase: any, auth: AuthContext): Promise
   reasons: string[];
 }> {
   const analysis = await analyzeStage(supabase, auth);
-  
-  const shouldTransition = analysis.ready_for_transition && 
+
+  const shouldTransition = analysis.ready_for_transition &&
     analysis.missing_for_next_stage.length === 0;
-  
-  const confidence = shouldTransition 
-    ? Math.min(100, analysis.score + 10) 
+
+  const confidence = shouldTransition
+    ? Math.min(100, analysis.score + 10)
     : Math.max(0, analysis.score - 20);
 
   const reasons: string[] = [];

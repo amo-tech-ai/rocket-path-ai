@@ -1,0 +1,240 @@
+{
+  "main": {
+    "id": "0cd28d9f6029f904",
+    "type": "split",
+    "children": [
+      {
+        "id": "25db3f9cacb0455f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a1943fd752938464",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "research/links/new-links.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "new-links"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cfeb0b492b64722d",
+    "type": "split",
+    "children": [
+      {
+        "id": "ff182a6fd8409afd",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fec3d3f6772dce55",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "a9a622e7a2c645c9",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "ecf7412dfca0c069",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0fd65f133fecd865",
+    "type": "split",
+    "children": [
+      {
+        "id": "9cd431741a57e8eb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3abaf1f17ea8a271",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "docs/18-next-steps.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for 18-next-steps"
+            }
+          },
+          {
+            "id": "0fa2df30c984af60",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "docs/18-next-steps.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from 18-next-steps"
+            }
+          },
+          {
+            "id": "c2bdaee5275fc272",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "7f20c6dd127d5f00",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "224c0c43da07eafd",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "docs/18-next-steps.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of 18-next-steps"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false,
+      "mermaid-tools:Open Mermaid Toolbar": false
+    }
+  },
+  "active": "fec3d3f6772dce55",
+  "lastOpenFiles": [
+    "vite.config.ts.timestamp-1771542142316-db34d65fd0e4f8.mjs",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450325092",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450316996",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450308574",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450293944",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450284664",
+    "tasks/prompts/whats-next.md.tmp.76417.1771450275794",
+    "tasks/prompts/data/07-fix-rls-performance.md.tmp.76417.1771450254881",
+    "tasks/prompts/data/05-add-cron-jobs.md.tmp.76417.1771450254042",
+    "tasks/prompts/00-index.md.tmp.76417.1771450238418",
+    "tasks/prompts/data/02-deploy-missing-edge-functions.md.tmp.76417.1771447844951",
+    "tasks/prompts/edge-function-audit.md",
+    "tasks/audit/26-edge-audit.md",
+    "tasks/prompts/whats-next.md",
+    "tasks/prompts/whats-nexr.md",
+    "tasks/prompts/progress-tracker.md",
+    "tasks/prompts/wireframes/14-settings.md",
+    "tasks/prompts/wireframes/13-financial-model.md",
+    "tasks/prompts/wireframes/12-sprint-board.md",
+    "tasks/prompts/wireframes/11-lean-canvas.md",
+    "tasks/prompts/wireframes/10-gtm-screen.md",
+    "tasks/prompts/wireframes/09-financials-screen.md",
+    "tasks/prompts/wireframes/08-customer-screen.md",
+    "tasks/prompts/wireframes/07-frameworks-screen.md",
+    "tasks/prompts/wireframes/06-overview-screen.md",
+    "tasks/prompts/wireframes/05.2-report-spec.md",
+    "tasks/prompts/wireframes/05.1-ai-chat-spec.md",
+    "tasks/prompts/wireframes/05-report-shell.md",
+    "tasks/prompts/wireframes/04-validator-chat.md",
+    "tasks/prompts/wireframes/03-validate-entry.md",
+    "tasks/prompts/wireframes/02-company-profile.md",
+    "tasks/prompts/wireframes/01-dashboard.md",
+    "tasks/prompts/14-settings.md",
+    "tasks/prompts/13-financial-model.md",
+    "tasks/prompts/12-sprint-board.md",
+    "tasks/prompts/11-lean-canvas.md",
+    "tasks/lean/2026-02-18_04-21.png",
+    "tasks/lean/2026-02-18_04-19.png",
+    "tasks/draft/diagrams/05-timeline-gantt.svg",
+    "tasks/draft/diagrams/04-state-machines.svg",
+    "tasks/draft/diagrams/03-database-erd.svg",
+    "tasks/draft/diagrams/02-agent-sequence.svg",
+    "tasks/draft/diagrams/01-agent-architecture.svg",
+    "tasks/dashboard/StartupAI-–-Strategy-to-Daily-Execution-02-18-2026_12_13_AM.png",
+    "tasks/draft/mermaid/mermaid/lean-system/04-onboarding-wizard.svg",
+    "tasks/draft/mermaid/mermaid/lean-system/03-dashboard.svg",
+    "tasks/docs/canvas/VPD+Companion+EN/__MACOSX/VPD Companion EN/1.Canvas",
+    "tasks/docs/canvas/VPD+Companion+EN/VPD Companion EN/1.Canvas",
+    "lean/docs/canvas/VPD+Companion+EN/__MACOSX/VPD Companion EN/1.Canvas",
+    "lean/docs/canvas/VPD+Companion+EN/VPD Companion EN/1.Canvas"
+  ]
+}

@@ -47,6 +47,7 @@ export function useContacts(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .order('updated_at', { ascending: false });
       
@@ -67,6 +68,7 @@ export function useContact(contactId: string | undefined) {
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
+        .is('deleted_at', null)
         .eq('id', contactId)
         .single();
       
@@ -90,6 +92,7 @@ export function useDeals(startupId: string | undefined) {
           *,
           contact:contacts(id, name, email, company)
         `)
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .eq('is_active', true)
         .order('updated_at', { ascending: false });

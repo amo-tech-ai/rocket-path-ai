@@ -41,3 +41,19 @@ plan/
 *.njsproj
 *.sln
 *.sw?
+
+# Excluded directories — local only
+.auto-claude/
+.agent/
+.backup*/
+docs/
+doc100/
+figma/
+knowledge/
+research/
+tasks/
+thinktankAI/
+website/
+30-day/
+lean/
+screenshots/

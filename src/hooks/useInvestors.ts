@@ -90,6 +90,7 @@ export function useAllInvestors() {
       const { data: startup } = await supabase
         .from('startups')
         .select('id')
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -211,6 +212,7 @@ export function useStartupForInvestors() {
       const { data, error } = await supabase
         .from('startups')
         .select('id, name, is_raising, raise_amount, valuation_cap, funding_rounds')
+        .is('deleted_at', null)
         .limit(1)
         .single();
       

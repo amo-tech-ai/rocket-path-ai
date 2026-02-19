@@ -1,9 +1,13 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+/**
+ * Action Recommender Edge Function
+ * Rule-based recommendations for startup next steps.
+ * Migrated to shared patterns: JWT auth, rate limiting, shared CORS.
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform',
-};
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface RecommendedAction {
   id: string;
@@ -24,15 +28,18 @@ interface ActionRecommendation {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  const corsHeaders = getCorsHeaders(req);
 
+  try {
     // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -42,14 +49,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+    // User-scoped client (RLS enforced)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Rate limit (light — rule-based, no AI)
+    const rateResult = checkRateLimit(user.id, "action-recommender", RATE_LIMITS.light);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     const body = await req.json().catch(() => ({}));
@@ -62,7 +80,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify access
+    // Verify access (defense-in-depth — RLS also enforces this)
     const { data: membership } = await supabase
       .from('startup_members')
       .select('id')
@@ -96,7 +114,7 @@ Deno.serve(async (req) => {
 });
 
 async function generateRecommendations(
-  supabase: any, 
+  supabase: any,
   startupId: string,
   healthScore?: { breakdown: Record<string, { score: number }> }
 ): Promise<ActionRecommendation> {

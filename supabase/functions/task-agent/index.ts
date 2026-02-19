@@ -1,14 +1,32 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+/**
+ * Task Agent - Main Handler
+ * Generates, prioritizes, breaks down, and plans tasks for startups.
+ * Migrated to shared patterns (006-EFN): G1 schemas, shared CORS, rate limiting.
+ * 6 actions: generate_tasks, prioritize_tasks, suggest_next,
+ *            breakdown_task, analyze_productivity, generate_daily_plan
+ */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callGemini, extractJSON } from "../_shared/gemini.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import {
+  GENERATE_TASKS_SYSTEM,
+  PRIORITIZE_TASKS_SYSTEM,
+  SUGGEST_NEXT_SYSTEM,
+  BREAKDOWN_TASK_SYSTEM,
+  ANALYZE_PRODUCTIVITY_SYSTEM,
+  DAILY_PLAN_SYSTEM,
+  generateTasksSchema,
+  prioritizeTasksSchema,
+  suggestNextSchema,
+  breakdownTaskSchema,
+  analyzeProductivitySchema,
+  dailyPlanSchema,
+} from "./prompt.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const MODEL = "gemini-3-flash-preview";
 
 // ============ TYPES ============
 
@@ -41,62 +59,8 @@ interface Project {
   status?: string;
 }
 
-// ============ HELPERS ============
-
-async function callGemini(prompt: string, systemPrompt?: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("Gemini API error:", error);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
-
-function parseJsonResponse<T>(text: string): T {
-  const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || 
-                    text.match(/\{[\s\S]*\}/) ||
-                    text.match(/\[[\s\S]*\]/);
-  
-  if (jsonMatch) {
-    const jsonStr = jsonMatch[1] || jsonMatch[0];
-    return JSON.parse(jsonStr);
-  }
-  throw new Error("Could not parse JSON from response");
-}
-
-function createSupabaseClient(authHeader: string) {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
-}
-
-type SupabaseClient = ReturnType<typeof createSupabaseClient>;
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 
 // ============ ACTION HANDLERS ============
 
@@ -140,7 +104,7 @@ async function generateTasks(
 
   const existingTaskTitles = (existingTasks || []).map((t: { title: string }) => t.title).join(", ");
 
-  const prompt = `Generate ${options.count || 5} actionable tasks for this startup:
+  const userPrompt = `Generate ${options.count || 5} actionable tasks for this startup:
 
 STARTUP:
 - Name: ${startupData?.name || "Startup"}
@@ -152,25 +116,14 @@ ${projectContext}
 FOCUS AREA: ${options.focusArea || "General growth and development"}
 ADDITIONAL CONTEXT: ${options.context || ""}
 
-EXISTING TASKS (avoid duplicates): ${existingTaskTitles || "None"}
+EXISTING TASKS (avoid duplicates): ${existingTaskTitles || "None"}`;
 
-Generate tasks as JSON:
-{
-  "tasks": [
-    {
-      "title": "Clear, actionable task title",
-      "description": "Detailed description with specific steps",
-      "priority": "high|medium|low",
-      "category": "product|marketing|sales|operations|finance|legal|hiring",
-      "estimated_hours": 2,
-      "suggested_due_days": 7
-    }
-  ],
-  "reasoning": "Why these tasks are recommended for this stage"
-}`;
+  const result = await callGemini(MODEL, GENERATE_TASKS_SYSTEM, userPrompt, {
+    responseJsonSchema: generateTasksSchema,
+    timeoutMs: 30_000,
+  });
 
-  const response = await callGemini(prompt, "You are a startup advisor generating actionable, specific tasks. Focus on high-impact activities that match the startup's current stage.");
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     tasks: Array<{
       title: string;
       description: string;
@@ -180,13 +133,13 @@ Generate tasks as JSON:
       suggested_due_days: number;
     }>;
     reasoning: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
-    tasks: result.tasks,
-    reasoning: result.reasoning,
-    count: result.tasks.length,
+    tasks: parsed?.tasks || [],
+    reasoning: parsed?.reasoning || "",
+    count: parsed?.tasks?.length || 0,
   };
 }
 
@@ -229,30 +182,17 @@ async function prioritizeTasks(
     .map((t, i) => `${i + 1}. [${t.id}] "${t.title}" - Priority: ${t.priority}, Status: ${t.status}, Category: ${t.category || "uncategorized"}`)
     .join("\n");
 
-  const prompt = `Prioritize these tasks for a ${startupData?.stage || "early"} stage ${startupData?.industry || "tech"} startup:
+  const userPrompt = `Prioritize these tasks for a ${startupData?.stage || "early"} stage ${startupData?.industry || "tech"} startup:
 
 TASKS:
-${taskDescriptions}
+${taskDescriptions}`;
 
-Provide prioritization as JSON:
-{
-  "prioritized_order": [
-    {
-      "task_id": "uuid",
-      "new_priority": "high|medium|low",
-      "rank": 1,
-      "reasoning": "Why this should be done first",
-      "impact_score": 85,
-      "urgency_score": 70,
-      "effort_estimate": "low|medium|high"
-    }
-  ],
-  "focus_recommendation": "What to focus on this week",
-  "defer_recommendation": "What can wait"
-}`;
+  const result = await callGemini(MODEL, PRIORITIZE_TASKS_SYSTEM, userPrompt, {
+    responseJsonSchema: prioritizeTasksSchema,
+    timeoutMs: 30_000,
+  });
 
-  const response = await callGemini(prompt, "You are a productivity expert helping founders prioritize effectively. Consider impact, urgency, and dependencies.");
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     prioritized_order: Array<{
       task_id: string;
       new_priority: string;
@@ -264,10 +204,12 @@ Provide prioritization as JSON:
     }>;
     focus_recommendation: string;
     defer_recommendation: string;
-  }>(response);
+  }>(result.text);
+
+  const prioritizedOrder = parsed?.prioritized_order || [];
 
   // Update task priorities in database
-  for (const item of result.prioritized_order) {
+  for (const item of prioritizedOrder) {
     await supabase
       .from("tasks")
       .update({ priority: item.new_priority })
@@ -276,10 +218,10 @@ Provide prioritization as JSON:
 
   return {
     success: true,
-    prioritized_tasks: result.prioritized_order,
-    focus_recommendation: result.focus_recommendation,
-    defer_recommendation: result.defer_recommendation,
-    updated_count: result.prioritized_order.length,
+    prioritized_tasks: prioritizedOrder,
+    focus_recommendation: parsed?.focus_recommendation || "",
+    defer_recommendation: parsed?.defer_recommendation || "",
+    updated_count: prioritizedOrder.length,
   };
 }
 
@@ -323,7 +265,7 @@ async function suggestNextTasks(
     .map((t) => `- [${t.priority}] "${t.title}" (${t.status})${t.category ? ` [${t.category}]` : ""}`)
     .join("\n");
 
-  const prompt = `Suggest the best tasks to work on right now:
+  const userPrompt = `Suggest the best tasks to work on right now:
 
 CONTEXT:
 - Startup Stage: ${startupData?.stage || "early"}
@@ -332,24 +274,14 @@ CONTEXT:
 - Focus Area: ${options.focusArea || "Any"}
 
 AVAILABLE TASKS:
-${taskDescriptions}
+${taskDescriptions}`;
 
-Provide suggestions as JSON:
-{
-  "suggestions": [
-    {
-      "title": "Task title from list",
-      "why_now": "Reason this is the best choice right now",
-      "estimated_time": "30 min",
-      "momentum_tip": "How to get started quickly"
-    }
-  ],
-  "batch_suggestion": "Group of small tasks that can be done together",
-  "avoid_now": "What to skip given current energy/time"
-}`;
+  const result = await callGemini(MODEL, SUGGEST_NEXT_SYSTEM, userPrompt, {
+    responseJsonSchema: suggestNextSchema,
+    timeoutMs: 30_000,
+  });
 
-  const response = await callGemini(prompt, "You are a productivity coach. Match task suggestions to available time and energy.");
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     suggestions: Array<{
       title: string;
       why_now: string;
@@ -358,13 +290,13 @@ Provide suggestions as JSON:
     }>;
     batch_suggestion: string;
     avoid_now: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
-    suggestions: result.suggestions,
-    batch_suggestion: result.batch_suggestion,
-    avoid_now: result.avoid_now,
+    suggestions: parsed?.suggestions || [],
+    batch_suggestion: parsed?.batch_suggestion || "",
+    avoid_now: parsed?.avoid_now || "",
   };
 }
 
@@ -386,31 +318,20 @@ async function breakdownTask(
     throw new Error("Task not found");
   }
 
-  const prompt = `Break down this task into smaller, actionable subtasks:
+  const userPrompt = `Break down this task into smaller, actionable subtasks:
 
 TASK: ${taskData.title}
 DESCRIPTION: ${taskData.description || "No description"}
 PRIORITY: ${taskData.priority}
 
-Create 3-7 subtasks as JSON:
-{
-  "subtasks": [
-    {
-      "title": "Specific subtask title",
-      "description": "What exactly to do",
-      "estimated_minutes": 30,
-      "order": 1,
-      "can_be_delegated": true,
-      "tools_needed": ["Tool or resource needed"]
-    }
-  ],
-  "total_estimated_hours": 4,
-  "complexity": "low|medium|high",
-  "suggested_approach": "Best way to tackle this task"
-}`;
+Create 3-7 subtasks.`;
 
-  const response = await callGemini(prompt, "You are a project management expert. Break tasks into concrete, achievable steps.");
-  const result = parseJsonResponse<{
+  const result = await callGemini(MODEL, BREAKDOWN_TASK_SYSTEM, userPrompt, {
+    responseJsonSchema: breakdownTaskSchema,
+    timeoutMs: 30_000,
+  });
+
+  const parsed = extractJSON<{
     subtasks: Array<{
       title: string;
       description: string;
@@ -422,15 +343,15 @@ Create 3-7 subtasks as JSON:
     total_estimated_hours: number;
     complexity: string;
     suggested_approach: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     parent_task: taskData.title,
-    subtasks: result.subtasks,
-    total_estimated_hours: result.total_estimated_hours,
-    complexity: result.complexity,
-    suggested_approach: result.suggested_approach,
+    subtasks: parsed?.subtasks || [],
+    total_estimated_hours: parsed?.total_estimated_hours || 0,
+    complexity: parsed?.complexity || "medium",
+    suggested_approach: parsed?.suggested_approach || "",
   };
 }
 
@@ -463,7 +384,7 @@ async function analyzeProductivity(
     byPriority[t.priority] = (byPriority[t.priority] || 0) + 1;
   });
 
-  const prompt = `Analyze this task completion data and provide insights:
+  const userPrompt = `Analyze this task completion data and provide insights:
 
 PERIOD: Last ${days} days
 TOTAL TASKS CREATED: ${taskList.length}
@@ -473,32 +394,21 @@ PENDING: ${pending.length}
 COMPLETION RATE: ${Math.round((completed.length / Math.max(taskList.length, 1)) * 100)}%
 
 BY CATEGORY (completed): ${JSON.stringify(byCategory)}
-BY PRIORITY (completed): ${JSON.stringify(byPriority)}
+BY PRIORITY (completed): ${JSON.stringify(byPriority)}`;
 
-Provide productivity analysis as JSON:
-{
-  "health_score": 75,
-  "summary": "Brief productivity assessment",
-  "strengths": ["What's working well"],
-  "areas_to_improve": ["What needs attention"],
-  "recommendations": [
-    {
-      "action": "Specific recommendation",
-      "expected_impact": "How it will help"
-    }
-  ],
-  "focus_suggestion": "What to prioritize next"
-}`;
+  const result = await callGemini(MODEL, ANALYZE_PRODUCTIVITY_SYSTEM, userPrompt, {
+    responseJsonSchema: analyzeProductivitySchema,
+    timeoutMs: 30_000,
+  });
 
-  const response = await callGemini(prompt, "You are a productivity analyst. Provide actionable insights based on task completion patterns.");
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     health_score: number;
     summary: string;
     strengths: string[];
     areas_to_improve: string[];
     recommendations: Array<{ action: string; expected_impact: string }>;
     focus_suggestion: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
@@ -510,7 +420,12 @@ Provide productivity analysis as JSON:
       pending: pending.length,
       completion_rate: Math.round((completed.length / Math.max(taskList.length, 1)) * 100),
     },
-    ...result,
+    health_score: parsed?.health_score || 0,
+    summary: parsed?.summary || "",
+    strengths: parsed?.strengths || [],
+    areas_to_improve: parsed?.areas_to_improve || [],
+    recommendations: parsed?.recommendations || [],
+    focus_suggestion: parsed?.focus_suggestion || "",
   };
 }
 
@@ -545,35 +460,21 @@ async function generateDailyPlan(
     .map((t) => `- "${t.title}" [${t.priority}] ${t.status === "in_progress" ? "(in progress)" : ""}`)
     .join("\n");
 
-  const prompt = `Create an optimal daily work plan:
+  const userPrompt = `Create an optimal daily work plan:
 
 STARTUP: ${startupData?.name || "Startup"} (${startupData?.stage || "early"} stage)
 AVAILABLE HOURS: ${options.availableHours || 8}
 PRIORITY FOCUS: ${options.priorities?.join(", ") || "balanced"}
 
 TASKS TO CHOOSE FROM:
-${taskDescriptions}
+${taskDescriptions}`;
 
-Create a daily plan as JSON:
-{
-  "plan": [
-    {
-      "time_block": "9:00 AM - 10:30 AM",
-      "task": "Task title",
-      "duration_minutes": 90,
-      "focus_type": "deep_work|meetings|admin",
-      "energy_required": "high|medium|low",
-      "tip": "How to maximize this block"
-    }
-  ],
-  "breaks": ["12:00 PM - 12:30 PM: Lunch"],
-  "buffer_time": "30 min for unexpected items",
-  "daily_goal": "Main accomplishment for the day",
-  "evening_prep": "What to prepare for tomorrow"
-}`;
+  const result = await callGemini(MODEL, DAILY_PLAN_SYSTEM, userPrompt, {
+    responseJsonSchema: dailyPlanSchema,
+    timeoutMs: 30_000,
+  });
 
-  const response = await callGemini(prompt, "You are a time management expert. Create realistic, energy-aware daily plans.");
-  const result = parseJsonResponse<{
+  const parsed = extractJSON<{
     plan: Array<{
       time_block: string;
       task: string;
@@ -586,22 +487,31 @@ Create a daily plan as JSON:
     buffer_time: string;
     daily_goal: string;
     evening_prep: string;
-  }>(response);
+  }>(result.text);
 
   return {
     success: true,
     available_hours: options.availableHours || 8,
-    ...result,
+    plan: parsed?.plan || [],
+    breaks: parsed?.breaks || [],
+    buffer_time: parsed?.buffer_time || "",
+    daily_goal: parsed?.daily_goal || "",
+    evening_prep: parsed?.evening_prep || "",
   };
 }
 
 // ============ MAIN HANDLER ============
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
+
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -612,10 +522,29 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createSupabaseClient(authHeader);
-    const { action, ...payload } = await req.json();
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
-    console.log(`[task-agent] Action: ${action}`, { startup_id: payload.startup_id });
+    // Auth check
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Rate limit
+    const rateResult = checkRateLimit(user.id, "task-agent", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
+    }
+
+    const { action, ...payload } = await req.json();
+    console.log(`[task-agent] Action: ${action}, User: ${user.id}`);
 
     let result: unknown;
 
@@ -670,9 +599,9 @@ serve(async (req) => {
   } catch (error) {
     console.error("[task-agent] Error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",
-        success: false 
+        success: false,
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

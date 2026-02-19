@@ -33,6 +33,7 @@ export interface KnowledgeSearchRequest {
   matchThreshold?: number;
   matchCount?: number;
   category?: string;
+  industry?: string;
 }
 
 export interface RAGContext {

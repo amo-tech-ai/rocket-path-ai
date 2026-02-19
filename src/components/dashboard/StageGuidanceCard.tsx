@@ -25,17 +25,17 @@ interface StageGuidanceCardProps {
 }
 
 const stageColors: Record<StartupStage, string> = {
-  idea: 'bg-blue-500/10 text-blue-600 border-blue-200',
-  pre_seed: 'bg-purple-500/10 text-purple-600 border-purple-200',
+  idea: 'bg-status-info-light text-status-info border-status-info/20',
+  pre_seed: 'bg-primary/10 text-primary border-primary/20',
   seed: 'bg-sage-light text-sage border-sage/30',
-  series_a: 'bg-amber-500/10 text-amber-600 border-amber-200',
+  series_a: 'bg-status-warning-light text-status-warning border-status-warning/20',
 };
 
 const categoryColors: Record<string, string> = {
-  discovery: 'bg-blue-100 text-blue-700',
-  product: 'bg-purple-100 text-purple-700',
-  growth: 'bg-green-100 text-green-700',
-  fundraising: 'bg-amber-100 text-amber-700',
+  discovery: 'bg-status-info-light text-status-info',
+  product: 'bg-primary/10 text-primary',
+  growth: 'bg-status-success-light text-status-success',
+  fundraising: 'bg-status-warning-light text-status-warning',
 };
 
 function MilestoneItem({ milestone }: { milestone: Milestone }) {
@@ -85,7 +85,7 @@ function RecommendationItem({ recommendation }: { recommendation: StageRecommend
     >
       <Sparkles className={cn(
         'w-3.5 h-3.5 mt-0.5 shrink-0',
-        recommendation.priority === 'high' ? 'text-amber-500' : 'text-muted-foreground'
+        recommendation.priority === 'high' ? 'text-status-warning' : 'text-muted-foreground'
       )} />
       <div className="flex-1 min-w-0">
         <p className="text-sm">{recommendation.action}</p>

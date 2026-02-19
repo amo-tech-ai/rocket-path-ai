@@ -253,9 +253,9 @@ function formatNumber(value: number): string {
 }
 
 function getPercentileColor(percentile: number): string {
-  if (percentile >= 75) return 'text-emerald-500';
-  if (percentile >= 50) return 'text-amber-500';
-  return 'text-rose-500';
+  if (percentile >= 75) return 'text-status-success';
+  if (percentile >= 50) return 'text-status-warning';
+  return 'text-status-critical';
 }
 
 export default IndustryBenchmarks;

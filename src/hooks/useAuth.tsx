@@ -26,8 +26,8 @@ interface AuthContextType {
   profile: Profile | null;
   userRole: UserRole | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  signInWithLinkedIn: () => Promise<void>;
+  signInWithGoogle: (returnPath?: string) => Promise<void>;
+  signInWithLinkedIn: (returnPath?: string) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isModerator: boolean;
@@ -136,12 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (returnPath?: string) => {
+    const base = window.location.origin + '/auth/callback';
+    const redirectTo = returnPath
+      ? `${base}?next=${encodeURIComponent(returnPath)}`
+      : base;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
+      options: { redirectTo },
     });
 
     if (error) {
@@ -150,12 +152,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithLinkedIn = async () => {
+  const signInWithLinkedIn = async (returnPath?: string) => {
+    const base = window.location.origin + '/auth/callback';
+    const redirectTo = returnPath
+      ? `${base}?next=${encodeURIComponent(returnPath)}`
+      : base;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
+      options: { redirectTo },
     });
 
     if (error) {

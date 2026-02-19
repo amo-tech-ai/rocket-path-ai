@@ -64,6 +64,7 @@ export function useDashboardMetrics(startupId: string | undefined) {
         supabase
           .from('tasks')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .neq('status', 'completed'),
         
@@ -78,18 +79,21 @@ export function useDashboardMetrics(startupId: string | undefined) {
         supabase
           .from('documents')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId),
         
         // Contacts count
         supabase
           .from('contacts')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId),
         
         // Active deals count
         supabase
           .from('deals')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('is_active', true),
         
@@ -97,6 +101,7 @@ export function useDashboardMetrics(startupId: string | undefined) {
         supabase
           .from('projects')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('status', 'active'),
       ]);
@@ -154,6 +159,7 @@ export function useMetricChanges(startupId: string | undefined) {
         supabase
           .from('tasks')
           .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('status', 'completed')
           .gte('updated_at', weekAgoISO),

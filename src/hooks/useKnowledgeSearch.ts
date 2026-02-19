@@ -28,14 +28,14 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
         throw new Error('Not authenticated');
       }
       
-      // Call the ai-chat edge function with search_knowledge action
-      const { data, error } = await supabase.functions.invoke('ai-chat', {
+      // Call the dedicated knowledge-search edge function
+      const { data, error } = await supabase.functions.invoke('knowledge-search', {
         body: {
-          action: 'search_knowledge',
           query: request.query,
-          matchThreshold: request.matchThreshold || 0.75,
-          matchCount: request.matchCount || 5,
-          category: request.category,
+          match_threshold: request.matchThreshold || 0.5,
+          match_count: request.matchCount || 10,
+          filter_category: request.category || null,
+          filter_industry: request.industry || null,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,

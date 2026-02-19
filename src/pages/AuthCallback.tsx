@@ -1,81 +1,87 @@
 /**
  * OAuth Callback Handler
- * 
+ *
  * Handles the redirect from OAuth providers (Google, LinkedIn).
- * Waits for Supabase to complete the session exchange, then redirects
- * based on onboarding status.
+ * Parse `next` synchronously on mount (before async) — URL can be consumed.
+ *
+ * @see tasks/data/auth-setup/03-auth-setup-checklist.md
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { getReturnPath, clearReturnPath, isValidReturnPath } from '@/lib/authReturnPath';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
+  // Parse next synchronously on mount — do not defer (Supabase/React can consume URL)
+  const next = useMemo(() => {
+    const raw =
+      getReturnPath() ||
+      searchParams.get('next') ||
+      '/dashboard';
+    return isValidReturnPath(raw) ? raw : '/dashboard';
+  }, [searchParams]);
+
   useEffect(() => {
-    // Check for OAuth errors in URL params
     const errorParam = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
-    
+
     if (errorParam) {
       console.error('[AuthCallback] OAuth error:', errorParam, errorDescription);
       setError(errorDescription || errorParam);
       return;
     }
 
-    // Listen for auth state change (session established)
+    const redirect = (target: string) => {
+      clearReturnPath();
+      navigate(target, { replace: true });
+    };
+
+    const handleSession = async (session: { user: { id: string } } | null) => {
+      if (!session?.user) return;
+
+      const pendingIdea = sessionStorage.getItem('pendingIdea');
+      if (pendingIdea) {
+        redirect('/validate?hasIdea=true');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_completed')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile?.onboarding_completed) {
+        redirect(next);
+      } else {
+        navigate('/onboarding', { replace: true });
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[AuthCallback] Auth event:', event, !!session);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Check if user has completed onboarding
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('onboarding_completed')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          
-          if (profile?.onboarding_completed) {
-            navigate('/dashboard', { replace: true });
-          } else {
-            navigate('/onboarding', { replace: true });
-          }
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          handleSession(session);
         }
       }
     );
 
-    // Also check if we already have a session (in case onAuthStateChange missed it)
-    const checkExistingSession = async () => {
+    const timeout = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_completed')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        
-        if (profile?.onboarding_completed) {
-          navigate('/dashboard', { replace: true });
-        } else {
-          navigate('/onboarding', { replace: true });
-        }
-      }
-    };
-
-    // Small delay to let Supabase process the OAuth code
-    const timeout = setTimeout(checkExistingSession, 500);
+      await handleSession(session);
+    }, 500);
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, next]);
 
   if (error) {
     return (

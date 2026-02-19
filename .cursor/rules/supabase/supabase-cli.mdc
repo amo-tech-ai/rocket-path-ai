@@ -46,11 +46,11 @@ export SUPABASE_ACCESS_TOKEN=your-access-token
 ### 2. Link to Remote Project
 
 ```bash
-# Link to existing project (uses project ref from .env or prompts)
-supabase link  
-# Or link interactively
+# Link interactively (prompts for project selection)
 supabase link
-# Follow prompts to select project
+
+# Or link with explicit project ref
+supabase link --project-ref <your-project-ref>
 
 # Verify link
 supabase projects list
@@ -74,10 +74,12 @@ supabase init
 
 ## Local Development
 
+> **Requires Docker:** `supabase start`, `supabase stop`, `supabase db reset`, `supabase functions serve`, and `supabase db diff` all require Docker Desktop running. If Docker is not loaded, use `supabase db push` (remote) and Supabase MCP for database operations instead.
+
 ### Start Local Supabase
 
 ```bash
-# Start all services (Postgres, API, Auth, Storage, Studio)
+# Start all services (Postgres, API, Auth, Storage, Studio) — REQUIRES DOCKER
 supabase start
 
 # Check status and get connection details
@@ -244,12 +246,16 @@ supabase db push --dry-run  # Preview changes
 
 ### Execute SQL
 
-```bash
-# Execute SQL file locally
-supabase db execute <file.sql>
+There is no `supabase db execute` command. Use these alternatives:
 
-# Execute SQL on remote (use with caution)
-supabase db execute <file.sql> --linked
+```bash
+# Execute SQL via psql (local)
+psql "postgresql://postgres:postgres@localhost:54322/postgres" -f <file.sql>
+
+# Execute SQL on remote via connection string (Dashboard → Settings → Database)
+psql "<remote-connection-string>" -f <file.sql>
+
+# Or use Supabase MCP / Dashboard SQL editor for ad-hoc queries
 ```
 
 ---
@@ -301,8 +307,8 @@ supabase functions deploy <function-name> --no-verify-jwt
 # Set secret for local development
 supabase secrets set GEMINI_API_KEY=your-key
 
-# Set secret for remote project
-supabase secrets set GEMINI_API_KEY=your-key --project-ref bdfhuudcdhvngvpqxfhj
+# Set secret for remote project (linked project — no --project-ref needed if linked)
+supabase secrets set GEMINI_API_KEY=your-key
 
 # List secrets
 supabase secrets list
@@ -408,7 +414,7 @@ brew install supabase/tap/supabase  # macOS
 supabase login
 
 # 3. Link to project
-supabase link --project-ref  yvyesmiczbjqwbqtlidy
+supabase link --project-ref <your-project-ref>
 
 # 4. Start local
 supabase start
@@ -497,10 +503,10 @@ supabase status
 Use `.env` file with remote credentials:
 
 ```env
-SUPABASE_URL=https://yvyesmiczbjqwbqtlidy.supabase.co
+SUPABASE_URL=https://<your-project-ref>.supabase.co
 SUPABASE_ANON_KEY=<from-dashboard>
 SUPABASE_SERVICE_ROLE_KEY=<from-dashboard>
-SUPABASE_ACCESS_TOKEN=<from-dashboard>
+SUPABASE_ACCESS_TOKEN=<from-dashboard-account-tokens>
 ```
 
 ---
@@ -589,19 +595,20 @@ cat .supabase/config.toml
 ### Current Project Setup
 
 ```bash
-# Project Reference:  yvyesmiczbjqwbqtlidy
-# Link to project
-supabase link --project-ref yvyesmiczbjqwbqtlidy
-# Start local development
+# Project Reference is in .supabase/.temp/project-ref or Dashboard → Settings → General
+# Link to project (one-time)
+supabase link --project-ref <your-project-ref>
+
+# Start local development (requires Docker)
 supabase start
 
-# Generate migration from schema changes
+# Generate migration from schema changes (requires Docker)
 supabase stop
 supabase db diff -f <migration_name>
 supabase start
 supabase db reset
 
-# Deploy to remote
+# Deploy to remote (no Docker required)
 supabase db push
 ```
 

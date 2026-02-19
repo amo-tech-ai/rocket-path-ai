@@ -1,23 +1,40 @@
 /**
  * Documents Agent - Main Handler
- * Orchestrates all document AI operations
+ * Orchestrates all document AI operations.
+ * Migrated to shared patterns (006-EFN): G1 schemas, shared CORS, rate limiting.
  * Actions: generate_document, analyze_document, improve_section,
- *          search_documents, summarize_document, compare_versions
+ *          search_documents, summarize_document, compare_versions,
+ *          create_data_room, organize_data_room, generate_investor_update,
+ *          generate_competitive_analysis
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callGemini, extractJSON } from "../_shared/gemini.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import {
+  GENERATE_DOCUMENT_SYSTEM,
+  ANALYZE_DOCUMENT_SYSTEM,
+  IMPROVE_SECTION_SYSTEM,
+  SUMMARIZE_DOCUMENT_SYSTEM,
+  COMPARE_VERSIONS_SYSTEM,
+  CREATE_DATA_ROOM_SYSTEM,
+  INVESTOR_UPDATE_SYSTEM,
+  COMPETITIVE_ANALYSIS_SYSTEM,
+  generateDocumentSchema,
+  analyzeDocumentSchema,
+  improveSectionSchema,
+  summarizeDocumentSchema,
+  compareVersionsSchema,
+  createDataRoomSchema,
+  investorUpdateSchema,
+  competitiveAnalysisSchema,
+} from "./prompt.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const MODEL = "gemini-3-flash-preview";
 
-// Use environment variables (set automatically by Supabase)
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 
 interface RequestBody {
@@ -61,67 +78,6 @@ const DOCUMENT_TEMPLATES: Record<string, { title: string; sections: string[] }> 
   },
 };
 
-// ===== AI Utilities =====
-
-async function callGemini(
-  prompt: string,
-  systemInstruction?: string
-): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    console.error("[documents-agent] GEMINI_API_KEY not set");
-    throw new Error("AI service not configured");
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        systemInstruction: systemInstruction
-          ? { parts: [{ text: systemInstruction }] }
-          : undefined,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("[documents-agent] Gemini error:", error);
-    throw new Error("AI generation failed");
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
-
-function extractJSON<T>(text: string): T | null {
-  try {
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1].trim());
-    }
-    return JSON.parse(text);
-  } catch {
-    const objectMatch = text.match(/\{[\s\S]*\}/);
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    const match = objectMatch || arrayMatch;
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
-
 // ===== Action Handlers =====
 
 async function generateDocument(
@@ -149,7 +105,7 @@ async function generateDocument(
     return { success: false, error: "Startup not found" };
   }
 
-  const prompt = `Generate a professional ${template.title} document for this startup.
+  const userPrompt = `Generate a professional ${template.title} document for this startup.
 
 STARTUP CONTEXT:
 - Name: ${startup.name}
@@ -165,25 +121,15 @@ ${template.sections.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
 ${instructions ? `ADDITIONAL INSTRUCTIONS: ${instructions}` : ''}
 
-Return JSON with this structure:
-{
-  "title": "${template.title}",
-  "sections": [
-    { "heading": "Section Name", "content": "Section content..." },
-    ...
-  ],
-  "summary": "One paragraph executive summary"
-}
-
 Write professional, investor-ready content. Be specific and data-driven where possible.`;
 
   try {
-    const response = await callGemini(
-      prompt,
-      "You are an expert startup document writer with experience creating investor-ready materials."
-    );
-    
-    const contentJson = extractJSON<{ title: string; sections: Array<{ heading: string; content: string }>; summary: string }>(response);
+    const result = await callGemini(MODEL, GENERATE_DOCUMENT_SYSTEM, userPrompt, {
+      responseJsonSchema: generateDocumentSchema,
+      timeoutMs: 30_000,
+    });
+
+    const contentJson = extractJSON<{ title: string; sections: Array<{ heading: string; content: string }>; summary: string }>(result.text);
 
     if (!contentJson) {
       return { success: false, error: "Failed to parse AI response" };
@@ -245,7 +191,7 @@ async function analyzeDocument(
 
   const content = document.content || JSON.stringify(document.content_json);
 
-  const prompt = `Analyze this startup document for quality and completeness.
+  const userPrompt = `Analyze this startup document for quality and completeness.
 
 DOCUMENT TYPE: ${document.type}
 TITLE: ${document.title}
@@ -257,30 +203,23 @@ Analyze for:
 1. Completeness (are all key sections present?)
 2. Clarity (is the message clear?)
 3. Investor-readiness (would this impress investors?)
-4. Data-richness (are there specific numbers/metrics?)
-
-Return JSON:
-{
-  "score": 0-100,
-  "completeness": 0-100,
-  "clarity_score": 0-100,
-  "data_score": 0-100,
-  "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
-  "strengths": ["strength1", "strength2"],
-  "missing_sections": ["section1", "section2"]
-}`;
+4. Data-richness (are there specific numbers/metrics?)`;
 
   try {
-    const response = await callGemini(prompt, "You are a startup document quality analyst.");
-    const result = extractJSON<{ 
-      score: number; 
-      completeness: number; 
+    const result = await callGemini(MODEL, ANALYZE_DOCUMENT_SYSTEM, userPrompt, {
+      responseJsonSchema: analyzeDocumentSchema,
+      timeoutMs: 30_000,
+    });
+
+    const parsed = extractJSON<{
+      score: number;
+      completeness: number;
       suggestions: string[];
       strengths: string[];
       missing_sections: string[];
-    }>(response);
+    }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
@@ -290,8 +229,8 @@ Return JSON:
       .update({
         metadata: {
           ...document.metadata,
-          quality_score: result.score,
-          completeness: result.completeness,
+          quality_score: parsed.score,
+          completeness: parsed.completeness,
           last_analyzed_at: new Date().toISOString(),
         },
       })
@@ -299,9 +238,9 @@ Return JSON:
 
     return {
       success: true,
-      score: result.score,
-      completeness: result.completeness,
-      suggestions: result.suggestions,
+      score: parsed.score,
+      completeness: parsed.completeness,
+      suggestions: parsed.suggestions,
     };
   } catch (error) {
     console.error("[documents-agent] analyzeDocument error:", error);
@@ -335,7 +274,7 @@ async function improveSection(
     .eq("id", startupId)
     .single();
 
-  const prompt = `Improve this section of a startup document.
+  const userPrompt = `Improve this section of a startup document.
 
 STARTUP: ${startup?.name || 'Unknown'} (${startup?.industry || 'Unknown industry'}, ${startup?.stage || 'Unknown stage'})
 
@@ -351,17 +290,19 @@ Write an improved version that is:
 - Clear and concise
 - Professional in tone
 
-Return ONLY the improved text, no JSON wrapper.`;
+Return the improved text in the "improved_text" field.`;
 
   try {
-    const response = await callGemini(
-      prompt,
-      "You are an expert startup document editor. Improve content to be investor-ready."
-    );
+    const result = await callGemini(MODEL, IMPROVE_SECTION_SYSTEM, userPrompt, {
+      responseJsonSchema: improveSectionSchema,
+      timeoutMs: 30_000,
+    });
+
+    const parsed = extractJSON<{ improved_text: string }>(result.text);
 
     return {
       success: true,
-      improved_text: response.trim(),
+      improved_text: parsed?.improved_text || result.text.trim(),
     };
   } catch (error) {
     console.error("[documents-agent] improveSection error:", error);
@@ -388,15 +329,15 @@ async function searchDocuments(
 
   // Simple keyword search with relevance scoring
   const queryWords = query.toLowerCase().split(/\s+/);
-  
+
   type DocType = { id: string; title: string; content?: string; type: string };
   type ResultType = { id: string; title: string; relevance: number; snippet: string };
-  
+
   const results: ResultType[] = (documents as DocType[])
     .map((doc) => {
       const content = (doc.content || '').toLowerCase();
       const title = doc.title.toLowerCase();
-      
+
       let relevance = 0;
       let matchedSnippet = '';
 
@@ -404,7 +345,7 @@ async function searchDocuments(
         if (title.includes(word)) relevance += 30;
         const contentMatches = (content.match(new RegExp(word, 'gi')) || []).length;
         relevance += Math.min(contentMatches * 5, 50);
-        
+
         // Extract snippet around first match
         if (!matchedSnippet && content.includes(word)) {
           const index = content.indexOf(word);
@@ -448,34 +389,30 @@ async function summarizeDocument(
 
   const content = document.content || JSON.stringify(document.content_json);
 
-  const prompt = `Summarize this startup document.
+  const userPrompt = `Summarize this startup document.
 
 DOCUMENT TYPE: ${document.type}
 TITLE: ${document.title}
 
 CONTENT:
-${content.substring(0, 4000)}
-
-Return JSON:
-{
-  "summary": "2-3 sentence executive summary",
-  "key_points": ["key point 1", "key point 2", "key point 3", "key point 4", "key point 5"],
-  "audience": "who this document is for",
-  "main_ask": "if there's a call to action, what is it"
-}`;
+${content.substring(0, 4000)}`;
 
   try {
-    const response = await callGemini(prompt, "You are a document summarization expert.");
-    const result = extractJSON<{ summary: string; key_points: string[]; audience: string; main_ask: string }>(response);
+    const result = await callGemini(MODEL, SUMMARIZE_DOCUMENT_SYSTEM, userPrompt, {
+      responseJsonSchema: summarizeDocumentSchema,
+      timeoutMs: 30_000,
+    });
 
-    if (!result) {
+    const parsed = extractJSON<{ summary: string; key_points: string[]; audience: string; main_ask: string }>(result.text);
+
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
     return {
       success: true,
-      summary: result.summary,
-      key_points: result.key_points,
+      summary: parsed.summary,
+      key_points: parsed.key_points,
     };
   } catch (error) {
     console.error("[documents-agent] summarizeDocument error:", error);
@@ -505,41 +442,36 @@ async function compareVersions(
   type VersionType = { id: string; version_number: number; content_json: unknown };
   const [v1, v2] = (versions as VersionType[]).sort((a, b) => a.version_number - b.version_number);
 
-  const prompt = `Compare these two versions of a document and summarize the changes.
+  const userPrompt = `Compare these two versions of a document and summarize the changes.
 
 VERSION ${v1.version_number}:
 ${JSON.stringify(v1.content_json).substring(0, 2000)}
 
 VERSION ${v2.version_number}:
-${JSON.stringify(v2.content_json).substring(0, 2000)}
-
-Return JSON:
-{
-  "changes_summary": "Brief summary of what changed",
-  "additions": ["what was added"],
-  "removals": ["what was removed"],
-  "modifications": ["what was modified"],
-  "significance": "minor/moderate/major"
-}`;
+${JSON.stringify(v2.content_json).substring(0, 2000)}`;
 
   try {
-    const response = await callGemini(prompt, "You are a document comparison analyst.");
-    const result = extractJSON<{ 
-      changes_summary: string; 
-      additions: string[]; 
-      removals: string[]; 
+    const result = await callGemini(MODEL, COMPARE_VERSIONS_SYSTEM, userPrompt, {
+      responseJsonSchema: compareVersionsSchema,
+      timeoutMs: 30_000,
+    });
+
+    const parsed = extractJSON<{
+      changes_summary: string;
+      additions: string[];
+      removals: string[];
       modifications: string[];
       significance: string;
-    }>(response);
+    }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
     return {
       success: true,
-      diff: JSON.stringify({ additions: result.additions, removals: result.removals, modifications: result.modifications }),
-      changes_summary: result.changes_summary,
+      diff: JSON.stringify({ additions: parsed.additions, removals: parsed.removals, modifications: parsed.modifications }),
+      changes_summary: parsed.changes_summary,
     };
   } catch (error) {
     console.error("[documents-agent] compareVersions error:", error);
@@ -609,35 +541,32 @@ async function createDataRoom(
   const checklist = Object.entries(requirements.categories).map(([category, documents]) => ({
     category,
     documents: documents,
-    status: documents.every(doc => 
+    status: documents.every(doc =>
       existingDocTypes.has(doc.toLowerCase().replace(/\s+/g, '_'))
     ) ? 'complete' : 'incomplete'
   }));
 
   // Generate AI recommendations
   const existingTitles = (existingDocs as DocType[] || []).map((d: DocType) => d.title).join(', ') || 'None';
-  const prompt = `For a ${stage.replace('_', ' ')} stage ${startup?.industry || ''} startup, analyze their data room readiness.
+  const userPrompt = `For a ${stage.replace('_', ' ')} stage ${startup?.industry || ''} startup, analyze their data room readiness.
 
 EXISTING DOCUMENTS: ${existingTitles}
 REQUIRED CATEGORIES: ${JSON.stringify(Object.keys(requirements.categories))}
 
-Provide 3-5 specific recommendations for completing their investor data room.
-
-Return JSON:
-{
-  "recommendations": ["recommendation 1", "recommendation 2", ...],
-  "priority_document": "Most important missing document",
-  "readiness_score": 0-100
-}`;
+Provide 3-5 specific recommendations for completing their investor data room.`;
 
   try {
-    const response = await callGemini(prompt, "You are a fundraising advisor helping founders prepare investor data rooms.");
-    const result = extractJSON<{ recommendations: string[]; priority_document: string; readiness_score: number }>(response);
+    const result = await callGemini(MODEL, CREATE_DATA_ROOM_SYSTEM, userPrompt, {
+      responseJsonSchema: createDataRoomSchema,
+      timeoutMs: 30_000,
+    });
+
+    const parsed = extractJSON<{ recommendations: string[]; priority_document: string; readiness_score: number }>(result.text);
 
     return {
       success: true,
       checklist,
-      recommendations: result?.recommendations || ["Add your pitch deck", "Include financial projections", "Document your team"],
+      recommendations: parsed?.recommendations || ["Add your pitch deck", "Include financial projections", "Document your team"],
     };
   } catch (error) {
     console.error("[documents-agent] createDataRoom error:", error);
@@ -731,7 +660,7 @@ async function generateInvestorUpdate(
 
   const month = reportMonth || new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const prompt = `Generate a professional monthly investor update for ${startup.name}.
+  const userPrompt = `Generate a professional monthly investor update for ${startup.name}.
 
 STARTUP CONTEXT:
 - Name: ${startup.name}
@@ -760,35 +689,23 @@ Generate a structured investor update with these sections:
 1. TL;DR (3 bullet executive summary)
 2. Key Metrics (with changes if available)
 3. Product Updates
-4. Team Updates  
+4. Team Updates
 5. Fundraising/Pipeline
 6. Challenges & Asks
-7. Next Month Goals
-
-Return JSON:
-{
-  "title": "Investor Update - ${month}",
-  "sections": [
-    { "heading": "Section Name", "content": "Section content..." }
-  ],
-  "key_metrics": [
-    { "name": "Metric", "value": "Value", "change": "+X%" }
-  ],
-  "asks": ["Specific asks from investors"]
-}`;
+7. Next Month Goals`;
 
   try {
-    const response = await callGemini(
-      prompt,
-      "You are an expert at writing concise, data-driven investor updates that keep investors engaged and informed."
-    );
-    
-    const contentJson = extractJSON<{ 
-      title: string; 
-      sections: Array<{ heading: string; content: string }>; 
+    const result = await callGemini(MODEL, INVESTOR_UPDATE_SYSTEM, userPrompt, {
+      responseJsonSchema: investorUpdateSchema,
+      timeoutMs: 30_000,
+    });
+
+    const contentJson = extractJSON<{
+      title: string;
+      sections: Array<{ heading: string; content: string }>;
       key_metrics: Array<{ name: string; value: string; change?: string }>;
       asks: string[];
-    }>(response);
+    }>(result.text);
 
     if (!contentJson) {
       return { success: false, error: "Failed to parse AI response" };
@@ -869,7 +786,7 @@ async function generateCompetitiveAnalysis(
     .eq("is_active", true)
     .single();
 
-  const prompt = `Generate a comprehensive competitive analysis for this startup.
+  const userPrompt = `Generate a comprehensive competitive analysis for this startup.
 
 STARTUP:
 - Name: ${startup.name}
@@ -890,36 +807,20 @@ Generate a detailed competitive analysis including:
 4. Competitive Positioning Matrix
 5. Key Differentiators
 6. Threats & Opportunities
-7. Strategic Recommendations
-
-Return JSON:
-{
-  "title": "Competitive Analysis - ${startup.name}",
-  "sections": [
-    { "heading": "Section Name", "content": "Detailed section content..." }
-  ],
-  "competitors": [
-    { "name": "Competitor Name", "category": "direct/indirect", "strengths": ["str1"], "weaknesses": ["weak1"], "threat_level": "high/medium/low" }
-  ],
-  "positioning": {
-    "unique_advantages": ["advantage1"],
-    "vulnerabilities": ["vulnerability1"],
-    "opportunities": ["opportunity1"]
-  }
-}`;
+7. Strategic Recommendations`;
 
   try {
-    const response = await callGemini(
-      prompt,
-      "You are a strategic analyst with expertise in competitive intelligence and market positioning for startups."
-    );
-    
-    const contentJson = extractJSON<{ 
-      title: string; 
-      sections: Array<{ heading: string; content: string }>; 
+    const result = await callGemini(MODEL, COMPETITIVE_ANALYSIS_SYSTEM, userPrompt, {
+      responseJsonSchema: competitiveAnalysisSchema,
+      timeoutMs: 30_000,
+    });
+
+    const contentJson = extractJSON<{
+      title: string;
+      sections: Array<{ heading: string; content: string }>;
       competitors: Array<{ name: string; category: string; strengths: string[]; weaknesses: string[]; threat_level: string }>;
       positioning: { unique_advantages: string[]; vulnerabilities: string[]; opportunities: string[] };
-    }>(response);
+    }>(result.text);
 
     if (!contentJson) {
       return { success: false, error: "Failed to parse AI response" };
@@ -968,31 +869,45 @@ Return JSON:
 
 // ===== Main Handler =====
 
-function getSupabaseClient(authHeader: string | null): SupabaseClient {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: {
-      headers: authHeader ? { Authorization: authHeader } : {},
-    },
-  });
-}
-
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
-  try {
-    const authHeader = req.headers.get("authorization");
-    const supabase = getSupabaseClient(authHeader);
+  const corsHeaders = getCorsHeaders(req);
 
-    // Get user from JWT
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Auth check
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Invalid or missing authentication" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Rate limit
+    const rateResult = checkRateLimit(user.id, "documents-agent", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     const body: RequestBody = await req.json();

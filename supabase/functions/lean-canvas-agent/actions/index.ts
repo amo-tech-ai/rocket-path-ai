@@ -16,3 +16,4 @@ export {
   getAssumptions,
   updateAssumptionStatus,
 } from "./assumptions.ts";
+export { coach } from "./coach.ts";

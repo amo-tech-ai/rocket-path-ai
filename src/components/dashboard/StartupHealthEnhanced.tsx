@@ -17,12 +17,12 @@ interface StartupHealthEnhancedProps {
 }
 
 const CATEGORY_COLORS: Record<keyof HealthBreakdown, string> = {
-  problemClarity: 'bg-blue-500',
-  solutionFit: 'bg-emerald-500',
-  marketUnderstanding: 'bg-violet-500',
-  tractionProof: 'bg-amber-500',
-  teamReadiness: 'bg-rose-500',
-  investorReadiness: 'bg-cyan-500',
+  problemClarity: 'bg-primary',
+  solutionFit: 'bg-status-success',
+  marketUnderstanding: 'bg-sage',
+  tractionProof: 'bg-status-warning',
+  teamReadiness: 'bg-status-critical',
+  investorReadiness: 'bg-status-info',
 };
 
 export function StartupHealthEnhanced({ healthScore, isLoading }: StartupHealthEnhancedProps) {
@@ -65,7 +65,7 @@ export function StartupHealthEnhanced({ healthScore, isLoading }: StartupHealthE
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-foreground">Startup Health</h3>
           {trend !== 0 && (
-            <span className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            <span className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-status-success' : 'text-status-critical'}`}>
               {trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
               {trend > 0 ? '+' : ''}{trend}
             </span>
@@ -142,12 +142,12 @@ export function StartupHealthEnhanced({ healthScore, isLoading }: StartupHealthE
 
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+        <div className="mt-4 p-3 rounded-xl bg-status-warning-light border border-status-warning/20">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-status-warning flex-shrink-0 mt-0.5" />
             <div className="flex-1 space-y-1">
               {warnings.map((warning, i) => (
-                <p key={i} className="text-xs text-amber-600 dark:text-amber-400">{warning}</p>
+                <p key={i} className="text-xs text-status-warning">{warning}</p>
               ))}
             </div>
           </div>

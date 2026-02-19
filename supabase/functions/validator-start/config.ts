@@ -36,3 +36,10 @@ export const AGENT_TIMEOUTS: Record<string, number> = {
   composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s). maxOutputTokens: 8192 (set in composer.ts)
   verifier: 5_000,      // P03: Pure JS validation (no Gemini call), 5s safety net
 };
+
+// 021-CSP: Composer group timeouts
+// Total worst case: 35s (parallel A+B+C) + 20s (sequential D) = 55s — within 90s Composer budget
+export const COMPOSER_GROUP_TIMEOUTS = {
+  parallel: 35_000,   // Per-group budget for A, B, C (run in parallel)
+  synthesis: 20_000,  // Group D budget (runs after A+B+C)
+};

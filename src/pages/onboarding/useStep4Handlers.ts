@@ -4,6 +4,7 @@
  */
 
 import { useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { WizardFormData, InvestorScore, AISummary } from '@/hooks/onboarding/types';
 
 interface UseStep4HandlersParams {
@@ -27,6 +28,8 @@ export function useStep4Handlers({
   completeWizard,
   navigate,
 }: UseStep4HandlersParams) {
+  const { toast } = useToast();
+
   const handleCalculateScore = useCallback(async () => {
     if (!sessionId) return;
     
@@ -66,8 +69,13 @@ export function useStep4Handlers({
       }
     } catch (error) {
       console.error('Complete wizard error:', error);
+      toast({
+        title: 'Failed to complete setup',
+        description: 'Please try again. Your progress has been saved.',
+        variant: 'destructive',
+      });
     }
-  }, [sessionId, completeWizard, navigate]);
+  }, [sessionId, completeWizard, navigate, toast]);
 
   return {
     handleCalculateScore,

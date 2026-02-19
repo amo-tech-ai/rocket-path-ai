@@ -35,12 +35,12 @@ const StrengthItem = memo(function StrengthItem({
       onClick={onClick}
       className={cn(
         "flex items-start gap-2 p-2 rounded-lg text-left w-full transition-all",
-        "hover:bg-emerald-500/10",
-        isHighlighted && "bg-emerald-500/20 ring-1 ring-emerald-500/30"
+        "hover:bg-status-success-light",
+        isHighlighted && "bg-status-success-light ring-1 ring-status-success/30"
       )}
       animate={isHighlighted ? { scale: 1.02 } : { scale: 1 }}
     >
-      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+      <CheckCircle2 className="w-4 h-4 text-status-success mt-0.5 flex-shrink-0" />
       <span className="text-sm text-foreground">{item.text}</span>
     </motion.button>
   );
@@ -60,12 +60,12 @@ const ConcernItem = memo(function ConcernItem({
       onClick={onClick}
       className={cn(
         "flex items-start gap-2 p-2 rounded-lg text-left w-full transition-all",
-        "hover:bg-rose-500/10",
-        isHighlighted && "bg-rose-500/20 ring-1 ring-rose-500/30"
+        "hover:bg-status-critical-light",
+        isHighlighted && "bg-status-critical-light ring-1 ring-status-critical/30"
       )}
       animate={isHighlighted ? { scale: 1.02 } : { scale: 1 }}
     >
-      <AlertTriangle className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
+      <AlertTriangle className="w-4 h-4 text-status-critical mt-0.5 flex-shrink-0" />
       <span className="text-sm text-foreground">{item.text}</span>
     </motion.button>
   );
@@ -107,7 +107,7 @@ export default function TradeoffsCard({
     <div className={cn("grid grid-cols-1 md:grid-cols-3 gap-4", className)}>
       {/* Strengths Column */}
       <div className="card-premium p-4">
-        <h3 className="text-sm font-medium text-emerald-600 dark:text-emerald-400 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-status-success mb-3 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" />
           Strengths
         </h3>
@@ -131,7 +131,7 @@ export default function TradeoffsCard({
       
       {/* Concerns Column */}
       <div className="card-premium p-4">
-        <h3 className="text-sm font-medium text-rose-600 dark:text-rose-400 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-status-critical mb-3 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4" />
           Concerns
         </h3>

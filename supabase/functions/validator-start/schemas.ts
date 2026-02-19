@@ -16,8 +16,50 @@ export const AGENT_SCHEMAS = {
       validation: { type: 'string', description: 'Any existing validation or traction mentioned' },
       industry: { type: 'string', description: 'Primary industry (e.g., fintech, healthtech, saas)' },
       websites: { type: 'string', description: 'URLs or websites the founder wants researched, or empty string if none' },
+      assumptions: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '2-5 key assumptions the founder is making — things that must be true for this to work',
+      },
+      search_queries: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            purpose: { type: 'string', description: 'What this query aims to find (e.g., TAM data, competitors, benchmarks)' },
+            query: { type: 'string', description: 'The actual search query' },
+          },
+          required: ['purpose', 'query'],
+        },
+        description: '3-5 purpose-tagged search queries for Research and Competitor agents',
+      },
+      // 031-PCE: Structured problem extraction for sharper report Section 1
+      problem_structured: {
+        type: 'object',
+        description: 'Structured problem breakdown: WHO has the problem, PAIN quantified, TODAY\'S FIX and why it fails',
+        properties: {
+          who: { type: 'string', description: 'Specific buyer role with authority, company type, size, and budget context' },
+          pain: { type: 'string', description: 'Quantified cost: hours wasted, dollars lost, delays caused per time period' },
+          todays_fix: { type: 'string', description: 'Current workaround tools AND their structural failure reason' },
+          evidence_tier: { type: 'string', description: 'Evidence quality: A=revenue/data, B=prototype/beta, C=surveys, D=desk research' },
+        },
+        required: ['who', 'pain', 'todays_fix'],
+      },
+      // 032-CUC: Structured customer use case for sharper report Section 2
+      customer_structured: {
+        type: 'object',
+        description: 'Structured customer persona with before/after workflow and quantified impact',
+        properties: {
+          persona_name: { type: 'string', description: 'Realistic first name + role (e.g., Sarah Chen, Production Manager)' },
+          role_context: { type: 'string', description: 'Job title + company type + team size + responsibilities' },
+          workflow_without: { type: 'string', description: 'Step-by-step current broken workflow with time/friction/consequences' },
+          workflow_with: { type: 'string', description: 'Same task with the product — specific changes and improvements' },
+          quantified_impact: { type: 'string', description: 'Time saved, cost reduced, quality improved — with numbers' },
+        },
+        required: ['persona_name', 'role_context', 'workflow_without', 'workflow_with', 'quantified_impact'],
+      },
     },
-    required: ['idea', 'problem', 'customer', 'solution', 'differentiation', 'alternatives', 'validation', 'industry', 'websites'],
+    required: ['idea', 'problem', 'customer', 'solution', 'differentiation', 'alternatives', 'validation', 'industry', 'websites', 'assumptions', 'search_queries', 'problem_structured', 'customer_structured'],
   },
 
   research: {
@@ -92,21 +134,21 @@ export const AGENT_SCHEMAS = {
     required: ['direct_competitors', 'indirect_competitors', 'market_gaps', 'sources'],
   },
 
+  // Scoring schema: LLM provides raw dimension scores + qualitative factors.
+  // overall_score, verdict, and factor status are computed deterministically by scoring-math.ts.
   scoring: {
     type: 'object',
     properties: {
-      overall_score: { type: 'number', description: '0-100 overall score' },
-      verdict: { type: 'string', description: 'go, caution, or no_go' },
       dimension_scores: {
         type: 'object',
         properties: {
-          problemClarity: { type: 'number' },
-          solutionStrength: { type: 'number' },
-          marketSize: { type: 'number' },
-          competition: { type: 'number' },
-          businessModel: { type: 'number' },
-          teamFit: { type: 'number' },
-          timing: { type: 'number' },
+          problemClarity: { type: 'number', description: '0-100 score' },
+          solutionStrength: { type: 'number', description: '0-100 score' },
+          marketSize: { type: 'number', description: '0-100 score' },
+          competition: { type: 'number', description: '0-100 score' },
+          businessModel: { type: 'number', description: '0-100 score' },
+          teamFit: { type: 'number', description: '0-100 score' },
+          timing: { type: 'number', description: '0-100 score' },
         },
         required: ['problemClarity', 'solutionStrength', 'marketSize', 'competition', 'businessModel', 'teamFit', 'timing'],
       },
@@ -116,11 +158,10 @@ export const AGENT_SCHEMAS = {
           type: 'object',
           properties: {
             name: { type: 'string' },
-            score: { type: 'number' },
+            score: { type: 'number', description: '1-10 score' },
             description: { type: 'string' },
-            status: { type: 'string', description: 'strong, moderate, or weak' },
           },
-          required: ['name', 'score', 'description', 'status'],
+          required: ['name', 'score', 'description'],
         },
       },
       execution_factors: {
@@ -129,18 +170,17 @@ export const AGENT_SCHEMAS = {
           type: 'object',
           properties: {
             name: { type: 'string' },
-            score: { type: 'number' },
+            score: { type: 'number', description: '1-10 score' },
             description: { type: 'string' },
-            status: { type: 'string', description: 'strong, moderate, or weak' },
           },
-          required: ['name', 'score', 'description', 'status'],
+          required: ['name', 'score', 'description'],
         },
       },
       highlights: { type: 'array', items: { type: 'string' } },
       red_flags: { type: 'array', items: { type: 'string' } },
       risks_assumptions: { type: 'array', items: { type: 'string' } },
     },
-    required: ['overall_score', 'verdict', 'dimension_scores', 'market_factors', 'execution_factors', 'highlights', 'red_flags', 'risks_assumptions'],
+    required: ['dimension_scores', 'market_factors', 'execution_factors', 'highlights', 'red_flags', 'risks_assumptions'],
   },
 
   mvp: {
@@ -165,6 +205,7 @@ export const AGENT_SCHEMAS = {
   },
 
   // P02: Expanded composer schema — 14 sections (up from 8)
+  // 021-CSP: Retained for reference — production now uses COMPOSER_GROUP_SCHEMAS (below)
   composer: {
     type: 'object',
     properties: {
@@ -173,8 +214,34 @@ export const AGENT_SCHEMAS = {
       red_flags: { type: 'array', items: { type: 'string' }, description: '3-5 critical concerns or red flags' },
       // Original 8 sections
       summary_verdict: { type: 'string', description: '3-sentence executive summary with score and verdict' },
-      problem_clarity: { type: 'string', description: 'Problem clarity, urgency, and customer pain analysis (2-3 paragraphs)' },
-      customer_use_case: { type: 'string', description: 'Target customer and use case description (2-3 paragraphs)' },
+      problem_clarity: {
+        type: 'object',
+        properties: {
+          who: { type: 'string', description: 'Who has this problem — role, company size, context' },
+          pain: { type: 'string', description: 'Daily pain point, quantified if possible' },
+          current_fix: { type: 'string', description: 'How they cope today and why it sucks' },
+          severity: { type: 'string', description: 'high, medium, or low' },
+        },
+        required: ['who', 'pain', 'current_fix', 'severity'],
+      },
+      customer_use_case: {
+        type: 'object',
+        properties: {
+          persona: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              role: { type: 'string' },
+              context: { type: 'string' },
+            },
+            required: ['name', 'role', 'context'],
+          },
+          without: { type: 'string', description: 'A day without the product' },
+          with: { type: 'string', description: 'A day with the product' },
+          time_saved: { type: 'string', description: 'Concrete time/money saved' },
+        },
+        required: ['persona', 'without', 'with', 'time_saved'],
+      },
       market_sizing: {
         type: 'object',
         properties: {
@@ -248,9 +315,46 @@ export const AGENT_SCHEMAS = {
         },
         required: ['competitors', 'citations', 'swot', 'feature_comparison', 'positioning'],
       },
-      risks_assumptions: { type: 'array', items: { type: 'string' } },
-      mvp_scope: { type: 'string' },
-      next_steps: { type: 'array', items: { type: 'string' } },
+      risks_assumptions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            assumption: { type: 'string' },
+            if_wrong: { type: 'string', description: 'Plain consequence if wrong' },
+            severity: { type: 'string', description: 'fatal, risky, or watch' },
+            impact: { type: 'string', description: 'high or low' },
+            probability: { type: 'string', description: 'high or low' },
+            how_to_test: { type: 'string', description: 'Cheapest validation method' },
+          },
+          required: ['assumption', 'if_wrong', 'severity', 'impact', 'probability', 'how_to_test'],
+        },
+      },
+      mvp_scope: {
+        type: 'object',
+        properties: {
+          one_liner: { type: 'string', description: 'One sentence MVP description' },
+          build: { type: 'array', items: { type: 'string' }, description: 'Core features to code' },
+          buy: { type: 'array', items: { type: 'string' }, description: 'Services to integrate' },
+          skip_for_now: { type: 'array', items: { type: 'string' }, description: 'Features that can wait' },
+          tests_assumption: { type: 'string', description: 'The #1 assumption this MVP validates' },
+          success_metric: { type: 'string', description: 'Measurable success signal' },
+          timeline_weeks: { type: 'number' },
+        },
+        required: ['one_liner', 'build', 'buy', 'skip_for_now', 'tests_assumption', 'success_metric', 'timeline_weeks'],
+      },
+      next_steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            action: { type: 'string', description: 'Specific action with deliverable' },
+            timeframe: { type: 'string', description: 'week_1, month_1, or quarter_1' },
+            effort: { type: 'string', description: 'low, medium, or high' },
+          },
+          required: ['action', 'timeframe', 'effort'],
+        },
+      },
       // P02: 6 new sections
       technology_stack: {
         type: 'object',
@@ -388,5 +492,310 @@ export const AGENT_SCHEMAS = {
       'technology_stack', 'revenue_model', 'team_hiring', 'key_questions',
       'resources_links', 'scores_matrix', 'financial_projections',
     ],
+  },
+} as const;
+
+// 021-CSP: Per-group schemas — small enough for responseJsonSchema (no extractJSON needed)
+export const COMPOSER_GROUP_SCHEMAS = {
+  groupA: {
+    type: 'object',
+    properties: {
+      problem_clarity: {
+        type: 'object',
+        properties: {
+          who: { type: 'string', description: 'Who has this problem — role, company size, context' },
+          pain: { type: 'string', description: 'Daily pain point, quantified if possible' },
+          current_fix: { type: 'string', description: 'How they cope today and why it sucks' },
+          severity: { type: 'string', description: 'high, medium, or low' },
+        },
+        required: ['who', 'pain', 'current_fix', 'severity'],
+      },
+      customer_use_case: {
+        type: 'object',
+        properties: {
+          persona: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              role: { type: 'string' },
+              context: { type: 'string' },
+            },
+            required: ['name', 'role', 'context'],
+          },
+          without: { type: 'string', description: 'A day without the product' },
+          with: { type: 'string', description: 'A day with the product' },
+          time_saved: { type: 'string', description: 'Concrete time/money saved' },
+        },
+        required: ['persona', 'without', 'with', 'time_saved'],
+      },
+      key_questions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            question: { type: 'string' },
+            why_it_matters: { type: 'string' },
+            validation_method: { type: 'string' },
+            risk_level: { type: 'string', description: 'fatal, important, or minor' },
+          },
+          required: ['question', 'why_it_matters', 'validation_method', 'risk_level'],
+        },
+      },
+    },
+    required: ['problem_clarity', 'customer_use_case', 'key_questions'],
+  },
+
+  groupB: {
+    type: 'object',
+    properties: {
+      market_sizing: {
+        type: 'object',
+        properties: {
+          tam: { type: 'number' },
+          sam: { type: 'number' },
+          som: { type: 'number' },
+          citations: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['tam', 'sam', 'som', 'citations'],
+      },
+      competition: {
+        type: 'object',
+        properties: {
+          competitors: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                description: { type: 'string' },
+                threat_level: { type: 'string' },
+              },
+              required: ['name', 'description', 'threat_level'],
+            },
+          },
+          citations: { type: 'array', items: { type: 'string' } },
+          swot: {
+            type: 'object',
+            properties: {
+              strengths: { type: 'array', items: { type: 'string' } },
+              weaknesses: { type: 'array', items: { type: 'string' } },
+              opportunities: { type: 'array', items: { type: 'string' } },
+              threats: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['strengths', 'weaknesses', 'opportunities', 'threats'],
+          },
+          feature_comparison: {
+            type: 'object',
+            properties: {
+              features: { type: 'array', items: { type: 'string' } },
+              competitors: { type: 'array', items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  has_feature: { type: 'array', items: { type: 'boolean' } },
+                },
+                required: ['name', 'has_feature'],
+              }},
+            },
+            required: ['features', 'competitors'],
+          },
+          positioning: {
+            type: 'object',
+            properties: {
+              x_axis: { type: 'string' },
+              y_axis: { type: 'string' },
+              positions: { type: 'array', items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  x: { type: 'number' },
+                  y: { type: 'number' },
+                  is_founder: { type: 'boolean' },
+                },
+                required: ['name', 'x', 'y', 'is_founder'],
+              }},
+            },
+            required: ['x_axis', 'y_axis', 'positions'],
+          },
+        },
+        required: ['competitors', 'citations', 'swot', 'feature_comparison', 'positioning'],
+      },
+      scores_matrix: {
+        type: 'object',
+        properties: {
+          dimensions: { type: 'array', items: {
+            type: 'object',
+            properties: { name: { type: 'string' }, score: { type: 'number' }, weight: { type: 'number' } },
+            required: ['name', 'score', 'weight'],
+          }},
+          overall_weighted: { type: 'number' },
+        },
+        required: ['dimensions', 'overall_weighted'],
+      },
+      top_threat: {
+        type: 'object',
+        properties: {
+          assumption: { type: 'string' },
+          if_wrong: { type: 'string' },
+          severity: { type: 'string', description: 'fatal, risky, or watch' },
+          impact: { type: 'string', description: 'high or low' },
+          probability: { type: 'string', description: 'high or low' },
+          how_to_test: { type: 'string' },
+        },
+        required: ['assumption', 'if_wrong', 'severity', 'impact', 'probability', 'how_to_test'],
+      },
+      risks_assumptions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            assumption: { type: 'string' },
+            if_wrong: { type: 'string' },
+            severity: { type: 'string', description: 'fatal, risky, or watch' },
+            impact: { type: 'string', description: 'high or low' },
+            probability: { type: 'string', description: 'high or low' },
+            how_to_test: { type: 'string' },
+          },
+          required: ['assumption', 'if_wrong', 'severity', 'impact', 'probability', 'how_to_test'],
+        },
+      },
+    },
+    required: ['market_sizing', 'competition', 'scores_matrix', 'top_threat', 'risks_assumptions'],
+  },
+
+  groupC: {
+    type: 'object',
+    properties: {
+      mvp_scope: {
+        type: 'object',
+        properties: {
+          one_liner: { type: 'string' },
+          build: { type: 'array', items: { type: 'string' } },
+          buy: { type: 'array', items: { type: 'string' } },
+          skip_for_now: { type: 'array', items: { type: 'string' } },
+          tests_assumption: { type: 'string' },
+          success_metric: { type: 'string' },
+          timeline_weeks: { type: 'number' },
+        },
+        required: ['one_liner', 'build', 'buy', 'skip_for_now', 'tests_assumption', 'success_metric', 'timeline_weeks'],
+      },
+      next_steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            action: { type: 'string' },
+            timeframe: { type: 'string', description: 'week_1, month_1, or quarter_1' },
+            effort: { type: 'string', description: 'low, medium, or high' },
+          },
+          required: ['action', 'timeframe', 'effort'],
+        },
+      },
+      revenue_model: {
+        type: 'object',
+        properties: {
+          recommended_model: { type: 'string' },
+          reasoning: { type: 'string' },
+          alternatives: { type: 'array', items: {
+            type: 'object',
+            properties: { model: { type: 'string' }, pros: { type: 'array', items: { type: 'string' } }, cons: { type: 'array', items: { type: 'string' } } },
+            required: ['model', 'pros', 'cons'],
+          }},
+          unit_economics: {
+            type: 'object',
+            properties: { cac: { type: 'number' }, ltv: { type: 'number' }, ltv_cac_ratio: { type: 'number' }, payback_months: { type: 'number' } },
+            required: ['cac', 'ltv', 'ltv_cac_ratio', 'payback_months'],
+          },
+        },
+        required: ['recommended_model', 'reasoning', 'alternatives', 'unit_economics'],
+      },
+      financial_projections: {
+        type: 'object',
+        properties: {
+          scenarios: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              y1_revenue: { type: 'number' },
+              y3_revenue: { type: 'number' },
+              y5_revenue: { type: 'number' },
+              assumptions: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['name', 'y1_revenue', 'y3_revenue', 'y5_revenue', 'assumptions'],
+          }},
+          break_even: {
+            type: 'object',
+            properties: {
+              months: { type: 'number' },
+              revenue_required: { type: 'number' },
+              assumptions: { type: 'string' },
+            },
+            required: ['months', 'revenue_required', 'assumptions'],
+          },
+          key_assumption: { type: 'string' },
+        },
+        required: ['scenarios', 'break_even', 'key_assumption'],
+      },
+      team_hiring: {
+        type: 'object',
+        properties: {
+          current_gaps: { type: 'array', items: { type: 'string' } },
+          mvp_roles: { type: 'array', items: {
+            type: 'object',
+            properties: { role: { type: 'string' }, priority: { type: 'number' }, rationale: { type: 'string' }, monthly_cost: { type: 'number' } },
+            required: ['role', 'priority', 'rationale', 'monthly_cost'],
+          }},
+          monthly_burn: { type: 'number' },
+          advisory_needs: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['current_gaps', 'mvp_roles', 'monthly_burn', 'advisory_needs'],
+      },
+      technology_stack: {
+        type: 'object',
+        properties: {
+          stack_components: { type: 'array', items: {
+            type: 'object',
+            properties: { name: { type: 'string' }, choice: { type: 'string' }, rationale: { type: 'string' } },
+            required: ['name', 'choice', 'rationale'],
+          }},
+          feasibility: { type: 'string' },
+          feasibility_rationale: { type: 'string' },
+          technical_risks: { type: 'array', items: {
+            type: 'object',
+            properties: { risk: { type: 'string' }, likelihood: { type: 'string' }, mitigation: { type: 'string' } },
+            required: ['risk', 'likelihood', 'mitigation'],
+          }},
+          mvp_timeline_weeks: { type: 'number' },
+        },
+        required: ['stack_components', 'feasibility', 'feasibility_rationale', 'technical_risks', 'mvp_timeline_weeks'],
+      },
+      resources_links: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            category: { type: 'string' },
+            links: { type: 'array', items: {
+              type: 'object',
+              properties: { title: { type: 'string' }, url: { type: 'string' }, description: { type: 'string' } },
+              required: ['title', 'url', 'description'],
+            }},
+          },
+          required: ['category', 'links'],
+        },
+      },
+    },
+    required: ['mvp_scope', 'next_steps', 'revenue_model', 'financial_projections', 'team_hiring', 'technology_stack', 'resources_links'],
+  },
+
+  groupD: {
+    type: 'object',
+    properties: {
+      summary_verdict: { type: 'string', description: 'Executive summary narrative (180-220 words): opportunity with numbers, one Imagine scenario, core risk, win/must/fail, and Go/Conditional Go/No-Go verdict' },
+      verdict_oneliner: { type: 'string', description: 'Complete sentence with clear stance, e.g. "This is a strong niche play that works if you can acquire clinics at under $200 each."' },
+      success_condition: { type: 'string', description: 'Single testable condition with a number or threshold, e.g. "Signing 5 pilot clinics within 60 days at $299/month with 80%+ retention"' },
+      biggest_risk: { type: 'string', description: 'Single biggest risk stated so a non-expert understands it, citing specific evidence from the analysis' },
+    },
+    required: ['summary_verdict', 'verdict_oneliner', 'success_condition', 'biggest_risk'],
   },
 } as const;

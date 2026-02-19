@@ -9,6 +9,7 @@ import { AGENT_SCHEMAS } from "../schemas.ts";
 import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 import { getCuratedLinks, formatLinksForPrompt } from "../curated-links.ts";
+import { searchKnowledge, formatKnowledgeForPrompt } from "../knowledge-search.ts";
 
 export async function runCompetitors(
   supabase: SupabaseClient,
@@ -20,11 +21,66 @@ export async function runCompetitors(
 
   // P01E: Pass keywords for smart platform search URLs (competitors-focused)
   const keywords = [profile.idea, profile.alternatives].filter(Boolean).join(' ');
-  const { industryLinks, crossIndustryLinks, platformLinks, matchedIndustry } = getCuratedLinks(profile.industry, keywords);
-  const allLinks = [...industryLinks, ...crossIndustryLinks, ...platformLinks];
+  const { allLinks, matchedIndustry } = getCuratedLinks(profile.industry, keywords);
   const curatedSourcesBlock = formatLinksForPrompt(allLinks);
 
+  // RAG: Search knowledge base for competitor/industry reports; same pattern as ResearchAgent
+  let knowledgeBlock = "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const ragQuery = [profile.idea, profile.industry, profile.alternatives, "competitors market landscape"].filter(Boolean).join(" ");
+  const filterIndustry = profile.industry?.trim() ? profile.industry.trim().toLowerCase() : null;
+  if (supabaseUrl && serviceKey && ragQuery) {
+    try {
+      const { results } = await searchKnowledge(supabaseUrl, serviceKey, ragQuery, filterIndustry);
+      if (results.length > 0) {
+        console.log("[CompetitorAgent] RAG chunks:", results.length);
+        knowledgeBlock = formatKnowledgeForPrompt(results, 4000);
+      }
+    } catch (e) {
+      console.warn("[CompetitorAgent] RAG search failed (continuing without):", e instanceof Error ? e.message : e);
+    }
+  }
+
+  const knowledgeSection = knowledgeBlock
+    ? `
+
+## Knowledge base (RAG)
+Use these internal research chunks when they contain competitor lists, market maps, or industry landscapes. Cite source and year when used:
+
+${knowledgeBlock}
+
+`
+    : "";
+
   const systemPrompt = `You are a competitive intelligence analyst. Identify who the founder is really up against — be specific and honest.
+
+## Domain Knowledge — Competitive Analysis
+
+### Competitor Tiering
+- Tier 1 (direct): Same problem, same customer, overlapping features — these are existential threats
+- Tier 2 (adjacent): Same problem, different customer OR same customer, different solution
+- Tier 3 (indirect): Alternatives including spreadsheets, manual processes, status quo (doing nothing)
+ALWAYS include status quo as a competitor — it's the most common reason startups fail.
+
+### Threat Level Calibration
+- HIGH: Well-funded (>$10M raised) + high feature overlap + growing fast + same segment
+- MEDIUM: Partial feature overlap OR bootstrapped with traction OR different segment
+- LOW: Different segment OR declining/stagnant OR very early stage
+
+### Competitive Moat Types (flag which the founder could build)
+- Network effects — value grows with users
+- Data moat — proprietary dataset improving over time
+- Switching costs — deep workflow integration
+- Scale economies — decreasing unit cost
+- Brand/community — trust built over years
+- Regulatory — compliance as barrier
+
+### Relevance Filtering Rules
+- Only include competitors actually relevant to this startup's segment
+- If a competitor serves enterprise and the startup targets SMB, note the segment difference
+- Verify competitors still exist and are active (not acquired/shut down)
+- Deduplicate: if same company appears under different names, merge
 
 ## Writing style:
 - Describe each competitor in plain language: what they do, who they serve, and why they matter
@@ -37,11 +93,11 @@ export async function runCompetitors(
 Consult these curated sources FIRST for competitor data, market maps, funding rounds, and industry landscapes:
 
 ${curatedSourcesBlock}
-
+${knowledgeSection}
 ## Research Strategy
-1. FIRST: Check preferred sources for competitor lists, market maps, and landscapes
+1. FIRST: Check preferred sources and knowledge base for competitor lists, market maps, and landscapes
 2. THEN: Use real-time web search for latest funding, launches, pivots, and news
-3. CROSS-REFERENCE: Competitors in both curated and search sources are significant players
+3. CROSS-REFERENCE: Competitors in both curated, knowledge base, and search sources are significant players
 
 Return JSON with exactly these fields:
 {
@@ -94,6 +150,24 @@ Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they c
       await completeRun(supabase, sessionId, agentName, 'failed', { rawText: text }, [], 'JSON extraction failed');
       return null;
     }
+
+    // 022-SKI: Post-processing — deduplicate competitors by name
+    if (analysis.direct_competitors?.length) {
+      const seen = new Set<string>();
+      analysis.direct_competitors = analysis.direct_competitors.filter(c => {
+        const key = c.name.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    // Validate threat levels are valid values
+    for (const c of [...(analysis.direct_competitors || []), ...(analysis.indirect_competitors || [])]) {
+      if (!['high', 'medium', 'low'].includes(c.threat_level)) {
+        c.threat_level = 'medium';
+      }
+    }
+
     await completeRun(
       supabase, sessionId, agentName,
       searchGrounding ? 'ok' : 'partial',

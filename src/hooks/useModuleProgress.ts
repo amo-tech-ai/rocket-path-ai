@@ -34,6 +34,7 @@ export function useModuleProgress(startupId?: string) {
         supabase
           .from('documents')
           .select('content_json')
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('type', 'lean_canvas')
           .order('updated_at', { ascending: false })
@@ -44,6 +45,7 @@ export function useModuleProgress(startupId?: string) {
         supabase
           .from('documents')
           .select('content_json, metadata')
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('type', 'pitch_deck')
           .order('updated_at', { ascending: false })
@@ -54,12 +56,14 @@ export function useModuleProgress(startupId?: string) {
         supabase
           .from('tasks')
           .select('id, status')
+          .is('deleted_at', null)
           .eq('startup_id', startupId),
         
         // Active deals
         supabase
           .from('deals')
           .select('id')
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('is_active', true),
       ]);

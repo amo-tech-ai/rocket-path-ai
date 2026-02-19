@@ -1,9 +1,13 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+/**
+ * Dashboard Metrics Edge Function
+ * Summary metrics, changes, and analytics for the dashboard.
+ * Migrated to shared patterns: JWT auth, rate limiting, shared CORS.
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { handleCors, getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 interface AuthContext {
   userId: string;
@@ -36,17 +40,19 @@ interface AnalyticsData {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  const corsHeaders = getCorsHeaders(req);
 
-    // Get authorization header
+  try {
+    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -55,15 +61,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify JWT and get user
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+    // User-scoped client (RLS enforced)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Rate limit (light — read-only metrics, no AI)
+    const rateResult = checkRateLimit(user.id, "dashboard-metrics", RATE_LIMITS.light);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     // Parse request body
@@ -77,7 +93,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user has access to startup
+    // Verify user has access to startup (defense-in-depth — RLS also enforces)
     const { data: membership } = await supabase
       .from('startup_members')
       .select('id')
@@ -191,8 +207,8 @@ async function getMetricChanges(supabase: any, auth: AuthContext): Promise<Metri
 }
 
 async function getAnalyticsMetrics(
-  supabase: any, 
-  auth: AuthContext, 
+  supabase: any,
+  auth: AuthContext,
   dateRange?: { startDate: string; endDate: string }
 ): Promise<AnalyticsData> {
   const endDate = dateRange?.endDate || new Date().toISOString();
@@ -219,13 +235,13 @@ async function getAnalyticsMetrics(
 
   // Process task trends (group by day)
   const taskTrends = processTaskTrends(tasksData.data || [], startDate, endDate);
-  
+
   // Process project velocity
   const projectVelocity = processProjectVelocity(projectsData.data || []);
-  
+
   // Process pipeline conversion
   const pipelineConversion = processPipelineConversion(dealsData.data || []);
-  
+
   // Process investor engagement
   const investorEngagement = processInvestorEngagement(investorsData.data || []);
 
@@ -243,7 +259,7 @@ function processTaskTrends(
   endDate: string
 ): Array<{ date: string; completed: number; created: number }> {
   const trends: Record<string, { completed: number; created: number }> = {};
-  
+
   // Initialize days
   const start = new Date(startDate);
   const end = new Date(endDate);

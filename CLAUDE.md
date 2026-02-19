@@ -1,14 +1,14 @@
 # CLAUDE.md
 
-> **Updated:** 2026-02-08 | **Version:** 4.0
+> **Updated:** 2026-02-13 | **Version:** 4.2
 
 StartupAI — AI-powered OS for startup founders. React/TS SPA + Vite + Supabase + shadcn/ui.
-Validator pipeline working E2E (7 agents, 14-section report). 29 edge functions, 42 pages, 49 migrations.
+Validator pipeline working E2E (7 agents, V2 report with 6 visual components). 45 edge functions, 47 pages, 284 tests.
 
 ## Commands
 
 ```bash
-npm run dev          # Vite dev (port 8082)
+npm run dev          # Vite dev (port 8080)
 npm run build        # Production build
 npm run lint         # ESLint
 npm run test         # Vitest
@@ -23,14 +23,14 @@ npm run test         # Vitest
 ## Key Directories
 
 ```
-src/pages/                # 42 route components
+src/pages/                # 47 route components
 src/components/ui/        # shadcn components
-src/components/validator/ # Validator pipeline UI (14 sections)
-src/hooks/                # useAuth, useValidatorPipeline, etc.
-supabase/functions/       # 31 Edge Functions (Deno)
+src/components/validator/ # Validator pipeline UI (10 V2 sections + 4 shared)
+src/hooks/                # 78 hooks: useAuth, useValidatorPipeline, etc.
+supabase/functions/       # 42 Edge Functions (Deno)
 ├── validator-start/      # 7-agent pipeline (agents/, pipeline.ts, config.ts)
 ├── _shared/              # gemini.ts, cors.ts, rate-limit.ts
-.agents/skills/           # 4 skills (gemini, supabase, frontend-design, mermaid)
+.agents/skills/           # 37 skills (gemini, supabase, frontend-design, mermaid, etc.)
 lean/                     # Progress trackers, task specs, strategy docs
 ```
 
@@ -63,6 +63,15 @@ lean/                     # Progress trackers, task specs, strategy docs
 - Paid plan: 400s wall-clock limit. Pipeline deadline: 300s
 - Use `EdgeRuntime.waitUntil()` for background work
 
+## Task Management
+
+Use the **Claude Tasks system** (`TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGet`) for session work:
+- Run `TaskList` at session start to see pending work and pick the next unblocked task
+- Mark tasks `in_progress` when starting, `completed` when done
+- Respect `blockedBy` chains — don't start blocked tasks
+- Source of truth: `tasks/next-steps.md` (28 active tasks, 9 sections, priority-ordered)
+- After completing tasks, update `tasks/next-steps.md`, `tasks/changelog`, and `CHANGELOG.md`
+
 ## Context Management
 
 - One task per session. Use `/compact` when long. Use `/clear` between unrelated tasks
@@ -87,8 +96,9 @@ lean/                     # Progress trackers, task specs, strategy docs
 |-------|------|
 | PRD | `prd.md` |
 | Changelog | `CHANGELOG.md` |
-| Lean Progress | `lean/next-steps.md` |
-| Lean Task Map | `lean/03-lean-prompts/index-lean.md` |
+| Next Steps (active tasks) | `tasks/next-steps.md` |
+| Task Specs (prompts) | `tasks/prompts/index-prompts.md` |
+| Progress Tracker | `tasks/index-progress.md` |
 | Validator Strategy | `tasks/validator/strategy/00-INDEX.md` |
 | Gemini Skill | `.agents/skills/gemini/SKILL.md` |
 | Supabase Skill | `.agents/skills/supabase-postgres-best-practices/SKILL.md` |

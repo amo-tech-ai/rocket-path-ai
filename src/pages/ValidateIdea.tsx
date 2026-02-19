@@ -6,8 +6,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Target, ArrowLeft, ListChecks, BarChart3 } from 'lucide-react';
+import { Sparkles, Target, ArrowLeft, ListChecks, BarChart3, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link, useLocation } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { DEV_BYPASS_AUTH } from '@/lib/devConfig';
+import { setReturnPathOnce } from '@/lib/authReturnPath';
 import {
   Sheet,
   SheetContent,
@@ -19,23 +23,37 @@ import { ValidatorChat } from '@/components/validator/chat';
 import { ContextPanel } from '@/components/validator/chat/ContextPanel';
 import { ExtractionPanel } from '@/components/validator/chat/ExtractionPanel';
 import { useStartup } from '@/hooks/useDashboardData';
-import type { FollowupCoverage } from '@/hooks/useValidatorFollowup';
+import { isCovered, type FollowupCoverage, type ExtractedFields, type ConfidenceMap } from '@/hooks/useValidatorFollowup';
 
 export default function ValidateIdea() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { data: startup, isLoading } = useStartup();
   const [initialIdea, setInitialIdea] = useState<string | undefined>();
   const [coverage, setCoverage] = useState<FollowupCoverage | null>(null);
+  const [extracted, setExtracted] = useState<ExtractedFields | null>(null);
+  const [confidence, setConfidence] = useState<ConfidenceMap | null>(null);
   const [canGenerate, setCanGenerate] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [prefillText, setPrefillText] = useState<string | undefined>();
+  const [showDevBypassBanner, setShowDevBypassBanner] = useState(false);
+
+  // Dev-only: warn when bypass is on but no JWT (Edge Functions will 401)
+  useEffect(() => {
+    if (!DEV_BYPASS_AUTH) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setShowDevBypassBanner(!session);
+    });
+  }, []);
 
   // Coverage callback from ValidatorChat
-  const handleCoverageUpdate = useCallback((newCoverage: FollowupCoverage, ready: boolean) => {
+  const handleCoverageUpdate = useCallback((newCoverage: FollowupCoverage, ready: boolean, newExtracted?: ExtractedFields, newConfidence?: ConfidenceMap) => {
     setCoverage(newCoverage);
     setCanGenerate(ready);
     setMessageCount(prev => prev + 1);
+    if (newExtracted) setExtracted(newExtracted);
+    if (newConfidence) setConfidence(newConfidence);
   }, []);
 
   // Suggestion chip clicked — prefill chat input
@@ -64,19 +82,37 @@ export default function ValidateIdea() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-        >
-          <Sparkles className="w-8 h-8 text-primary" />
-        </motion.div>
+      <div className="min-h-screen flex items-center justify-center bg-background" aria-busy="true" aria-live="polite">
+        <div className="flex flex-col items-center gap-3">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          >
+            <Sparkles className="w-8 h-8 text-primary" />
+          </motion.div>
+          <p className="text-sm text-muted-foreground">Loading validator...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Dev-only: explain 401 when bypass on but no JWT */}
+      {showDevBypassBanner && (
+        <div className="flex-shrink-0 bg-amber-500/10 border-b border-amber-500/30 px-4 py-2 flex items-center gap-2 text-amber-800 dark:text-amber-200 text-sm" role="alert">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden />
+          <span>DEV_BYPASS_AUTH: Edge Functions will 401 without a JWT.</span>
+          <Link
+            to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+            onClick={() => setReturnPathOnce(location.pathname + location.search)}
+            className="font-medium text-primary hover:underline shrink-0"
+          >
+            Sign in
+          </Link>
+          <span>or run <code className="text-xs bg-amber-500/20 px-1 rounded">supabase functions serve --no-verify-jwt</code> locally.</span>
+        </div>
+      )}
       {/* Header */}
       <header className="flex-shrink-0 border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -139,7 +175,7 @@ export default function ValidateIdea() {
         {/* Left Panel - Context */}
         <aside className="hidden lg:block w-72 flex-shrink-0 mt-4 mb-2">
           <div className="sticky top-4">
-            <ContextPanel coverage={coverage} messageCount={messageCount} />
+            <ContextPanel coverage={coverage} extracted={extracted} confidence={confidence} messageCount={messageCount} />
           </div>
         </aside>
 
@@ -175,7 +211,7 @@ export default function ValidateIdea() {
                 Fields
                 {coverage && (
                   <span className="text-xs text-primary font-medium">
-                    {Object.values(coverage).filter(Boolean).length}/8
+                    {Object.values(coverage).filter(v => isCovered(v)).length}/8
                   </span>
                 )}
               </Button>
@@ -185,7 +221,7 @@ export default function ValidateIdea() {
                 <SheetTitle>Extraction Progress</SheetTitle>
               </SheetHeader>
               <div className="mt-4">
-                <ContextPanel coverage={coverage} messageCount={messageCount} />
+                <ContextPanel coverage={coverage} extracted={extracted} confidence={confidence} messageCount={messageCount} />
               </div>
             </SheetContent>
           </Sheet>
@@ -198,7 +234,7 @@ export default function ValidateIdea() {
                 Readiness
                 {coverage && (
                   <span className={`text-xs font-medium ${canGenerate ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                    {Math.round((Object.values(coverage).filter(Boolean).length / 8) * 100)}%
+                    {Math.round((Object.values(coverage).filter(v => isCovered(v)).length / 8) * 100)}%
                   </span>
                 )}
               </Button>

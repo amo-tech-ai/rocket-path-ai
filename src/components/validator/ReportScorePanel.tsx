@@ -57,20 +57,20 @@ interface ReportScorePanelProps {
 }
 
 function getVerdict(score: number) {
-  if (score >= 75) return { label: 'GO', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
-  if (score >= 50) return { label: 'CAUTION', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+  if (score >= 75) return { label: 'GO', color: 'bg-status-success-light text-status-success border-status-success/20' };
+  if (score >= 50) return { label: 'CAUTION', color: 'bg-status-warning-light text-status-warning border-status-warning/20' };
   return { label: 'NO-GO', color: 'bg-destructive/10 text-destructive border-destructive/20' };
 }
 
 function getScoreColor(score: number) {
-  if (score >= 70) return 'bg-emerald-500';
-  if (score >= 40) return 'bg-amber-500';
+  if (score >= 70) return 'bg-status-success';
+  if (score >= 40) return 'bg-status-warning';
   return 'bg-destructive';
 }
 
 function getScoreTextColor(score: number) {
-  if (score >= 70) return 'text-emerald-500';
-  if (score >= 40) return 'text-amber-500';
+  if (score >= 70) return 'text-status-success';
+  if (score >= 40) return 'text-status-warning';
   return 'text-destructive';
 }
 
@@ -136,7 +136,7 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
         <div className="flex items-center justify-center gap-2 mt-2">
           <Badge className={verdict.color}>{verdict.label}</Badge>
           {verified && (
-            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+            <Badge className="bg-status-success-light text-status-success border-status-success/20">
               <Shield className="w-3 h-3 mr-0.5" />
               Verified
             </Badge>
@@ -178,7 +178,7 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
           {marketAvg !== null && (
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                <TrendingUp className="w-3.5 h-3.5 text-status-info" />
                 <span className="text-xs text-foreground">Market</span>
               </div>
               <span className={`text-xs font-bold ${getScoreTextColor(marketAvg)}`}>{marketAvg}/100</span>
@@ -187,7 +187,7 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
           {execAvg !== null && (
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 text-purple-500" />
+                <Zap className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs text-foreground">Execution</span>
               </div>
               <span className={`text-xs font-bold ${getScoreTextColor(execAvg)}`}>{execAvg}/100</span>
@@ -196,12 +196,12 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
           {techFeasibility && (
             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2">
-                <Target className="w-3.5 h-3.5 text-cyan-500" />
+                <Target className="w-3.5 h-3.5 text-status-info" />
                 <span className="text-xs text-foreground">Tech Feasibility</span>
               </div>
               <Badge className={
-                techFeasibility === 'high' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                techFeasibility === 'medium' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                techFeasibility === 'high' ? 'bg-status-success-light text-status-success border-status-success/20' :
+                techFeasibility === 'medium' ? 'bg-status-warning-light text-status-warning border-status-warning/20' :
                 'bg-destructive/10 text-destructive border-destructive/20'
               }>
                 {techFeasibility.toUpperCase()}
@@ -226,8 +226,8 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
             )}
             {importantQuestions > 0 && (
               <div className="flex items-center gap-2 text-xs">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-amber-500">{importantQuestions} important question{importantQuestions > 1 ? 's' : ''}</span>
+                <AlertTriangle className="w-3.5 h-3.5 text-status-warning" />
+                <span className="text-status-warning">{importantQuestions} important question{importantQuestions > 1 ? 's' : ''}</span>
               </div>
             )}
             {riskCount > 0 && (
@@ -249,7 +249,7 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
           <div className="grid grid-cols-2 gap-2">
             {ltvCacRatio != null && (
               <div className="p-2.5 rounded-lg bg-muted/50 text-center">
-                <div className={`text-lg font-bold ${ltvCacRatio >= 3 ? 'text-emerald-500' : ltvCacRatio >= 1.5 ? 'text-amber-500' : 'text-destructive'}`}>
+                <div className={`text-lg font-bold ${ltvCacRatio >= 3 ? 'text-status-success' : ltvCacRatio >= 1.5 ? 'text-status-warning' : 'text-destructive'}`}>
                   {ltvCacRatio.toFixed(1)}x
                 </div>
                 <div className="text-[10px] text-muted-foreground">LTV/CAC</div>
@@ -282,14 +282,14 @@ export function ReportScorePanel({ score, verified, details }: ReportScorePanelP
         <div className="flex items-start gap-2">
           {verified ? (
             <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-status-success mt-0.5 flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
                 This report was verified by AI cross-referencing all agent outputs.
               </p>
             </>
           ) : (
             <>
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-status-warning mt-0.5 flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
                 This report has not been verified. Some agents may have failed.
               </p>

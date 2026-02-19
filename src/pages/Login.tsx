@@ -1,32 +1,43 @@
-import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
+import { getReturnPath, clearReturnPath } from '@/lib/authReturnPath';
 
 const Login = () => {
   const { user, profile, loading, signInWithGoogle, signInWithLinkedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
 
-  // Get the intended destination from state, or check onboarding status
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+  const from = location.state as { from?: { pathname: string; search?: string } } | null;
+  const fullFrom = from?.from ? from.from.pathname + (from.from.search || '') : null;
+
+  const returnPath = useMemo(() => {
+    return (
+      getReturnPath() ||
+      searchParams.get('redirect') ||
+      fullFrom ||
+      '/dashboard'
+    );
+  }, [searchParams, fullFrom]);
 
   useEffect(() => {
     if (user && !loading) {
-      // If user has completed onboarding, go to dashboard; otherwise go to onboarding
       if (profile?.onboarding_completed) {
-        navigate(from || '/dashboard', { replace: true });
+        clearReturnPath();
+        navigate(returnPath, { replace: true });
       } else {
         navigate('/onboarding', { replace: true });
       }
     }
-  }, [user, profile, loading, navigate, from]);
+  }, [user, profile, loading, navigate, returnPath]);
 
   const handleGoogleSignIn = async () => {
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(returnPath);
     } catch (error) {
       console.error('Sign in error:', error);
     }
@@ -34,7 +45,7 @@ const Login = () => {
 
   const handleLinkedInSignIn = async () => {
     try {
-      await signInWithLinkedIn();
+      await signInWithLinkedIn(returnPath);
     } catch (error) {
       console.error('Sign in error:', error);
     }

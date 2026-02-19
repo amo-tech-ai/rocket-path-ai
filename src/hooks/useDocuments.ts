@@ -16,6 +16,7 @@ export function useDocuments(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('documents')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .order('updated_at', { ascending: false });
 
@@ -36,6 +37,7 @@ export function useDocument(documentId: string | undefined) {
       const { data, error } = await supabase
         .from('documents')
         .select('*')
+        .is('deleted_at', null)
         .eq('id', documentId)
         .single();
 

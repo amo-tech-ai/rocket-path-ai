@@ -133,6 +133,16 @@ export function interpolatePrompt(
  * @returns The value at the path, or undefined
  */
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  // Sanitize: only allow alphanumeric, underscores, dots, brackets with digits
+  if (!/^[a-zA-Z0-9_]+([.\[][a-zA-Z0-9_\]]*)*$/.test(path)) {
+    return undefined;
+  }
+
+  // Block prototype pollution paths
+  if (/(^|\.)(__proto__|constructor|prototype)(\.|$)/.test(path)) {
+    return undefined;
+  }
+
   // Handle array bracket notation: step_1_output.segments[0].name
   const normalizedPath = path.replace(/\[(\d+)\]/g, '.$1');
   const parts = normalizedPath.split('.');

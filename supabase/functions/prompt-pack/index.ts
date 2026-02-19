@@ -20,16 +20,13 @@ import {
   type FeatureContext,
   type FundingStage,
 } from '../_shared/industry-context.ts';
+import { corsHeaders, getCorsHeaders, handleCors } from '../_shared/cors.ts';
+import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '../_shared/rate-limit.ts';
+import { callGemini as sharedCallGemini, extractJSON } from '../_shared/gemini.ts';
 
 // ============================================================================
 // CORS & RESPONSE HELPERS (per best-practices/04-error-handling.md)
 // ============================================================================
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -309,36 +306,17 @@ async function runStep(
   let tokens = 0;
 
   if (model === 'gemini' || model === 'any') {
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+    const geminiResult = await sharedCallGemini(
+      'gemini-3-flash-preview',
+      '', // no system prompt - the step prompt IS the user prompt
+      prompt,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: step.temperature || 0.3,
-            maxOutputTokens: step.max_tokens || 2000,
-            responseMimeType: 'application/json',
-          },
-        }),
+        maxOutputTokens: step.max_tokens || 2000,
+        timeoutMs: 30000,
       }
     );
-
-    const result = await response.json();
-
-    if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-      try {
-        outputs = JSON.parse(result.candidates[0].content.parts[0].text);
-      } catch {
-        outputs = { raw: result.candidates[0].content.parts[0].text };
-      }
-    }
-
-    tokens = result.usageMetadata?.totalTokenCount || 0;
+    outputs = extractJSON(geminiResult.text) || { raw: geminiResult.text };
+    tokens = 0; // token tracking via usageMetadata not available from shared callGemini
   } else if (model === 'claude') {
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
@@ -562,25 +540,10 @@ async function applyOutputs(
         case 'validation': {
           if (!startup_id) throw new Error('startup_id required');
 
-          // 1. Ensure a validation run exists
-          let runId = outputs_json.run_id as string || outputs_json.validation_run_id as string;
-
-          if (!runId) {
-            const { data: run, error: runError } = await supabase.from('validation_runs').insert({
-              startup_id,
-              org_id: (await supabase.from('startups').select('org_id').eq('id', startup_id).single()).data?.org_id,
-              validation_type: 'quick',
-              status: 'success',
-              metadata: { source: 'prompt_pack_apply' }
-            }).select('id').single();
-
-            if (runError) throw runError;
-            runId = run.id;
-          }
-
-          // 2. Insert report
-          const { error } = await supabase.from('validation_reports').insert({
-            run_id: runId,
+          // Insert report (run_id is nullable — legacy validation_runs table dropped)
+          const { error } = await supabase.from('validator_reports').insert({
+            run_id: (outputs_json.run_id as string) || null,
+            startup_id,
             score: outputs_json.score || outputs_json.readiness_score || 0,
             summary: outputs_json.verdict || outputs_json.summary || 'Insight applied',
             details: outputs_json,
@@ -588,7 +551,7 @@ async function applyOutputs(
           });
 
           if (error) throw error;
-          result = { target: 'validation', status: 'created', run_id: runId };
+          result = { target: 'validation', status: 'created' };
           break;
         }
 
@@ -627,8 +590,12 @@ async function applyOutputs(
 
 Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -645,6 +612,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!user) {
       return unauthorized('Invalid or missing authentication');
     }
+
+    // Rate limiting
+    const rateCheck = checkRateLimit(user.id, 'prompt-pack', RATE_LIMITS.standard);
+    if (!rateCheck.allowed) return rateLimitResponse(rateCheck, getCorsHeaders(req));
 
     // Parse body
     let body;

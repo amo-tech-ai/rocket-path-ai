@@ -50,6 +50,24 @@ export function handleCors(req: Request): Response | null {
 }
 
 /**
+ * Returns a 405 response if the request method is not in the allowed list.
+ * Call after handleCors / OPTIONS check. Returns null if method is allowed.
+ *
+ * Usage:
+ *   const methodError = requireMethod(req, 'POST');
+ *   if (methodError) return methodError;
+ */
+export function requireMethod(req: Request, ...methods: string[]): Response | null {
+  if (!methods.includes(req.method)) {
+    return new Response(
+      JSON.stringify({ error: `Method ${req.method} not allowed` }),
+      { status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+    );
+  }
+  return null;
+}
+
+/**
  * Adds CORS headers to a response
  */
 export function withCors(response: Response, req?: Request): Response {

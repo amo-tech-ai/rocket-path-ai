@@ -38,6 +38,7 @@ export function useAllTasks(startupId: string | undefined) {
           *,
           project:projects(id, name)
         `)
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .order('created_at', { ascending: false });
       
@@ -61,6 +62,7 @@ export function useTasksByProject(projectId: string | undefined) {
           *,
           project:projects(id, name)
         `)
+        .is('deleted_at', null)
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
       

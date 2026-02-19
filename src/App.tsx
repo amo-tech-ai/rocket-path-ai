@@ -3,14 +3,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AIAssistantProvider } from "@/providers/AIAssistantProvider";
 import { PlaybookProvider } from "@/providers/PlaybookProvider";
 import { GlobalAIAssistant } from "@/components/ai";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Lazy-loaded pages — each becomes its own chunk
+// ── Lazy-loaded pages — each becomes its own chunk ──────────
 const Index = lazy(() => import("./pages/Index"));
 const HowItWorks = lazy(() => import("./pages/HowItWorks"));
 const Features = lazy(() => import("./pages/Features"));
@@ -47,10 +48,11 @@ const Validator = lazy(() => import("./pages/Validator"));
 const ValidateIdea = lazy(() => import("./pages/ValidateIdea"));
 const ValidatorProgress = lazy(() => import("./pages/ValidatorProgress"));
 const ValidatorReport = lazy(() => import("./pages/ValidatorReport"));
-const Experiments = lazy(() => import("./pages/Experiments"));
-const SprintPlan = lazy(() => import("./pages/SprintPlan"));
 const MarketResearch = lazy(() => import("./pages/MarketResearch"));
-const OpportunityCanvas = lazy(() => import("./pages/OpportunityCanvas"));
+const SharedReport = lazy(() => import("./pages/SharedReport"));
+const EmbedReport = lazy(() => import("./pages/EmbedReport"));
+const WeeklyReview = lazy(() => import("./pages/WeeklyReview"));
+const FashionInfographic = lazy(() => import("./pages/infographic/FashionInfographic"));
 
 const queryClient = new QueryClient();
 
@@ -60,6 +62,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <ErrorBoundary>
         <BrowserRouter>
           <AIAssistantProvider>
             <PlaybookProvider>
@@ -67,6 +70,7 @@ const App = () => (
             <GlobalAIAssistant />
             <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
             <Routes>
+            {/* ── Public / Marketing ─────────────────────────── */}
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/features" element={<Features />} />
@@ -74,8 +78,15 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/events" element={<PublicEventsDirectory />} />
             <Route path="/events/:eventId" element={<PublicEventDetail />} />
+            <Route path="/share/report/:token" element={<SharedReport />} />
+            <Route path="/embed/report/:token" element={<EmbedReport />} />
+            <Route path="/fashion-infographic" element={<FashionInfographic />} />
+
+            {/* ── Auth ───────────────────────────────────────── */}
             <Route path="/login" element={<Login />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* ── Core app ───────────────────────────────────── */}
             <Route
               path="/dashboard"
               element={
@@ -293,22 +304,6 @@ const App = () => (
               }
             />
             <Route
-              path="/experiments"
-              element={
-                <ProtectedRoute>
-                  <Experiments />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sprint-plan"
-              element={
-                <ProtectedRoute>
-                  <SprintPlan />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/market-research"
               element={
                 <ProtectedRoute>
@@ -317,20 +312,30 @@ const App = () => (
               }
             />
             <Route
-              path="/opportunity-canvas"
+              path="/weekly-review"
               element={
                 <ProtectedRoute>
-                  <OpportunityCanvas />
+                  <WeeklyReview />
                 </ProtectedRoute>
               }
             />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
+            {/* ── Redirects for removed pages ────────────────── */}
+            <Route path="/experiments" element={<Navigate to="/tasks" replace />} />
+            <Route path="/assumption-board" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/decision-log" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/sprint-plan" element={<Navigate to="/tasks" replace />} />
+            <Route path="/opportunity-canvas" element={<Navigate to="/lean-canvas" replace />} />
+            <Route path="/diagrams" element={<Navigate to="/dashboard" replace />} />
+
+            {/* ── Catch-all ──────────────────────────────────── */}
             <Route path="*" element={<NotFound />} />
           </Routes>
             </Suspense>
             </PlaybookProvider>
           </AIAssistantProvider>
         </BrowserRouter>
+        </ErrorBoundary>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

@@ -1,26 +1,38 @@
 /**
  * CRM Agent - Main Handler
- * Orchestrates all CRM AI operations
+ * Orchestrates all CRM AI operations.
+ * Migrated to shared patterns (006-EFN): G1 schemas, shared CORS, rate limiting.
+ *
  * Actions: enrich_contact, score_lead, score_deal, analyze_pipeline,
  *          generate_email, detect_duplicate, summarize_communication,
- *          suggest_follow_ups, batch_enrich, import_contacts,
- *          segment_contacts, predict_deal_close, generate_meeting_notes,
- *          suggest_tags, analyze_relationship
+ *          suggest_follow_ups
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { callGemini, extractJSON } from "../_shared/gemini.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import {
+  ENRICH_CONTACT_SYSTEM,
+  SCORE_LEAD_SYSTEM,
+  SCORE_DEAL_SYSTEM,
+  ANALYZE_PIPELINE_SYSTEM,
+  GENERATE_EMAIL_SYSTEM,
+  SUMMARIZE_COMMUNICATION_SYSTEM,
+  enrichContactSchema,
+  scoreLeadSchema,
+  scoreDealSchema,
+  analyzePipelineSchema,
+  generateEmailSchema,
+  summarizeCommunicationSchema,
+} from "./prompt.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const MODEL = "gemini-3-flash-preview";
 
-// Use environment variables (set automatically by Supabase)
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+// ============ TYPES ============
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 
 interface RequestBody {
@@ -37,71 +49,7 @@ interface RequestBody {
   query?: string;
 }
 
-// ===== AI Utilities =====
-
-async function callGemini(
-  prompt: string, 
-  systemInstruction?: string
-): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    console.error("[crm-agent] GEMINI_API_KEY not set");
-    throw new Error("AI service not configured");
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        systemInstruction: systemInstruction 
-          ? { parts: [{ text: systemInstruction }] } 
-          : undefined,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error("[crm-agent] Gemini error:", error);
-    throw new Error("AI generation failed");
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
-
-function extractJSON<T>(text: string): T | null {
-  try {
-    // Try to find JSON in markdown code blocks
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1].trim());
-    }
-    // Try direct parse
-    return JSON.parse(text);
-  } catch {
-    // Try to find JSON object or array
-    const objectMatch = text.match(/\{[\s\S]*\}/);
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    const match = objectMatch || arrayMatch;
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
-
-// ===== Action Handlers =====
+// ============ ACTION HANDLERS ============
 
 async function enrichContact(
   supabase: SupabaseClient,
@@ -118,30 +66,19 @@ async function enrichContact(
     return { success: false, error: "linkedin_url or name+company required" };
   }
 
-  const prompt = `You are a professional networking expert. Based on this search query, generate realistic professional profile data:
+  const userPrompt = `Based on this search query, generate realistic professional profile data:
 
 Query: ${searchQuery}
 ${linkedinUrl ? `LinkedIn URL: ${linkedinUrl}` : ''}
 
-Generate a JSON response with these fields:
-{
-  "name": "Full Name",
-  "title": "Professional Title",
-  "company": "Company Name",
-  "bio": "2-3 sentence professional bio",
-  "linkedin_url": "${linkedinUrl || 'https://linkedin.com/in/...'}", 
-  "email": "professional@email.com or null if unknown",
-  "phone": "phone or null",
-  "tags": ["relevant", "tags"],
-  "relationship_strength": "weak",
-  "ai_summary": "AI-generated summary of this contact's relevance to a startup"
-}
-
-Be realistic and professional. Return ONLY valid JSON.`;
+Generate a professional profile with name, title, company, bio (2-3 sentences), linkedin_url, email (or null), phone (or null), relevant tags, relationship_strength as "weak", and an ai_summary of this contact's relevance to a startup.`;
 
   try {
-    const response = await callGemini(prompt, "You are a B2B sales intelligence assistant.");
-    const enrichedData = extractJSON<Record<string, unknown>>(response);
+    const result = await callGemini(MODEL, ENRICH_CONTACT_SYSTEM, userPrompt, {
+      responseJsonSchema: enrichContactSchema,
+      timeoutMs: 30_000,
+    });
+    const enrichedData = extractJSON<Record<string, unknown>>(result.text);
 
     if (!enrichedData) {
       return { success: false, error: "Failed to parse AI response" };
@@ -206,7 +143,7 @@ async function scoreLead(
 
   if (!contact) return { success: false, error: "Contact not found" };
 
-  const prompt = `Score this lead for a startup. Return a score from 0-100 and explain why.
+  const userPrompt = `Score this lead for a startup. Return a score from 0-100 and explain why.
 
 STARTUP:
 - Name: ${startup?.name || 'Unknown'}
@@ -219,20 +156,16 @@ CONTACT:
 - Title: ${contact.title || 'Unknown'}
 - Company: ${contact.company || 'Unknown'}
 - Type: ${contact.type || 'Unknown'}
-- Bio: ${contact.bio || 'Not available'}
-
-Return JSON:
-{
-  "score": 0-100,
-  "factors": ["factor1", "factor2", "factor3"],
-  "recommendation": "Brief action recommendation"
-}`;
+- Bio: ${contact.bio || 'Not available'}`;
 
   try {
-    const response = await callGemini(prompt, "You are a B2B lead scoring expert.");
-    const result = extractJSON<{ score: number; factors: string[]; recommendation: string }>(response);
+    const result = await callGemini(MODEL, SCORE_LEAD_SYSTEM, userPrompt, {
+      responseJsonSchema: scoreLeadSchema,
+      timeoutMs: 30_000,
+    });
+    const parsed = extractJSON<{ score: number; factors: string[]; recommendation: string }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
@@ -240,12 +173,12 @@ Return JSON:
     await supabase
       .from("contacts")
       .update({
-        relationship_strength: result.score >= 70 ? 'strong' : result.score >= 40 ? 'medium' : 'weak',
-        ai_summary: result.recommendation,
+        relationship_strength: parsed.score >= 70 ? 'strong' : parsed.score >= 40 ? 'medium' : 'weak',
+        ai_summary: parsed.recommendation,
       })
       .eq("id", contactId);
 
-    return { success: true, score: result.score, factors: result.factors };
+    return { success: true, score: parsed.score, factors: parsed.factors };
   } catch (error) {
     console.error("[crm-agent] scoreLead error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
@@ -268,7 +201,7 @@ async function scoreDeal(
 
   if (!deal) return { success: false, error: "Deal not found" };
 
-  const prompt = `Analyze this deal and predict win probability.
+  const userPrompt = `Analyze this deal and predict win probability.
 
 DEAL:
 - Name: ${deal.name}
@@ -281,21 +214,16 @@ DEAL:
 CONTACT:
 - Name: ${deal.contacts?.name || 'Unknown'}
 - Company: ${deal.contacts?.company || 'Unknown'}
-- Title: ${deal.contacts?.title || 'Unknown'}
-
-Return JSON:
-{
-  "probability": 0-100,
-  "insights": ["insight1", "insight2"],
-  "risks": ["risk1", "risk2"],
-  "next_best_action": "Recommended next step"
-}`;
+- Title: ${deal.contacts?.title || 'Unknown'}`;
 
   try {
-    const response = await callGemini(prompt, "You are a sales forecasting expert.");
-    const result = extractJSON<{ probability: number; insights: string[]; risks: string[]; next_best_action: string }>(response);
+    const result = await callGemini(MODEL, SCORE_DEAL_SYSTEM, userPrompt, {
+      responseJsonSchema: scoreDealSchema,
+      timeoutMs: 30_000,
+    });
+    const parsed = extractJSON<{ probability: number; insights: string[]; risks: string[]; next_best_action: string }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
@@ -303,17 +231,17 @@ Return JSON:
     await supabase
       .from("deals")
       .update({
-        ai_score: result.probability,
-        ai_insights: result,
-        risk_factors: result.risks,
+        ai_score: parsed.probability,
+        ai_insights: parsed,
+        risk_factors: parsed.risks,
       })
       .eq("id", dealId);
 
     return {
       success: true,
-      probability: result.probability,
-      insights: result.insights,
-      risks: result.risks,
+      probability: parsed.probability,
+      insights: parsed.insights,
+      risks: parsed.risks,
     };
   } catch (error) {
     console.error("[crm-agent] scoreDeal error:", error);
@@ -325,12 +253,12 @@ async function analyzePipeline(
   supabase: SupabaseClient,
   userId: string,
   startupId: string
-): Promise<{ 
-  success: boolean; 
-  bottlenecks?: string[]; 
-  forecast?: { monthly: number; quarterly: number }; 
+): Promise<{
+  success: boolean;
+  bottlenecks?: string[];
+  forecast?: { monthly: number; quarterly: number };
   stalling?: Array<{ id: string; name: string; days: number }>;
-  error?: string 
+  error?: string
 }> {
   console.log(`[crm-agent] analyzePipeline for startup ${startupId}`);
 
@@ -341,8 +269,8 @@ async function analyzePipeline(
     .eq("is_active", true);
 
   if (!deals || deals.length === 0) {
-    return { 
-      success: true, 
+    return {
+      success: true,
       bottlenecks: ["No active deals in pipeline"],
       forecast: { monthly: 0, quarterly: 0 },
       stalling: []
@@ -365,7 +293,7 @@ async function analyzePipeline(
 
   // Calculate forecast
   const typedDeals = deals as Array<{ amount?: number; probability?: number; stage: string }>;
-  const weightedPipeline = typedDeals.reduce((sum: number, d) => 
+  const weightedPipeline = typedDeals.reduce((sum: number, d) =>
     sum + ((d.amount || 0) * (d.probability || 50) / 100), 0
   );
 
@@ -374,31 +302,27 @@ async function analyzePipeline(
     return acc;
   }, {} as Record<string, number>);
 
-  const prompt = `Analyze this sales pipeline and identify bottlenecks.
+  const userPrompt = `Analyze this sales pipeline and identify bottlenecks.
 
 PIPELINE SUMMARY:
 ${Object.entries(pipelineSummary).map(([stage, count]) => `- ${stage}: ${count} deals`).join('\n')}
 
 STALLING DEALS: ${stalling.length} deals haven't moved in 7+ days
-WEIGHTED PIPELINE VALUE: $${weightedPipeline.toFixed(0)}
-
-Return JSON:
-{
-  "bottlenecks": ["bottleneck1", "bottleneck2"],
-  "recommendations": ["action1", "action2"],
-  "health_score": 0-100
-}`;
+WEIGHTED PIPELINE VALUE: $${weightedPipeline.toFixed(0)}`;
 
   try {
-    const response = await callGemini(prompt, "You are a sales pipeline optimization expert.");
-    const result = extractJSON<{ bottlenecks: string[]; recommendations: string[]; health_score: number }>(response);
+    const result = await callGemini(MODEL, ANALYZE_PIPELINE_SYSTEM, userPrompt, {
+      responseJsonSchema: analyzePipelineSchema,
+      timeoutMs: 30_000,
+    });
+    const parsed = extractJSON<{ bottlenecks: string[]; recommendations: string[]; health_score: number }>(result.text);
 
     return {
       success: true,
-      bottlenecks: result?.bottlenecks || ["Unable to analyze pipeline"],
-      forecast: { 
-        monthly: Math.round(weightedPipeline * 0.3), 
-        quarterly: Math.round(weightedPipeline) 
+      bottlenecks: parsed?.bottlenecks || ["Unable to analyze pipeline"],
+      forecast: {
+        monthly: Math.round(weightedPipeline * 0.3),
+        quarterly: Math.round(weightedPipeline)
       },
       stalling,
     };
@@ -424,7 +348,7 @@ async function generateEmail(
 
   if (!contact) return { success: false, error: "Contact not found" };
 
-  const prompt = `Write a professional ${purpose} email.
+  const userPrompt = `Write a professional ${purpose} email.
 
 FROM (STARTUP):
 - Company: ${startup?.name || 'Our Company'}
@@ -439,28 +363,24 @@ TO (CONTACT):
 
 PURPOSE: ${purpose}
 
-Return JSON:
-{
-  "subject": "Email subject line",
-  "body": "Full email body with proper formatting",
-  "tone": "professional/casual/formal"
-}
-
 Write a concise, personalized email. Use their name. Reference something specific about them or their company if available.`;
 
   try {
-    const response = await callGemini(prompt, "You are an expert B2B email copywriter.");
-    const result = extractJSON<{ subject: string; body: string; tone: string }>(response);
+    const result = await callGemini(MODEL, GENERATE_EMAIL_SYSTEM, userPrompt, {
+      responseJsonSchema: generateEmailSchema,
+      timeoutMs: 30_000,
+    });
+    const parsed = extractJSON<{ subject: string; body: string; tone: string }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
     return {
       success: true,
-      subject: result.subject,
-      body: result.body,
-      tone: result.tone,
+      subject: parsed.subject,
+      body: parsed.body,
+      tone: parsed.tone,
     };
   } catch (error) {
     console.error("[crm-agent] generateEmail error:", error);
@@ -495,7 +415,7 @@ async function detectDuplicate(
     // Name similarity (simple check)
     if (contact.name.toLowerCase() === name.toLowerCase()) {
       confidence += 50;
-    } else if (contact.name.toLowerCase().includes(name.toLowerCase()) || 
+    } else if (contact.name.toLowerCase().includes(name.toLowerCase()) ||
                name.toLowerCase().includes(contact.name.toLowerCase())) {
       confidence += 30;
     }
@@ -515,9 +435,9 @@ async function detectDuplicate(
     }
   }
 
-  return { 
-    success: true, 
-    duplicates: duplicates.sort((a, b) => b.confidence - a.confidence) 
+  return {
+    success: true,
+    duplicates: duplicates.sort((a, b) => b.confidence - a.confidence)
   };
 }
 
@@ -537,8 +457,8 @@ async function summarizeCommunication(
     .limit(10);
 
   if (!communications || communications.length === 0) {
-    return { 
-      success: true, 
+    return {
+      success: true,
       summary: "No communication history found",
       key_points: [],
       next_steps: ["Schedule initial contact"]
@@ -546,36 +466,31 @@ async function summarizeCommunication(
   }
 
   type CommType = { type: string; subject?: string; summary?: string; content?: string };
-  const commsSummary = (communications as CommType[]).map((c) => 
+  const commsSummary = (communications as CommType[]).map((c) =>
     `[${c.type}] ${c.subject || 'No subject'}: ${c.summary || c.content?.substring(0, 100) || 'No content'}`
   ).join('\n');
 
-  const prompt = `Summarize this communication history and identify next steps.
+  const userPrompt = `Summarize this communication history and identify next steps.
 
 COMMUNICATIONS:
-${commsSummary}
-
-Return JSON:
-{
-  "summary": "2-3 sentence summary of relationship",
-  "key_points": ["key point 1", "key point 2"],
-  "next_steps": ["action 1", "action 2"],
-  "sentiment": "positive/neutral/negative"
-}`;
+${commsSummary}`;
 
   try {
-    const response = await callGemini(prompt, "You are a relationship intelligence analyst.");
-    const result = extractJSON<{ summary: string; key_points: string[]; next_steps: string[]; sentiment: string }>(response);
+    const result = await callGemini(MODEL, SUMMARIZE_COMMUNICATION_SYSTEM, userPrompt, {
+      responseJsonSchema: summarizeCommunicationSchema,
+      timeoutMs: 30_000,
+    });
+    const parsed = extractJSON<{ summary: string; key_points: string[]; next_steps: string[]; sentiment: string }>(result.text);
 
-    if (!result) {
+    if (!parsed) {
       return { success: false, error: "Failed to parse AI response" };
     }
 
     return {
       success: true,
-      summary: result.summary,
-      key_points: result.key_points,
-      next_steps: result.next_steps,
+      summary: parsed.summary,
+      key_points: parsed.key_points,
+      next_steps: parsed.next_steps,
     };
   } catch (error) {
     console.error("[crm-agent] summarizeCommunication error:", error);
@@ -612,8 +527,8 @@ async function suggestFollowUps(
       suggestions.push({
         contact_id: contact.id,
         contact_name: contact.name,
-        reason: contact.last_contacted_at 
-          ? `No contact in ${daysSinceContact} days` 
+        reason: contact.last_contacted_at
+          ? `No contact in ${daysSinceContact} days`
           : "Never contacted",
         urgency: daysSinceContact > 60 ? "high" : "medium",
       });
@@ -627,8 +542,8 @@ async function suggestFollowUps(
     }
   }
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     suggestions: suggestions.slice(0, 10).sort((a, b) => {
       const urgencyOrder = { high: 0, medium: 1, low: 2 };
       return urgencyOrder[a.urgency as keyof typeof urgencyOrder] - urgencyOrder[b.urgency as keyof typeof urgencyOrder];
@@ -636,25 +551,33 @@ async function suggestFollowUps(
   };
 }
 
-// ===== Main Handler =====
-
-function getSupabaseClient(authHeader: string | null): SupabaseClient {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: {
-      headers: authHeader ? { Authorization: authHeader } : {},
-    },
-  });
-}
+// ============ MAIN HANDLER ============
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    });
   }
 
+  const corsHeaders = getCorsHeaders(req);
+
   try {
-    const authHeader = req.headers.get("authorization");
-    const supabase = getSupabaseClient(authHeader);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
 
     // Get user from JWT
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -665,7 +588,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body: RequestBody = await req.json();
+    // Rate limit
+    const rateResult = checkRateLimit(user.id, "crm-agent", RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      return rateLimitResponse(rateResult, corsHeaders);
+    }
+
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const { action, startup_id, contact_id, deal_id } = body;
 
     console.log(`[crm-agent] Action: ${action}, User: ${user.id}`);
@@ -717,7 +654,10 @@ Deno.serve(async (req) => {
         break;
 
       default:
-        throw new Error(`Unknown action: ${action}`);
+        return new Response(
+          JSON.stringify({ error: `Unknown action: ${action}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
     }
 
     return new Response(
@@ -727,9 +667,9 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("[crm-agent] Error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: "Internal Server Error", 
-        message: error instanceof Error ? error.message : "Unknown error" 
+      JSON.stringify({
+        error: "Internal Server Error",
+        message: error instanceof Error ? error.message : "Unknown error"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -1,54 +1,17 @@
 project_id = "yvyesmiczbjqwbqtlidy"
 
+# =============================================
+# Category B: Internal JWT auth (auth.getUser() in code)
+# Keep verify_jwt = false — these handle auth internally
+# =============================================
+
 [functions.ai-chat]
-verify_jwt = false
-
-[functions.onboarding-agent]
-verify_jwt = false
-
-[functions.pitch-deck-agent]
 verify_jwt = false
 
 [functions.lean-canvas-agent]
 verify_jwt = false
 
-[functions.crm-agent]
-verify_jwt = false
-
-[functions.documents-agent]
-verify_jwt = false
-
-[functions.investor-agent]
-verify_jwt = false
-
-[functions.task-agent]
-verify_jwt = false
-
-[functions.insights-generator]
-verify_jwt = false
-
-[functions.event-agent]
-verify_jwt = false
-
-[functions.dashboard-metrics]
-verify_jwt = false
-
-[functions.stage-analyzer]
-verify_jwt = false
-
-[functions.industry-expert-agent]
-verify_jwt = false
-
-[functions.health-scorer]
-verify_jwt = false
-
-[functions.action-recommender]
-verify_jwt = false
-
-[functions.workflow-trigger]
-verify_jwt = false
-
-[functions.load-knowledge]
+[functions.pitch-deck-agent]
 verify_jwt = false
 
 [functions.validator-start]
@@ -59,3 +22,89 @@ verify_jwt = false
 
 [functions.validator-regenerate]
 verify_jwt = false
+
+[functions.validator-followup]
+verify_jwt = false
+
+[functions.validator-panel-detail]
+verify_jwt = false
+
+# =============================================
+# Category C: Service-only (internal token or custom auth)
+# =============================================
+
+[functions.knowledge-ingest]
+verify_jwt = false
+
+# =============================================
+# Category E → A: No internal auth — enable gateway JWT
+# These functions have NO auth.getUser() call internally.
+# Supabase JS client sends JWT automatically, so enabling
+# verify_jwt = true adds gateway-level protection transparently.
+# =============================================
+
+[functions.crm-agent]
+verify_jwt = true
+
+[functions.documents-agent]
+verify_jwt = true
+
+[functions.investor-agent]
+verify_jwt = true
+
+[functions.task-agent]
+verify_jwt = true
+
+[functions.insights-generator]
+verify_jwt = true
+
+[functions.event-agent]
+verify_jwt = true
+
+[functions.onboarding-agent]
+verify_jwt = true
+
+[functions.industry-expert-agent]
+verify_jwt = true
+
+[functions.dashboard-metrics]
+verify_jwt = true
+
+[functions.stage-analyzer]
+verify_jwt = true
+
+[functions.health-scorer]
+verify_jwt = true
+
+[functions.action-recommender]
+verify_jwt = true
+
+[functions.workflow-trigger]
+verify_jwt = true
+
+[functions.load-knowledge]
+verify_jwt = true
+
+[functions.knowledge-search]
+verify_jwt = true
+
+[functions.profile-import]
+verify_jwt = true
+
+[functions.prompt-pack]
+verify_jwt = true
+
+[functions.market-research]
+verify_jwt = true
+
+[functions.experiment-agent]
+verify_jwt = true
+
+[functions.opportunity-canvas]
+verify_jwt = true
+
+[functions.compute-daily-focus]
+verify_jwt = true
+
+[functions.sprint-agent]
+verify_jwt = true

@@ -85,7 +85,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Start application
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @browser Take screenshot
 @chrome-devtools list_console_messages
 → Verify: No errors on startup
@@ -162,7 +162,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Navigate to profile
-@browser Navigate to http://localhost:3000/profile
+@browser Navigate to http://localhost:8082/profile
 @browser Take screenshot
 @chrome-devtools list_console_messages
 → Baseline: Check for errors
@@ -250,7 +250,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Navigate to CRM
-@browser Navigate to http://localhost:3000/crm
+@browser Navigate to http://localhost:8082/crm
 @browser Take screenshot
 @chrome-devtools list_console_messages
 → Baseline check
@@ -351,7 +351,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Navigate to dashboard
-@browser Navigate to http://localhost:3000/dashboard
+@browser Navigate to http://localhost:8082/dashboard
 @browser Take screenshot
 @chrome-devtools list_console_messages
 → Baseline check
@@ -507,7 +507,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Open application
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @browser Wait for data to load
 @chrome-devtools list_console_messages
 → Check: Realtime channel subscription messages
@@ -515,7 +515,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 # Step 2: Open second browser/tab
 @browser Open new tab
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @browser Login with same user
 
 # Step 3: Update data in second tab
@@ -559,7 +559,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Login as User A
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @browser Login with user A credentials
 @browser Navigate to profile
 @chrome-devtools list_network_requests
@@ -614,7 +614,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # Step 1: Test offline detection
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @chrome-devtools evaluate_script("navigator.onLine = false; window.dispatchEvent(new Event('offline'))")
 @browser Try to save data
 @chrome-devtools list_console_messages
@@ -677,7 +677,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 ```
 # Step 1: Performance trace
 @chrome-devtools performance_start_trace
-@browser Navigate to http://localhost:3000/dashboard
+@browser Navigate to http://localhost:8082/dashboard
 @browser Wait for page to fully load
 @chrome-devtools performance_stop_trace
 @chrome-devtools performance_analyze_insight
@@ -713,7 +713,7 @@ This rule defines comprehensive testing procedures for Supabase integration thro
 
 ```
 # 1. Authentication
-@browser Navigate to http://localhost:3000
+@browser Navigate to http://localhost:8082
 @chrome-devtools list_console_messages
 → Verify: No errors
 @browser Take screenshot
@@ -870,7 +870,7 @@ A successful test cycle should verify:
 
 ### Prompt 1: Complete Supabase Integration Test
 ```
-Test complete Supabase integration at http://localhost:3000:
+Test complete Supabase integration at http://localhost:8082:
 
 1. Test authentication flow (login, session, logout)
 2. Test profile CRUD operations
@@ -892,7 +892,7 @@ Provide summary of:
 
 ### Prompt 2: Authentication & Session Test
 ```
-Test authentication and session management at http://localhost:3000:
+Test authentication and session management at http://localhost:8082:
 
 1. Navigate to application
 2. Check authentication state (DEV_MODE or real auth)
@@ -911,7 +911,7 @@ Report:
 
 ### Prompt 3: Database Operations Test
 ```
-Test all database operations at http://localhost:3000:
+Test all database operations at http://localhost:8082:
 
 1. Profile operations (create, read, update)
 2. CRM operations (deals, tasks)

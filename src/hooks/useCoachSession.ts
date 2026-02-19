@@ -59,15 +59,8 @@ export function useCoachSession({ startupId, onError, onHighlight, onScoreUpdate
   } = useQuery({
     queryKey: ['coach-session', startupId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('validation_sessions')
-        .select('*')
-        .eq('startup_id', startupId)
-        .eq('is_active', true)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data as ValidationSession | null;
+      // Legacy validation_sessions table dropped — return null until coach migrated to chat_sessions
+      return null as ValidationSession | null;
     },
     enabled: !!startupId,
   });
@@ -76,17 +69,8 @@ export function useCoachSession({ startupId, onError, onHighlight, onScoreUpdate
   const { data: conversationHistory } = useQuery({
     queryKey: ['coach-conversations', session?.id],
     queryFn: async () => {
-      if (!session?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('validation_conversations')
-        .select('*')
-        .eq('session_id', session.id)
-        .order('created_at', { ascending: true })
-        .limit(50);
-      
-      if (error) throw error;
-      return data || [];
+      // Legacy validation_conversations table dropped — return empty until coach migrated
+      return [];
     },
     enabled: !!session?.id,
   });

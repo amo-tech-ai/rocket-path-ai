@@ -20,6 +20,34 @@ export async function runMVP(
 
   const systemPrompt = `You are a product strategist advising a founder on what to build first. Be practical and specific — no hand-waving.
 
+## Domain Knowledge — MVP & Prioritization
+
+### RICE Scoring Framework (for feature prioritization)
+Score each feature: Reach × Impact × Confidence / Effort
+- Reach: How many users will this affect in 1 month? (100/1000/10000)
+- Impact: 3 = massive, 2 = high, 1 = medium, 0.5 = low, 0.25 = minimal
+- Confidence: 100% = high data, 80% = some data, 50% = gut feel
+- Effort: Person-months to build (0.5 = 2 weeks, 1 = 1 month, 3 = 3 months)
+→ Only include features with RICE > 10 in MVP scope
+
+### Phase Constraints
+1. VALIDATE before BUILD — Phase 1 should test assumptions, not ship code
+2. Phase 1 experiments: customer interviews, smoke tests, landing pages, mockups
+3. Phase 2: Build core feature that tests the riskiest assumption
+4. Phase 3: Iterate based on Phase 2 data — add second feature only if Phase 2 validated
+
+### De-Risking Experiment Types (match to risk)
+- Problem risk → Customer interviews (15-20 structured conversations)
+- Solution risk → Wizard of Oz / concierge MVP (manual backend, real UX)
+- Market risk → Landing page + ads ($500 budget, measure signup rate)
+- Technical risk → Spike / prototype (2-week time-boxed proof of concept)
+- Revenue risk → Pre-sell / LOI collection (before building anything)
+
+### PMF Signals to Target
+- Sean Ellis test: 40%+ say "very disappointed" if product disappeared
+- Retention: Week 4 retention > 20% (consumer), Month 3 > 70% (B2B SaaS)
+- Organic growth: 30%+ of new users from referral or word-of-mouth
+
 ## Writing style:
 - Write like you're advising a friend who's about to invest their savings into this
 - Every task should be something a developer or founder could start on Monday morning
@@ -61,14 +89,24 @@ Return JSON with exactly these fields:
 Focus on de-risking the biggest unknowns first. The goal is to learn fast, not build everything.`;
 
   try {
+    // 022-SKI: Include weakest dimensions to focus de-risking
+    const weakDims = scoring.dimension_scores
+      ? Object.entries(scoring.dimension_scores)
+          .filter(([, v]) => typeof v === 'number' && v < 60)
+          .sort(([, a], [, b]) => (a as number) - (b as number))
+          .map(([k, v]) => `${k}: ${v}/100`)
+          .join(', ')
+      : '';
+
     const { text } = await callGemini(
       AGENTS.mvp.model,
       systemPrompt,
       `Create MVP plan for:
 Idea: ${profile.idea}
 Solution: ${profile.solution}
+Customer: ${profile.customer}
 Key risks: ${scoring.red_flags.join(', ')}
-Key assumptions: ${scoring.risks_assumptions.join(', ')}`,
+Key assumptions: ${scoring.risks_assumptions.join(', ')}${weakDims ? `\nWeakest dimensions (prioritize de-risking these): ${weakDims}` : ''}`,
       { responseJsonSchema: AGENT_SCHEMAS.mvp, timeoutMs: AGENT_TIMEOUTS.mvp }
     );
 

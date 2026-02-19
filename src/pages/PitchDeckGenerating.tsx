@@ -1,7 +1,7 @@
 /**
  * Pitch Deck Generating Page
  * Full-screen animated progress UI during deck generation
- * Route: /app/pitch-deck/generating/:deckId
+ * Route: /app/pitch-deck/:deckId/generating
  */
 
 import { useEffect } from 'react';

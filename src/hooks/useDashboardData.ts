@@ -32,6 +32,7 @@ export function useStartup() {
         const { data, error } = await supabase
           .from('startups')
           .select('*')
+          .is('deleted_at', null)
           .eq('id', session.startup_id)
           .single();
         if (!error && data) return data;
@@ -48,6 +49,7 @@ export function useStartup() {
         const { data, error } = await supabase
           .from('startups')
           .select('*')
+          .is('deleted_at', null)
           .eq('org_id', profile.org_id)
           .maybeSingle();
         if (!error) return data;
@@ -68,6 +70,7 @@ export function useProjects(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .eq('status', 'active')
         .order('updated_at', { ascending: false })
@@ -93,6 +96,7 @@ export function useTasks(startupId: string | undefined) {
           *,
           project:projects(name)
         `)
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .in('priority', ['high', 'urgent'])
         .order('created_at', { ascending: false })
@@ -115,6 +119,7 @@ export function useTaskStats(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('tasks')
         .select('status')
+        .is('deleted_at', null)
         .eq('startup_id', startupId);
       
       if (error) throw error;
@@ -140,6 +145,7 @@ export function useDeals(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('deals')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .eq('is_active', true)
         .order('updated_at', { ascending: false });

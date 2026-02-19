@@ -4,7 +4,8 @@
  * All sections verified AI-generated with citations tracking
  */
 
-import { createClient } from "@supabase/supabase-js";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { AGENTS, type AgentName } from "./config.ts";
 import { runPipeline } from "./pipeline.ts";
@@ -90,7 +91,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { input_text, startup_id } = body as { input_text?: string; startup_id?: string };
+    const { input_text, startup_id, interview_context } = body as {
+      input_text?: string;
+      startup_id?: string;
+      interview_context?: { version: number; extracted: Record<string, string>; coverage: Record<string, string> };
+    };
 
     // Input sanitization — strip HTML tags, limit length
     const sanitized = (input_text || '').replace(/<[^>]*>/g, '').trim();
@@ -147,7 +152,8 @@ Deno.serve(async (req) => {
     // 3. Background pipeline via EdgeRuntime.waitUntil (official Supabase pattern).
     // Keeps the isolate alive for the pipeline up to the 400s wall-clock limit (paid plan).
     // Falls back to fire-and-forget if waitUntil is unavailable.
-    const pipelinePromise = runPipeline(supabaseAdmin, sessionId, sanitized, startup_id)
+    // 002-EFN: Pass interview context to pipeline (backward compatible — null if not provided)
+    const pipelinePromise = runPipeline(supabaseAdmin, sessionId, sanitized, startup_id, interview_context || null, user.id)
       .catch(e => console.error('[pipeline] Unhandled:', e))
       .finally(() => { activeSessions.delete(sessionId); });
 

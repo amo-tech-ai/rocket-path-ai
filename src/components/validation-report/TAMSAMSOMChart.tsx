@@ -14,6 +14,7 @@ interface TAMSAMSOMChartProps {
 }
 
 export default function TAMSAMSOMChart({ data, className }: TAMSAMSOMChartProps) {
+  if (!data) return null;
   const { tam, sam, som, methodology, growthRate } = data;
 
   return (

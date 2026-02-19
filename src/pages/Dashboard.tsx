@@ -21,9 +21,17 @@ import { useDashboardRealtime } from "@/hooks/useRealtimeSubscription";
 import { useHealthScore } from "@/hooks/useHealthScore";
 import { useActionRecommender } from "@/hooks/useActionRecommender";
 import { useModuleProgress } from "@/hooks/useModuleProgress";
+import { useCompletionUnlocks } from "@/hooks/useCompletionUnlocks";
+import { useTopRisks } from "@/hooks/useTopRisks";
+import { CompletionUnlocks } from "@/components/dashboard/CompletionUnlocks";
+import { TopRisks } from "@/components/dashboard/TopRisks";
+import { PrimaryOpportunity } from "@/components/dashboard/PrimaryOpportunity";
+import { FundraisingReadiness } from "@/components/dashboard/FundraisingReadiness";
 import { useAuth } from "@/hooks/useAuth";
 import { useFirstVisit } from "@/hooks/useFirstVisit";
 import { StartupStage } from "@/hooks/useStageGuidance";
+import { useJourneyStage } from "@/hooks/useJourneyStage";
+import { JourneyStepper } from "@/components/dashboard/JourneyStepper";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Bell, Settings } from "lucide-react";
@@ -57,6 +65,22 @@ const Dashboard = () => {
 
   // Module progress (Canvas, Pitch, Tasks, CRM)
   const { data: moduleProgress, isLoading: moduleLoading } = useModuleProgress(startup?.id);
+
+  // Completion & unlocks (derived from startup object)
+  const completion = useCompletionUnlocks(startup as Record<string, unknown> | null);
+
+  // Top risks (derived from health breakdown)
+  const topRisks = useTopRisks(healthScore?.breakdown, healthScore?.warnings);
+
+  // Journey stage (derived from existing data, no extra queries)
+  const journey = useJourneyStage({
+    hasStartup: !!startup,
+    validationScore: healthScore?.overall ?? null,
+    canvasProgress: moduleProgress?.canvasProgress ?? 0,
+    experimentCount: 0, // TODO: wire when experiments table queried
+    sprintProgress: 0, // TODO: wire when sprint plan table queried
+    healthScore: healthScore?.overall ?? 0,
+  });
 
   // Enable real-time updates for all dashboard data
   useDashboardRealtime(startup?.id);
@@ -194,6 +218,16 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <QuickActions />
 
+        {/* Founder Journey Stepper */}
+        {startup && (
+          <JourneyStepper
+            steps={journey.steps}
+            currentStepIndex={journey.currentStepIndex}
+            stageLabel={journey.currentStep.label}
+            timeEstimate={journey.percentComplete < 100 ? `${journey.percentComplete}% complete` : 'All steps done'}
+          />
+        )}
+
         {/* Welcome Banner - First visit after onboarding */}
         {isFirstVisit && startup && (
           <WelcomeBanner
@@ -235,28 +269,52 @@ const Dashboard = () => {
           changes={changes}
         />
 
-        {/* Today's Focus - AI Recommended Actions */}
-        <TodaysFocus 
-          actions={recommendations?.todaysFocus}
-          isLoading={actionsLoading}
-        />
-
-        {/* Startup Health & Module Progress */}
+        {/* Startup Health & Completion */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StartupHealthEnhanced
             healthScore={healthScore}
             isLoading={healthLoading}
           />
-          <GuidedOverlay
-            isLocked={isGuidedMode && !hasCompletedFirstTask}
-            tooltip="Complete your first task to unlock module progress"
-          >
-            <ModuleProgress
-              data={moduleProgress}
-              isLoading={moduleLoading}
-            />
-          </GuidedOverlay>
+          <CompletionUnlocks data={completion} />
         </div>
+
+        {/* Risks & Today's Focus */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TopRisks risks={topRisks} />
+          <TodaysFocus
+            actions={recommendations?.todaysFocus}
+            isLoading={actionsLoading}
+          />
+        </div>
+
+        {/* Primary Opportunity & Fundraising */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PrimaryOpportunity
+            icp={startup?.target_market as string}
+            problem={startup?.description as string}
+            uvp={startup?.tagline as string}
+            stage={startup?.stage as string}
+            validationScore={healthScore?.overall}
+          />
+          <FundraisingReadiness
+            score={healthScore?.breakdown?.investorReadiness?.score ?? 0}
+            isRaising={!!startup?.is_raising}
+            hasPitchDeck={(moduleProgress?.pitchProgress ?? 0) > 0}
+            hasMetrics={(moduleProgress?.tasksCompleted ?? 0) > 0}
+            hasFinancials={false}
+          />
+        </div>
+
+        {/* Module Progress */}
+        <GuidedOverlay
+          isLocked={isGuidedMode && !hasCompletedFirstTask}
+          tooltip="Complete your first task to unlock module progress"
+        >
+          <ModuleProgress
+            data={moduleProgress}
+            isLoading={moduleLoading}
+          />
+        </GuidedOverlay>
 
         {/* Recent Activity Timeline */}
         <GuidedOverlay

@@ -14,20 +14,20 @@ export function ScoreCircle({ score, size = 160, strokeWidth = 12, label = '/100
   const offset = circumference * (1 - score / 100);
 
   const getScoreColor = () => {
-    if (score >= 75) return 'text-emerald-500';
-    if (score >= 50) return 'text-amber-500';
+    if (score >= 75) return 'text-status-success';
+    if (score >= 50) return 'text-status-warning';
     return 'text-destructive';
   };
 
   const getGradientColors = () => {
-    if (score >= 75) return { start: '#10b981', end: '#34d399' };
-    if (score >= 50) return { start: '#f59e0b', end: '#fbbf24' };
-    return { start: '#ef4444', end: '#f87171' };
+    if (score >= 75) return { start: 'hsl(var(--status-success))', end: 'hsl(var(--status-success))' };
+    if (score >= 50) return { start: 'hsl(var(--status-warning))', end: 'hsl(var(--status-warning))' };
+    return { start: 'hsl(var(--status-critical))', end: 'hsl(var(--status-critical))' };
   };
 
   const getVerdict = () => {
-    if (score >= 75) return { label: 'GO', color: 'bg-emerald-500/10 text-emerald-500' };
-    if (score >= 50) return { label: 'CAUTION', color: 'bg-amber-500/10 text-amber-500' };
+    if (score >= 75) return { label: 'GO', color: 'bg-status-success-light text-status-success' };
+    if (score >= 50) return { label: 'CAUTION', color: 'bg-status-warning-light text-status-warning' };
     return { label: 'NO-GO', color: 'bg-destructive/10 text-destructive' };
   };
 

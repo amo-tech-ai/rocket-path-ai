@@ -48,6 +48,7 @@ import { useStep1Handlers } from './onboarding/useStep1Handlers';
 import { useStep3Handlers } from './onboarding/useStep3Handlers';
 import { useStep4Handlers } from './onboarding/useStep4Handlers';
 import { useWizardNavigation } from './onboarding/useWizardNavigation';
+import { getReturnPath, clearReturnPath } from '@/lib/authReturnPath';
 
 export default function OnboardingWizard() {
   const navigate = useNavigate();
@@ -361,7 +362,9 @@ export default function OnboardingWizard() {
   // Redirect if wizard is already complete
   useEffect(() => {
     if (isWizardComplete) {
-      navigate('/dashboard', { replace: true });
+      const returnPath = getReturnPath();
+      clearReturnPath();
+      navigate(returnPath || '/dashboard', { replace: true });
     }
   }, [isWizardComplete, navigate]);
 
@@ -612,6 +615,14 @@ export default function OnboardingWizard() {
           <div className="flex items-center justify-center gap-2 text-sm text-primary">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Setting up in background… You can start below.</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => { setLoadingTimedOut(false); ensureSession().catch(console.error); }}
+            >
+              Retry
+            </Button>
           </div>
         </div>
       )}

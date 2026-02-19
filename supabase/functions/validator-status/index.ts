@@ -3,7 +3,8 @@
  * Returns current pipeline status for a session
  */
 
-import { createClient } from "@supabase/supabase-js";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
@@ -131,7 +132,7 @@ Deno.serve(async (req) => {
     let report = null;
     if (session.status === 'complete' || session.status === 'partial') {
       const { data: reportData } = await supabase
-        .from('validation_reports')
+        .from('validator_reports')
         .select('id, score, summary, verified, verification_json')
         .eq('session_id', sessionId)
         .single();
@@ -165,10 +166,11 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Calculate progress
+    // Calculate progress — skipped steps count as "done" for progress bar (they won't run)
     const completedSteps = steps.filter(s => s.status === 'ok' || s.status === 'partial').length;
     const failedSteps = steps.filter(s => s.status === 'failed').length;
-    const progress = Math.round((completedSteps / steps.length) * 100);
+    const skippedSteps = steps.filter(s => s.status === 'skipped').length;
+    const progress = Math.round(((completedSteps + failedSteps + skippedSteps) / steps.length) * 100);
 
     return new Response(
       JSON.stringify({

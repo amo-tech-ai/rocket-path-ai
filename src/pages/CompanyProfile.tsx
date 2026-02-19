@@ -7,6 +7,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useUserStartup, useUpdateStartup, STARTUP_STAGES, INDUSTRIES } from '@/hooks/useSettings';
 import { ProfileCompletionCard } from '@/components/profile/ProfileCompletionCard';
 import { ProfileAIPanel } from '@/components/profile/ProfileAIPanel';
+import { CompletenessScore } from '@/components/profile/CompletenessScore';
+import { SmartSuggestions } from '@/components/profile/SmartSuggestions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,7 +37,10 @@ import {
   Settings,
   Plus,
   X,
+  Sparkles,
 } from 'lucide-react';
+import { URLImportSheet } from '@/components/profile/URLImportSheet';
+import type { ExtractedField } from '@/hooks/useProfileImport';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -82,6 +87,8 @@ const CompanyProfile = () => {
   const [keyFeatures, setKeyFeatures] = useState<string[]>(['AI Dashboard', 'Strategic Planning']);
   const [newSegment, setNewSegment] = useState('');
   const [newFeature, setNewFeature] = useState('');
+  const [importSheetOpen, setImportSheetOpen] = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState<Set<string>>(new Set());
   
   const { data: startup, isLoading } = useUserStartup();
   const updateStartup = useUpdateStartup();
@@ -92,6 +99,7 @@ const CompanyProfile = () => {
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors, isDirty },
   } = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -118,7 +126,7 @@ const CompanyProfile = () => {
         name: startup.name,
         tagline: startup.tagline || '',
         description: startup.description || '',
-        headquarters: (startup as any).headquarters || 'San Francisco, CA',
+        headquarters: startup.headquarters || 'San Francisco, CA',
         industry: startup.industry,
         business_model: startup.business_model?.[0] || null,
         unique_value: startup.unique_value || '',
@@ -149,6 +157,7 @@ const CompanyProfile = () => {
           name: data.name,
           tagline: data.tagline,
           description: data.description,
+          headquarters: data.headquarters || null,
           industry: data.industry,
           business_model: data.business_model ? [data.business_model] : null,
           unique_value: data.unique_value,
@@ -186,6 +195,28 @@ const CompanyProfile = () => {
     }
   };
 
+  // Import apply callback
+  const handleImportApply = (selected: ExtractedField[]) => {
+    const newAiFields = new Set(aiFilledFields);
+    for (const field of selected) {
+      if (field.key === 'target_customers' && Array.isArray(field.value)) {
+        setCustomerSegments(field.value as string[]);
+      } else if (field.key === 'key_features' && Array.isArray(field.value)) {
+        setKeyFeatures(field.value as string[]);
+      } else {
+        setValue(field.key as keyof CompanyFormData, field.value as any, { shouldDirty: true });
+      }
+      newAiFields.add(field.key);
+    }
+    setAiFilledFields(newAiFields);
+  };
+
+  const getImportCurrentValues = (): Record<string, unknown> => ({
+    ...getValues(),
+    target_customers: customerSegments,
+    key_features: keyFeatures,
+  });
+
   // Calculate completion
   const calculateCompletion = () => {
     if (!startup) return { percentage: 0, missing: [] };
@@ -210,6 +241,44 @@ const CompanyProfile = () => {
   };
 
   const completion = calculateCompletion();
+
+  // AI badge helper
+  const AiBadge = ({ field }: { field: string }) =>
+    aiFilledFields.has(field) ? (
+      <Badge variant="outline" className="ml-1.5 text-[10px] px-1 py-0 bg-primary/5 text-primary border-primary/20 gap-0.5">
+        <Sparkles className="w-2.5 h-2.5" />
+        AI
+      </Badge>
+    ) : null;
+
+  const handleNavigateToField = (field: string) => {
+    const fieldToSection: Record<string, string> = {
+      tagline: 'overview',
+      description: 'overview',
+      website: 'overview',
+      linkedin: 'overview',
+      industry: 'business',
+      unique_value: 'business',
+      stage: 'fundraising',
+      team_size: 'team',
+    };
+    const section = fieldToSection[field] || 'overview';
+    setActiveSection(section);
+
+    // Focus the relevant input after section renders
+    setTimeout(() => {
+      const fieldToId: Record<string, string> = {
+        tagline: 'tagline',
+        description: 'description',
+        unique_value: 'unique_value',
+        team_size: 'team_size',
+      };
+      const inputId = fieldToId[field];
+      if (inputId) {
+        document.getElementById(inputId)?.focus();
+      }
+    }, 100);
+  };
 
   if (isLoading) {
     return (
@@ -325,6 +394,10 @@ const CompanyProfile = () => {
                 <span className="w-2 h-2 rounded-full bg-green-500 mr-1.5" />
                 Live Sync
               </Badge>
+              <Button variant="outline" size="sm" onClick={() => setImportSheetOpen(true)}>
+                <Globe className="w-4 h-4 mr-1.5" />
+                Import from URL
+              </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
                 Back to Dashboard
               </Button>
@@ -349,7 +422,7 @@ const CompanyProfile = () => {
                     </div>
                     <div className="flex-1 grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Company Name *</Label>
+                        <Label htmlFor="name" className="flex items-center">Company Name *<AiBadge field="name" /></Label>
                         <Input id="name" {...register('name')} />
                         {errors.name && (
                           <p className="text-xs text-destructive">{errors.name.message}</p>
@@ -368,7 +441,7 @@ const CompanyProfile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="tagline">Tagline</Label>
+                    <Label htmlFor="tagline" className="flex items-center">Tagline<AiBadge field="tagline" /></Label>
                     <Input 
                       id="tagline" 
                       placeholder="One-line value proposition..."
@@ -377,7 +450,7 @@ const CompanyProfile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Short Description</Label>
+                    <Label htmlFor="description" className="flex items-center">Short Description<AiBadge field="description" /></Label>
                     <Textarea
                       id="description"
                       placeholder="2-3 sentences about what your company does..."
@@ -387,7 +460,7 @@ const CompanyProfile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="headquarters">Headquarters</Label>
+                    <Label htmlFor="headquarters" className="flex items-center">Headquarters<AiBadge field="headquarters" /></Label>
                     <Input 
                       id="headquarters" 
                       placeholder="San Francisco, CA"
@@ -407,7 +480,7 @@ const CompanyProfile = () => {
                 <CardContent className="space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Industry</Label>
+                      <Label className="flex items-center">Industry<AiBadge field="industry" /></Label>
                       <Select
                         value={watch('industry') || undefined}
                         onValueChange={(value) => setValue('industry', value, { shouldDirty: true })}
@@ -425,7 +498,7 @@ const CompanyProfile = () => {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Business Model</Label>
+                      <Label className="flex items-center">Business Model<AiBadge field="business_model" /></Label>
                       <Select
                         value={watch('business_model') || undefined}
                         onValueChange={(value) => setValue('business_model', value, { shouldDirty: true })}
@@ -446,7 +519,7 @@ const CompanyProfile = () => {
 
                   {/* Customer Segments */}
                   <div className="space-y-2">
-                    <Label>Customer Segments</Label>
+                    <Label className="flex items-center">Customer Segments<AiBadge field="target_customers" /></Label>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {customerSegments.map((segment, i) => (
                         <Badge key={i} variant="secondary" className="gap-1">
@@ -479,7 +552,7 @@ const CompanyProfile = () => {
 
                   {/* Key Features */}
                   <div className="space-y-2">
-                    <Label>Key Features</Label>
+                    <Label className="flex items-center">Key Features<AiBadge field="key_features" /></Label>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {keyFeatures.map((feature, i) => (
                         <Badge key={i} variant="secondary" className="gap-1">
@@ -511,7 +584,7 @@ const CompanyProfile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="unique_value">Primary Differentiator</Label>
+                    <Label htmlFor="unique_value" className="flex items-center">Primary Differentiator<AiBadge field="unique_value" /></Label>
                     <Textarea
                       id="unique_value"
                       placeholder="What makes your approach unique?"
@@ -667,15 +740,38 @@ const CompanyProfile = () => {
         <motion.aside
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="w-full lg:w-80 shrink-0 hidden xl:block"
+          className="w-full lg:w-80 shrink-0 hidden xl:block space-y-6"
         >
+          {/* Circular Completeness Score */}
+          <CompletenessScore
+            percentage={completion.percentage}
+            missingFields={completion.missing}
+          />
+
+          {/* AI Panel */}
           <ProfileAIPanel
             type="company"
             completionPercentage={completion.percentage}
             onImprove={() => toast.info('AI profile improvement coming soon!')}
           />
+
+          {/* Smart Suggestions */}
+          <SmartSuggestions
+            missingFields={completion.missing}
+            industry={startup?.industry}
+            stage={startup?.stage}
+            onNavigateToField={handleNavigateToField}
+          />
         </motion.aside>
       </div>
+
+      {/* URL Import Sheet */}
+      <URLImportSheet
+        open={importSheetOpen}
+        onOpenChange={setImportSheetOpen}
+        currentValues={getImportCurrentValues()}
+        onApply={handleImportApply}
+      />
     </DashboardLayout>
   );
 };

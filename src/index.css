@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,8 +8,6 @@
    Premium, luxury SaaS aesthetic
    Off-white backgrounds, deep charcoal text, emerald green accent
 */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @layer base {
   :root {
@@ -80,6 +80,16 @@
     --ai-accent: 162 75% 22%;
     --ai-card: 0 0% 100%;
 
+    /* Status Indicators — semantic colors for scores, badges, states */
+    --status-success: 162 50% 40%;          /* sage — high scores, positive */
+    --status-success-light: 162 30% 95%;    /* sage-light bg */
+    --status-warning: 40 40% 30%;           /* warm-foreground — medium scores, caution */
+    --status-warning-light: 40 30% 95%;     /* warm bg */
+    --status-critical: 0 72% 51%;           /* destructive — low scores, negative */
+    --status-critical-light: 0 50% 96%;     /* destructive bg */
+    --status-info: 162 75% 22%;             /* primary — info, AI, neutral */
+    --status-info-light: 150 30% 95%;       /* accent bg */
+
     /* Typography */
     --font-display: 'Playfair Display', Georgia, serif;
     --font-body: 'Inter', system-ui, sans-serif;
@@ -127,6 +137,16 @@
     --ai-background: 220 20% 12%;
     --ai-border: 220 18% 18%;
     --ai-accent: 162 60% 45%;
+
+    /* Status Indicators — dark mode */
+    --status-success: 162 50% 50%;
+    --status-success-light: 162 20% 15%;
+    --status-warning: 40 40% 55%;
+    --status-warning-light: 40 20% 15%;
+    --status-critical: 0 72% 55%;
+    --status-critical-light: 0 30% 15%;
+    --status-info: 162 60% 45%;
+    --status-info-light: 162 30% 15%;
   }
 }
 
@@ -323,6 +343,73 @@
   .glass {
     @apply bg-white/80 backdrop-blur-xl border border-white/50;
   }
+
+  /* ===== LEAN CANVAS COMPONENT STYLES ===== */
+
+  /* Canvas card — standard section card */
+  .canvas-card {
+    @apply bg-card rounded-xl border border-border p-6 lg:p-8 transition-all duration-300;
+  }
+
+  .canvas-card:hover {
+    border-color: hsl(var(--border) / 0.8);
+  }
+
+  .canvas-card:focus-within {
+    @apply border-primary;
+    box-shadow: 0 10px 25px hsl(var(--primary) / 0.05);
+  }
+
+  /* Canvas card — featured section (UVP) */
+  .canvas-card-featured {
+    @apply bg-card rounded-xl border-2 border-border/50 p-6 lg:p-8 transition-all duration-300;
+    background: hsl(var(--background-secondary, var(--background)));
+  }
+
+  .canvas-card-featured:focus-within {
+    @apply border-primary;
+    box-shadow: 0 10px 25px hsl(var(--primary) / 0.05);
+  }
+
+  /* Canvas textarea — input area inside cards */
+  .canvas-textarea {
+    @apply w-full p-3 bg-muted/50 border border-border rounded-lg text-sm leading-normal resize-none transition-all duration-200;
+    color: hsl(var(--foreground));
+  }
+
+  .canvas-textarea::placeholder {
+    @apply text-muted-foreground/60;
+  }
+
+  .canvas-textarea:focus {
+    @apply bg-card border-primary outline-none;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.1);
+  }
+
+  /* Completion badge — section complete indicator */
+  .completion-badge {
+    @apply w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300;
+    background: hsl(var(--sage-light));
+    border: 1px solid hsl(var(--primary));
+  }
+
+  .completion-badge svg {
+    @apply w-3 h-3 text-primary;
+  }
+
+  /* Completion badge — featured section variant */
+  .completion-badge-featured {
+    @apply w-5 h-5 rounded-full bg-primary flex items-center justify-center transition-all duration-300;
+  }
+
+  .completion-badge-featured svg {
+    @apply w-3 h-3 text-primary-foreground;
+  }
+
+  /* Canvas action bar — bottom CTA area */
+  .canvas-action-bar {
+    @apply mt-12 p-6 lg:p-8 bg-card rounded-xl border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4;
+  }
 }
 
 @layer utilities {
@@ -459,5 +546,71 @@
       animation: none !important;
       transition: none !important;
     }
+  }
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+  header, footer, nav,
+  .sidebar, .sticky-score-bar,
+  [data-no-print], .no-print,
+  button, .share-dialog,
+  .scroll-to-top {
+    display: none !important;
+  }
+
+  body, .bg-background, .bg-card, .bg-background-secondary {
+    background: white !important;
+  }
+
+  main, .report-container, .report-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 0.5in !important;
+  }
+
+  .report-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 0.25in;
+  }
+
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75em;
+    color: #676F7E;
+  }
+  a[href^="#"]::after,
+  a[href^="javascript"]::after {
+    content: none;
+  }
+
+  .print-header {
+    display: block !important;
+    text-align: center;
+    padding: 0.25in 0;
+    border-bottom: 2px solid #0E6249;
+    margin-bottom: 0.25in;
+  }
+
+  @page {
+    size: A4;
+    margin: 0.75in 0.5in;
+  }
+
+  h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .score-circle {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

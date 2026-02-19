@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-import type { FollowupCoverage } from '@/hooks/useValidatorFollowup';
+import { motion, useReducedMotion } from 'framer-motion';
+import { isCovered, type FollowupCoverage } from '@/hooks/useValidatorFollowup';
 
 interface ExtractionPanelProps {
   coverage: FollowupCoverage | null;
@@ -13,33 +13,34 @@ const COVERAGE_GROUPS = [
   {
     label: 'Problem-Solution Fit',
     fields: ['problem', 'customer', 'innovation'] as const,
-    color: 'bg-blue-500',
+    color: 'bg-status-info',
   },
   {
     label: 'Market Validation',
     fields: ['competitors', 'demand', 'research'] as const,
-    color: 'bg-emerald-500',
+    color: 'bg-status-success',
   },
   {
     label: 'Differentiation',
     fields: ['uniqueness', 'websites'] as const,
-    color: 'bg-amber-500',
+    color: 'bg-status-warning',
   },
 ];
 
 export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: ExtractionPanelProps) {
   const getGroupScore = (fields: readonly string[]) => {
     if (!coverage) return 0;
-    const covered = fields.filter(f => coverage[f as keyof FollowupCoverage]).length;
+    const covered = fields.filter(f => isCovered(coverage[f as keyof FollowupCoverage])).length;
     return Math.round((covered / fields.length) * 100);
   };
 
   const overallScore = coverage
-    ? Math.round((Object.values(coverage).filter(Boolean).length / 8) * 100)
+    ? Math.round((Object.values(coverage).filter(v => isCovered(v)).length / 8) * 100)
     : 0;
+  const shouldReduceMotion = useReducedMotion();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="region" aria-label="Validation readiness">
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-1">Validation Readiness</h3>
         <p className="text-xs text-muted-foreground">
@@ -52,7 +53,7 @@ export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: Ex
         <motion.div
           className="text-3xl font-bold text-foreground"
           key={overallScore}
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={shouldReduceMotion ? false : { scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
         >
           {overallScore}%
@@ -70,12 +71,19 @@ export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: Ex
                 <span className="text-xs font-medium text-foreground">{group.label}</span>
                 <span className="text-xs text-muted-foreground">{score}%</span>
               </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-1.5 bg-muted rounded-full overflow-hidden"
+                role="progressbar"
+                aria-label={`${group.label} score`}
+                aria-valuenow={score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <motion.div
                   className={`h-full rounded-full ${group.color}`}
-                  initial={{ width: 0 }}
+                  initial={shouldReduceMotion ? false : { width: 0 }}
                   animate={{ width: `${score}%` }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: shouldReduceMotion ? 0 : 0.1 }}
                 />
               </div>
             </div>
@@ -149,7 +157,7 @@ export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: Ex
       {/* Generate CTA */}
       {canGenerate && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="p-3 rounded-lg bg-primary/5 border border-primary/20"
         >
@@ -171,6 +179,7 @@ function SuggestionChip({ text, onClick }: { text: string; onClick?: (text: stri
     <button
       type="button"
       onClick={() => onClick?.(text)}
+      aria-label={`Suggestion: ${text}`}
       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-muted/50 hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 text-xs text-muted-foreground transition-colors cursor-pointer"
     >
       <Sparkles className="w-3 h-3" />

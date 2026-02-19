@@ -7,6 +7,7 @@ import type { ValidationPhase, ValidationContext, CoachResponse, ValidationState
 import { buildCoachPersona, buildContextSummary, getPhaseInstructions } from "./persona.ts";
 import { loadValidationContext, createSession, updateSession, saveConversation } from "./context-loader.ts";
 import { detectTransition, extractStateUpdates, calculateProgress, getSuggestedActions, canTransition } from "./state-machine.ts";
+import { getRAGContext } from "../rag.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -55,6 +56,18 @@ export async function handleCoachMode(
   const currentPhase = context.session!.phase as ValidationPhase;
   const currentState = context.session!.state as ValidationState || {};
   
+  // RAG: Search knowledge base before AI call; inject into prompt (server-side, no raw chunks to client)
+  const industry = (context.startup as { industry?: string })?.industry;
+  const ragBlock = await getRAGContext(supabase, request.message, industry);
+  const knowledgeSection = ragBlock
+    ? `
+
+KNOWLEDGE BASE (use when relevant):
+${ragBlock}
+
+`
+    : "";
+
   // Save user message
   await saveConversation(
     supabase,
@@ -70,7 +83,7 @@ export async function handleCoachMode(
   const phaseInstructions = getPhaseInstructions(currentPhase, context);
   
   const systemPrompt = `${persona}
-
+${knowledgeSection}
 CURRENT CONTEXT:
 ${contextSummary}
 

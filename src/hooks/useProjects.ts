@@ -16,6 +16,7 @@ export function useAllProjects(startupId: string | undefined) {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .order('created_at', { ascending: false });
       
@@ -36,6 +37,7 @@ export function useProject(projectId: string | undefined) {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .is('deleted_at', null)
         .eq('id', projectId)
         .single();
       
@@ -56,6 +58,7 @@ export function useProjectTaskCounts(projectIds: string[]) {
       const { data, error } = await supabase
         .from('tasks')
         .select('project_id, status')
+        .is('deleted_at', null)
         .in('project_id', projectIds);
       
       if (error) throw error;

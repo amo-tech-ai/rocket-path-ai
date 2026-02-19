@@ -52,16 +52,16 @@ const ACTIVITY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 };
 
 const ACTIVITY_COLORS: Record<string, { bg: string; text: string }> = {
-  task_completed: { bg: 'bg-emerald-500/10', text: 'text-emerald-500' },
-  task_created: { bg: 'bg-blue-500/10', text: 'text-blue-500' },
-  ai_run: { bg: 'bg-violet-500/10', text: 'text-violet-500' },
-  document_created: { bg: 'bg-amber-500/10', text: 'text-amber-500' },
-  document_updated: { bg: 'bg-amber-500/10', text: 'text-amber-500' },
-  chat_message: { bg: 'bg-cyan-500/10', text: 'text-cyan-500' },
-  contact_added: { bg: 'bg-pink-500/10', text: 'text-pink-500' },
-  deal_created: { bg: 'bg-rose-500/10', text: 'text-rose-500' },
-  pitch_updated: { bg: 'bg-indigo-500/10', text: 'text-indigo-500' },
-  canvas_updated: { bg: 'bg-teal-500/10', text: 'text-teal-500' },
+  task_completed: { bg: 'bg-status-success-light', text: 'text-status-success' },
+  task_created: { bg: 'bg-status-info-light', text: 'text-status-info' },
+  ai_run: { bg: 'bg-primary/10', text: 'text-primary' },
+  document_created: { bg: 'bg-status-warning-light', text: 'text-status-warning' },
+  document_updated: { bg: 'bg-status-warning-light', text: 'text-status-warning' },
+  chat_message: { bg: 'bg-status-info-light', text: 'text-status-info' },
+  contact_added: { bg: 'bg-status-critical-light', text: 'text-status-critical' },
+  deal_created: { bg: 'bg-status-critical-light', text: 'text-status-critical' },
+  pitch_updated: { bg: 'bg-primary/10', text: 'text-primary' },
+  canvas_updated: { bg: 'bg-status-success-light', text: 'text-status-success' },
   default: { bg: 'bg-muted', text: 'text-muted-foreground' },
 };
 

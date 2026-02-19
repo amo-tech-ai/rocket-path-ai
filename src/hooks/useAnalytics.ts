@@ -54,16 +54,19 @@ export function useAnalyticsMetrics(startupId: string | undefined, dateRange?: D
         supabase
           .from('tasks')
           .select('id, status, created_at, updated_at')
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .gte('created_at', startDate.toISOString())
           .lte('created_at', endDate.toISOString()),
         supabase
           .from('projects')
           .select('id, name, status')
+          .is('deleted_at', null)
           .eq('startup_id', startupId),
         supabase
           .from('deals')
           .select('id, stage, amount')
+          .is('deleted_at', null)
           .eq('startup_id', startupId)
           .eq('is_active', true),
         supabase

@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 /**
  * Workflow Trigger System (Score-to-Task Automation)
@@ -15,11 +15,6 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
  *
  * Updated: 2026-01-31 - 18 trigger rules, proper category matching, activity logging
  */
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version',
-};
 
 // =============================================================================
 // TYPE DEFINITIONS
@@ -287,9 +282,14 @@ const TRIGGER_RULES: TriggerRule[] = [
 // MAIN HANDLER
 // =============================================================================
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -598,7 +598,7 @@ async function processValidationReport(
 
   // Fetch all reports for this run
   const { data: reports, error: reportsError } = await supabase
-    .from('validation_reports')
+    .from('validator_reports')
     .select('report_type, score')
     .eq('run_id', validationRunId);
 

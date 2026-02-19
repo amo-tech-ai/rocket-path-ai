@@ -3,7 +3,8 @@
  * Orchestrates all Lean Canvas AI operations
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   mapProfile,
   checkProfileSync,
@@ -20,12 +21,10 @@ import {
   suggestExperiment,
   getAssumptions,
   updateAssumptionStatus,
+  coach,
 } from "./actions/index.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Use environment variables (set automatically by Supabase)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -50,6 +49,10 @@ interface RequestBody {
   assumption_status?: 'validated' | 'invalidated' | 'pivoted';
   evidence?: string;
   validation_results?: Array<{ box: string; score: number; issues: string[] }>;
+  // Coach-related fields
+  messages?: unknown[];
+  startup_context?: { name?: string; industry?: string; stage?: string; description?: string };
+  focused_box?: string;
 }
 
 function getSupabaseClient(authHeader: string | null): SupabaseClient {
@@ -65,6 +68,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     const authHeader = req.headers.get("authorization");
@@ -79,7 +87,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body: RequestBody = await req.json();
+    // Rate limit: 30 requests per 60s
+    const rl = checkRateLimit(user.id, 'lean-canvas-agent', RATE_LIMITS.standard);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, corsHeaders);
+    }
+
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { action } = body;
 
     console.log(`[lean-canvas-agent] Action: ${action}, User: ${user.id}`);
@@ -236,6 +259,17 @@ Deno.serve(async (req) => {
           body.assumption_status,
           body.evidence
         );
+        break;
+
+      // ===== Coach Action =====
+      case "coach":
+        if (!body.canvas_data) throw new Error("canvas_data is required");
+        result = await coach(supabase, user.id, {
+          messages: body.messages,
+          canvas_data: body.canvas_data as Record<string, { items?: string[] }>,
+          startup_context: body.startup_context,
+          focused_box: body.focused_box,
+        });
         break;
 
       default:

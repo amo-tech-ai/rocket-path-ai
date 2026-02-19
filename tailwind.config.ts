@@ -21,7 +21,10 @@ export default {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        background: {
+          DEFAULT: "hsl(var(--background))",
+          secondary: "hsl(var(--background-secondary))",
+        },
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -68,6 +71,24 @@ export default {
           background: "hsl(var(--ai-background))",
           border: "hsl(var(--ai-border))",
           accent: "hsl(var(--ai-accent))",
+        },
+        status: {
+          success: {
+            DEFAULT: "hsl(var(--status-success))",
+            light: "hsl(var(--status-success-light))",
+          },
+          warning: {
+            DEFAULT: "hsl(var(--status-warning))",
+            light: "hsl(var(--status-warning-light))",
+          },
+          critical: {
+            DEFAULT: "hsl(var(--status-critical))",
+            light: "hsl(var(--status-critical-light))",
+          },
+          info: {
+            DEFAULT: "hsl(var(--status-info))",
+            light: "hsl(var(--status-info-light))",
+          },
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

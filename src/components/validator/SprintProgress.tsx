@@ -88,7 +88,7 @@ export default memo(function SprintProgress({
                 className="flex items-center gap-2 text-sm"
               >
                 {milestone.completed ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <CheckCircle2 className="w-4 h-4 text-status-success" />
                 ) : (
                   <Circle className="w-4 h-4 text-muted-foreground" />
                 )}
@@ -113,7 +113,7 @@ export default memo(function SprintProgress({
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
               index + 1 < currentSprint 
-                ? "bg-emerald-500" 
+                ? "bg-status-success"
                 : index + 1 === currentSprint 
                   ? "bg-primary" 
                   : "bg-muted"

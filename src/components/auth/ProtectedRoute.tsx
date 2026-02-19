@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { DEV_BYPASS_AUTH } from '@/lib/devConfig';
+import { setReturnPathOnce } from '@/lib/authReturnPath';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -34,6 +35,8 @@ export function ProtectedRoute({
   }
 
   if (!user) {
+    const returnPath = location.pathname + location.search;
+    setReturnPathOnce(returnPath);
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

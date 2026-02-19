@@ -32,9 +32,9 @@ export default memo(function VerdictCard({
   const isHighlighted = highlightedElement?.type === 'verdict';
   
   const getScoreGradient = (s: number) => {
-    if (s >= 80) return 'from-emerald-500 to-emerald-400';
-    if (s >= 60) return 'from-amber-500 to-amber-400';
-    return 'from-rose-500 to-rose-400';
+    if (s >= 80) return 'from-status-success to-status-success';
+    if (s >= 60) return 'from-status-warning to-status-warning';
+    return 'from-status-critical to-status-critical';
   };
   
   const handleClick = () => {
@@ -89,8 +89,8 @@ export default memo(function VerdictCard({
             />
             <defs>
               <linearGradient id={`verdictGradient-${score}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" className={cn("stop-color-primary", getScoreGradient(score).split(' ')[0].replace('from-', 'text-'))} stopColor={score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#f43f5e'} />
-                <stop offset="100%" className={cn("stop-color-primary", getScoreGradient(score).split(' ')[1].replace('to-', 'text-'))} stopColor={score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#fb7185'} />
+                <stop offset="0%" className={cn("stop-color-primary", getScoreGradient(score).split(' ')[0].replace('from-', 'text-'))} stopColor={score >= 80 ? 'hsl(var(--status-success))' : score >= 60 ? 'hsl(var(--status-warning))' : 'hsl(var(--status-critical))'} />
+                <stop offset="100%" className={cn("stop-color-primary", getScoreGradient(score).split(' ')[1].replace('to-', 'text-'))} stopColor={score >= 80 ? 'hsl(var(--status-success))' : score >= 60 ? 'hsl(var(--status-warning))' : 'hsl(var(--status-critical))'} />
               </linearGradient>
             </defs>
           </svg>
@@ -119,7 +119,7 @@ export default memo(function VerdictCard({
           </div>
           <p className={cn(
             "text-lg font-medium",
-            score >= 80 ? "text-emerald-500" : score >= 60 ? "text-amber-500" : "text-rose-500"
+            score >= 80 ? "text-status-success" : score >= 60 ? "text-status-warning" : "text-status-critical"
           )}>
             {verdict}
           </p>

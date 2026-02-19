@@ -98,7 +98,9 @@
    });
 
    // RT-1: When realtime is connected and receiving events, slow down polling (10s instead of 2s)
-   const pollInterval = rt.isConnected && rt.eventCount > 0 ? 10_000 : 2_000;
+   // R3: Use ref so polling effect doesn't re-run on interval change
+   const pollIntervalRef = useRef(2_000);
+   pollIntervalRef.current = rt.isConnected && rt.eventCount > 0 ? 10_000 : 2_000;
 
    const goToReport = useCallback(async () => {
      if (!sessionId) return;
@@ -182,12 +184,26 @@
        }
      };
  
-     fetchStatus();
-     // RT-1: Slow down polling when realtime is active (10s vs 2s)
-     const interval = setInterval(fetchStatus, pollInterval);
+     // R3: Use recursive setTimeout instead of setInterval to avoid race conditions
+     // when pollInterval changes (RT connects/disconnects). Each iteration reads
+     // the current interval from the ref, so no effect re-run needed.
+     let timerId: ReturnType<typeof setTimeout> | null = null;
+     let cancelled = false;
 
-     return () => clearInterval(interval);
-   }, [sessionId, polling, pollInterval]);
+     const poll = async () => {
+       await fetchStatus();
+       if (!cancelled) {
+         timerId = setTimeout(poll, pollIntervalRef.current);
+       }
+     };
+
+     poll();
+
+     return () => {
+       cancelled = true;
+       if (timerId) clearTimeout(timerId);
+     };
+   }, [sessionId, polling]);
  
    // Invalidate startup query on completion so auto-created startup is picked up
    useEffect(() => {

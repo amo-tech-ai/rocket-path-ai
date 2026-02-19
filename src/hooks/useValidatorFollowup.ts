@@ -2,9 +2,10 @@
  * useValidatorFollowup Hook
  * Calls the validator-followup edge function to get AI-powered next questions.
  * v2: Depth-based coverage (none/shallow/deep) + extracted fields.
+ * v3: L3 streaming support — real-time token display via broadcast channel.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -142,7 +143,8 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
   const { toast } = useToast();
 
   const getNextQuestion = useCallback(async (
-    messages: ConversationMessage[]
+    messages: ConversationMessage[],
+    sessionId?: string
   ): Promise<FollowupResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -169,7 +171,7 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
 
       const { data, error: fnError } = await supabase.functions.invoke('validator-followup', {
         headers: { Authorization: `Bearer ${accessToken}` },
-        body: { messages, sessionId: options?.sessionId },
+        body: { messages, sessionId: sessionId || options?.sessionId },
       });
 
       if (fnError) {
@@ -250,4 +252,135 @@ function normalizeCoverageValue(val: unknown): CoverageDepth {
 function normalizeConfidence(val: unknown): ConfidenceLevel {
   if (val === "low" || val === "medium" || val === "high") return val;
   return "low";
+}
+
+// ============ Streaming Support (L3) ============
+
+export interface StreamingState {
+  /** Whether we're currently receiving streamed tokens */
+  isStreaming: boolean;
+  /** Accumulated text so far */
+  streamedText: string;
+  /** The metadata from followup_metadata event */
+  metadata: FollowupResult | null;
+}
+
+/**
+ * Subscribe to the validator broadcast channel for streaming follow-up responses.
+ * Returns streaming state that updates in real-time as tokens arrive.
+ *
+ * Usage: call `subscribe(sessionId)` before sending the edge function request.
+ * When `message_complete` fires, the streaming state is finalized.
+ * Call `reset()` to clear state between messages.
+ */
+export function useFollowupStreaming() {
+  const [streamingState, setStreamingState] = useState<StreamingState>({
+    isStreaming: false,
+    streamedText: '',
+    metadata: null,
+  });
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const bufferRef = useRef('');
+
+  const subscribe = useCallback((sessionId: string) => {
+    // Clean up previous subscription
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    bufferRef.current = '';
+    setStreamingState({ isStreaming: false, streamedText: '', metadata: null });
+
+    const channel = supabase.channel(`validator:${sessionId}`);
+
+    channel
+      .on('broadcast', { event: 'followup_metadata' }, ({ payload }) => {
+        if (!payload) return;
+        const rawCoverage = payload.coverage || {};
+        const coverage: FollowupCoverage = {
+          customer: normalizeCoverageValue(rawCoverage.customer),
+          problem: normalizeCoverageValue(rawCoverage.problem),
+          competitors: normalizeCoverageValue(rawCoverage.competitors),
+          innovation: normalizeCoverageValue(rawCoverage.innovation),
+          demand: normalizeCoverageValue(rawCoverage.demand),
+          research: normalizeCoverageValue(rawCoverage.research),
+          uniqueness: normalizeCoverageValue(rawCoverage.uniqueness),
+          websites: normalizeCoverageValue(rawCoverage.websites),
+        };
+
+        const rawConfidence = payload.confidence || {};
+        const confidence: ConfidenceMap = {
+          problem: normalizeConfidence(rawConfidence.problem),
+          customer: normalizeConfidence(rawConfidence.customer),
+          solution: normalizeConfidence(rawConfidence.solution),
+          differentiation: normalizeConfidence(rawConfidence.differentiation),
+          demand: normalizeConfidence(rawConfidence.demand),
+          competitors: normalizeConfidence(rawConfidence.competitors),
+          business_model: normalizeConfidence(rawConfidence.business_model),
+          websites: normalizeConfidence(rawConfidence.websites),
+        };
+
+        const metadata: FollowupResult = {
+          action: payload.action,
+          question: '', // will be built from tokens
+          summary: payload.summary || '',
+          readiness_reason: payload.readiness_reason || '',
+          coverage,
+          extracted: payload.extracted || EMPTY_EXTRACTED,
+          confidence,
+          contradictions: Array.isArray(payload.contradictions) ? payload.contradictions : [],
+          discoveredEntities: payload.discoveredEntities || { competitors: [], urls: [], marketData: [] },
+          questionNumber: payload.questionNumber,
+        };
+
+        setStreamingState(prev => ({ ...prev, metadata, isStreaming: true }));
+      })
+      .on('broadcast', { event: 'token_chunk' }, ({ payload }) => {
+        if (!payload?.token) return;
+        bufferRef.current += payload.token;
+        setStreamingState(prev => ({
+          ...prev,
+          isStreaming: true,
+          streamedText: bufferRef.current,
+        }));
+      })
+      .on('broadcast', { event: 'message_complete' }, () => {
+        setStreamingState(prev => ({
+          ...prev,
+          isStreaming: false,
+          streamedText: bufferRef.current,
+          metadata: prev.metadata
+            ? { ...prev.metadata, question: bufferRef.current }
+            : prev.metadata,
+        }));
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+  }, []);
+
+  const reset = useCallback(() => {
+    bufferRef.current = '';
+    setStreamingState({ isStreaming: false, streamedText: '', metadata: null });
+  }, []);
+
+  const cleanup = useCallback(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    reset();
+  }, [reset]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, []);
+
+  return { streamingState, subscribe, reset, cleanup };
 }

@@ -10,7 +10,7 @@ export async function updateRunStatus(
   supabase: SupabaseClient,
   sessionId: string,
   agentName: string,
-  status: 'running' | 'ok' | 'partial' | 'failed',
+  status: 'running' | 'ok' | 'partial' | 'failed' | 'skipped',
   output?: unknown,
   citations?: unknown[],
   error?: string
@@ -43,7 +43,7 @@ export async function completeRun(
   supabase: SupabaseClient,
   sessionId: string,
   agentName: string,
-  status: 'ok' | 'partial' | 'failed',
+  status: 'ok' | 'partial' | 'failed' | 'skipped',
   output?: unknown,
   citations?: unknown[],
   error?: string

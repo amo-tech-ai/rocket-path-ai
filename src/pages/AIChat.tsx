@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Brain, 
-  Send, 
-  Sparkles, 
-  History, 
+import {
+  Brain,
+  Send,
+  Sparkles,
+  History,
   Lightbulb,
   TrendingUp,
   FileText,
@@ -20,11 +20,14 @@ import {
   MessageSquare,
   Plus,
   Wifi,
-  WifiOff
+  WifiOff,
+  Search,
+  BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRealtimeAIChat, type RealtimeAIMessage } from "@/hooks/realtime/useRealtimeAIChat";
 import { useStartup } from "@/hooks/useDashboardData";
+import { useKnowledgeSearch } from "@/hooks/useKnowledgeSearch";
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -143,6 +146,14 @@ function ConnectionStatus({ isConnected }: { isConnected: boolean }) {
 
 // AI Context Panel
 function AIContextPanel({ startup }: { startup: { name?: string; industry?: string; stage?: string } | null }) {
+  const { search, results, isSearching } = useKnowledgeSearch();
+  const [knowledgeQuery, setKnowledgeQuery] = useState('');
+
+  const handleKnowledgeSearch = async () => {
+    if (!knowledgeQuery.trim() || isSearching) return;
+    await search({ query: knowledgeQuery, matchCount: 5 });
+  };
+
   return (
     <div className="space-y-4">
       {/* Context Card */}
@@ -170,6 +181,51 @@ function AIContextPanel({ startup }: { startup: { name?: string; industry?: stri
               </Badge>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* Knowledge Search */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
+            <BookOpen className="w-4 h-4 text-primary" />
+            Knowledge Search
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-1">
+            <Input
+              value={knowledgeQuery}
+              onChange={(e) => setKnowledgeQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleKnowledgeSearch()}
+              placeholder="Search benchmarks..."
+              className="h-8 text-xs"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 flex-shrink-0"
+              onClick={handleKnowledgeSearch}
+              disabled={isSearching || !knowledgeQuery.trim()}
+            >
+              {isSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+            </Button>
+          </div>
+          {results.length > 0 && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {results.map((r) => (
+                <div key={r.id} className="p-2 rounded bg-muted/50 text-xs">
+                  <p className="line-clamp-3">{r.content}</p>
+                  <div className="flex items-center gap-2 mt-1 text-muted-foreground">
+                    <Badge variant="outline" className="text-[10px] h-4">{r.confidence}</Badge>
+                    <span className="truncate">{r.source}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

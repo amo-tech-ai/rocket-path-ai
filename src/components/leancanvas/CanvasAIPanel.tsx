@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Sparkles, Wand2, CheckCircle, AlertTriangle, Loader2, RotateCcw } from 'lucide-react';
+import { Sparkles, Wand2, CheckCircle, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { LeanCanvasData, usePreFillCanvas, useValidateCanvas, CANVAS_BOX_CONFIG, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
+import { CanvasCoachChat } from './CanvasCoachChat';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,6 +14,8 @@ interface CanvasAIPanelProps {
   canvasData: LeanCanvasData;
   onPreFillApply: (data: Partial<LeanCanvasData>) => void;
   onValidationComplete: (results: Record<string, { validation: 'valid' | 'warning' | 'error'; message: string }>) => void;
+  startup?: { name: string; industry: string; stage: string; description: string };
+  onApplySuggestion?: (boxKey: string, item: string) => void;
 }
 
 export function CanvasAIPanel({
@@ -20,6 +23,8 @@ export function CanvasAIPanel({
   canvasData,
   onPreFillApply,
   onValidationComplete,
+  startup,
+  onApplySuggestion,
 }: CanvasAIPanelProps) {
   const [preFillSuggestions, setPreFillSuggestions] = useState<Partial<LeanCanvasData> | null>(null);
   const [validationResults, setValidationResults] = useState<string | null>(null);
@@ -263,21 +268,14 @@ export function CanvasAIPanel({
         )}
       </AnimatePresence>
 
-      {/* Tips */}
-      <Card className="bg-secondary/30">
-        <CardContent className="pt-4">
-          <h4 className="text-xs font-medium mb-2 flex items-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-warm-foreground" />
-            Tips
-          </h4>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Start with Problem and Customer Segments</li>
-            <li>• Be specific—avoid generic statements</li>
-            <li>• Unfair Advantage should be truly defensible</li>
-            <li>• Use validation to catch weak hypotheses</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {/* Canvas Coach */}
+      {startup && onApplySuggestion && (
+        <CanvasCoachChat
+          canvasData={canvasData}
+          startup={startup}
+          onApplySuggestion={onApplySuggestion}
+        />
+      )}
     </div>
   );
 }

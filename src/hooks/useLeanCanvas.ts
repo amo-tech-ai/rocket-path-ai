@@ -54,6 +54,7 @@ export function useLeanCanvas(startupId: string | undefined) {
       const { data: doc, error } = await supabase
         .from('documents')
         .select('*')
+        .is('deleted_at', null)
         .eq('startup_id', startupId)
         .eq('type', 'lean_canvas')
         .order('updated_at', { ascending: false })

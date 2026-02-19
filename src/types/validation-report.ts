@@ -175,6 +175,46 @@ export function formatCurrency(value: number): string {
   return `$${value.toLocaleString()}`;
 }
 
+// V2 structured report fields (Composer outputs these for v2 reports)
+export interface ProblemClarityV2 {
+  who: string;
+  pain: string;
+  current_fix: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
+export interface CustomerUseCaseV2 {
+  persona: { name: string; role: string; context: string };
+  without: string;
+  with: string;
+  time_saved: string;
+}
+
+export interface RiskAssumptionV2 {
+  assumption: string;
+  if_wrong: string;
+  severity: 'fatal' | 'risky' | 'watch';
+  impact: 'high' | 'low';
+  probability: 'high' | 'low';
+  how_to_test: string;
+}
+
+export interface MVPScopeV2 {
+  one_liner: string;
+  build: string[];
+  buy: string[];
+  skip_for_now: string[];
+  tests_assumption: string;
+  success_metric: string;
+  timeline_weeks: number;
+}
+
+export interface NextStepV2 {
+  action: string;
+  timeframe: 'week_1' | 'month_1' | 'quarter_1';
+  effort: 'low' | 'medium' | 'high';
+}
+
 // P02: New report section types (matching backend validator-start/types.ts)
 export interface TechnologyAssessment {
   stack_components: Array<{ name: string; choice: 'build' | 'buy' | 'open_source'; rationale: string }>;

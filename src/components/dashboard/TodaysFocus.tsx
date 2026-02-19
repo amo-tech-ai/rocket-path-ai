@@ -26,9 +26,9 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const IMPACT_COLORS: Record<string, string> = {
-  high: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
-  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-  low: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  high: 'bg-status-critical-light text-status-critical border-status-critical/20',
+  medium: 'bg-status-warning-light text-status-warning border-status-warning/20',
+  low: 'bg-status-success-light text-status-success border-status-success/20',
 };
 
 const EFFORT_LABELS: Record<string, string> = {
@@ -65,8 +65,8 @@ export function TodaysFocus({ actions, isLoading }: TodaysFocusProps) {
           <h3 className="font-semibold text-foreground">Today's Focus</h3>
         </div>
         <div className="text-center py-8">
-          <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
-            <Zap className="w-6 h-6 text-emerald-500" />
+          <div className="w-12 h-12 rounded-full bg-status-success-light flex items-center justify-center mx-auto mb-3">
+            <Zap className="w-6 h-6 text-status-success" />
           </div>
           <p className="text-sm font-medium text-foreground">You're all caught up!</p>
           <p className="text-xs text-muted-foreground mt-1">Keep up the great work on your startup.</p>

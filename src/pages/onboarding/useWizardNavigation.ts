@@ -57,7 +57,7 @@ export function useWizardNavigation({
         return true; // Don't require readiness score
       case 3:
         if (questions.length === 0) return false;
-        return currentQuestionIndex >= questions.length || answers.length >= 3;
+        return currentQuestionIndex >= questions.length || answers.length >= Math.ceil(questions.length * 0.7);
       case 4:
         return true;
       default:

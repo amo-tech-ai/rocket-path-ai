@@ -111,7 +111,7 @@ function ValidatorLayoutInner({ children, startupId }: ValidatorLayoutProps) {
         {startupId && isCoachOpen && !isCoachMinimized && (
           <div className="fixed right-[412px] top-32 z-40">
             {isConnected ? (
-              <Wifi className="w-4 h-4 text-emerald-500" />
+              <Wifi className="w-4 h-4 text-status-success" />
             ) : (
               <WifiOff className="w-4 h-4 text-destructive" />
             )}

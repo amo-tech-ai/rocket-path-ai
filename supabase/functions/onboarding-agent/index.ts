@@ -1,9 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Use environment variables (set automatically by Supabase or via secrets)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -46,6 +42,32 @@ function getServiceClient(): SupabaseClient {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
   }
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
+
+// Gemini API call with hard timeout (AbortSignal.timeout unreliable on Deno Deploy)
+async function geminiWithTimeout(
+  url: string,
+  body: Record<string, unknown>,
+  apiKey: string,
+  timeoutMs = 25000
+): Promise<Record<string, unknown>> {
+  const doFetch = async () => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+    return await response.json();
+  };
+  return Promise.race([
+    doFetch(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`hard timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
 }
 
 // Log AI run for analytics
@@ -414,29 +436,19 @@ An empty competitors array is better than fake data.`;
   for (const model of models) {
     try {
       console.log(`Trying competitor generation with model: ${model}`);
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      const geminiData = await geminiWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-              maxOutputTokens: 2000,
-              responseMimeType: "application/json",
-            },
-            tools: [{ google_search: {} }],
-          }),
-        }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+            maxOutputTokens: 2000,
+            responseMimeType: "application/json",
+          },
+          tools: [{ google_search: {} }],
+        },
+        GEMINI_API_KEY,
       );
-
-      if (!geminiResponse.ok) {
-        console.warn(`Model ${model} returned status ${geminiResponse.status}`);
-        continue;
-      }
-
-      const geminiData = await geminiResponse.json();
       const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (responseText) {
@@ -569,34 +581,23 @@ CRITICAL: Never return empty arrays for key_features, target_audience, or detect
   for (const model of models) {
     try {
       console.log(`Trying URL enrichment with model: ${model}`);
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      const geminiData = await geminiWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-              maxOutputTokens: 2000,
-              responseMimeType: "application/json",
-            },
-            // CRITICAL: Enable BOTH tools per official Gemini docs
-            tools: [
-              { url_context: {} },   // Fetches actual URL content
-              { google_search: {} }, // Search grounding for competitors
-            ],
-          }),
-        }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+            maxOutputTokens: 2000,
+            responseMimeType: "application/json",
+          },
+          // CRITICAL: Enable BOTH tools per official Gemini docs
+          tools: [
+            { url_context: {} },   // Fetches actual URL content
+            { google_search: {} }, // Search grounding for competitors
+          ],
+        },
+        GEMINI_API_KEY,
       );
-
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text();
-        console.warn(`Model ${model} returned status ${geminiResponse.status}: ${errorText}`);
-        continue;
-      }
-
-      const geminiData = await geminiResponse.json();
 
       // Log URL context metadata for debugging
       const urlContextMeta = geminiData.candidates?.[0]?.urlContextMetadata;
@@ -701,27 +702,18 @@ Extract the following information. Return ONLY valid JSON:
 }`;
 
   try {
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${GEMINI_API_KEY}`,
+    const geminiData = await geminiWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-            maxOutputTokens: 1000,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+          maxOutputTokens: 1000,
+          responseMimeType: "application/json",
+        },
+      },
+      GEMINI_API_KEY,
     );
-
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
-    }
-
-    const geminiData = await geminiResponse.json();
     const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!responseText) {
@@ -820,28 +812,18 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
   for (const model of models) {
     try {
       console.log(`Trying readiness calculation with model: ${model}`);
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+      const geminiData = await geminiWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-              maxOutputTokens: 1000,
-              responseMimeType: "application/json",
-            },
-          }),
-        }
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+            maxOutputTokens: 1000,
+            responseMimeType: "application/json",
+          },
+        },
+        GEMINI_API_KEY,
       );
-
-      if (!geminiResponse.ok) {
-        console.warn(`Model ${model} returned status ${geminiResponse.status}`);
-        continue;
-      }
-
-      const geminiData = await geminiResponse.json();
       const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (responseText) {
@@ -1265,28 +1247,18 @@ Evaluate like an investor would. Return ONLY valid JSON:
     for (const model of models) {
       try {
         console.log(`Trying score calculation with model: ${model}`);
-        const geminiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+        const geminiData = await geminiWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-                maxOutputTokens: 1000,
-                responseMimeType: "application/json",
-              },
-            }),
-          }
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+              maxOutputTokens: 1000,
+              responseMimeType: "application/json",
+            },
+          },
+          GEMINI_API_KEY,
         );
-
-        if (!geminiResponse.ok) {
-          console.warn(`Model ${model} returned status ${geminiResponse.status}`);
-          continue;
-        }
-
-        const geminiData = await geminiResponse.json();
         const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (responseText) {
@@ -1384,28 +1356,18 @@ Return ONLY valid JSON:
     for (const model of models) {
       try {
         console.log(`Trying summary generation with model: ${model}`);
-        const geminiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+        const geminiData = await geminiWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-                maxOutputTokens: 1000,
-                responseMimeType: "application/json",
-              },
-            }),
-          }
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
+              maxOutputTokens: 1000,
+              responseMimeType: "application/json",
+            },
+          },
+          GEMINI_API_KEY,
         );
-
-        if (!geminiResponse.ok) {
-          console.warn(`Model ${model} returned status ${geminiResponse.status}`);
-          continue;
-        }
-
-        const geminiData = await geminiResponse.json();
         const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (responseText) {
@@ -1682,6 +1644,11 @@ Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {

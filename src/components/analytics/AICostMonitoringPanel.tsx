@@ -6,38 +6,30 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area,
-  PieChart,
-  Pie,
-  Cell
 } from 'recharts';
-import { 
-  Brain, 
-  DollarSign, 
-  TrendingUp, 
-  TrendingDown,
+import {
+  Brain,
+  DollarSign,
   Zap,
-  Clock,
   AlertTriangle,
   BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { format, subDays, startOfDay } from 'date-fns';
+import { useAIUsageLimits } from '@/hooks/useAIUsageLimits';
+import { format, subDays } from 'date-fns';
 
 interface AIUsageData {
   date: string;
@@ -69,34 +61,33 @@ const COLORS = [
 
 export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoading }: AICostMonitoringPanelProps) {
   const { user } = useAuth();
+  const { budgetDollars } = useAIUsageLimits();
   const [usageData, setUsageData] = useState<AIUsageData[]>([]);
   const [agentBreakdown, setAgentBreakdown] = useState<AgentBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCost, setTotalCost] = useState(0);
   const [totalTokens, setTotalTokens] = useState(0);
   const [totalRequests, setTotalRequests] = useState(0);
-  const [monthlyBudget] = useState(100); // Default monthly budget
+  const monthlyBudget = budgetDollars;
 
   useEffect(() => {
     fetchAIUsage();
   }, [startupId, orgId]);
 
   const fetchAIUsage = async () => {
-    if (!startupId && !orgId) {
-      // Generate mock data for demo
-      generateMockData();
-      return;
-    }
-
     setLoading(true);
     try {
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-      
-      const { data: runs, error } = await supabase
+
+      let query = supabase
         .from('ai_runs')
         .select('*')
         .gte('created_at', thirtyDaysAgo)
         .order('created_at', { ascending: true });
+
+      if (startupId) query = query.eq('startup_id', startupId);
+
+      const { data: runs, error } = await query;
 
       if (error) throw error;
 
@@ -107,69 +98,47 @@ export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoadi
 
         runs.forEach(run => {
           const date = format(new Date(run.created_at || ''), 'MMM dd');
-          
+          const runCost = Number(run.cost_usd) || 0;
+          const runTokens = (run.input_tokens || 0) + (run.output_tokens || 0) + (run.thinking_tokens || 0);
+
           if (!dailyUsage[date]) {
             dailyUsage[date] = { date, cost: 0, tokens: 0, requests: 0 };
           }
-          
-          dailyUsage[date].cost += run.cost_usd || 0;
-          dailyUsage[date].tokens += (run.input_tokens || 0) + (run.output_tokens || 0);
+
+          dailyUsage[date].cost += runCost;
+          dailyUsage[date].tokens += runTokens;
           dailyUsage[date].requests += 1;
 
           // Agent breakdown
-          const agentName = run.agent_name;
+          const agentName = run.agent_name || 'unknown';
           if (!agentStats[agentName]) {
             agentStats[agentName] = { name: agentName, cost: 0, requests: 0, avgTokens: 0 };
           }
-          agentStats[agentName].cost += run.cost_usd || 0;
+          agentStats[agentName].cost += runCost;
           agentStats[agentName].requests += 1;
-          agentStats[agentName].avgTokens = 
-            (agentStats[agentName].avgTokens * (agentStats[agentName].requests - 1) + 
-            (run.input_tokens || 0) + (run.output_tokens || 0)) / agentStats[agentName].requests;
+          agentStats[agentName].avgTokens =
+            (agentStats[agentName].avgTokens * (agentStats[agentName].requests - 1) +
+            runTokens) / agentStats[agentName].requests;
         });
 
         setUsageData(Object.values(dailyUsage));
         setAgentBreakdown(Object.values(agentStats).sort((a, b) => b.cost - a.cost));
-        setTotalCost(runs.reduce((sum, r) => sum + (r.cost_usd || 0), 0));
-        setTotalTokens(runs.reduce((sum, r) => sum + (r.input_tokens || 0) + (r.output_tokens || 0), 0));
+        setTotalCost(runs.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0));
+        setTotalTokens(runs.reduce((sum, r) => sum + ((r.input_tokens || 0) + (r.output_tokens || 0) + (r.thinking_tokens || 0)), 0));
         setTotalRequests(runs.length);
       } else {
-        generateMockData();
+        // No data — keep empty arrays (empty state rendered below)
+        setUsageData([]);
+        setAgentBreakdown([]);
+        setTotalCost(0);
+        setTotalTokens(0);
+        setTotalRequests(0);
       }
     } catch (error) {
       console.error('Failed to fetch AI usage:', error);
-      generateMockData();
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateMockData = () => {
-    const mockDaily: AIUsageData[] = [];
-    for (let i = 14; i >= 0; i--) {
-      const date = format(subDays(new Date(), i), 'MMM dd');
-      mockDaily.push({
-        date,
-        cost: Math.random() * 5 + 1,
-        tokens: Math.floor(Math.random() * 50000 + 10000),
-        requests: Math.floor(Math.random() * 30 + 10)
-      });
-    }
-
-    const mockAgents: AgentBreakdown[] = [
-      { name: 'AI Chat', cost: 15.42, requests: 156, avgTokens: 2500 },
-      { name: 'Pitch Deck Agent', cost: 8.75, requests: 24, avgTokens: 8500 },
-      { name: 'Investor Agent', cost: 6.20, requests: 45, avgTokens: 4200 },
-      { name: 'Task Agent', cost: 4.30, requests: 89, avgTokens: 1800 },
-      { name: 'CRM Agent', cost: 3.15, requests: 32, avgTokens: 3100 }
-    ];
-
-    setUsageData(mockDaily);
-    setAgentBreakdown(mockAgents);
-    setTotalCost(mockAgents.reduce((sum, a) => sum + a.cost, 0));
-    setTotalTokens(mockDaily.reduce((sum, d) => sum + d.tokens, 0));
-    setTotalRequests(mockDaily.reduce((sum, d) => sum + d.requests, 0));
-    setLoading(false);
   };
 
   const budgetUsagePercent = (totalCost / monthlyBudget) * 100;
@@ -277,6 +246,13 @@ export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoadi
           </motion.div>
         </div>
 
+        {totalRequests === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Brain className="w-10 h-10 text-muted-foreground/40 mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">No AI usage data yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Usage will appear here as you use AI features</p>
+          </div>
+        ) : (
         <Tabs defaultValue="trend" className="space-y-4">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="trend">Spending Trend</TabsTrigger>
@@ -355,6 +331,7 @@ export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoadi
             </ScrollArea>
           </TabsContent>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );

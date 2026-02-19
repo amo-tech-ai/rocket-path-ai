@@ -70,6 +70,7 @@ export function useUserStartup() {
           const { data: startup } = await supabase
             .from('startups')
             .select('*')
+            .is('deleted_at', null)
             .eq('org_id', profile.org_id)
             .maybeSingle();
 
@@ -81,6 +82,7 @@ export function useUserStartup() {
       const { data: fallbackStartup, error } = await supabase
         .from('startups')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();

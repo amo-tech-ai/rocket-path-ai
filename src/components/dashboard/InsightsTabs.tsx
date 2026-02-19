@@ -125,12 +125,12 @@ export function InsightsTabs({
         </div>
 
         <AnimatePresence mode="wait">
-          <TabsContent value="insights" className="m-0 p-4 space-y-3">
+          <TabsContent key="insights" value="insights" className="m-0 p-4 space-y-3">
             {insights.map((insight, index) => {
               const Icon = getInsightIcon(insight.type);
               return (
                 <motion.div
-                  key={index}
+                  key={`insight-${index}`}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -158,10 +158,10 @@ export function InsightsTabs({
             })}
           </TabsContent>
 
-          <TabsContent value="tasks" className="m-0 p-4 space-y-3">
+          <TabsContent key="tasks" value="tasks" className="m-0 p-4 space-y-3">
             {tasks.map((task, index) => (
               <motion.div
-                key={task.id}
+                key={task.id || `task-${index}`}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
@@ -186,10 +186,10 @@ export function InsightsTabs({
             ))}
           </TabsContent>
 
-          <TabsContent value="activity" className="m-0 p-4 space-y-3">
+          <TabsContent key="activity" value="activity" className="m-0 p-4 space-y-3">
             {activities.map((activity, index) => (
               <motion.div
-                key={activity.id}
+                key={activity.id || `activity-${index}`}
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}

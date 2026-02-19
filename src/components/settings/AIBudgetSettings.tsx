@@ -34,6 +34,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useAIUsageLimits } from '@/hooks/useAIUsageLimits';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { subDays, format } from 'date-fns';
@@ -67,7 +68,8 @@ export function AIBudgetSettings() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const { showBudgetAlert } = useNotifications();
-  
+  const { limits, budgetDollars, usedDollars, usagePercent, updateCapCents, isUpdating } = useAIUsageLimits();
+
   const [settings, setSettings] = useState<AIBudgetSettings>(DEFAULT_BUDGET_SETTINGS);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -86,37 +88,36 @@ export function AIBudgetSettings() {
 
       if (error) throw error;
 
-      const monthlyCost = runs?.reduce((sum, r) => sum + (r.cost_usd || 0), 0) || 0;
+      const monthlyCostUsd = runs?.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0) || 0;
       const todayRuns = runs?.filter(r => r.created_at?.startsWith(today)) || [];
-      const dailyCost = todayRuns.reduce((sum, r) => sum + (r.cost_usd || 0), 0);
+      const dailyCostUsd = todayRuns.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
       const totalRequests = runs?.length || 0;
 
       return {
-        monthlyCost,
-        dailyCost,
+        monthlyCost: monthlyCostUsd,
+        dailyCost: dailyCostUsd,
         totalRequests,
-        avgDailyCost: monthlyCost / 30,
+        avgDailyCost: monthlyCostUsd / 30,
       };
     },
     enabled: !!user,
   });
 
-  // Load settings from profile
+  // Load settings from profile + DB limits
   useEffect(() => {
-    if (profile?.preferences) {
-      const prefs = profile.preferences as Record<string, any>;
-      const aiBudget = prefs.ai_budget || {};
-      setSettings({
-        ...DEFAULT_BUDGET_SETTINGS,
-        monthlyBudget: aiBudget.monthly_budget ?? 100,
-        dailyLimit: aiBudget.daily_limit ?? 10,
-        alertThreshold: aiBudget.alert_threshold ?? 80,
-        alertsEnabled: aiBudget.alerts_enabled ?? true,
-        autoDisableOnLimit: aiBudget.auto_disable ?? false,
-        preferredModel: aiBudget.preferred_model ?? 'auto',
-      });
-    }
-  }, [profile]);
+    const prefs = (profile?.preferences as Record<string, any>) || {};
+    const aiBudget = prefs.ai_budget || {};
+    setSettings({
+      ...DEFAULT_BUDGET_SETTINGS,
+      // DB-stored cap takes precedence over profile preference
+      monthlyBudget: limits ? limits.monthly_cap_cents / 100 : (aiBudget.monthly_budget ?? 100),
+      dailyLimit: aiBudget.daily_limit ?? 10,
+      alertThreshold: aiBudget.alert_threshold ?? 80,
+      alertsEnabled: aiBudget.alerts_enabled ?? true,
+      autoDisableOnLimit: aiBudget.auto_disable ?? false,
+      preferredModel: aiBudget.preferred_model ?? 'auto',
+    });
+  }, [profile, limits]);
 
   const handleSettingChange = <K extends keyof AIBudgetSettings>(
     key: K,
@@ -134,6 +135,10 @@ export function AIBudgetSettings() {
     try {
       const existingPrefs = (profile?.preferences as Record<string, any>) || {};
       
+      // Save budget cap to ai_usage_limits table
+      await updateCapCents(settings.monthlyBudget * 100);
+
+      // Save UI preferences to profile
       const { error } = await supabase
         .from('profiles')
         .update({

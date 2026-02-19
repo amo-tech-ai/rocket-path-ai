@@ -57,9 +57,9 @@ const EvidenceBlock = memo(function EvidenceBlock({
   const label = DIMENSION_LABELS[dimension] || dimension;
   
   const getScoreColor = (s: number) => {
-    if (s >= 80) return 'text-emerald-500';
-    if (s >= 60) return 'text-amber-500';
-    return 'text-rose-500';
+    if (s >= 80) return 'text-status-success';
+    if (s >= 60) return 'text-status-warning';
+    return 'text-status-critical';
   };
   
   return (

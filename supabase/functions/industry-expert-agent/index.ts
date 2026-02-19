@@ -1,10 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 interface IndustryRequest {
   action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors' | 'get_validation_history' | 'generate_validation_report';
@@ -32,9 +27,42 @@ interface IndustryRequest {
 const GEMINI_MODEL = 'gemini-3-flash-preview';
 const GEMINI_PRO_MODEL = 'gemini-3-pro-preview';
 
-serve(async (req) => {
+// E2: Promise.race wrapper — AbortSignal.timeout() fails on Deno Deploy
+async function geminiWithTimeout(
+  url: string,
+  body: Record<string, unknown>,
+  apiKey: string,
+  timeoutMs = 25000,
+): Promise<Record<string, unknown>> {
+  const doFetch = async () => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[industry-expert-agent] Gemini error:', response.status, errorText);
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+    return await response.json();
+  };
+  return Promise.race([
+    doFetch(),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini hard timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
@@ -270,29 +298,18 @@ Provide coaching feedback that:
 
 Keep your response concise (2-3 paragraphs max).`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  const data = await geminiWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `My answer: ${answer}` }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        }
-      }),
-    }
+      contents: [{ role: 'user', parts: [{ text: `My answer: ${answer}` }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 1024,
+      }
+    },
+    GEMINI_API_KEY,
   );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[industry-expert-agent] Gemini error:', response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   const coaching = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
   return {
@@ -350,30 +367,20 @@ Return JSON:
   "recommended_next_steps": ["..."]
 }`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  const data = await geminiWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `Lean Canvas data:\n${JSON.stringify(canvasData, null, 2)}` }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-        // Use google_search for real-time industry benchmarks (per Gemini 3 best practices)
-        tools: [{ google_search: {} }]
-      }),
-    }
+      contents: [{ role: 'user', parts: [{ text: `Lean Canvas data:\n${JSON.stringify(canvasData, null, 2)}` }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      },
+      tools: [{ google_search: {} }]
+    },
+    GEMINI_API_KEY,
   );
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
   try {
@@ -427,28 +434,19 @@ Return JSON:
   "next_steps": ["..."]
 }`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  const data = await geminiWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `Pitch deck data:\n${JSON.stringify(pitchData, null, 2)}` }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        }
-      }),
-    }
+      contents: [{ role: 'user', parts: [{ text: `Pitch deck data:\n${JSON.stringify(pitchData, null, 2)}` }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      }
+    },
+    GEMINI_API_KEY,
   );
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
   try {
@@ -542,29 +540,20 @@ Return JSON:
   "competitive_moat_suggestions": ["..."]
 }`;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  const data = await geminiWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Analyze the competitive landscape.' }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-          responseMimeType: 'application/json',
-        },
-        tools: [{ googleSearch: {} }]
-      }),
-    }
+      contents: [{ role: 'user', parts: [{ text: 'Analyze the competitive landscape.' }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+      },
+      tools: [{ googleSearch: {} }]
+    },
+    GEMINI_API_KEY,
   );
-
-  if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
   try {
@@ -588,7 +577,7 @@ async function getValidationHistory(
 
   // Query validation reports
   const { data: reports, error } = await supabase
-    .from('validation_reports')
+    .from('validator_reports')
     .select('id, created_at, report_type, score, summary')
     .eq('run_id', startupId)
     .order('created_at', { ascending: false })
@@ -768,40 +757,27 @@ Be specific, data-driven, and actionable. Use industry-specific terminology and 
     : `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}`;
 
   // Use Gemini 3 with Google Search grounding for real-time market data
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  const data = await geminiWithTimeout(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
-        },
-        // Gemini 3 features: Google Search grounding for real-time market intelligence
-        tools: [{ 
-          googleSearch: {} 
-        }],
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      }),
-    }
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 1.0,
+        maxOutputTokens: 8192,
+        responseMimeType: 'application/json',
+      },
+      tools: [{ googleSearch: {} }],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ]
+    },
+    GEMINI_API_KEY,
+    40000, // longer timeout for deep validation reports
   );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[industry-expert-agent] Gemini error:', response.status, errorText);
-    throw new Error(`Gemini API error: ${response.status}`);
-  }
-
-  const data = await response.json();
   const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
   const generationTime = Date.now() - startTime;
@@ -811,7 +787,7 @@ Be specific, data-driven, and actionable. Use industry-specific terminology and 
 
     // Save report to database
     const { data: savedReport, error: saveError } = await supabase
-      .from('validation_reports')
+      .from('validator_reports')
       .insert({
         run_id: startupId,
         report_type: reportType,

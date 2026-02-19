@@ -3,7 +3,7 @@
  * Orchestrates all pitch deck operations
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   saveWizardStep,
   resumeWizard,
@@ -25,11 +25,7 @@ import {
   generatePitchSuggestions,
   generateFieldSuggestion,
 } from "./actions/index.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 // Use environment variables (set automatically by Supabase)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -76,6 +72,11 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {

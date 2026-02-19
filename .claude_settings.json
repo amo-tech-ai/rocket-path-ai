@@ -1,0 +1,27 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/home/sk/startupai16L/**)",
+      "Write(/home/sk/startupai16L/**)",
+      "Edit(/home/sk/startupai16L/**)",
+      "Glob(/home/sk/startupai16L/**)",
+      "Grep(/home/sk/startupai16L/**)",
+      "Read(/home/sk/startupai16L/.auto-claude/ideation/**)",
+      "Write(/home/sk/startupai16L/.auto-claude/ideation/**)",
+      "Edit(/home/sk/startupai16L/.auto-claude/ideation/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)"
+    ]
+  }
+}

@@ -257,10 +257,17 @@ For multi-tenant applications, use helper functions to simplify policies:
 
 ```sql
 -- Create a helper function to get user's org_id
+-- Uses (select auth.uid()) for initPlan caching (95-99% faster than bare auth.uid())
+-- SET search_path prevents search_path hijacking attacks
 create or replace function user_org_id()
-returns uuid as $$
-  select org_id from profiles where id = auth.uid()
-$$ language sql security definer stable;
+returns uuid
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select org_id from profiles where id = (select auth.uid())
+$$;
 ```
 
 ### Multi-Tenant Policies
@@ -302,18 +309,192 @@ using (
 );
 ```
 
-### Nested Organization Access
+### Nested Organization Access Helper
 
-For tables that don't have `org_id` directly, use subqueries:
+For tables that reference `startup_id` but not `org_id` directly, use a helper function:
 
 ```sql
--- Tasks don't have org_id, but startups do
+create or replace function startup_in_org(check_startup_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from startups
+    where id = check_startup_id and org_id = (select user_org_id())
+  )
+$$;
+```
+
+Usage in policies:
+
+```sql
+create policy "Users view contacts in org" on contacts
+for select to authenticated
+using (startup_in_org(startup_id));
+
+create policy "Users insert contacts in org" on contacts
+for insert to authenticated
+with check (startup_in_org(startup_id));
+```
+
+For one-off cases, an inline subquery also works:
+
+```sql
 create policy "Users view tasks in org" on tasks
-for select
-to authenticated
+for select to authenticated
 using (
   startup_id in (
     select id from startups where org_id = (select user_org_id())
   )
 );
 ```
+
+## service_role Behavior
+
+The `service_role` **bypasses all RLS policies** via the `BYPASSRLS` attribute. Creating explicit policies for `service_role` is unnecessary and redundant.
+
+### Incorrect (redundant)
+
+```sql
+create policy "Service role can access everything" on my_table
+for all to service_role using (true);
+```
+
+### Correct
+
+No policy needed for `service_role` — it bypasses RLS automatically. Only create policies for `authenticated` and `anon`.
+
+**When to use service_role:** Only in server-side code (Edge Functions, backend services) where you need to bypass RLS. Never expose the `service_role` key to the client.
+
+## RESTRICTIVE vs PERMISSIVE Policies
+
+PostgreSQL supports two policy types:
+
+- **PERMISSIVE (default):** Policies are OR'd together — access granted if ANY permissive policy allows
+- **RESTRICTIVE:** Policies are AND'd — access denied unless ALL restrictive policies also allow
+
+### Why PERMISSIVE is Preferred
+
+1. **Easier to reason about:** Each policy grants access independently
+2. **Safer defaults:** Adding a new policy can't accidentally break existing access
+3. **Better performance:** Postgres can short-circuit on first match
+
+### When to Use RESTRICTIVE
+
+Use `RESTRICTIVE` only for **universal constraints** that must apply regardless of other policies:
+
+```sql
+-- Require MFA for all profile updates (restrictive = must also pass)
+create policy "Require MFA for updates" on profiles
+as restrictive
+for update to authenticated
+using ((select auth.jwt()->>'aal') = 'aal2');
+
+-- Normal access policy (permissive, default)
+create policy "Users update own profile" on profiles
+for update to authenticated
+using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
+```
+
+Both policies must pass for the update to succeed. Avoid mixing RESTRICTIVE and PERMISSIVE on the same table unless absolutely necessary.
+
+## Soft Delete Pattern
+
+For tables with soft delete (using a `deleted_at` timestamp column), RLS policies **must** include `deleted_at IS NULL` to prevent access to deleted records.
+
+```sql
+-- Add deleted_at column
+ALTER TABLE startups ADD COLUMN deleted_at timestamptz;
+CREATE INDEX idx_startups_deleted_at ON startups(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- SELECT: filter out deleted rows
+create policy "Users view active startups in org" on startups
+for select to authenticated
+using (org_id = (select user_org_id()) AND deleted_at IS NULL);
+
+-- UPDATE: only allow updating non-deleted rows
+create policy "Users update active startups in org" on startups
+for update to authenticated
+using (org_id = (select user_org_id()) AND deleted_at IS NULL)
+with check (org_id = (select user_org_id()));
+
+-- DELETE: only allow deleting non-deleted rows (prevents hard-deleting soft-deleted rows)
+create policy "Users delete active startups in org" on startups
+for delete to authenticated
+using (org_id = (select user_org_id()) AND deleted_at IS NULL);
+```
+
+**Frontend:** Always filter soft-delete tables with `.is('deleted_at', null)`:
+
+```typescript
+const { data } = await supabase
+  .from('startups')
+  .select('*')
+  .is('deleted_at', null);
+```
+
+## RLS on Views and Materialized Views
+
+### Regular Views
+
+By default, views in Postgres are `security definer` — they **bypass the underlying table's RLS policies**. This is a common source of accidental data leaks.
+
+**Fix (Postgres 15+):** Use `security_invoker = true` to make views respect RLS:
+
+```sql
+CREATE VIEW public.user_startups
+WITH (security_invoker = true)
+AS SELECT id, name, industry FROM startups;
+```
+
+With `security_invoker = true`, the view runs as the calling user, so the underlying table's RLS policies apply.
+
+**For older Postgres versions:** Revoke access from `anon` and `authenticated`, or place views in an unexposed schema.
+
+### Materialized Views
+
+Materialized views **cannot have RLS policies** and **do not support `security_invoker`**. Use `GRANT`/`REVOKE` for access control:
+
+```sql
+CREATE MATERIALIZED VIEW dashboard_metrics AS
+  SELECT org_id, COUNT(*) as startup_count FROM startups GROUP BY org_id;
+
+REVOKE ALL ON dashboard_metrics FROM public, anon;
+GRANT SELECT ON dashboard_metrics TO authenticated;
+```
+
+## Security Best Practices
+
+### 1. Always SET search_path in SECURITY DEFINER Functions
+
+Prevents search_path hijacking attacks:
+
+```sql
+create function safe_helper() returns uuid
+language sql security definer
+set search_path = public
+as $$ select org_id from profiles where id = (select auth.uid()) $$;
+```
+
+### 2. Avoid Recursive RLS
+
+Don't call functions in policies that query the **same table** with RLS enabled. Use `SECURITY DEFINER` on helper functions so they bypass RLS internally.
+
+### 3. Test Policies with SET ROLE
+
+```sql
+SET ROLE authenticated;
+SET request.jwt.claims.sub = '<user-uuid>';
+SELECT * FROM startups;  -- Should only see user's org startups
+RESET ROLE;
+```
+
+### 4. WITH CHECK Best Practices
+
+- **INSERT WITH CHECK:** Validate the user can create the row (e.g., correct org_id, user_id)
+- **UPDATE WITH CHECK:** Prevent changing ownership columns (e.g., org_id to a different org)
+- **Don't check** immutable/server-set columns (id, created_at) in WITH CHECK

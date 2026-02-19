@@ -152,9 +152,9 @@ export default function PublicEventDetail() {
           {/* Hero section */}
           <Card className="overflow-hidden mb-8">
             <div className={`h-48 md:h-64 relative ${
-              isHosted 
-                ? 'bg-gradient-to-br from-blue-500/20 via-primary/10 to-blue-600/20' 
-                : 'bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-purple-600/20'
+              isHosted
+                ? 'bg-gradient-to-br from-primary/20 via-primary/10 to-primary/20'
+                : 'bg-gradient-to-br from-sage/20 via-sage/10 to-sage/20'
             }`}>
               {/* Date badge */}
               <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-lg">
@@ -170,11 +170,11 @@ export default function PublicEventDetail() {
               </div>
 
               {/* Event source badge */}
-              <Badge 
+              <Badge
                 className={`absolute top-4 right-4 ${
-                  isHosted 
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                    : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  isHosted
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    : 'bg-sage hover:bg-sage/90 text-white'
                 }`}
               >
                 {isHosted ? 'Hosted Event' : 'Industry Event'}

@@ -108,6 +108,7 @@ export function useCalendarSync() {
       const { data: startupData } = await supabase
         .from('startups')
         .select('id')
+        .is('deleted_at', null)
         .eq('org_id', profile?.org_id || '')
         .limit(1)
         .maybeSingle();
@@ -225,6 +226,7 @@ export function useCalendarSync() {
       const { data: startupData } = await supabase
         .from('startups')
         .select('id')
+        .is('deleted_at', null)
         .eq('org_id', profile.org_id)
         .limit(1)
         .single();
