@@ -7,7 +7,6 @@ import FeaturesSection from "@/components/marketing/FeaturesSection";
 import TimelineSection from "@/components/marketing/TimelineSection";
 import ValuePillarsSection from "@/components/marketing/ValuePillarsSection";
 import GuidedFlowSection from "@/components/marketing/GuidedFlowSection";
-import HubSection from "@/components/marketing/HubSection";
 import OutcomesSection from "@/components/marketing/OutcomesSection";
 import CTASection from "@/components/marketing/CTASection";
 
@@ -23,7 +22,6 @@ const Index = () => {
         <TimelineSection />
         <ValuePillarsSection />
         <GuidedFlowSection />
-        <HubSection />
         <OutcomesSection />
         <CTASection />
       </main>
