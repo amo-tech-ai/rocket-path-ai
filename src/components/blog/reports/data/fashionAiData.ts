@@ -167,25 +167,25 @@ export const strategicForces = [
   {
     title: "Technology",
     stat: "10×",
-    description: "AI costs dropped 10× in two years. It's now affordable for any fashion company to use.",
+    description: "AI inference costs dropped 10× since 2022, while model capabilities improved dramatically. Enterprise-grade AI that required $500K contracts now costs under $5K/month — unlocking adoption for mid-market brands.",
     accentColor: "#0E3E1B",
   },
   {
     title: "Consumers",
     stat: "60%",
-    description: "Of US shoppers already use AI to find products. People are discovering brands through AI, not just Google.",
+    description: "Of US shoppers already use AI-powered tools to discover and compare products. The shift from search-first to AI-first shopping means brands invisible to AI agents lose access to high-intent buyers.",
     accentColor: "#CB9FD2",
   },
   {
     title: "Competitors",
     stat: "64%",
-    description: "Of Fortune 500 companies talk about AI in earnings calls. Big companies are already spending on it.",
+    description: "Of Fortune 500 companies now reference AI strategy in earnings calls. Early movers are building proprietary data flywheels and vendor relationships that create compounding advantages over time.",
     accentColor: "#2A4E45",
   },
   {
     title: "Talent",
     stat: "40%",
-    description: "Of fashion brands created new AI leadership roles. Companies are restructuring their teams around AI.",
+    description: "Of fashion brands created dedicated AI leadership roles in 2025 — titles like Head of AI, VP of Data Science, and Chief Digital Officer. This isn't experimentation; it's permanent organizational restructuring.",
     accentColor: "#FFC9C1",
   },
 ];
@@ -199,25 +199,25 @@ export const consumerShiftData = [
 ];
 
 export const consumerInsights = [
-  "Set the right price at the right time automatically",
-  "Know when to put items on sale — before it's too late",
-  "Show each shopper personalized deals they actually want",
-  "Protect profits by understanding what people are willing to pay",
+  "Dynamic pricing: BCG measures 50× more dynamic pricing capability with AI vs. manual methods, and 3-5% gross profit lift from AI-driven pricing optimization",
+  "Markdown timing: Calendar-based discounting leaves margin on the table. AI identifies the optimal moment to mark down each SKU — one outdoor brand reduced promo spend 23% YoY while exceeding revenue goals",
+  "Personalized promotions: 25% of shoppers will pay more if the price increase is explained. AI calibrates offers to individual price sensitivity, driving 10% improvement in perceived value (BCG)",
+  "LTV protection: For brands with AOV over $100, promo-acquired customers are worth 23% less lifetime value. AI identifies which customers to acquire at full price vs. discount",
 ];
 
 // ─── Slide 4: Gen Z Flow ───
 export const genZFlowSteps = [
-  { label: "Social", sublabel: "TikTok, Instagram" },
-  { label: "AI Discovery", sublabel: "Personalized feeds" },
-  { label: "Influencer Validation", sublabel: "Trust signals" },
-  { label: "AI Search", sublabel: "Agent-powered" },
-  { label: "Purchase", sublabel: "Frictionless checkout" },
+  { label: "Social", sublabel: "43% discover on TikTok, 47% on YouTube" },
+  { label: "AI Discovery", sublabel: "60% already use AI agents to shop" },
+  { label: "Influencer Validation", sublabel: "2× more likely to convert from creator content" },
+  { label: "AI Search", sublabel: "ChatGPT + Perplexity replacing Google" },
+  { label: "Purchase", sublabel: "OpenAI Instant Checkout via Shopify" },
 ];
 
 export const genZStats = [
-  { value: "40%", label: "Of future fashion spending will come from Gen Z & Gen Alpha" },
-  { value: "40%", label: "Of young shoppers already use AI to find products" },
-  { value: "AEO", label: "Optimizing for AI shopping agents is the new SEO" },
+  { value: "41%", label: "Of Gen Z and Gen Alpha already use AI for fashion shopping (vs. 34% of millennials+). High-spend shoppers ($1,000+/yr) use AI daily at 45% — nearly 2× the rate of low spenders" },
+  { value: "90%", label: "Of young AI users research trends, compare products, and check prices through AI multiple times per month. US social commerce hit $85B in 2024, projected to reach $100B in 2025" },
+  { value: "AEO", label: "Answer Engine Optimization is replacing SEO. ChatGPT launched Instant Checkout (Sept 2025) via Shopify. 77% of consumers used ChatGPT as a search engine. Reviews and blogs drive ~80% of AI citation sources" },
 ];
 
 // ─── Slide 5: Value Chain ───
@@ -242,10 +242,10 @@ export const roiMetrics = [
 
 // ─── Slide 7: Startup Ecosystem ───
 export const startupClusters = [
-  { category: "Design AI", examples: "AI-generated designs, virtual try-on tools", color: "#0E3E1B" },
-  { category: "Commerce AI", examples: "Auto product listings, AI shopping helpers", color: "#2A4E45" },
-  { category: "Pricing AI", examples: "Smart discounting, demand prediction", color: "#CB9FD2" },
-  { category: "Resale AI", examples: "Verify authenticity, grade item condition", color: "#FFC9C1" },
+  { category: "Design AI", examples: "Raspberry AI ($29M) generates fashion concepts from text prompts. Doji ($14M) powers virtual try-on. Perry Ellis cut physical samples 50% with AI design. Blng.AI ($5M) applies generative AI specifically to jewellery design and marketing", color: "#0E3E1B" },
+  { category: "Commerce AI", examples: "Daydream ($50M, ex-Stitch Fix COO) built an AI fashion search engine. Depict ($18M) deploys ChatGPT-like search in stores. Spangle AI ($6M) creates personalized product pages for Revolve and Alexander Wang. Profound ($35M) optimizes brands for AI chatbot discovery", color: "#2A4E45" },
+  { category: "Pricing AI", examples: "7Learnings ($16M) and SparkBox ($3.5M, clients: River Island, New Balance) deliver predictive pricing that recovers 3-5% margin per season. BCG measures 50× more dynamic pricing capability with AI vs. manual methods", color: "#CB9FD2" },
+  { category: "Resale AI", examples: "Croissant ($24M) predicts resale value via browser extension. The RealReal's AI authentication (Shield, Vision) drove EBITDA from -43% (2020) to +20% (2024). Phia ($8.85M) tracks prices across resale platforms. Vinted grew net profit +330% YoY using AI-powered operations", color: "#FFC9C1" },
 ];
 
 export const startupMeta = {
@@ -256,18 +256,18 @@ export const startupMeta = {
 
 // ─── Slide 8: Growth Segments ───
 export const growthSegments = [
-  { segment: "Jewellery", cagr: "4×", note: "Growing 4× faster than clothing", color: "#0E3E1B" },
-  { segment: "Footwear", cagr: "10%", note: "10% yearly growth in EU online shoe sales", color: "#2A4E45" },
-  { segment: "Resale", cagr: "2–3×", note: "Growing 2–3× faster than new clothing sales", color: "#CB9FD2" },
-  { segment: "Mid-Market Luxury", cagr: "Rising", note: "The sweet spot — premium quality, accessible price", color: "#697485" },
+  { segment: "Jewellery", cagr: "4.1%", note: "Unit sales growing at 4.1% annually 2025-28 — 4× the rate of clothing (McKinsey). Driven by self-gifting, investment demand, and lab-grown expansion. Smart jewellery searches up 62% YoY", color: "#0E3E1B" },
+  { segment: "Footwear", cagr: "10%", note: "EU online footwear growing 10% CAGR 2025-30 (Google/Deloitte). Men's apparel+footwear at 10% CAGR. AI fit prediction can cut return rates from 30% to under 10%. Smart eyewear market forecast: $30B+ by 2030", color: "#2A4E45" },
+  { segment: "Resale", cagr: "2–3×", note: "Expected to reach 23% market share by 2030 and $350B by 2027. 59% of consumers plan to shop resale in 2026. China at 70%+ resale penetration. Vinted: 21M monthly searches, up from 7M in 2018", color: "#CB9FD2" },
+  { segment: "Mid-Market Luxury", cagr: "Rising", note: "The underserved sweet spot. 'Quiet luxury' searches +67% YoY, 'elevated basics' +52% YoY. These brands have $15K-$75K ACV budgets but lack enterprise AI tools. Target SaaS opportunity: $50M-$200M per vertical", color: "#697485" },
 ];
 
 // ─── Slide 9: AI Evolution Timeline ───
 export const aiTimelineStages = [
-  { year: "2018", label: "Basic Predictions", description: "Simple rules to forecast demand and spot patterns" },
-  { year: "2023", label: "AI Creation Tools", description: "AI starts writing, designing, and generating images" },
-  { year: "2025", label: "AI Agents", description: "AI runs entire workflows from start to finish" },
-  { year: "2030", label: "Fully Autonomous", description: "AI manages supply chains and commerce on its own" },
+  { year: "2018", label: "Basic Predictions", description: "Statistical models and rule-based systems for demand forecasting. ChatGPT hadn't launched. nVidia was a gaming GPU company. Fashion AI meant simple trend analytics dashboards that showed data but couldn't act on it." },
+  { year: "2023", label: "AI Creation Tools", description: "ChatGPT hit 100M users in record time. Generative AI unlocked content creation at scale — product descriptions, design concepts, marketing copy. BCG: 3× campaign development speed, 30% sampling cost reduction. But AI still operated as a tool, not a decision-maker." },
+  { year: "2025", label: "AI Agents", description: "The inflection point. OpenAI launched Instant Checkout via Shopify. Agentic commerce could reach $3-5T by 2030 (McKinsey). AI agents now execute multi-step workflows: monitoring prices, adjusting markdowns, rebalancing inventory. 35%+ of fashion execs already use gen AI in operations." },
+  { year: "2030", label: "Fully Autonomous", description: "McKinsey projects ~1/3 of employee time in Europe/US could be automated by gen AI. Fashion companies will operate with autonomous pricing, self-optimizing supply chains, and AI-managed customer engagement — humans set strategy, AI executes tactics." },
 ];
 
 export const sources = [

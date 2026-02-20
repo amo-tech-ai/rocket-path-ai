@@ -141,8 +141,9 @@ const FashionAiReport = () => {
                 className="mt-7 text-base md:text-lg font-body leading-relaxed max-w-md"
                 style={{ color: SLATE }}
               >
-                Fashion is a $2 trillion industry — but it's barely used AI yet.
-                The AI opportunity in fashion is growing from $2.9B to $89B by 2035.
+                Fashion is a $2 trillion global industry — yet most brands still run on spreadsheets, gut instinct, and legacy ERP systems built decades ago.
+                Only 10% of AI pilots succeed, 71% of buyers say their tools are useless, and days of inventory outstanding hit all-time highs in 2024.
+                That gap between industry scale and tech maturity is creating a once-in-a-decade opportunity: AI in fashion is projected to grow from $2.9B to $89B by 2035.
               </motion.p>
 
               <motion.p
@@ -152,7 +153,8 @@ const FashionAiReport = () => {
                 className="mt-4 text-sm font-medium font-body italic"
                 style={{ color: TEAL }}
               >
-                The real value is moving from making clothes to making smarter decisions.
+                As BCG puts it: "Success is 10% AI models, 20% data and technology, and 70% change of organization and operating model."
+                The real opportunity isn't in making clothes — it's in making smarter decisions about what to make, when to sell, and how to price it.
               </motion.p>
 
               {/* Key metrics row */}
@@ -345,22 +347,22 @@ const FashionAiReport = () => {
                 {
                   number: "$2.0T",
                   descriptor: "Global Fashion Market",
-                  explanation: "One of the world's biggest industries — and one of the slowest to adopt technology.",
+                  explanation: "Spanning luxury, fast fashion, sportswear, and resale — growing to $2.4T by 2030. Yet 46% of executives expect conditions to worsen in 2026 (vs. 39% last year), and days of inventory outstanding hit all-time highs. It's one of the world's largest consumer industries and one of the slowest to adopt technology.",
                 },
                 {
                   number: "$89B",
                   descriptor: "AI in Fashion by 2035",
-                  explanation: "Up from $2.9B today. Growing 40% per year because brands need better tools and higher profits.",
+                  explanation: "Up from $2.9B today — a 30× expansion in a decade. Walmart's AI trend-sensing tool shortened production by 18 weeks. Zalando's AI forecasting reduced prediction errors by 20 percentage points. The brands deploying AI are seeing 5-15% conversion gains and 3-6% gross profit lifts.",
                 },
                 {
                   number: "40.8%",
                   descriptor: "Yearly Growth Rate",
-                  explanation: "Fashion AI is growing faster than AI in almost every other industry except healthcare.",
+                  explanation: "Fashion AI is growing at double the overall AI market rate (~20%). Fashion & retail went from 6th place in AI spending increases (H1 2023) to 3rd place (H2 2024) — the biggest jump of any sector. BCG reports a 4,700% surge in GenAI-sourced traffic to retail sites.",
                 },
                 {
                   number: "71%",
                   descriptor: "Unhappy with Current Tools",
-                  explanation: "Most fashion buyers say their current software doesn't help. They're ready to switch to something better.",
+                  explanation: "K3 Fashion Solutions found that nearly three-quarters of fashion buyers and merchandisers say their existing software fails to deliver actionable insights. Meanwhile, 90% of AI pilots fail to scale — not due to bad AI, but due to poor data foundations. The winners solve the data problem first.",
                 },
               ].map((stat, i) => (
                 <motion.div
@@ -445,8 +447,9 @@ const FashionAiReport = () => {
               Four Forces Making AI Inevitable
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
-              AI in fashion isn't a passing trend. It's being driven by four big changes happening
-              at the same time: better technology, smarter shoppers, competitor pressure, and new roles inside companies.
+              AI adoption in fashion isn't being driven by hype — it's being pushed by four structural forces converging simultaneously.
+              Cheaper, more capable AI models. Consumers who discover products through AI agents. Competitors already investing heavily.
+              And a new generation of AI-native roles reshaping how fashion companies operate from the inside.
             </p>
           </FadeIn>
 
@@ -482,10 +485,10 @@ const FashionAiReport = () => {
                     Impact
                   </p>
                   <p className="mt-1 text-xs leading-relaxed" style={{ color: SLATE }}>
-                    {i === 0 && "AI tools are ready to use right now — not just experiments anymore."}
-                    {i === 1 && "Brands need to show up where AI recommends products — not just on their own website."}
-                    {i === 2 && "If your competitors use AI and you don't, you'll fall behind."}
-                    {i === 3 && "Companies are creating new AI-focused roles and changing how teams work."}
+                    {i === 0 && "Sam Altman (Feb 2025): 10× cost reduction per capability level in one year. Perry Ellis cut physical samples by 50% with AI design tools. BCG reports 50% faster time-to-market and 30% sampling cost reduction across early adopters."}
+                    {i === 1 && "60% of consumers have already used AI to shop (BCG, N=1,233). 77% used ChatGPT as a search engine. 53% of AI search users also used it to purchase. AI-sourced visitors show 8% higher engagement than traditional channels."}
+                    {i === 2 && "Walmart: AI cuts production timeline by 18 weeks. Zalando: 20-point reduction in demand prediction errors. Ralph Lauren's 'Ask Ralph' AI assistant helped acquire 6.8M new customers in one year. The data moats are forming now."}
+                    {i === 3 && "As Bret Taylor (OpenAI Chairman) puts it: 'For every company, AI agents will be their most important digital interface, as important as their website or mobile app.' 40% of fashion brands created AI leadership roles in 2025 — Head of AI, VP Data Science, Chief Digital Officer."}
                   </p>
                 </motion.div>
               </FadeIn>
@@ -586,7 +589,9 @@ const FashionAiReport = () => {
               Shoppers Are Thinking More, Spending Less
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
-              People are spending less, expecting bigger discounts, and comparing prices more carefully before buying.
+              Consumer behavior has fundamentally shifted. A Power Digital study (N=600 US consumers, June 2025) reveals that 48.5% are spending less YoY,
+              40.8% shop less frequently, and 46% stopped buying from at least one brand due to quality declines. Two-thirds won't even look at a product
+              unless it's 30% off — while 74% of fashion executives plan to raise prices in 2026. AI-powered pricing and personalization are the only way to navigate this paradox.
             </p>
           </FadeIn>
 
@@ -639,10 +644,10 @@ const FashionAiReport = () => {
           <FadeIn delay={0.3}>
             <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { value: "66%", label: "Won't look unless it's 30%+ off", accent: CORAL },
-                { value: "48.5%", label: "Spending less than last year", accent: SLATE },
-                { value: "44.5%", label: "Waiting for even bigger sales", accent: LAVENDER },
-                { value: "36.7%", label: "Comparing prices across brands first", accent: TEAL },
+                { value: "66%", label: "Require 30%+ discount before they'll even browse. For brands with AOV over $100, promo-acquired customers are worth 23% less LTV than full-price buyers", accent: CORAL },
+                { value: "48.5%", label: "Spending less on fashion YoY. 46% stopped buying from at least one brand entirely — not due to price, but quality declines and misaligned values", accent: SLATE },
+                { value: "44.5%", label: "Actively delaying purchases for deeper markdowns. Brands using AI markdown timing recover 3-5% margin per season vs. calendar-based discounting", accent: LAVENDER },
+                { value: "36.7%", label: "Comparing prices across brands before every purchase. 47% discover new brands on YouTube, 43% on TikTok — traditional loyalty is collapsing", accent: TEAL },
               ].map((kpi, i) => (
                 <motion.div
                   key={kpi.value}
@@ -774,6 +779,11 @@ const FashionAiReport = () => {
             >
               Gen Z and Gen Alpha Will Drive 40% of Fashion Spending
             </h2>
+            <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
+              BCG x WWD surveyed 9,000+ US consumers and analyzed 50,000+ social posts. Under-28s spend 7% more of their disposable income on
+              clothing than older consumers, are 20 percentage points less likely to shop by brand, and 2× more likely to convert from influencer content.
+              High-spending Gen Z shoppers ($1,000+/year) use AI daily at nearly double the rate of low spenders.
+            </p>
           </FadeIn>
 
           {/* Flow diagram */}
@@ -847,8 +857,10 @@ const FashionAiReport = () => {
               AI Touches Every Step — From Design to Delivery
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
-              AI isn't just one tool — it's being used across the entire process of making and selling clothes,
-              from spotting trends to handling returns.
+              As The Interline's editor-in-chief puts it: "Fashion does not have great workflow automation. It's rare to see a company with complete,
+              end-to-end visibility from design through retail." AI is now filling every gap: BCG measures 50% faster time-to-market in design,
+              10× faster assortment planning, 50× more dynamic pricing capability, and 60% faster supply chain simulations. Each stage represents
+              a distinct startup opportunity — and the top 5 optimization targets (assortment 50%, inventory 47%, pricing 33%) align perfectly with where AI creates the most value.
             </p>
           </FadeIn>
 
@@ -859,14 +871,14 @@ const FashionAiReport = () => {
               <div className="hidden lg:flex items-start gap-0">
                 {(() => {
                   const nodeData = [
-                    { label: "Trend", sub: "Spot what's trending using AI", accent: LAVENDER, tech: "Images & social data → Pattern detection" },
-                    { label: "Design", sub: "AI-generated design concepts", accent: CORAL, tech: "Text prompt → AI-created designs" },
-                    { label: "Sourcing", sub: "Find the best suppliers", accent: SLATE, tech: "Cost & risk data → Smarter supplier picks" },
-                    { label: "Manufacturing", sub: "Predict quality issues early", accent: TEAL, tech: "Factory data → Better output" },
-                    { label: "Allocation", sub: "Put the right stock in the right store", accent: FOREST, tech: "Demand data → Balanced inventory" },
-                    { label: "Merchandising", sub: "Set prices that maximize profit", accent: LAVENDER, tech: "Pricing data → Smarter discounts" },
-                    { label: "Commerce", sub: "Help shoppers find what they want", accent: CORAL, tech: "What shoppers want → Best product match" },
-                    { label: "Returns", sub: "Catch fraud, route returns", accent: SLATE, tech: "Buyer behavior → Smarter handling" },
+                    { label: "Trend", sub: "Scan millions of social posts, runway images, and search queries to predict what consumers will want next season", accent: LAVENDER, tech: "Computer vision + NLP → Trend signals 6 months ahead" },
+                    { label: "Design", sub: "Generate hundreds of design variations from a single brief, cutting concept-to-sample time from weeks to hours", accent: CORAL, tech: "Text/image prompts → Production-ready design files" },
+                    { label: "Sourcing", sub: "Score suppliers on cost, reliability, sustainability, and lead time to reduce risk and negotiate better terms", accent: SLATE, tech: "Supplier data + risk models → Ranked recommendations" },
+                    { label: "Manufacturing", sub: "Predict defects before they happen using sensor data and historical quality patterns from production lines", accent: TEAL, tech: "Factory telemetry → Early quality alerts" },
+                    { label: "Allocation", sub: "Predict which stores and regions will sell which sizes and styles, reducing overstock and stockouts simultaneously", accent: FOREST, tech: "Demand forecasting → Store-level inventory plans" },
+                    { label: "Merchandising", sub: "Optimize markdown timing and depth to maximize full-price sell-through and recover 3-5% more margin per season", accent: LAVENDER, tech: "Price elasticity models → Dynamic markdown schedules" },
+                    { label: "Commerce", sub: "Power AI shopping assistants that understand style preferences, body type, and occasion to surface the right products", accent: CORAL, tech: "Customer intent → Personalized product matching" },
+                    { label: "Returns", sub: "Identify serial returners, detect fraud patterns, and route items to resale or restock based on condition scoring", accent: SLATE, tech: "Return history + item assessment → Automated routing" },
                   ];
                   return nodeData.map((node, i) => (
                     <div key={node.label} className="flex items-start flex-1">
@@ -1070,9 +1082,10 @@ const FashionAiReport = () => {
                     className="font-display text-xl md:text-2xl font-medium tracking-tight leading-relaxed"
                     style={{ color: IVORY }}
                   >
-                    90% of AI projects fail because the data isn't organized.{" "}
+                    90% of AI pilots fail to scale — not because the AI is bad, but because the data foundation is broken (K3 Fashion Solutions).{" "}
                     <span style={{ color: LAVENDER }}>
-                      If your product data is messy and systems don't talk to each other, AI can't do its job.
+                      Fashion's five structural bottlenecks: allocation exceptions that overwhelm planners, calendar-based markdowns that leave margin on the table,
+                      incomplete product data that AI agents can't read, scattered compliance evidence across suppliers, and tariff-forced sourcing shifts that outpace current tools.
                     </span>
                   </p>
                 </div>
@@ -1101,8 +1114,13 @@ const FashionAiReport = () => {
               className="font-display text-3xl md:text-4xl lg:text-5xl font-medium tracking-tight"
               style={{ color: TEXT_PRIMARY }}
             >
-              Brands Using AI See 5–15% Better Results
+              Brands Using AI See 5–15% Conversion Gains
             </h2>
+            <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
+              BCG tracked AI-first fashion companies across six operational functions. The data is clear: AI-powered experiences
+              generate 4×–8× more high-intent behaviors (checkout starts), 3× ROI on marketing campaigns, and 30% overall productivity gains.
+              Stella McCartney's AI impact assessment enables over 90% responsible sourcing. Burlington's AI hiring tool cut interview volume by 50%.
+            </p>
           </FadeIn>
 
           <FadeIn delay={0.2}>
@@ -1167,7 +1185,9 @@ const FashionAiReport = () => {
               $400M+ Raised by AI-Native Fashion Startups
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
-              Investors aren't just funding software tools — they're funding AI that automates entire workflows.
+              BoF tracked 17 AI-native fashion startups that raised over $400M combined. Gensmo AI ($70M, ex-Google founder) and Daydream ($50M, ex-COO of Stitch Fix)
+              lead the pack. Altana raised $200M for supply chain compliance AI used by L.L. Bean and Skims. Profound raised $35M to help brands like Mejuri appear in
+              AI chatbot results. As Amber Atherton (Partner, Patron VC) puts it: "There's gonna be one or two key winners. Every investor is hoping they back the right approach."
             </p>
           </FadeIn>
 
@@ -1355,8 +1375,9 @@ const FashionAiReport = () => {
               High-Growth Segments Reshaping Fashion
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: "#AEB5C2" }}>
-              AI has the biggest impact in areas where shoppers want personalized experiences,
-              where guessing inventory is risky, and where people shop online first.
+              Not all fashion segments will benefit equally from AI. The highest-growth opportunities sit at the intersection
+              of three forces: consumers demanding personalization, categories where inventory misjudgment is expensive, and segments
+              where online-first shopping makes data collection natural. These four segments are structurally positioned to outperform.
             </p>
           </FadeIn>
 
@@ -1433,7 +1454,10 @@ const FashionAiReport = () => {
               From Tools to Agents to Autonomous Systems
             </h2>
             <p className="mt-5 text-base md:text-lg leading-relaxed max-w-2xl" style={{ color: SLATE }}>
-              AI in fashion is going through four stages. Right now, we're entering the third — where AI starts running things on its own.
+              Fashion AI is progressing through four distinct maturity stages, each building on the last. We've moved from basic statistical
+              forecasting (2018) through generative content tools (2023) into today's agentic phase — where AI doesn't just suggest actions,
+              it executes them. By 2030, the most advanced fashion companies will operate with autonomous AI managing pricing, inventory,
+              and customer engagement with minimal human oversight.
             </p>
           </FadeIn>
 
@@ -1620,8 +1644,10 @@ const FashionAiReport = () => {
 
           <FadeIn delay={0.5}>
             <p className="mt-14 text-base md:text-lg leading-relaxed max-w-xl mx-auto" style={{ color: "#AEB5C2" }}>
-              The brands that win next won't just have better websites —
-              they'll have smarter AI behind everything. Start building now, or compete against those who already did.
+              EU fashion e-commerce will grow from $137B to $233B by 2030 (Google/Deloitte). Agentic commerce could reach $3-5T globally.
+              Resale will hit 23% market share. The brands that dominate won't win on storefronts or ad budgets — they'll win because AI powers
+              every decision from design to delivery. As Nick Kramer (SSA & Company) puts it: "AI really does promise to change the game and
+              create new winners in the fashion industry." The window is open now. By 2028, the data moats will make it nearly impossible to catch up.
             </p>
           </FadeIn>
         </div>
