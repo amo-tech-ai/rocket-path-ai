@@ -376,7 +376,7 @@ group by o.id, o.name;
 ## References
 
 - **Official Docs:** [Database Seeding](https://supabase.com/docs/guides/database/seeding)
-- **Schema Documentation:** [`supabase/docs/01-new-supabase.md`](../../supabase/docs/01-new-supabase.md)
+- **Schema Documentation:** [`supabase/docs/01-audit.md`](../../supabase/docs/01-audit.md)
 - **Migration Rules:** [`supabase-create-migration.mdc`](./supabase-create-migration.mdc)
 
 ---

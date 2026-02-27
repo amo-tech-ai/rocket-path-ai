@@ -45,6 +45,28 @@ export const AGENT_SCHEMAS = {
         },
         required: ['who', 'pain', 'todays_fix'],
       },
+      // CORE-06: Idea quality filters (Paul Graham, Why Now, Tarpit)
+      idea_quality: {
+        type: 'object',
+        description: 'Idea quality assessment using founder framework filters',
+        properties: {
+          well_or_crater: { type: 'string', description: '"well" or "crater"' },
+          schlep_factor: { type: 'string', description: '"high", "medium", or "low"' },
+          organic_or_manufactured: { type: 'string', description: '"organic" | "manufactured" | "unclear"' },
+          why_now: {
+            type: 'object',
+            properties: {
+              trigger: { type: 'string' },
+              category: { type: 'string', description: 'technology | regulatory | behavioral | market_gap | cost_reduction | none' },
+              confidence: { type: 'string', description: 'strong | moderate | weak | none' },
+            },
+            required: ['trigger', 'category', 'confidence'],
+          },
+          tarpit_flag: { type: 'boolean' },
+          tarpit_reasoning: { type: 'string' },
+        },
+        required: ['well_or_crater', 'schlep_factor', 'organic_or_manufactured', 'why_now', 'tarpit_flag', 'tarpit_reasoning'],
+      },
       // 032-CUC: Structured customer use case for sharper report Section 2
       customer_structured: {
         type: 'object',
@@ -80,6 +102,40 @@ export const AGENT_SCHEMAS = {
           },
           required: ['title', 'url'],
         },
+      },
+      // CORE-06: Value theory + cross-validation + trend analysis
+      value_theory_tam: { type: 'number', description: 'TAM via value theory method' },
+      sizing_cross_validation: {
+        type: 'object',
+        properties: {
+          bottom_up: { type: 'number' },
+          top_down: { type: 'number' },
+          value_theory: { type: 'number' },
+          max_discrepancy_factor: { type: 'number' },
+          primary_estimate: { type: 'string' },
+        },
+        required: ['bottom_up', 'top_down', 'value_theory', 'max_discrepancy_factor', 'primary_estimate'],
+      },
+      source_freshness: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            source: { type: 'string' },
+            year: { type: 'number' },
+            stale_flag: { type: 'boolean' },
+          },
+          required: ['source', 'year', 'stale_flag'],
+        },
+      },
+      trend_analysis: {
+        type: 'object',
+        properties: {
+          trajectory: { type: 'string', description: 'accelerating | steady | decelerating | declining' },
+          adoption_curve_position: { type: 'string', description: 'innovators | early_adopters | early_majority | late_majority | laggards' },
+          market_maturity: { type: 'string', description: 'emerging | growing | mature | declining' },
+        },
+        required: ['trajectory', 'adoption_curve_position', 'market_maturity'],
       },
     },
     required: ['tam', 'sam', 'som', 'methodology', 'growth_rate', 'sources'],
@@ -130,6 +186,31 @@ export const AGENT_SCHEMAS = {
           required: ['title', 'url'],
         },
       },
+      // CORE-06: Positioning, battlecard, white space
+      positioning: {
+        type: 'object',
+        properties: {
+          competitive_alternatives: { type: 'array', items: { type: 'string' } },
+          unique_attributes: { type: 'array', items: { type: 'string' } },
+          value_proposition: { type: 'string' },
+          target_segment: { type: 'string' },
+          market_category: { type: 'string' },
+          positioning_statement: { type: 'string' },
+        },
+        required: ['competitive_alternatives', 'unique_attributes', 'value_proposition', 'target_segment', 'market_category', 'positioning_statement'],
+      },
+      battlecard: {
+        type: 'object',
+        properties: {
+          competitor_name: { type: 'string' },
+          win_themes: { type: 'array', items: { type: 'string' } },
+          lose_themes: { type: 'array', items: { type: 'string' } },
+          counter_arguments: { type: 'array', items: { type: 'string' } },
+          moat_durability: { type: 'string', description: 'defensible | weak | unknown' },
+        },
+        required: ['competitor_name', 'win_themes', 'lose_themes', 'counter_arguments', 'moat_durability'],
+      },
+      white_space: { type: 'string', description: 'Single sentence describing the unaddressed positioning gap' },
     },
     required: ['direct_competitors', 'indirect_competitors', 'market_gaps', 'sources'],
   },
@@ -179,6 +260,50 @@ export const AGENT_SCHEMAS = {
       highlights: { type: 'array', items: { type: 'string' } },
       red_flags: { type: 'array', items: { type: 'string' } },
       risks_assumptions: { type: 'array', items: { type: 'string' } },
+      // CORE-06: Risk queue, bias detection, evidence grading
+      risk_queue: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            domain: { type: 'string', description: 'e.g. Problem Risk, Customer Risk' },
+            category: { type: 'string', description: 'desirability | viability | feasibility | external' },
+            assumption: { type: 'string' },
+            impact: { type: 'number', description: '1-10' },
+            probability: { type: 'number', description: '1-5' },
+            composite_score: { type: 'number', description: 'impact * probability (0-50)' },
+            severity: { type: 'string', description: 'fatal | high | medium | low' },
+            suggested_experiment: { type: 'string' },
+          },
+          required: ['domain', 'category', 'assumption', 'impact', 'probability', 'composite_score', 'severity', 'suggested_experiment'],
+        },
+      },
+      bias_flags: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            bias_type: { type: 'string', description: 'confirmation | optimism | sunk_cost | survivorship | anchoring | bandwagon' },
+            evidence_phrase: { type: 'string' },
+            counter_question: { type: 'string' },
+          },
+          required: ['bias_type', 'evidence_phrase', 'counter_question'],
+        },
+      },
+      evidence_grades: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            claim: { type: 'string' },
+            grade: { type: 'string', description: 'A | B | C | D' },
+            source: { type: 'string' },
+            signal_level: { type: 'number', description: '1-5' },
+          },
+          required: ['claim', 'grade', 'source', 'signal_level'],
+        },
+      },
+      highest_signal_level: { type: 'number', description: '1-5 highest evidence signal level' },
     },
     required: ['dimension_scores', 'market_factors', 'execution_factors', 'highlights', 'red_flags', 'risks_assumptions'],
   },
@@ -200,6 +325,27 @@ export const AGENT_SCHEMAS = {
         },
       },
       next_steps: { type: 'array', items: { type: 'string' } },
+      // CORE-06: Experiment cards, founder stage, recommended methods
+      experiment_cards: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            risk_domain: { type: 'string' },
+            assumption: { type: 'string' },
+            hypothesis: { type: 'string' },
+            method: { type: 'string' },
+            duration: { type: 'string' },
+            smart_goal: { type: 'string' },
+            pass_threshold: { type: 'string' },
+            fail_threshold: { type: 'string' },
+            estimated_cost: { type: 'string' },
+          },
+          required: ['risk_domain', 'assumption', 'hypothesis', 'method', 'duration', 'smart_goal', 'pass_threshold', 'fail_threshold', 'estimated_cost'],
+        },
+      },
+      founder_stage: { type: 'string', description: 'idea_only | problem_validated | demand_validated | presales_confirmed' },
+      recommended_methods: { type: 'array', items: { type: 'string' } },
     },
     required: ['mvp_scope', 'phases', 'next_steps'],
   },
@@ -568,9 +714,12 @@ export const COMPOSER_GROUP_SCHEMAS = {
               properties: {
                 name: { type: 'string' },
                 description: { type: 'string' },
+                // D-05 fix: Add strengths/weaknesses so Gemini generates them for competitor cards
+                strengths: { type: 'array', items: { type: 'string' }, description: '2-3 key strengths of this competitor' },
+                weaknesses: { type: 'array', items: { type: 'string' }, description: '2-3 key weaknesses or gaps' },
                 threat_level: { type: 'string' },
               },
-              required: ['name', 'description', 'threat_level'],
+              required: ['name', 'description', 'strengths', 'weaknesses', 'threat_level'],
             },
           },
           citations: { type: 'array', items: { type: 'string' } },
@@ -798,4 +947,40 @@ export const COMPOSER_GROUP_SCHEMAS = {
     },
     required: ['summary_verdict', 'verdict_oneliner', 'success_condition', 'biggest_risk'],
   },
+
+  // V3: Dimension detail schema (building block for Group E)
+  dimensionDetail: {
+    type: 'object',
+    properties: {
+      composite_score: { type: 'number', description: '0-100 dimension score' },
+      sub_scores: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            score: { type: 'number' },
+            label: { type: 'string' },
+          },
+          required: ['name', 'score', 'label'],
+        },
+      },
+      executive_summary: { type: 'string' },
+      risk_signals: { type: 'array', items: { type: 'string' } },
+      priority_actions: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['composite_score', 'sub_scores', 'executive_summary', 'risk_signals', 'priority_actions'],
+  },
+} as const;
+
+export const DIMENSION_SUB_SCORES = {
+  problem:     ['pain_intensity', 'frequency', 'economic_impact', 'replacement_urgency'],
+  customer:    ['icp_specificity', 'buyer_authority', 'workflow_disruption', 'willingness_to_pay'],
+  market:      ['tam_methodology', 'niche_focus', 'growth_trajectory', 'distribution_feasibility'],
+  competition: ['differentiation_depth', 'switching_cost', 'replicability_risk', 'competitive_reaction'],
+  revenue:     ['pricing_clarity', 'monetization_validation', 'unit_economics', 'margin_sustainability'],
+  ai_strategy: ['ai_differentiation', 'data_advantage', 'automation_readiness', 'governance_maturity'],
+  execution:   ['capability_match', 'resource_allocation', 'timeline_realism', 'operational_complexity'],
+  validation:  ['evidence_tier', 'experiment_count', 'signal_strength', 'assumption_coverage'],
+  risk:        ['financial_risk', 'regulatory_risk', 'execution_risk', 'market_volatility', 'dependency_risk'],
 } as const;

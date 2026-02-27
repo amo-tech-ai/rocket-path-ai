@@ -85,19 +85,38 @@ Deno.serve(async (req) => {
 
     // Proxy to validator-start to re-run the full pipeline
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const response = await fetch(`${supabaseUrl}/functions/v1/validator-start`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader,
-      },
-      body: JSON.stringify({
-        input_text: session.input_text,
-        startup_id: session.startup_id,
-      }),
-    });
+    const REGENERATE_TIMEOUT = 15_000; // 15s — fast fail for UX
 
-    const result = await response.json();
+    // Promise.race wraps the ENTIRE upstream call (fetch + body read)
+    // so neither TCP connect, headers, nor .json() can hang beyond 15s
+    const result = await Promise.race([
+      (async () => {
+        const response = await fetch(`${supabaseUrl}/functions/v1/validator-start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: authHeader,
+          },
+          body: JSON.stringify({
+            input_text: session.input_text,
+            startup_id: session.startup_id,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error("[validator-regenerate] Upstream error:", {
+            status: response.status,
+            statusText: response.statusText,
+          });
+          throw new Error("UPSTREAM_ERROR");
+        }
+
+        return await response.json();
+      })(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("TIMEOUT")), REGENERATE_TIMEOUT)
+      ),
+    ]);
 
     return new Response(
       JSON.stringify({
@@ -110,13 +129,25 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("[validator-regenerate] Error:", error);
+    const isTimeout = error instanceof Error && error.message === "TIMEOUT";
+
+    // Log detailed error server-side only
+    console.error("[validator-regenerate] Error:", {
+      message: error instanceof Error ? error.message : "Unknown",
+      isTimeout,
+    });
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: isTimeout
+          ? "Section regeneration timed out. Please try again."
+          : "Failed to regenerate section. Please try again.",
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: isTimeout ? 504 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });

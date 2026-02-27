@@ -63,21 +63,7 @@ export {
   validateRange,
 } from './errors.ts';
 
-// AI client utilities
-export {
-  callGemini,
-  callGeminiChat,
-  callClaude,
-  callClaudeChat,
-  callAI,
-  parseAIJson,
-  calculateCost,
-  MODELS,
-  type AIResponse,
-  type AIOptions,
-  type ChatMessage,
-  type AIProvider,
-} from './ai-client.ts';
+// AI: Use _shared/gemini.ts directly (ai-client.ts removed — PLAT-P1-5)
 
 // Type definitions
 export type {

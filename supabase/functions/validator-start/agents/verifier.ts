@@ -181,6 +181,26 @@ export async function runVerifier(
     }
   }
 
+  // CORE-06: Competition positioning quality check
+  if (report.competition) {
+    const comp = report.competition as Record<string, unknown>;
+    if (comp.swot) {
+      const swot = comp.swot as Record<string, unknown[]>;
+      const totalItems = (swot.strengths?.length || 0) + (swot.weaknesses?.length || 0) +
+        (swot.opportunities?.length || 0) + (swot.threats?.length || 0);
+      if (totalItems < 4) {
+        warnings.push('Competition SWOT analysis has fewer than 4 total items — may be too shallow');
+      }
+    }
+    if (comp.positioning) {
+      const pos = comp.positioning as Record<string, unknown>;
+      const positions = pos.positions as unknown[];
+      if (positions && positions.length < 3) {
+        warnings.push('Competition positioning map has fewer than 3 entries — add more for useful comparison');
+      }
+    }
+  }
+
   // 022-SKI: Market SOM as % of SAM check
   if (report.market_sizing) {
     const { tam, sam, som } = report.market_sizing;

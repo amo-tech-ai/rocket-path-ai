@@ -91,11 +91,33 @@ If SOM > 5% of SAM at early stage, flag as optimistic.
 - "Mature" = 5-10% CAGR (retail, manufacturing)
 - "Declining" = <5% CAGR (print media, legacy systems)
 
+### Value Theory Sizing (Third Method)
+In addition to bottom-up and top-down, apply VALUE THEORY:
+  Value Theory TAM = (Pain cost per user per year) × (Total addressable users) × (Capture rate %)
+  Pain cost: How much does the problem cost the user today? (time × hourly rate, or direct $ cost)
+  Addressable users: How many people have this exact problem?
+  Capture rate: What % of the value can you capture as price? (typically 10-30%)
+
+CROSS-VALIDATE all three methods:
+  - If bottom-up and top-down differ by >3x → flag discrepancy, explain why
+  - If value theory suggests TAM < bottom-up → the problem may not be painful enough
+  - Present all three numbers; use the MEDIAN as the primary estimate
+
 ### Source Quality Hierarchy
 1. Government data (Census, BLS, SEC) — gold standard
 2. Analyst firms (Gartner, McKinsey, BCG) — high credibility
 3. Industry reports (Grand View, Precedence) — good for sizing
 4. News articles — useful for trends, weak for sizing
+
+### Source Quality Requirements
+- Minimum 3 DIFFERENT sources per major data point (not 3 citations from same report)
+- Flag source age: data >2 years old gets a STALE DATA warning
+- Require at least 1 bottom-up data point (actual buyer counts, not just TAM projections)
+
+### Trend & Maturity Analysis
+  Growth trajectory: accelerating (CAGR increasing YoY) | steady | decelerating | declining
+  Adoption curve: Innovators (<2.5%) | Early Adopters (2.5-16%) | Early Majority (16-50%) | Late Majority (50-84%) | Laggards (>84%)
+  Market maturity: emerging (<$1B, few players) | growing ($1-10B, many entrants) | mature ($10B+, consolidated) | declining (shrinking TAM)
 
 ## Preferred Sources (HIGH PRIORITY)
 Consult these curated, high-authority sources FIRST for market data, TAM/SAM/SOM estimates, growth rates, and industry benchmarks. Cite them when they contain relevant data:
@@ -114,7 +136,21 @@ Return JSON with exactly these fields:
   "som": <number in USD - Serviceable Obtainable Market>,
   "methodology": "Brief explanation of how you calculated these numbers",
   "growth_rate": <annual growth rate percentage>,
-  "sources": [{"title": "Source name", "url": "https://..."}]
+  "sources": [{"title": "Source name", "url": "https://..."}],
+  "value_theory_tam": <number in USD — TAM calculated via value theory method>,
+  "sizing_cross_validation": {
+    "bottom_up": <number>,
+    "top_down": <number>,
+    "value_theory": <number>,
+    "max_discrepancy_factor": <number — e.g. 2.5 means largest is 2.5x smallest>,
+    "primary_estimate": "median or whichever method is most credible"
+  },
+  "source_freshness": [{"source": "Source name", "year": 2025, "stale_flag": false}],
+  "trend_analysis": {
+    "trajectory": "accelerating | steady | decelerating | declining",
+    "adoption_curve_position": "innovators | early_adopters | early_majority | late_majority | laggards",
+    "market_maturity": "emerging | growing | mature | declining"
+  }
 }
 
 Prefer citing the preferred sources when they contain relevant data. Include real URLs.`;
@@ -151,14 +187,22 @@ Prefer citing the preferred sources when they contain relevant data. Include rea
     }
 
     // C2 Fix: Validate TAM >= SAM >= SOM hierarchy
+    // D-03 fix: Log original values before override so methodology text stays traceable
     if (typeof research.tam === 'number' && typeof research.sam === 'number' && typeof research.som === 'number') {
+      const origTam = research.tam, origSam = research.sam, origSom = research.som;
+      let corrected = false;
       if (research.sam > research.tam) {
-        console.warn(`[ResearchAgent] SAM ($${research.sam}) > TAM ($${research.tam}) — correcting`);
         research.sam = Math.round(research.tam * 0.3);
+        corrected = true;
       }
       if (research.som > research.sam) {
-        console.warn(`[ResearchAgent] SOM ($${research.som}) > SAM ($${research.sam}) — correcting`);
         research.som = Math.round(research.sam * 0.1);
+        corrected = true;
+      }
+      if (corrected) {
+        console.warn(`[ResearchAgent] TAM/SAM/SOM hierarchy corrected: original TAM=$${origTam} SAM=$${origSam} SOM=$${origSom} → corrected TAM=$${research.tam} SAM=$${research.sam} SOM=$${research.som}`);
+        // Append correction note to methodology so report text matches the numbers
+        research.methodology = `${research.methodology} [Note: SAM/SOM auto-corrected from original SAM=$${origSam.toLocaleString()}, SOM=$${origSom.toLocaleString()} to maintain TAM≥SAM≥SOM hierarchy.]`;
       }
     }
 

@@ -190,7 +190,8 @@ Deno.serve(async (req) => {
     console.log(`[validator-followup] action=${parsed.action}, coverage=${JSON.stringify(parsed.coverage)}, q#=${parsed.questionNumber}, contradictions=${parsed.contradictions?.length || 0}`);
     if (parsed.extracted) {
       const filledFields = Object.entries(parsed.extracted).filter(([, v]) => v).length;
-      console.log(`[validator-followup] extracted=${filledFields}/8 fields, discovered=${JSON.stringify(parsed.discoveredEntities)}`);
+      const totalFields = Object.keys(parsed.extracted).length;
+      console.log(`[validator-followup] extracted=${filledFields}/${totalFields} fields, discovered=${JSON.stringify(parsed.discoveredEntities)}`);
     }
 
     // RT-5 + L3: Broadcast follow-up with streaming tokens if sessionId provided

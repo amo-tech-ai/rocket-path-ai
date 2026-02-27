@@ -184,7 +184,7 @@ returns table (
 )
 language plpgsql
 security invoker
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query

@@ -33,14 +33,19 @@ import type { KanbanColumn, SprintTask } from '@/hooks/useSprintAgent';
 // ─────────────────────────────────────────────────────
 describe('Test 1: Chat Readiness & Coverage Tracking', () => {
   const makeCoverage = (overrides: Partial<FollowupCoverage> = {}): FollowupCoverage => ({
+    company_name: 'none',
     customer: 'none',
     problem: 'none',
+    solution: 'none',
     competitors: 'none',
     innovation: 'none',
     demand: 'none',
     research: 'none',
     uniqueness: 'none',
     websites: 'none',
+    industry: 'none',
+    business_model: 'none',
+    stage: 'none',
     ...overrides,
   });
 
@@ -57,17 +62,20 @@ describe('Test 1: Chat Readiness & Coverage Tracking', () => {
     expect(checkReadiness(coverage, 1)).toBe(false);
   });
 
-  it('quick-ready threshold: 3 msgs + 6 shallow+ + 3 deep', () => {
+  it('quick-ready threshold: 3 msgs + 9 shallow+ + 4 deep + company_name', () => {
     const coverage = makeCoverage({
+      company_name: 'deep',
       customer: 'deep',
       problem: 'deep',
-      competitors: 'deep',
+      solution: 'deep',
+      competitors: 'shallow',
       innovation: 'shallow',
       demand: 'shallow',
       research: 'shallow',
+      websites: 'shallow',
     });
-    expect(countAtDepth(coverage, 'shallow')).toBe(6);
-    expect(countAtDepth(coverage, 'deep')).toBe(3);
+    expect(countAtDepth(coverage, 'shallow')).toBe(9);
+    expect(countAtDepth(coverage, 'deep')).toBe(4);
     expect(checkReadiness(coverage, 3)).toBe(true);
   });
 
@@ -76,18 +84,23 @@ describe('Test 1: Chat Readiness & Coverage Tracking', () => {
     expect(checkReadiness(coverage, 10)).toBe(true);
   });
 
-  it('8 topics match expected list', () => {
+  it('13 topics match expected list', () => {
     const coverage = makeCoverage();
     const keys = Object.keys(coverage);
-    expect(keys).toHaveLength(8);
+    expect(keys).toHaveLength(13);
+    expect(keys).toContain('company_name');
     expect(keys).toContain('customer');
     expect(keys).toContain('problem');
+    expect(keys).toContain('solution');
     expect(keys).toContain('competitors');
     expect(keys).toContain('innovation');
     expect(keys).toContain('demand');
     expect(keys).toContain('research');
     expect(keys).toContain('uniqueness');
     expect(keys).toContain('websites');
+    expect(keys).toContain('industry');
+    expect(keys).toContain('business_model');
+    expect(keys).toContain('stage');
   });
 
   it('depth helpers classify correctly', () => {

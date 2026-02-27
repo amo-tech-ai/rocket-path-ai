@@ -143,3 +143,64 @@ export function useValidateCanvas() {
     },
   });
 }
+
+// Generate canvas from a completed validation report
+export function useGenerateCanvasFromReport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ reportId, startupId, existingCanvasId }: {
+      reportId: string;
+      startupId: string;
+      existingCanvasId?: string;
+    }) => {
+      // Call lean-canvas-agent with generate_from_report action
+      const { data: result, error } = await supabase.functions.invoke('lean-canvas-agent', {
+        body: {
+          action: 'generate_from_report',
+          report_id: reportId,
+        }
+      });
+
+      if (error) throw error;
+      if (result?.error) throw new Error(result.message || result.error);
+
+      const canvasData = result.canvas as LeanCanvasData;
+      if (!canvasData) throw new Error('No canvas data returned');
+
+      // Save the generated canvas
+      if (existingCanvasId) {
+        const { data: saved, error: saveError } = await supabase
+          .from('documents')
+          .update({
+            content_json: canvasData as unknown as Json,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingCanvasId)
+          .select()
+          .single();
+        if (saveError) throw saveError;
+        return { document: saved, canvas: canvasData, summary: result.summary };
+      } else {
+        const { data: saved, error: saveError } = await supabase
+          .from('documents')
+          .insert({
+            startup_id: startupId,
+            type: 'lean_canvas',
+            title: 'Lean Canvas',
+            content_json: canvasData as unknown as Json,
+            status: 'draft',
+            version: 1,
+          })
+          .select()
+          .single();
+        if (saveError) throw saveError;
+        return { document: saved, canvas: canvasData, summary: result.summary };
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['lean-canvas', variables.startupId] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}

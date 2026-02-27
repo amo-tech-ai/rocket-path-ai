@@ -13,17 +13,23 @@ export type CoverageDepth = "none" | "shallow" | "deep";
 export type ConfidenceLevel = "low" | "medium" | "high";
 
 export interface FollowupCoverage {
+  company_name: CoverageDepth;
   customer: CoverageDepth;
   problem: CoverageDepth;
+  solution: CoverageDepth;
   competitors: CoverageDepth;
   innovation: CoverageDepth;
   demand: CoverageDepth;
   research: CoverageDepth;
   uniqueness: CoverageDepth;
   websites: CoverageDepth;
+  industry: CoverageDepth;
+  business_model: CoverageDepth;
+  stage: CoverageDepth;
 }
 
 export interface ExtractedFields {
+  company_name: string;
   problem: string;
   customer: string;
   solution: string;
@@ -32,9 +38,13 @@ export interface ExtractedFields {
   competitors: string;
   business_model: string;
   websites: string;
+  industry_categories: string;
+  stage: string;
+  linkedin_url: string;
 }
 
 export interface ConfidenceMap {
+  company_name: ConfidenceLevel;
   problem: ConfidenceLevel;
   customer: ConfidenceLevel;
   solution: ConfidenceLevel;
@@ -43,6 +53,9 @@ export interface ConfidenceMap {
   competitors: ConfidenceLevel;
   business_model: ConfidenceLevel;
   websites: ConfidenceLevel;
+  industry_categories: ConfidenceLevel;
+  stage: ConfidenceLevel;
+  linkedin_url: ConfidenceLevel;
 }
 
 export interface DiscoveredEntities {
@@ -84,20 +97,21 @@ export function countAtDepth(coverage: FollowupCoverage, minDepth: "shallow" | "
   }).length;
 }
 
-/** Check readiness based on v3 adaptive rules. */
+/** Check readiness based on v3 adaptive rules. 13 coverage topics. */
 export function checkReadiness(coverage: FollowupCoverage, userMessageCount: number): boolean {
   const shallowPlus = countAtDepth(coverage, "shallow");
   const deepCount = countAtDepth(coverage, "deep");
 
-  // Minimum bar: problem AND customer must be at least shallow
+  // Minimum bar: problem AND customer AND company_name must be at least shallow
   const problemCovered = isCovered(coverage.problem);
   const customerCovered = isCovered(coverage.customer);
-  const minBarMet = problemCovered && customerCovered;
+  const nameCovered = isCovered(coverage.company_name);
+  const minBarMet = problemCovered && customerCovered && nameCovered;
 
-  // Quick ready: 3+ messages, 6+ shallow+, 3+ deep, min bar met
-  if (userMessageCount >= 3 && shallowPlus >= 6 && deepCount >= 3 && minBarMet) return true;
-  // Normal ready: 5+ messages, 5+ shallow+, 2+ deep, min bar met
-  if (userMessageCount >= 5 && shallowPlus >= 5 && deepCount >= 2 && minBarMet) return true;
+  // Quick ready: 3+ messages, 9+ shallow+, 4+ deep, min bar met
+  if (userMessageCount >= 3 && shallowPlus >= 9 && deepCount >= 4 && minBarMet) return true;
+  // Normal ready: 5+ messages, 8+ shallow+, 3+ deep, min bar met
+  if (userMessageCount >= 5 && shallowPlus >= 8 && deepCount >= 3 && minBarMet) return true;
   // Forced ready: 10+ messages always ready
   if (userMessageCount >= 10) return true;
 
@@ -107,10 +121,11 @@ export function checkReadiness(coverage: FollowupCoverage, userMessageCount: num
 /** Check minimum data threshold for enabling the Generate button. */
 export function hasMinimumData(coverage: FollowupCoverage): boolean {
   const shallowPlus = countAtDepth(coverage, "shallow");
-  return isCovered(coverage.problem) && isCovered(coverage.customer) && shallowPlus >= 3;
+  return isCovered(coverage.problem) && isCovered(coverage.customer) && isCovered(coverage.company_name) && shallowPlus >= 4;
 }
 
 const EMPTY_EXTRACTED: ExtractedFields = {
+  company_name: "",
   problem: "",
   customer: "",
   solution: "",
@@ -119,9 +134,13 @@ const EMPTY_EXTRACTED: ExtractedFields = {
   competitors: "",
   business_model: "",
   websites: "",
+  industry_categories: "",
+  stage: "",
+  linkedin_url: "",
 };
 
 const EMPTY_CONFIDENCE: ConfidenceMap = {
+  company_name: "low",
   problem: "low",
   customer: "low",
   solution: "low",
@@ -130,6 +149,9 @@ const EMPTY_CONFIDENCE: ConfidenceMap = {
   competitors: "low",
   business_model: "low",
   websites: "low",
+  industry_categories: "low",
+  stage: "low",
+  linkedin_url: "low",
 };
 
 interface ConversationMessage {
@@ -192,19 +214,25 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
       // Normalize coverage: handle boolean (v1) or depth string (v2)
       const rawCoverage = data.coverage || {};
       const coverage: FollowupCoverage = {
+        company_name: normalizeCoverageValue(rawCoverage.company_name),
         customer: normalizeCoverageValue(rawCoverage.customer),
         problem: normalizeCoverageValue(rawCoverage.problem),
+        solution: normalizeCoverageValue(rawCoverage.solution),
         competitors: normalizeCoverageValue(rawCoverage.competitors),
         innovation: normalizeCoverageValue(rawCoverage.innovation),
         demand: normalizeCoverageValue(rawCoverage.demand),
         research: normalizeCoverageValue(rawCoverage.research),
         uniqueness: normalizeCoverageValue(rawCoverage.uniqueness),
         websites: normalizeCoverageValue(rawCoverage.websites),
+        industry: normalizeCoverageValue(rawCoverage.industry),
+        business_model: normalizeCoverageValue(rawCoverage.business_model),
+        stage: normalizeCoverageValue(rawCoverage.stage),
       };
 
       // Normalize confidence: map unknown values to "low"
       const rawConfidence = data.confidence || {};
       const confidence: ConfidenceMap = {
+        company_name: normalizeConfidence(rawConfidence.company_name),
         problem: normalizeConfidence(rawConfidence.problem),
         customer: normalizeConfidence(rawConfidence.customer),
         solution: normalizeConfidence(rawConfidence.solution),
@@ -213,6 +241,9 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
         competitors: normalizeConfidence(rawConfidence.competitors),
         business_model: normalizeConfidence(rawConfidence.business_model),
         websites: normalizeConfidence(rawConfidence.websites),
+        industry_categories: normalizeConfidence(rawConfidence.industry_categories),
+        stage: normalizeConfidence(rawConfidence.stage),
+        linkedin_url: normalizeConfidence(rawConfidence.linkedin_url),
       };
 
       return {
@@ -299,18 +330,24 @@ export function useFollowupStreaming() {
         if (!payload) return;
         const rawCoverage = payload.coverage || {};
         const coverage: FollowupCoverage = {
+          company_name: normalizeCoverageValue(rawCoverage.company_name),
           customer: normalizeCoverageValue(rawCoverage.customer),
           problem: normalizeCoverageValue(rawCoverage.problem),
+          solution: normalizeCoverageValue(rawCoverage.solution),
           competitors: normalizeCoverageValue(rawCoverage.competitors),
           innovation: normalizeCoverageValue(rawCoverage.innovation),
           demand: normalizeCoverageValue(rawCoverage.demand),
           research: normalizeCoverageValue(rawCoverage.research),
           uniqueness: normalizeCoverageValue(rawCoverage.uniqueness),
           websites: normalizeCoverageValue(rawCoverage.websites),
+          industry: normalizeCoverageValue(rawCoverage.industry),
+          business_model: normalizeCoverageValue(rawCoverage.business_model),
+          stage: normalizeCoverageValue(rawCoverage.stage),
         };
 
         const rawConfidence = payload.confidence || {};
         const confidence: ConfidenceMap = {
+          company_name: normalizeConfidence(rawConfidence.company_name),
           problem: normalizeConfidence(rawConfidence.problem),
           customer: normalizeConfidence(rawConfidence.customer),
           solution: normalizeConfidence(rawConfidence.solution),
@@ -319,6 +356,9 @@ export function useFollowupStreaming() {
           competitors: normalizeConfidence(rawConfidence.competitors),
           business_model: normalizeConfidence(rawConfidence.business_model),
           websites: normalizeConfidence(rawConfidence.websites),
+          industry_categories: normalizeConfidence(rawConfidence.industry_categories),
+          stage: normalizeConfidence(rawConfidence.stage),
+          linkedin_url: normalizeConfidence(rawConfidence.linkedin_url),
         };
 
         const metadata: FollowupResult = {

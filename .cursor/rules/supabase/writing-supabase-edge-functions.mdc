@@ -26,13 +26,9 @@ You're an expert in writing TypeScript and Deno JavaScript runtime. Generate **h
 11. File write operations are ONLY permitted on `/tmp` directory (ephemeral storage). You can use Deno or Node File APIs.
 12. Use `EdgeRuntime.waitUntil(promise)` to run long-running tasks in the background without blocking the response. It is globally available in the Supabase Edge Functions runtime. Do NOT `await` the promise—return the response immediately. Do NOT assume it is available on the request object. For local testing, set `policy="per_worker"` in `supabase/config.toml` so background tasks complete.
 
-## Runtime Types
+## Runtime
 
-Always import the Supabase Edge Runtime type definitions at the top of every function:
-
-```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-```
+Use `Deno.serve()` as the entrypoint. No special imports are required — the Supabase Edge Runtime provides all necessary types globally.
 
 ## Rate Limiting
 
@@ -120,57 +116,72 @@ Deno.serve(async (req: Request) => {
 
 ## AI Functions with Structured Output
 
-For AI functions using Gemini, use structured output. Prefer `supabase/functions/_shared/gemini.ts` when available (handles timeout, retry, CORS). For direct calls:
+For AI functions using Gemini, use the shared helper at `supabase/functions/_shared/gemini.ts` (handles timeout, retry, CORS). This project calls Gemini via **direct HTTP fetch**, not the npm SDK.
 
-- Use `responseJsonSchema` (REST API) or `responseSchema` (SDK) with `responseMimeType: "application/json"` for guaranteed JSON.
+### Key Rules
+
+- Use `responseJsonSchema` with `responseMimeType: "application/json"` for guaranteed JSON (REST API pattern).
 - API key: pass in `x-goog-api-key` header (never query param).
 - Gemini 3: use `temperature: 1.0` (lower can cause looping).
+- Timeouts: use `Promise.race` with hard deadline — `AbortSignal.timeout()` does NOT reliably abort `response.json()` on Deno Deploy.
+
+### Direct HTTP Pattern (This Project's Approach)
+
+```tsx
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+const MODEL = 'gemini-3-flash-preview';
+
+const response = await Promise.race([
+  fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': GEMINI_API_KEY,
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: schema,
+        temperature: 1.0,
+      },
+    }),
+  }),
+  new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 30000)),
+]);
+
+const result = await response.json();
+const parsed = JSON.parse(result.candidates[0].content.parts[0].text);
+```
+
+### Alternative: npm SDK Pattern
+
+If switching to the npm SDK in the future:
 
 ```tsx
 import { GoogleGenAI, Type } from "npm:@google/genai@^1.0.0";
 
-const schema = {
-  type: Type.OBJECT,
-  properties: {
-    summary: { type: Type.STRING, description: "Brief summary" },
-    items: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of extracted items"
-    }
+const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY') });
+const response = await ai.models.generateContent({
+  model: 'gemini-3-flash-preview',
+  contents: prompt,
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: schema,  // SDK uses responseSchema (not responseJsonSchema)
+    temperature: 1.0,
   },
-  required: ["summary", "items"]
-};
-
-Deno.serve(async (req: Request) => {
-  // ... auth and validation ...
-
-  const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: schema,
-      temperature: 1.0  // Gemini 3: keep at 1.0
-    }
-  });
-
-  const parsed = JSON.parse(response.text || "{}");
-  return new Response(JSON.stringify(parsed), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  });
 });
+const parsed = JSON.parse(response.text || "{}");
 ```
+
+> **Note:** `responseSchema` is the SDK property name. `responseJsonSchema` is the REST API property name. They are NOT interchangeable.
 
 ## Example Templates
 
 ### Simple Hello World Function
 
 ```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// No special imports needed — Deno.serve is globally available
 
 interface reqPayload {
   name: string
@@ -195,7 +206,7 @@ Deno.serve(async (req: Request) => {
 Use `node:` for built-ins when Deno has no equivalent (e.g. `node:crypto`):
 
 ```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// No special imports needed — Deno.serve is globally available
 import { randomBytes } from 'node:crypto'
 
 const generateRandomString = (length: number) => {
@@ -216,7 +227,7 @@ Deno.serve(async (req: Request) => {
 For multi-route functions, use `Deno.serve` with a library like Hono (preferred over Express). Each route must be prefixed with the function name:
 
 ```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// No special imports needed — Deno.serve is globally available
 import { Hono } from "jsr:@hono/hono@4";
 
 const app = new Hono().basePath("/my-function");
@@ -235,7 +246,7 @@ Deno.serve(app.fetch);
 ### Background task (fire-and-forget)
 
 ```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// No special imports needed — Deno.serve is globally available
 
 Deno.serve(async (req: Request) => {
   EdgeRuntime.waitUntil(sendToLoggingService(data))
@@ -249,7 +260,7 @@ Deno.serve(async (req: Request) => {
 ### Generate embeddings using Supabase AI
 
 ```tsx
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+// No special imports needed — Deno.serve is globally available
 
 const model = new Supabase.ai.Session('gte-small')
 

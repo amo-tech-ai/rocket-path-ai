@@ -549,13 +549,19 @@
   }
 }
 
+/* Report print sections: hidden on screen, shown during print */
+.report-print-sections {
+  display: none;
+}
+
 /* ========== PRINT STYLES ========== */
 @media print {
   header, footer, nav,
   .sidebar, .sticky-score-bar,
   [data-no-print], .no-print,
   button, .share-dialog,
-  .scroll-to-top {
+  .scroll-to-top,
+  .report-tabs {
     display: none !important;
   }
 
@@ -597,6 +603,12 @@
     padding: 0.25in 0;
     border-bottom: 2px solid #0E6249;
     margin-bottom: 0.25in;
+  }
+
+  .report-print-sections {
+    display: flex !important;
+    flex-direction: column;
+    gap: 2rem;
   }
 
   @page {

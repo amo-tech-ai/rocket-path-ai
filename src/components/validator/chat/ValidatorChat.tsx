@@ -47,10 +47,15 @@ I'll help turn it into a clear, validated plan.`,
 // Fallback questions used when the edge function fails — ordered by topic priority.
 // Each has a topic key for depth-aware skipping and keywords for text-based detection.
 const FALLBACK_QUESTIONS: { topic: keyof FollowupCoverage; question: string; keywords: string[] }[] = [
-  { topic: 'problem', question: "What specific problem are you solving? Who feels this pain the most?", keywords: ['problem', 'pain', 'struggle', 'challenge', 'issue', 'frustration'] },
-  { topic: 'customer', question: "Who specifically would use this? What's their role, industry, or situation?", keywords: ['customer', 'consumer', 'user', 'traveler', 'traveller', 'nomad', 'founder', 'agent', 'buyer', 'audience', 'demographic', 'segment', 'persona', 'target'] },
+  { topic: 'company_name', question: "What's the name of your company or product?", keywords: ['called', 'named', 'name is', 'company', 'product name', 'brand'] },
+  { topic: 'problem', question: "What specific problem are you solving? What's the cost, how often does it happen, and who feels it most?", keywords: ['problem', 'pain', 'struggle', 'challenge', 'issue', 'frustration'] },
+  { topic: 'solution', question: "What's your solution? What's the core feature and how is it 10x better than what exists?", keywords: ['solution', 'product', 'feature', 'build', 'platform', 'tool', 'app', 'service'] },
+  { topic: 'customer', question: "Who's your target market? Who pays, who uses it, and where do they operate?", keywords: ['customer', 'consumer', 'user', 'traveler', 'traveller', 'nomad', 'founder', 'agent', 'buyer', 'audience', 'demographic', 'segment', 'persona', 'target'] },
   { topic: 'competitors', question: "What alternatives or workarounds do these people use today?", keywords: ['competitor', 'alternative', 'workaround', 'currently', 'existing', 'today', 'instead', 'compare'] },
-  { topic: 'websites', question: "Do you have any URLs to share — your website, competitor sites, or relevant articles?", keywords: ['http', 'www', '.com', '.io', 'url', 'link', 'site', 'website'] },
+  { topic: 'websites', question: "Do you have any URLs to share — your website, LinkedIn, competitor sites, or relevant articles?", keywords: ['http', 'www', '.com', '.io', 'url', 'link', 'site', 'website', 'linkedin'] },
+  { topic: 'industry', question: "What industry are you in? (e.g., SaaS, AI, FinTech, Healthcare, E-commerce, Education)", keywords: ['saas', 'fintech', 'healthcare', 'e-commerce', 'ecommerce', 'education', 'ai ', 'industry', 'sector', 'vertical'] },
+  { topic: 'business_model', question: "What's your business model? (B2B, B2C, Marketplace, Platform, Services)", keywords: ['b2b', 'b2c', 'marketplace', 'platform', 'subscription', 'freemium', 'revenue', 'pricing', 'monetize', 'business model'] },
+  { topic: 'stage', question: "What stage is your company at? (Idea, Pre-seed, Seed, Series A, Series B+)", keywords: ['idea stage', 'pre-seed', 'seed', 'series a', 'series b', 'raised', 'funding', 'revenue', 'stage'] },
   { topic: 'innovation', question: "What's novel about your approach — why now and why you?", keywords: ['novel', 'unique', 'different', 'approach', 'innovation', 'why now', 'advantage', 'special', 'better than', 'unlike'] },
   { topic: 'uniqueness', question: "What's your unfair advantage or moat that competitors can't easily copy?", keywords: ['moat', 'advantage', 'defensible', 'patent', 'network effect', 'data', 'proprietary'] },
   { topic: 'demand', question: "Do you have any evidence people want this — conversations, waitlists, or surveys?", keywords: ['evidence', 'waitlist', 'survey', 'interview', 'feedback', 'pilot', 'beta', 'users signed', 'traction', 'demand'] },
@@ -296,29 +301,32 @@ export default function ValidatorChat({
             setFallbackIndex(fb.nextIndex);
           }
 
-          // If streaming delivered the question, it's already in the message.
-          // Otherwise, finalize from the HTTP response.
+          // If streaming finalize effect already handled the message, skip.
+          // Otherwise, set message from the HTTP response (source of truth).
+          const streamAlreadyFinalized = streamingMessageId.current === null;
           setIsStreamingMessage(false);
           streamingMessageId.current = null;
           resetStream();
           followupInFlight.current = false;
-          setMessages(prev => {
-            const streamIdx = prev.findIndex(m => m.id === streamMsgId);
-            if (streamIdx !== -1 && prev[streamIdx].content.length > 0) {
-              // Streaming delivered content — update with final question
-              const updated = [...prev];
-              updated[streamIdx] = { ...updated[streamIdx], content: question };
-              return updated;
-            }
-            // No streaming content — add as new message
-            const cleaned = prev.filter(m => m.id !== streamMsgId);
-            return [...cleaned, {
-              id: crypto.randomUUID(),
-              role: 'assistant' as const,
-              content: question,
-              timestamp: new Date(),
-            }];
-          });
+          if (!streamAlreadyFinalized) {
+            setMessages(prev => {
+              const streamIdx = prev.findIndex(m => m.id === streamMsgId);
+              if (streamIdx !== -1 && prev[streamIdx].content.length > 0) {
+                // Streaming delivered content — update with final question
+                const updated = [...prev];
+                updated[streamIdx] = { ...updated[streamIdx], content: question };
+                return updated;
+              }
+              // No streaming content — add as new message
+              const cleaned = prev.filter(m => m.id !== streamMsgId);
+              return [...cleaned, {
+                id: crypto.randomUUID(),
+                role: 'assistant' as const,
+                content: question,
+                timestamp: new Date(),
+              }];
+            });
+          }
         }
       } else {
         // Edge function failed — use depth-aware fallback

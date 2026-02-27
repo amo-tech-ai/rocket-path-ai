@@ -35,7 +35,7 @@ export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: Ex
   };
 
   const overallScore = coverage
-    ? Math.round((Object.values(coverage).filter(v => isCovered(v)).length / 8) * 100)
+    ? Math.round((Object.values(coverage).filter(v => isCovered(v)).length / Object.keys(coverage).length) * 100)
     : 0;
   const shouldReduceMotion = useReducedMotion();
 

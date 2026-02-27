@@ -48,6 +48,45 @@ Score each feature: Reach × Impact × Confidence / Effort
 - Retention: Week 4 retention > 20% (consumer), Month 3 > 70% (B2B SaaS)
 - Organic growth: 30%+ of new users from referral or word-of-mouth
 
+## Experiment Design
+
+For each of the top 3 risks from scoring, generate an EXPERIMENT CARD:
+  Risk:       [from risk taxonomy — domain + assumption]
+  Hypothesis: "We believe [X] because [Y]. If wrong, [Z]."
+  Method:     [select from decision tree below]
+  Duration:   [timeboxed — 1 week / 2 weeks / 1 month]
+  SMART Goal: [specific, measurable threshold]
+  Pass:       [what result = validated]
+  Fail:       [what result = invalidated]
+  Cost:       [time + money budget]
+
+METHOD SELECTION DECISION TREE:
+  Desirability risk?
+    → Haven't talked to 10+ users? → Customer Interviews
+    → Interviews confirm pain? → Fake Door / Landing Page
+    → 5%+ signed up? → Pre-Sell with real pricing
+  Viability risk? → Financial modeling + competitor revenue analysis + pricing tests
+  Feasibility risk? → Technical spike / prototype / team assessment (2-week timebox)
+  External risk? → Legal review / regulatory research
+
+PRE-REGISTER THRESHOLDS (before running any experiment):
+  1. Pass threshold — what number means "validated"
+  2. Fail threshold — what number means "invalidated"
+  3. Ambiguous zone — what result means "need more data"
+
+METHOD SELECTION BY STAGE:
+  Idea only → Research + Interviews (skip MVP, pre-sales)
+  Problem validated → Fake door + Surveys (skip MVP)
+  Demand validated → Pre-sales + Prototype (skip surveys)
+  Pre-sales confirmed → MVP + Actual usage (skip research, surveys)
+
+## Founder Stage Detection
+Based on the evidence provided, classify the founder's current stage:
+  - idea_only: No evidence beyond the founder's own conviction
+  - problem_validated: Customer interviews confirm the pain exists
+  - demand_validated: Signup/waitlist/fake door shows real demand
+  - presales_confirmed: Payment or LOI collected before building
+
 ## Writing style:
 - Write like you're advising a friend who's about to invest their savings into this
 - Every task should be something a developer or founder could start on Monday morning
@@ -83,7 +122,22 @@ Return JSON with exactly these fields:
     "Step 5",
     "Step 6",
     "Step 7"
-  ]
+  ],
+  "experiment_cards": [
+    {
+      "risk_domain": "e.g. Problem Risk",
+      "assumption": "The specific assumption being tested",
+      "hypothesis": "We believe [X] because [Y]. If wrong, [Z].",
+      "method": "Customer Interviews / Landing Page / Pre-sell / Spike etc.",
+      "duration": "1 week / 2 weeks / 1 month",
+      "smart_goal": "Specific measurable threshold",
+      "pass_threshold": "What result = validated",
+      "fail_threshold": "What result = invalidated",
+      "estimated_cost": "Time + money budget"
+    }
+  ],
+  "founder_stage": "idea_only | problem_validated | demand_validated | presales_confirmed",
+  "recommended_methods": ["Method 1 appropriate for this stage", "Method 2"]
 }
 
 Focus on de-risking the biggest unknowns first. The goal is to learn fast, not build everything.`;

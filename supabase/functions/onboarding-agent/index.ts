@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Use environment variables (set automatically by Supabase or via secrets)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -68,6 +69,16 @@ async function geminiWithTimeout(
       setTimeout(() => reject(new Error(`hard timeout after ${timeoutMs}ms`)), timeoutMs)
     ),
   ]);
+}
+
+/** Thinking-aware: extract actual output, skipping thought summary parts */
+// deno-lint-ignore no-explicit-any
+function extractGeminiText(data: Record<string, unknown>, fallback = ''): string {
+  // deno-lint-ignore no-explicit-any
+  const parts = (data as any).candidates?.[0]?.content?.parts || [];
+  // deno-lint-ignore no-explicit-any
+  const outputPart = parts.filter((p: any) => !p.thought).pop();
+  return outputPart?.text || fallback;
 }
 
 // Log AI run for analytics
@@ -445,11 +456,11 @@ An empty competitors array is better than fake data.`;
             maxOutputTokens: 2000,
             responseMimeType: "application/json",
           },
-          tools: [{ google_search: {} }],
+          tools: [{ googleSearch: {} }],
         },
         GEMINI_API_KEY,
       );
-      const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const responseText = extractGeminiText(geminiData);
 
       if (responseText) {
         competitorData = JSON.parse(responseText);
@@ -593,7 +604,7 @@ CRITICAL: Never return empty arrays for key_features, target_audience, or detect
           // CRITICAL: Enable BOTH tools per official Gemini docs
           tools: [
             { url_context: {} },   // Fetches actual URL content
-            { google_search: {} }, // Search grounding for competitors
+            { googleSearch: {} }, // Search grounding for competitors
           ],
         },
         GEMINI_API_KEY,
@@ -614,7 +625,7 @@ CRITICAL: Never return empty arrays for key_features, target_audience, or detect
         console.log("Search queries used:", groundingMeta.webSearchQueries);
       }
 
-      const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const responseText = extractGeminiText(geminiData);
 
       if (responseText) {
         extractions = JSON.parse(responseText);
@@ -714,7 +725,7 @@ Extract the following information. Return ONLY valid JSON:
       },
       GEMINI_API_KEY,
     );
-    const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const responseText = extractGeminiText(geminiData);
 
     if (!responseText) {
       throw new Error("No response from Gemini");
@@ -824,7 +835,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
         },
         GEMINI_API_KEY,
       );
-      const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const responseText = extractGeminiText(geminiData);
 
       if (responseText) {
         readinessScore = JSON.parse(responseText);
@@ -1259,7 +1270,7 @@ Evaluate like an investor would. Return ONLY valid JSON:
           },
           GEMINI_API_KEY,
         );
-        const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const responseText = extractGeminiText(geminiData);
 
         if (responseText) {
           const aiScore = JSON.parse(responseText);
@@ -1368,7 +1379,7 @@ Return ONLY valid JSON:
           },
           GEMINI_API_KEY,
         );
-        const responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const responseText = extractGeminiText(geminiData);
 
         if (responseText) {
           const aiSummary = JSON.parse(responseText);
@@ -1679,6 +1690,19 @@ Deno.serve(async (req: Request) => {
 
     const body: RequestBody = await req.json();
     const { action } = body;
+
+    // Rate limit AI-heavy actions (enrichment uses Gemini)
+    const EXPENSIVE_ACTIONS = [
+      'enrich_url', 'enrich_context', 'enrich_founder',
+      'enrich_linkedin', 'extract_from_answer', 'complete_wizard',
+    ];
+    if (EXPENSIVE_ACTIONS.includes(action)) {
+      const rateResult = checkRateLimit(user.id, 'onboarding-agent', RATE_LIMITS.standard);
+      if (!rateResult.allowed) {
+        console.warn(`[onboarding-agent] Rate limit hit: user=${user.id}, action=${action}`);
+        return rateLimitResponse(rateResult, corsHeaders);
+      }
+    }
 
     console.log("Onboarding agent action:", action, "User:", user.id);
 

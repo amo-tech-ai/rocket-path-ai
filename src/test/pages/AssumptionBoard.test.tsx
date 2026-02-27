@@ -107,7 +107,7 @@ vi.mock('@/hooks/useDashboardData', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useExperiments', () => ({
+vi.mock('@/hooks/useAssumptions', () => ({
   useAssumptions: vi.fn().mockReturnValue({
     data: mockAssumptions,
     isLoading: false,

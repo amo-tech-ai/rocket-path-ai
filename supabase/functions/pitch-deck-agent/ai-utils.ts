@@ -5,6 +5,30 @@
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
+// Hard timeout wrapper — AbortSignal.timeout unreliable on Deno Deploy for .json()
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function jsonWithTimeout<T>(res: Response, timeoutMs = 15_000): Promise<T> {
+  return Promise.race([
+    res.json() as Promise<T>,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("JSON parse timeout")), timeoutMs),
+    ),
+  ]);
+}
+
 // ============================================================================
 // Text Generation (Gemini Pro/Flash)
 // ============================================================================
@@ -36,14 +60,14 @@ export async function callGemini(
   }
 
   try {
-    const response = await fetch(LOVABLE_AI_URL, {
+    const response = await fetchWithTimeout(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, 30_000);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -51,14 +75,15 @@ export async function callGemini(
       return { content: undefined };
     }
 
-    const data = await response.json();
-    const choice = data.choices?.[0];
-    
-    if (choice?.message?.tool_calls?.[0]) {
-      return { toolCall: choice.message.tool_calls[0] };
+    const data = await jsonWithTimeout<Record<string, unknown>>(response);
+    const choice = (data.choices as unknown[])?.[0] as Record<string, unknown> | undefined;
+    const message = choice?.message as Record<string, unknown> | undefined;
+
+    if ((message?.tool_calls as unknown[])?.[0]) {
+      return { toolCall: (message!.tool_calls as unknown[])[0] };
     }
-    
-    return { content: choice?.message?.content || undefined };
+
+    return { content: (message?.content as string) || undefined };
   } catch (error) {
     console.error("[callGemini] Error:", error);
     return { content: undefined };
@@ -128,7 +153,7 @@ Return a JSON response with:
 }`;
 
   try {
-    const response = await fetch(LOVABLE_AI_URL, {
+    const response = await fetchWithTimeout(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -143,7 +168,7 @@ Return a JSON response with:
         tools: [googleSearchTool],
         tool_choice: "auto",
       }),
-    });
+    }, 30_000);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -151,7 +176,8 @@ Return a JSON response with:
       return { content: undefined };
     }
 
-    const data = await response.json();
+    // deno-lint-ignore no-explicit-any
+    const data = await jsonWithTimeout<any>(response);
     const choice = data.choices?.[0];
     
     // Extract citations if available
@@ -228,7 +254,7 @@ High contrast, suitable for presentations`;
   try {
     console.log(`[generateSlideImage] Generating image for ${slideType} slide`);
 
-    const response = await fetch(LOVABLE_AI_URL, {
+    const response = await fetchWithTimeout(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -241,7 +267,7 @@ High contrast, suitable for presentations`;
         ],
         modalities: ["image", "text"],
       }),
-    });
+    }, 60_000); // Image generation needs longer timeout
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -249,7 +275,8 @@ High contrast, suitable for presentations`;
       return { success: false, error: `API error: ${response.status}` };
     }
 
-    const data = await response.json();
+    // deno-lint-ignore no-explicit-any
+    const data = await jsonWithTimeout<any>(response, 30_000);
     const images = data.choices?.[0]?.message?.images;
     
     if (images && images.length > 0) {

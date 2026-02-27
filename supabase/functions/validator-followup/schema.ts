@@ -15,16 +15,22 @@ export interface FollowupResponse {
   summary: string;
   readiness_reason: string;
   coverage: {
+    company_name: CoverageDepth;
     customer: CoverageDepth;
     problem: CoverageDepth;
+    solution: CoverageDepth;
     competitors: CoverageDepth;
     innovation: CoverageDepth;
     demand: CoverageDepth;
     research: CoverageDepth;
     uniqueness: CoverageDepth;
     websites: CoverageDepth;
+    industry: CoverageDepth;
+    business_model: CoverageDepth;
+    stage: CoverageDepth;
   };
   extracted: {
+    company_name: string;
     problem: string;
     customer: string;
     solution: string;
@@ -33,8 +39,12 @@ export interface FollowupResponse {
     competitors: string;
     business_model: string;
     websites: string;
+    industry_categories: string;
+    stage: string;
+    linkedin_url: string;
   };
   confidence: {
+    company_name: ConfidenceLevel;
     problem: ConfidenceLevel;
     customer: ConfidenceLevel;
     solution: ConfidenceLevel;
@@ -43,6 +53,9 @@ export interface FollowupResponse {
     competitors: ConfidenceLevel;
     business_model: ConfidenceLevel;
     websites: ConfidenceLevel;
+    industry_categories: ConfidenceLevel;
+    stage: ConfidenceLevel;
+    linkedin_url: ConfidenceLevel;
   };
   contradictions: string[];
   discoveredEntities: {
@@ -87,44 +100,57 @@ export const followupResponseSchema = {
     },
     coverage: {
       type: "object",
-      required: ["customer", "problem", "competitors", "innovation", "demand", "research", "uniqueness", "websites"],
+      required: ["company_name", "customer", "problem", "solution", "competitors", "innovation", "demand", "research", "uniqueness", "websites", "industry", "business_model", "stage"],
       properties: {
+        company_name: { ...depthEnum, description: "Company or product name depth." },
         customer: { ...depthEnum, description: "Target customer segment depth." },
         problem: { ...depthEnum, description: "Problem being solved depth." },
+        solution: { ...depthEnum, description: "Solution approach and core feature depth." },
         competitors: { ...depthEnum, description: "Competitors or alternatives depth." },
         innovation: { ...depthEnum, description: "Innovation or novel approach depth." },
         demand: { ...depthEnum, description: "Market demand or evidence depth." },
         research: { ...depthEnum, description: "Market research or validation depth." },
         uniqueness: { ...depthEnum, description: "Unique value proposition depth." },
         websites: { ...depthEnum, description: "Reference URLs or links depth." },
+        industry: { ...depthEnum, description: "Industry category depth." },
+        business_model: { ...depthEnum, description: "Business model type (B2B/B2C/Marketplace etc) depth." },
+        stage: { ...depthEnum, description: "Company stage (Idea/Pre-seed/Seed/Series A/B+) depth." },
       },
     },
     extracted: {
       type: "object",
-      required: ["problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites"],
+      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url"],
       properties: {
+        company_name: { type: "string", description: "Company or product name. Empty string if not mentioned." },
         problem: { type: "string", description: "Extracted problem statement from founder's words. Empty string if not discussed." },
         customer: { type: "string", description: "Extracted customer segment from founder's words. Empty string if not discussed." },
-        solution: { type: "string", description: "Extracted solution approach. Empty string if not discussed." },
+        solution: { type: "string", description: "Extracted solution approach and core feature. Empty string if not discussed." },
         differentiation: { type: "string", description: "Extracted differentiator or moat. Empty string if not discussed." },
         demand: { type: "string", description: "Extracted demand evidence. Empty string if not discussed." },
         competitors: { type: "string", description: "Extracted competitors mentioned. Empty string if not discussed." },
-        business_model: { type: "string", description: "Extracted business model or pricing. Empty string if not discussed." },
+        business_model: { type: "string", description: "Business model type: B2B, B2C, B2B2C, Marketplace, Platform, or Services. Empty string if not discussed." },
         websites: { type: "string", description: "Extracted URLs or links. Empty string if not discussed." },
+        industry_categories: { type: "string", description: "Industry categories (comma-separated): SaaS, AI, FinTech, E-commerce, Healthcare, Education, Media, Enterprise, Consumer, Logistics, Real Estate, Gaming, Other. Empty string if not discussed." },
+        stage: { type: "string", description: "Company stage: Idea, Pre-seed, Seed, Series A, Series B+. Empty string if not discussed." },
+        linkedin_url: { type: "string", description: "Founder or company LinkedIn URL. Empty string if not mentioned." },
       },
     },
     confidence: {
       type: "object",
-      required: ["problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites"],
+      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url"],
       properties: {
+        company_name: { ...confidenceEnum, description: "Confidence in extracted company name." },
         problem: { ...confidenceEnum, description: "Confidence in extracted problem statement." },
         customer: { ...confidenceEnum, description: "Confidence in extracted customer segment." },
         solution: { ...confidenceEnum, description: "Confidence in extracted solution." },
         differentiation: { ...confidenceEnum, description: "Confidence in extracted differentiator." },
         demand: { ...confidenceEnum, description: "Confidence in extracted demand evidence." },
         competitors: { ...confidenceEnum, description: "Confidence in extracted competitors." },
-        business_model: { ...confidenceEnum, description: "Confidence in extracted business model." },
+        business_model: { ...confidenceEnum, description: "Confidence in extracted business model type." },
         websites: { ...confidenceEnum, description: "Confidence in extracted URLs." },
+        industry_categories: { ...confidenceEnum, description: "Confidence in extracted industry categories." },
+        stage: { ...confidenceEnum, description: "Confidence in extracted company stage." },
+        linkedin_url: { ...confidenceEnum, description: "Confidence in extracted LinkedIn URL." },
       },
     },
     contradictions: {

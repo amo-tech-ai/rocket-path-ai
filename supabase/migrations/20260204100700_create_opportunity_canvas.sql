@@ -59,8 +59,8 @@ create index if not exists idx_opportunity_canvas_startup_id
 
 alter table public.opportunity_canvas enable row level security;
 
--- Users can only access opportunity canvases for startups they own
--- (startup ownership verified via startup_members join)
+-- Users can only access opportunity canvases for startups in their org
+-- (org membership verified via org_members join through startups.org_id)
 
 do $$ begin
   create policy "Users can view opportunity canvas for their startups"
@@ -68,8 +68,9 @@ do $$ begin
     to authenticated
     using (
       startup_id in (
-        select sm.startup_id from public.startup_members sm
-        where sm.user_id = (select auth.uid())
+        select s.id from public.startups s
+        join public.org_members om on s.org_id = om.org_id
+        where om.user_id = (select auth.uid()) and om.status = 'active'
       )
     );
 exception when duplicate_object then null;
@@ -81,8 +82,9 @@ do $$ begin
     to authenticated
     with check (
       startup_id in (
-        select sm.startup_id from public.startup_members sm
-        where sm.user_id = (select auth.uid())
+        select s.id from public.startups s
+        join public.org_members om on s.org_id = om.org_id
+        where om.user_id = (select auth.uid()) and om.status = 'active'
       )
     );
 exception when duplicate_object then null;
@@ -94,8 +96,9 @@ do $$ begin
     to authenticated
     using (
       startup_id in (
-        select sm.startup_id from public.startup_members sm
-        where sm.user_id = (select auth.uid())
+        select s.id from public.startups s
+        join public.org_members om on s.org_id = om.org_id
+        where om.user_id = (select auth.uid()) and om.status = 'active'
       )
     );
 exception when duplicate_object then null;
@@ -107,8 +110,9 @@ do $$ begin
     to authenticated
     using (
       startup_id in (
-        select sm.startup_id from public.startup_members sm
-        where sm.user_id = (select auth.uid())
+        select s.id from public.startups s
+        join public.org_members om on s.org_id = om.org_id
+        where om.user_id = (select auth.uid()) and om.status = 'active'
       )
     );
 exception when duplicate_object then null;

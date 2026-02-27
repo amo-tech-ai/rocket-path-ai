@@ -13,8 +13,8 @@ export interface ReportHeroLuxuryProps {
   industry?: string;
   stage?: string;
   tagline?: string;
-  score: number;
-  signal: 'go' | 'caution' | 'no-go';
+  score: number | null;
+  signal: 'go' | 'caution' | 'no-go' | 'unavailable';
   analysis?: string;
   metrics: { label: string; value: string; subtitle?: string }[];
   dimensions: { name: string; score: number; weight?: number }[];
@@ -32,23 +32,25 @@ function formatStage(s: string): string {
 // ─── Constants ──────────────────────────────────────────────────────
 const R = 52;
 const CIRCUMFERENCE = 2 * Math.PI * R;
-const SIGNAL_LABELS = { go: 'GO', caution: 'CAUTION', 'no-go': 'NO-GO' } as const;
+const SIGNAL_LABELS = { go: 'GO', caution: 'CAUTION', 'no-go': 'NO-GO', unavailable: 'N/A' } as const;
 
 const signalStyles = {
   go: 'bg-emerald-100 text-emerald-800',
   caution: 'bg-amber-100 text-amber-800',
   'no-go': 'bg-red-100 text-red-800',
+  unavailable: 'bg-muted text-muted-foreground',
 } as const;
 
 // ─── Score Ring ─────────────────────────────────────────────────────
-function ScoreRing({ score, signal }: { score: number; signal: 'go' | 'caution' | 'no-go' }) {
+function ScoreRing({ score, signal }: { score: number | null; signal: 'go' | 'caution' | 'no-go' | 'unavailable' }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const offset = CIRCUMFERENCE * (1 - Math.min(score, 100) / 100);
+  const safeScore = score ?? 0;
+  const offset = CIRCUMFERENCE * (1 - Math.min(safeScore, 100) / 100);
 
   return (
     <div className="flex flex-col items-center gap-2 shrink-0">
@@ -56,7 +58,7 @@ function ScoreRing({ score, signal }: { score: number; signal: 'go' | 'caution' 
         width={120}
         height={120}
         viewBox="0 0 120 120"
-        aria-label={`Validation score: ${score} out of 100`}
+        aria-label={score !== null ? `Validation score: ${score} out of 100` : 'Score unavailable'}
         role="img"
       >
         {/* Track */}
@@ -71,7 +73,7 @@ function ScoreRing({ score, signal }: { score: number; signal: 'go' | 'caution' 
           className="stroke-primary motion-reduce:transition-none"
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={mounted ? offset : CIRCUMFERENCE}
+          strokeDashoffset={mounted && score !== null ? offset : CIRCUMFERENCE}
           transform="rotate(-90 60 60)"
           style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
         />
@@ -81,7 +83,7 @@ function ScoreRing({ score, signal }: { score: number; signal: 'go' | 'caution' 
           className="fill-foreground"
           style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '32px', fontWeight: 600 }}
         >
-          {score}
+          {score !== null ? score : '—'}
         </text>
         {/* /100 label */}
         <text
@@ -89,7 +91,7 @@ function ScoreRing({ score, signal }: { score: number; signal: 'go' | 'caution' 
           className="fill-muted-foreground"
           style={{ fontFamily: 'Inter, sans-serif', fontSize: '11px', fontWeight: 500 }}
         >
-          /100
+          {score !== null ? '/100' : ''}
         </text>
       </svg>
 

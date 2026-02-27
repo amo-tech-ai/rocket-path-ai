@@ -232,9 +232,9 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
     (breakdown.investorReadiness.score * 0.15)
   );
 
-  // Calculate trend (compare to previous score if exists)
-  const previousScore = startup?.health_score || overall;
-  const trend = overall - previousScore;
+  // Calculate trend — only when a real previous score exists (P1-4 fix)
+  const previousScore = startup?.health_score ?? null;
+  const trend = previousScore !== null ? overall - previousScore : 0;
 
   // Update startup with new health score (RLS allows member updates)
   await supabase

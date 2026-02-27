@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ReportV2Layout } from '@/components/validator/report/ReportV2Layout';
 import { Button } from '@/components/ui/button';
@@ -17,22 +17,24 @@ import {
   SheetTitle,
   SheetTrigger
 } from '@/components/ui/sheet';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import type {
-  TechnologyAssessment,
-  RevenueModelAssessment,
-  TeamAssessment,
-  KeyQuestion,
-  ResourceCategory,
-  ScoresMatrixData,
-  SWOT,
-  FeatureComparison,
-  PositioningMatrix,
-  FinancialProjections,
+  ReportDetailsV2,
 } from '@/types/validation-report';
 import { toast } from 'sonner';
 import ShareDialog from '@/components/sharing/ShareDialog';
 import { useValidatorRegenerate } from '@/hooks/useValidatorRegenerate';
+import { useGenerateCanvasFromReport, useLeanCanvas } from '@/hooks/useLeanCanvas';
 import {
   ChevronLeft,
   Download,
@@ -44,6 +46,7 @@ import {
   Search,
   Loader2,
   Printer,
+  LayoutGrid,
 } from 'lucide-react';
 
 export interface StartupMeta {
@@ -58,7 +61,7 @@ export interface StartupMeta {
 interface ReportData {
   id: string;
   session_id: string | null;
-  score: number;
+  score: number | null;
   summary: string;
   verified: boolean;
   verification_json: {
@@ -68,34 +71,7 @@ interface ReportData {
     failed_agents: string[];
     section_mappings: Record<string, string>;
   } | null;
-  details: {
-    highlights?: string[];
-    red_flags?: string[];
-    summary_verdict: string;
-    problem_clarity: string;
-    customer_use_case: string;
-    market_sizing: { tam: number; sam: number; som: number; citations: string[] };
-    competition: {
-      competitors: Array<{ name: string; description: string; threat_level: string }>;
-      citations: string[];
-      swot?: SWOT;
-      feature_comparison?: FeatureComparison;
-      positioning?: PositioningMatrix;
-    };
-    risks_assumptions: string[];
-    mvp_scope: string;
-    next_steps: string[];
-    dimension_scores?: Record<string, number>;
-    market_factors?: Array<{ name: string; score: number; description: string; status: string }>;
-    execution_factors?: Array<{ name: string; score: number; description: string; status: string }>;
-    technology_stack?: TechnologyAssessment;
-    revenue_model?: RevenueModelAssessment;
-    team_hiring?: TeamAssessment;
-    key_questions?: KeyQuestion[];
-    resources_links?: ResourceCategory[];
-    scores_matrix?: ScoresMatrixData;
-    financial_projections?: FinancialProjections;
-  };
+  details: ReportDetailsV2;
   created_at: string;
 }
 
@@ -110,8 +86,9 @@ interface RunTrace {
 }
 
 export default function ValidatorReport() {
-  const { reportId } = useParams<{ reportId: string }>();
+  const { reportId, section } = useParams<{ reportId: string; section?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [report, setReport] = useState<ReportData | null>(null);
   const [startupId, setStartupId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string | undefined>();
@@ -120,7 +97,10 @@ export default function ValidatorReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
   const { regenerate, isRegenerating } = useValidatorRegenerate();
+  const generateCanvas = useGenerateCanvasFromReport();
+  const { data: existingCanvas } = useLeanCanvas(startupId ?? undefined);
 
   const handleExport = useCallback(async () => {
     if (!report) return;
@@ -136,6 +116,29 @@ export default function ValidatorReport() {
       setIsExporting(false);
     }
   }, [report, companyName]);
+
+  const handleGenerateCanvas = useCallback(async (overwrite = false) => {
+    if (!reportId || !startupId) return;
+
+    // If canvas exists and user hasn't confirmed overwrite, show dialog
+    if (existingCanvas && !overwrite) {
+      setShowOverwriteDialog(true);
+      return;
+    }
+
+    try {
+      await generateCanvas.mutateAsync({
+        reportId,
+        startupId,
+        existingCanvasId: overwrite && existingCanvas ? existingCanvas.id : undefined,
+      });
+      toast.success('Lean Canvas generated from report');
+      navigate('/lean-canvas');
+    } catch (e) {
+      console.error('Canvas generation error:', e);
+      toast.error(e instanceof Error ? e.message : 'Failed to generate canvas');
+    }
+  }, [reportId, startupId, existingCanvas, generateCanvas, navigate]);
 
   useEffect(() => {
     if (!reportId) return;
@@ -156,7 +159,7 @@ export default function ValidatorReport() {
         setReport({
           id: reportData.id,
           session_id: reportData.session_id,
-          score: reportData.score || 0,
+          score: reportData.score ?? null,
           summary: reportData.summary || safeDetails.summary_verdict || '',
           verified: reportData.verified || false,
           verification_json: reportData.verification_json as ReportData['verification_json'],
@@ -235,6 +238,13 @@ export default function ValidatorReport() {
     );
   }
 
+  // Route-based section: /validator/report/:reportId/:section?
+  // Also supports legacy ?tab= query param for backward compat
+  const activeSection = section || searchParams.get('tab') || 'overview';
+  const handleSectionChange = (newSection: string) => {
+    navigate(`/validator/report/${reportId}/${newSection}`, { replace: true });
+  };
+
   return (
     <DashboardLayout>
       {/* Header controls */}
@@ -260,6 +270,23 @@ export default function ValidatorReport() {
               )}
               {isRegenerating ? 'Regenerating...' : 'Regenerate'}
             </Button>
+
+            {/* Generate Lean Canvas */}
+            {startupId && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={generateCanvas.isPending}
+                onClick={() => handleGenerateCanvas()}
+              >
+                {generateCanvas.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <LayoutGrid className="w-4 h-4 mr-2" />
+                )}
+                {generateCanvas.isPending ? 'Generating...' : 'Generate Canvas'}
+              </Button>
+            )}
 
             {/* Trace Drawer */}
             <Sheet>
@@ -341,8 +368,52 @@ export default function ValidatorReport() {
         </div>
       </div>
 
+      {/* U-02: Incomplete report banner when agents failed */}
+      {report.verification_json?.failed_agents && report.verification_json.failed_agents.length > 0 && (
+        <div className="max-w-[1000px] mx-auto px-4 lg:px-8 mt-4">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-600 dark:text-amber-400">
+                Generation incomplete
+              </p>
+              <p className="text-muted-foreground mt-1">
+                {report.verification_json.failed_agents.length === 1
+                  ? `The ${report.verification_json.failed_agents[0]} agent did not complete successfully.`
+                  : `${report.verification_json.failed_agents.length} agents did not complete successfully: ${report.verification_json.failed_agents.join(', ')}.`}
+                {' '}Some sections may contain placeholder data. You can regenerate the report to retry.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* V2 Report Layout — handles both v1 (prose) and v2 (structured JSON) */}
-      <ReportV2Layout report={report} companyName={companyName} startupMeta={startupMeta} />
+      <ReportV2Layout
+        report={report}
+        companyName={companyName}
+        startupMeta={startupMeta}
+        activeSection={activeSection}
+        onSectionChange={handleSectionChange}
+      />
+
+      {/* Overwrite Canvas Confirmation Dialog */}
+      <AlertDialog open={showOverwriteDialog} onOpenChange={setShowOverwriteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite existing canvas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A Lean Canvas already exists for this startup. Generating a new one from this report will replace the current canvas data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleGenerateCanvas(true)}>
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

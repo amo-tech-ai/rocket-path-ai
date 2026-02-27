@@ -8,6 +8,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { callGemini, extractJSON } from "../_shared/gemini.ts";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ---------------------------------------------------------------------------
 // Extraction schema
@@ -100,6 +101,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    // Rate limit — each call uses Gemini with URL context (expensive)
+    const rateResult = checkRateLimit(user.id, 'profile-import', RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      console.warn(`[profile-import] Rate limit hit: user=${user.id}`);
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     // Parse & validate input

@@ -34,13 +34,13 @@ export async function handleCoachMode(
   const startTime = Date.now();
   console.log(`[Coach] Starting coach mode for startup ${request.startupId}`);
   
-  // Load context
-  let context = await loadValidationContext(supabase, request.startupId);
-  
+  // Load context (now queries chat_sessions + chat_messages)
+  let context = await loadValidationContext(supabase, request.startupId, request.userId);
+
   // Create session if none exists
   if (!context.session) {
     console.log('[Coach] No active session, creating new one');
-    const newSession = await createSession(supabase, request.startupId);
+    const newSession = await createSession(supabase, request.startupId, request.userId);
     if (newSession) {
       context = { ...context, session: newSession };
     } else {
@@ -72,6 +72,7 @@ ${ragBlock}
   await saveConversation(
     supabase,
     context.session!.id,
+    request.userId,
     'user',
     request.message,
     currentPhase
@@ -147,6 +148,7 @@ Remember:
   await saveConversation(
     supabase,
     context.session!.id,
+    request.userId,
     'assistant',
     aiResponse,
     newPhase || currentPhase,
@@ -166,6 +168,7 @@ Remember:
     progress,
     suggestedActions,
     stateUpdate: stateUpdates || undefined,
+    sessionId: context.session!.id,
   };
 }
 

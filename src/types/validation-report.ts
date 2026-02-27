@@ -309,3 +309,103 @@ export interface FinancialProjections {
   };
   key_assumption: string;
 }
+
+// ============================================================================
+// V3: Dimension Detail Page Types — SYNC: supabase/functions/validator-start/types.ts
+// ============================================================================
+
+export interface SubScore {
+  name: string;
+  score: number;
+  label: string;
+}
+
+export interface DimensionDetail {
+  composite_score: number;
+  sub_scores: SubScore[];
+  executive_summary: string;
+  risk_signals: string[];
+  priority_actions: string[];
+}
+
+export interface AIStrategyAssessment {
+  detail: DimensionDetail;
+  automation_level: 'assist' | 'copilot' | 'agent';
+  ai_capability_stack: Array<{
+    layer: string;
+    description: string;
+    maturity: 'nascent' | 'developing' | 'mature';
+  }>;
+  data_strategy: 'owned' | 'borrowed' | 'hybrid';
+  governance_readiness: 'not_ready' | 'basic' | 'compliant';
+}
+
+export interface ValidationProofAssessment {
+  detail: DimensionDetail;
+  evidence_items: Array<{
+    type: 'interview' | 'signup' | 'conversion' | 'payment' | 'experiment';
+    count: number;
+    description: string;
+  }>;
+  evidence_confidence: 'high' | 'medium' | 'low' | 'none';
+  assumption_map: Array<{
+    assumption: string;
+    tested: boolean;
+    result?: string;
+  }>;
+}
+
+/** Named type for report.details JSONB — replaces inline `any` */
+export interface ReportDetailsV2 {
+  highlights?: string[];
+  red_flags?: string[];
+  summary_verdict: string;
+  verdict_oneliner?: string;
+  success_condition?: string;
+  biggest_risk?: string;
+  problem_clarity: string | ProblemClarityV2;
+  customer_use_case: string | CustomerUseCaseV2;
+  key_questions?: KeyQuestion[];
+  market_sizing: { tam: number; sam: number; som: number; citations: string[] };
+  competition: {
+    competitors: Array<{ name: string; description: string; threat_level: string; strengths?: string[]; weaknesses?: string[] }>;
+    citations: string[];
+    direct_competitors?: Array<{ name: string; description: string; threat_level: string; strengths?: string[]; weaknesses?: string[] }>;
+    market_gaps?: string[];
+    swot?: SWOT;
+    feature_comparison?: FeatureComparison;
+    positioning?: PositioningMatrix;
+  };
+  scores_matrix?: ScoresMatrixData;
+  top_threat?: RiskAssumptionV2;
+  risks_assumptions: string[] | RiskAssumptionV2[];
+  mvp_scope: string | MVPScopeV2;
+  next_steps: string[] | NextStepV2[];
+  dimension_scores?: Record<string, number>;
+  market_factors?: Array<{ name: string; score: number; description: string; status: string }>;
+  execution_factors?: Array<{ name: string; score: number; description: string; status: string }>;
+  technology_stack?: TechnologyAssessment;
+  revenue_model?: RevenueModelAssessment;
+  team_hiring?: TeamAssessment;
+  resources_links?: ResourceCategory[];
+  financial_projections?: FinancialProjections;
+}
+
+/** V3 extends V2 with dimension detail pages + new assessments */
+export interface V3ReportDetails extends ReportDetailsV2 {
+  problem_detail?: DimensionDetail;
+  customer_detail?: DimensionDetail;
+  market_detail?: DimensionDetail;
+  competition_detail?: DimensionDetail;
+  revenue_detail?: DimensionDetail;
+  execution_detail?: DimensionDetail;
+  risk_detail?: DimensionDetail;
+  ai_strategy?: AIStrategyAssessment;
+  validation_proof?: ValidationProofAssessment;
+}
+
+/** Detect V3: has at least one dimension detail populated */
+export function isV3Report(details: ReportDetailsV2): details is V3ReportDetails {
+  const d = details as V3ReportDetails;
+  return !!(d.problem_detail || d.customer_detail || d.ai_strategy);
+}

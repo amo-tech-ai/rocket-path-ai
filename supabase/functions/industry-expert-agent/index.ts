@@ -1,5 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { callGemini, callGeminiChat, extractJSON } from "../_shared/gemini.ts";
 
 interface IndustryRequest {
   action: 'get_industry_context' | 'get_questions' | 'coach_answer' | 'validate_canvas' | 'pitch_feedback' | 'get_benchmarks' | 'analyze_competitors' | 'get_validation_history' | 'generate_validation_report';
@@ -27,33 +29,7 @@ interface IndustryRequest {
 const GEMINI_MODEL = 'gemini-3-flash-preview';
 const GEMINI_PRO_MODEL = 'gemini-3-pro-preview';
 
-// E2: Promise.race wrapper — AbortSignal.timeout() fails on Deno Deploy
-async function geminiWithTimeout(
-  url: string,
-  body: Record<string, unknown>,
-  apiKey: string,
-  timeoutMs = 25000,
-): Promise<Record<string, unknown>> {
-  const doFetch = async () => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[industry-expert-agent] Gemini error:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-    return await response.json();
-  };
-  return Promise.race([
-    doFetch(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Gemini hard timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-}
+// KNOW-P1-2: Migrated to _shared/gemini.ts (callGemini, callGeminiChat, extractJSON)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -88,8 +64,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Rate limit expensive AI actions
+    const EXPENSIVE_ACTIONS = [
+      'coach_answer', 'validate_canvas', 'pitch_feedback',
+      'analyze_competitors', 'generate_validation_report',
+    ];
+
     const body: IndustryRequest = await req.json();
     const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data, report_type, validation_type, chat_context } = body;
+
+    if (EXPENSIVE_ACTIONS.includes(action)) {
+      const rateResult = checkRateLimit(user.id, 'industry-expert-agent', RATE_LIMITS.standard);
+      if (!rateResult.allowed) {
+        console.warn(`[industry-expert-agent] Rate limit hit: user=${user.id}, action=${action}`);
+        return rateLimitResponse(rateResult, corsHeaders);
+      }
+    }
 
     console.log(`[industry-expert-agent] Action: ${action}, Industry: ${industry}, User: ${user.id}`);
 
@@ -273,10 +263,6 @@ async function coachAnswer(
     return { error: 'Question not found' };
   }
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
 
   const systemPrompt = `You are an expert ${pack?.advisor_persona || 'startup advisor'} for the ${pack?.display_name || industry} industry.
 
@@ -298,19 +284,13 @@ Provide coaching feedback that:
 
 Keep your response concise (2-3 paragraphs max).`;
 
-  const data = await geminiWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
-    {
-      contents: [{ role: 'user', parts: [{ text: `My answer: ${answer}` }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 1024,
-      }
-    },
-    GEMINI_API_KEY,
+  const chatResult = await callGeminiChat(
+    GEMINI_PRO_MODEL,
+    systemPrompt,
+    [{ role: 'user', content: `My answer: ${answer}` }],
+    { maxOutputTokens: 1024, timeoutMs: 25_000 },
   );
-  const coaching = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const coaching = chatResult.text;
 
   return {
     coaching,
@@ -335,10 +315,6 @@ async function validateCanvas(
   // deno-lint-ignore no-explicit-any
   const pack = packData as Record<string, any> | null;
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
 
   const systemPrompt = `You are an expert ${pack?.advisor_persona || 'startup advisor'} for the ${pack?.display_name || industry} industry.
 
@@ -367,28 +343,15 @@ Return JSON:
   "recommended_next_steps": ["..."]
 }`;
 
-  const data = await geminiWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
-    {
-      contents: [{ role: 'user', parts: [{ text: `Lean Canvas data:\n${JSON.stringify(canvasData, null, 2)}` }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-      tools: [{ google_search: {} }]
-    },
-    GEMINI_API_KEY,
+  const result = await callGemini(
+    GEMINI_PRO_MODEL,
+    systemPrompt,
+    `Lean Canvas data:\n${JSON.stringify(canvasData, null, 2)}`,
+    { useSearch: true, maxOutputTokens: 2048, timeoutMs: 25_000 },
   );
-  const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
-  try {
-    const validation = JSON.parse(resultText);
-    return { validation };
-  } catch {
-    return { validation: { error: 'Failed to parse validation', raw: resultText } };
-  }
+  const validation = extractJSON<Record<string, unknown>>(result.text);
+  return { validation: validation || { error: 'Failed to parse validation', raw: result.text } };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -407,10 +370,6 @@ async function providePitchFeedback(
   // deno-lint-ignore no-explicit-any
   const pack = packData as Record<string, any> | null;
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
 
   const systemPrompt = `You are a ${pack?.display_name || industry} investor evaluating a pitch deck.
 
@@ -434,27 +393,15 @@ Return JSON:
   "next_steps": ["..."]
 }`;
 
-  const data = await geminiWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
-    {
-      contents: [{ role: 'user', parts: [{ text: `Pitch deck data:\n${JSON.stringify(pitchData, null, 2)}` }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      }
-    },
-    GEMINI_API_KEY,
+  const result = await callGemini(
+    GEMINI_PRO_MODEL,
+    systemPrompt,
+    `Pitch deck data:\n${JSON.stringify(pitchData, null, 2)}`,
+    { maxOutputTokens: 2048, timeoutMs: 25_000 },
   );
-  const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
-  try {
-    const feedback = JSON.parse(resultText);
-    return { feedback };
-  } catch {
-    return { feedback: { error: 'Failed to parse feedback', raw: resultText } };
-  }
+  const feedback = extractJSON<Record<string, unknown>>(result.text);
+  return { feedback: feedback || { error: 'Failed to parse feedback', raw: result.text } };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -515,10 +462,6 @@ async function analyzeCompetitors(
     startupData = data;
   }
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
 
   const systemPrompt = `You are a competitive intelligence analyst specializing in the ${industry} industry.
 
@@ -540,28 +483,15 @@ Return JSON:
   "competitive_moat_suggestions": ["..."]
 }`;
 
-  const data = await geminiWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      contents: [{ role: 'user', parts: [{ text: 'Analyze the competitive landscape.' }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 2048,
-        responseMimeType: 'application/json',
-      },
-      tools: [{ googleSearch: {} }]
-    },
-    GEMINI_API_KEY,
+  const result = await callGemini(
+    GEMINI_MODEL,
+    systemPrompt,
+    'Analyze the competitive landscape.',
+    { useSearch: true, maxOutputTokens: 2048, timeoutMs: 25_000 },
   );
-  const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
-  try {
-    const analysis = JSON.parse(resultText);
-    return { analysis };
-  } catch {
-    return { analysis: { error: 'Failed to parse analysis', raw: resultText } };
-  }
+  const analysis = extractJSON<Record<string, unknown>>(result.text);
+  return { analysis: analysis || { error: 'Failed to parse analysis', raw: result.text } };
 }
 
 // Task 30: Get validation history for a startup
@@ -651,10 +581,6 @@ async function generateValidationReport(
   // deno-lint-ignore no-explicit-any
   const pack = packData as Record<string, any> | null;
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
 
   // Build comprehensive startup context - merge with chat data if available
   const startupContext = {
@@ -757,28 +683,13 @@ Be specific, data-driven, and actionable. Use industry-specific terminology and 
     : `Generate a ${reportType} validation report for this startup:\n${JSON.stringify(startupContext, null, 2)}`;
 
   // Use Gemini 3 with Google Search grounding for real-time market data
-  const data = await geminiWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_PRO_MODEL}:generateContent`,
-    {
-      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 1.0,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-      },
-      tools: [{ googleSearch: {} }],
-      safetySettings: [
-        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-      ]
-    },
-    GEMINI_API_KEY,
-    40000, // longer timeout for deep validation reports
+  const result = await callGemini(
+    GEMINI_PRO_MODEL,
+    systemPrompt,
+    userPrompt,
+    { useSearch: true, maxOutputTokens: 8192, timeoutMs: 40_000 },
   );
-  const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  const resultText = result.text;
 
   const generationTime = Date.now() - startTime;
 

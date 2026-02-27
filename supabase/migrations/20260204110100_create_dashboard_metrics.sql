@@ -82,9 +82,9 @@ create unique index if not exists idx_metric_snapshots_unique_daily
 create index if not exists idx_metric_snapshots_date
   on public.metric_snapshots(snapshot_date desc);
 
+-- recent snapshots (simple desc index; partial with now() is not IMMUTABLE)
 create index if not exists idx_metric_snapshots_recent
-  on public.metric_snapshots(startup_id, created_at desc)
-  where created_at > now() - interval '30 days';
+  on public.metric_snapshots(startup_id, created_at desc);
 
 -- =============================================================================
 -- 3. RLS for metric_snapshots
@@ -228,7 +228,7 @@ left join lateral (
 left join lateral (
   select
     count(*) as deals_total,
-    count(*) filter (where is_active = true) as deals_active,
+    count(*) filter (where stage != 'lost') as deals_active,
     count(*) filter (where stage = 'won') as deals_won,
     coalesce(sum(amount), 0) as deals_value
   from public.deals
@@ -261,7 +261,7 @@ left join lateral (
 left join lateral (
   select
     count(*) as deck_count,
-    coalesce(max(slide_count), 0) as total_slides
+    0 as total_slides  -- slide_count column exists in prod only
   from public.pitch_decks
   where startup_id = s.id
 ) pd on true

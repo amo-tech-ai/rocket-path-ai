@@ -12,12 +12,17 @@ interface ContextPanelProps {
 }
 
 const FIELD_CONFIG = [
+  { key: 'company_name', label: 'Company Name', icon: '\u{1F3E2}' },
   { key: 'problem', label: 'Problem Statement', icon: '\u{1F3AF}' },
+  { key: 'solution', label: 'Solution', icon: '\u{1F4A1}' },
   { key: 'customer', label: 'Target Customer', icon: '\u{1F465}' },
   { key: 'competitors', label: 'Competition', icon: '\u2694\uFE0F' },
   { key: 'websites', label: 'References', icon: '\u{1F517}' },
-  { key: 'innovation', label: 'Innovation', icon: '\u{1F4A1}' },
-  { key: 'uniqueness', label: 'Unique Value', icon: '\u2728' },
+  { key: 'industry', label: 'Industry', icon: '\u{1F3ED}' },
+  { key: 'business_model', label: 'Business Model', icon: '\u{1F4B0}' },
+  { key: 'stage', label: 'Stage', icon: '\u{1F680}' },
+  { key: 'innovation', label: 'Innovation', icon: '\u2728' },
+  { key: 'uniqueness', label: 'Unique Value', icon: '\u{1F6E1}\uFE0F' },
   { key: 'demand', label: 'Market Demand', icon: '\u{1F4C8}' },
   { key: 'research', label: 'Research/Evidence', icon: '\u{1F52C}' },
 ] as const;
@@ -63,14 +68,18 @@ const CONFIDENCE_CONFIG: Record<ConfidenceLevel, { label: string; badgeClass: st
 
 /** Maps extracted field keys to coverage topic keys */
 const EXTRACTED_TO_COVERAGE: Record<string, string> = {
+  company_name: 'company_name',
   problem: 'problem',
   customer: 'customer',
-  solution: 'innovation',
+  solution: 'solution',
   differentiation: 'uniqueness',
   demand: 'demand',
   competitors: 'competitors',
-  business_model: 'research',
+  business_model: 'business_model',
   websites: 'websites',
+  industry_categories: 'industry',
+  stage: 'stage',
+  linkedin_url: 'websites',
 };
 
 function getDepth(coverage: FollowupCoverage | null, key: string): CoverageDepth {
@@ -93,7 +102,7 @@ export function ContextPanel({ coverage, extracted, confidence, messageCount }: 
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-1">Coverage Depth</h3>
         <p className="text-xs text-muted-foreground">
-          {deepCount} deep · {coveredCount - deepCount} shallow · {8 - coveredCount} needed · {messageCount} messages
+          {deepCount} deep · {coveredCount - deepCount} shallow · {FIELD_CONFIG.length - coveredCount} needed · {messageCount} messages
         </p>
       </div>
 
@@ -102,14 +111,14 @@ export function ContextPanel({ coverage, extracted, confidence, messageCount }: 
         className="h-1.5 bg-muted rounded-full overflow-hidden"
         role="progressbar"
         aria-label="Overall coverage progress"
-        aria-valuenow={Math.round(((deepCount + (coveredCount - deepCount) * 0.5) / 8) * 100)}
+        aria-valuenow={Math.round(((deepCount + (coveredCount - deepCount) * 0.5) / FIELD_CONFIG.length) * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
         <motion.div
           className="h-full bg-status-success rounded-full"
           initial={shouldReduceMotion ? false : { width: 0 }}
-          animate={{ width: `${((deepCount + (coveredCount - deepCount) * 0.5) / 8) * 100}%` }}
+          animate={{ width: `${((deepCount + (coveredCount - deepCount) * 0.5) / FIELD_CONFIG.length) * 100}%` }}
           transition={{ duration: shouldReduceMotion ? 0 : 0.5 }}
         />
       </div>
@@ -173,7 +182,7 @@ export function ContextPanel({ coverage, extracted, confidence, messageCount }: 
         </div>
       )}
 
-      {noneFields.length > 0 && noneFields.length < 8 && (
+      {noneFields.length > 0 && noneFields.length < FIELD_CONFIG.length && (
         <div className="p-3 rounded-lg bg-muted/50 border border-border">
           <div className="flex items-start gap-2">
             <FileText className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -235,6 +244,7 @@ export function ContextPanel({ coverage, extracted, confidence, messageCount }: 
 }
 
 const EXTRACTED_FIELD_CONFIG = [
+  { key: 'company_name', label: 'Company' },
   { key: 'problem', label: 'Problem' },
   { key: 'customer', label: 'Customer' },
   { key: 'solution', label: 'Solution' },
@@ -242,7 +252,10 @@ const EXTRACTED_FIELD_CONFIG = [
   { key: 'competitors', label: 'Competitors' },
   { key: 'demand', label: 'Demand' },
   { key: 'business_model', label: 'Business Model' },
+  { key: 'industry_categories', label: 'Industry' },
+  { key: 'stage', label: 'Stage' },
   { key: 'websites', label: 'URLs' },
+  { key: 'linkedin_url', label: 'LinkedIn' },
 ];
 
 function hasExtractedContent(extracted: ExtractedFields): boolean {

@@ -1,84 +1,59 @@
 ---
-description: Mandatory instructions for Supabase declarative schema management
+description: Schema management for Supabase — manual migrations workflow
 alwaysApply: false
 globs: ["supabase/**", "**/migrations/**"]
 ---
 
-# Declarative Supabase Schema Management
+# Supabase Schema Management
 
-Mandatory Instructions for Supabase Declarative Schema Management
+## Project Workflow: Manual Migrations
 
-## 1. **Exclusive Use of Declarative Schema**
+This project uses **manual migrations** (66 migration files in `supabase/migrations/`). Schema changes are written as SQL migration files and applied with `supabase db push`.
 
-- **All database schema modifications must be defined within `.sql` files located in the `supabase/schemas/` directory.**
-- **Do not** create or modify files directly in the `supabase/migrations/` directory unless the modification is about the known caveats below. Migration files are to be generated automatically through the CLI.
-- **Note:** This project currently uses manual migrations (97+ migrations in `supabase/migrations/`). Declarative schema in `supabase/schemas/` is supported but not the primary workflow. Both approaches work — `supabase db diff` requires Docker.
+**Do NOT create a `supabase/schemas/` directory** — declarative schema management is not used in this project.
 
-## 2. **Schema Declaration**
+### Creating Migrations
 
--For each database entity (e.g., tables, views, functions), create or update a corresponding `.sql` file in the `supabase/schemas/` directory
--Ensure that each `.sql` file accurately represents the desired final state of the entity
+```bash
+# Create a new migration file
+supabase migration new <descriptive_name>
 
-## 3. **Migration Generation**
+# This creates: supabase/migrations/YYYYMMDDHHmmss_descriptive_name.sql
 
-- Before generating migrations, **stop the local Supabase development environment**
-  ```bash
-  supabase stop
-  ```
-- Generate migration files by diffing the declared schema against the current database state
-  ```bash
-  supabase db diff -f <migration_name>
-  ```
-  Replace `<migration_name>` with a descriptive name for the migration
+# Push to remote (no Docker required)
+supabase db push
+```
 
-## 4. **Schema File Organization**
+### Migration Rules
 
-- Schema files are executed in lexicographic order. To manage dependencies (e.g., foreign keys), name files to ensure correct execution order
-- When adding new columns, append them to the end of the table definition to prevent unnecessary diffs
+1. **Never edit applied migrations** — create new ones instead
+2. **Always enable RLS** on new tables: `alter table X enable row level security;`
+3. **Use `if not exists`** for idempotency: `create index if not exists ...`
+4. **Use transactions** for atomicity: `begin; ... commit;`
+5. **Granular RLS policies** — one per operation per role (no `FOR ALL`)
 
-## 5. **Rollback Procedures**
+### Migration File Naming
 
-- To revert changes
-  - Manually update the relevant `.sql` files in `supabase/schemas/` to reflect the desired state
-  - Generate a new migration file capturing the rollback
-    ```bash
-    supabase db diff -f <rollback_migration_name>
-    ```
-  - Review the generated migration file carefully to avoid unintentional data loss
+- Format: `YYYYMMDDHHmmss_short_description.sql`
+- UTC timestamp
+- Lowercase with underscores
+- Examples:
+  - `20260210120000_add_profiles_table.sql`
+  - `20260210120001_fix_org_creation_trigger.sql`
 
-## 6. **Known caveats**
+## Alternative: Declarative Schema (Not Used)
 
-The migra diff tool used for generating schema diff is capable of tracking most database changes. However, there are edge cases where it can fail.
+Supabase also supports declarative schema via `supabase/schemas/*.sql` + `supabase db diff`. This requires Docker and is not the workflow used in this project. See [official docs](https://supabase.com/docs/guides/local-development/declarative-database-schemas) if needed.
 
-If you need to use any of the entities below, remember to add them through versioned migrations instead.
+### Known Caveats of `db diff`
 
-### Data manipulation language
+If switching to declarative schema, these entities must still be manual migrations:
 
-- DML statements such as insert, update, delete, etc., are not captured by schema diff
-
-### View ownership
-
-- view owner and grants
-- security invoker on views
-- materialized views
-- doesn’t recreate views when altering column type
-
-### RLS policies
-
-- alter policy statements
-- column privileges
-
-### Other entities
-
-- schema privileges are not tracked because each schema is diffed separately
-- comments are not tracked
-- partitions are not tracked
-- alter publication ... add table ...
-- create domain statements are ignored
-- grant statements are duplicated from default privileges
+- **DML statements** — insert, update, delete not captured
+- **View ownership** — grants, security invoker, materialized views
+- **RLS policies** — `alter policy` statements, column privileges
+- **Other** — schema privileges, comments, partitions, publications, domains
 
 ---
 
-**Non-compliance with these instructions may lead to inconsistent database states and is strictly prohibited.**
-
----
+**Non-compliance with migration conventions may lead to inconsistent database states.**

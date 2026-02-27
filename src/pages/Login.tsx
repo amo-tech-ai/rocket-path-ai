@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { getReturnPath, clearReturnPath } from '@/lib/authReturnPath';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const { user, profile, loading, signInWithGoogle, signInWithLinkedIn } = useAuth();
@@ -26,6 +27,14 @@ const Login = () => {
 
   useEffect(() => {
     if (user && !loading) {
+      // If there's a pending idea from homepage, go straight to validator
+      const pendingIdea = sessionStorage.getItem('pendingIdea');
+      if (pendingIdea) {
+        clearReturnPath();
+        navigate('/validate?hasIdea=true', { replace: true });
+        return;
+      }
+
       if (profile?.onboarding_completed) {
         clearReturnPath();
         navigate(returnPath, { replace: true });
@@ -137,6 +146,21 @@ const Login = () => {
             </Button>
           </div>
 
+          {/* Dev-only Email/Password Login */}
+          {import.meta.env.DEV && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Dev Login</span>
+                </div>
+              </div>
+              <DevEmailLogin />
+            </>
+          )}
+
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -166,5 +190,53 @@ const Login = () => {
     </div>
   );
 };
+
+/** Dev-only email/password login — tree-shaken out of production builds */
+function DevEmailLogin() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [devLoading, setDevLoading] = useState(false);
+  const [devError, setDevError] = useState('');
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDevLoading(true);
+    setDevError('');
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (err) {
+      setDevError(err instanceof Error ? err.message : 'Sign in failed');
+    } finally {
+      setDevLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleEmailSignIn} className="space-y-3">
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm"
+        required
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="w-full h-10 px-3 rounded-md border border-border bg-background text-sm"
+        required
+      />
+      {devError && <p className="text-xs text-destructive">{devError}</p>}
+      <Button type="submit" variant="outline" size="lg" className="w-full h-12" disabled={devLoading}>
+        {devLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+        Dev Sign In
+      </Button>
+    </form>
+  );
+}
 
 export default Login;

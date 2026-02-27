@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useRealtimeChannel } from './useRealtimeChannel';
 import type {
   ValidatorAgentPayload,
@@ -186,6 +187,61 @@ export function useValidatorRealtime({
       report_created: handleReportCreated,
     },
   });
+
+  // U-01 fix: Polling fallback when Realtime is silent.
+  // If pipeline is still 'running' and we haven't received any events in 30s,
+  // poll session status from DB every 10s as fallback.
+  useEffect(() => {
+    if (!sessionId || !enabled) return;
+    if (pipelineStatus !== 'running') return;
+
+    const SILENCE_THRESHOLD_MS = 30_000;
+    const POLL_INTERVAL_MS = 10_000;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const pollSession = async () => {
+      const { data } = await supabase
+        .from('validator_sessions')
+        .select('status')
+        .eq('id', sessionId)
+        .maybeSingle();
+      if (!data) return;
+      const s = data.status as string;
+      if (s === 'complete' || s === 'partial' || s === 'failed') {
+        setPipelineStatus(s as typeof pipelineStatus);
+        // Also try to fetch report
+        const { data: reportRow } = await supabase
+          .from('validator_reports')
+          .select('id, score')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (reportRow?.id) {
+          setReportId(reportRow.id);
+          if (reportRow.score != null) setScore(reportRow.score);
+          onCompleteRef.current?.({ status: s, reportId: reportRow.id, score: reportRow.score } as any);
+        } else if (s === 'failed') {
+          onFailedRef.current?.({ status: 'failed' } as any);
+        }
+      }
+    };
+
+    // Start silence timer — if no events after threshold, begin polling
+    silenceTimer = setTimeout(() => {
+      if (eventCount === 0) {
+        console.warn('[useValidatorRealtime] No events received after 30s — starting DB polling fallback');
+        pollSession(); // Poll immediately
+        pollTimer = setInterval(pollSession, POLL_INTERVAL_MS);
+      }
+    }, SILENCE_THRESHOLD_MS);
+
+    return () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      if (pollTimer) clearInterval(pollTimer);
+    };
+  }, [sessionId, enabled, pipelineStatus, eventCount]);
 
   // Calculate progress from agent statuses
   const completedCount = agents.filter(a =>

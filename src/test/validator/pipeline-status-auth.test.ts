@@ -145,25 +145,25 @@ describe('Test 7: Auth Refresh Pattern', () => {
 
   it('hasMinimumData gates generate button', () => {
     const emptyCoverage: FollowupCoverage = {
-      customer: 'none', problem: 'none', competitors: 'none',
-      innovation: 'none', demand: 'none', research: 'none',
-      uniqueness: 'none', websites: 'none',
+      company_name: 'none', customer: 'none', problem: 'none', solution: 'none',
+      competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
+      uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
     };
     expect(hasMinimumData(emptyCoverage)).toBe(false);
 
-    // hasMinimumData requires: problem + customer covered AND 3+ shallow+
+    // hasMinimumData requires: problem + customer + company_name covered AND 4+ shallow+
     const minCoverage: FollowupCoverage = {
-      customer: 'shallow', problem: 'shallow', competitors: 'shallow',
-      innovation: 'none', demand: 'none', research: 'none',
-      uniqueness: 'none', websites: 'none',
+      company_name: 'shallow', customer: 'shallow', problem: 'shallow', solution: 'shallow',
+      competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
+      uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
     };
     expect(hasMinimumData(minCoverage)).toBe(true);
 
-    // Only 2 shallow+ is not enough
+    // Only 3 shallow+ is not enough (need 4+)
     const insufficientCoverage: FollowupCoverage = {
-      customer: 'shallow', problem: 'shallow', competitors: 'none',
-      innovation: 'none', demand: 'none', research: 'none',
-      uniqueness: 'none', websites: 'none',
+      company_name: 'shallow', customer: 'shallow', problem: 'shallow', solution: 'none',
+      competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
+      uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
     };
     expect(hasMinimumData(insufficientCoverage)).toBe(false);
   });

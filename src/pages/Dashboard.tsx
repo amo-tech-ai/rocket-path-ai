@@ -25,7 +25,6 @@ import { useCompletionUnlocks } from "@/hooks/useCompletionUnlocks";
 import { useTopRisks } from "@/hooks/useTopRisks";
 import { CompletionUnlocks } from "@/components/dashboard/CompletionUnlocks";
 import { TopRisks } from "@/components/dashboard/TopRisks";
-import { PrimaryOpportunity } from "@/components/dashboard/PrimaryOpportunity";
 import { FundraisingReadiness } from "@/components/dashboard/FundraisingReadiness";
 import { useAuth } from "@/hooks/useAuth";
 import { useFirstVisit } from "@/hooks/useFirstVisit";
@@ -287,15 +286,8 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* Primary Opportunity & Fundraising */}
+        {/* Fundraising Readiness */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PrimaryOpportunity
-            icp={startup?.target_market as string}
-            problem={startup?.description as string}
-            uvp={startup?.tagline as string}
-            stage={startup?.stage as string}
-            validationScore={healthScore?.overall}
-          />
           <FundraisingReadiness
             score={healthScore?.breakdown?.investorReadiness?.score ?? 0}
             isRaising={!!startup?.is_raising}

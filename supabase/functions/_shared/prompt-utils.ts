@@ -306,15 +306,19 @@ export async function getStartupContext(
 // =============================================================================
 
 /**
- * Model pricing per 1K tokens (as of Jan 2026)
+ * Model pricing per 1K tokens (as of Feb 2026)
  */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  // Gemini models
+  // Gemini 3 models (current)
+  'gemini-3-flash-preview': { input: 0.0005, output: 0.003 },
+  'gemini-3-pro-preview': { input: 0.002, output: 0.012 },
+  'gemini-3.1-pro-preview': { input: 0.002, output: 0.012 },
+  'gemini-3-pro-image-preview': { input: 0.002, output: 0.012 }, // text output; image output is $0.120/1K ($0.134/image)
+
+  // Legacy Gemini models (kept for cost tracking of older runs)
   'gemini-2.0-flash': { input: 0.000075, output: 0.0003 },
-  'gemini-2.0-flash-exp': { input: 0.000075, output: 0.0003 },
   'gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
   'gemini-1.5-pro': { input: 0.00125, output: 0.005 },
-  'gemini-3-flash-preview': { input: 0.0001, output: 0.0004 },
 
   // Claude models
   'claude-3-5-sonnet-20241022': { input: 0.003, output: 0.015 },

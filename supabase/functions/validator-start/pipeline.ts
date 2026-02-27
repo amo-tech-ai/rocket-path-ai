@@ -133,11 +133,17 @@ async function autoCreateStartup(
       return null;
     }
 
-    // Add user as startup owner (matches onboarding pattern)
-    await supabaseAdmin
+    // R-03 fix: Add error check to startup_members insert (race condition can cause 23505)
+    const { error: memberError } = await supabaseAdmin
       .from('startup_members')
       .insert({ startup_id: startup.id, user_id: userId, role: 'owner' })
-      .single();
+      .select('startup_id')
+      .maybeSingle();
+    if (memberError) {
+      // 23505 = unique constraint violation (concurrent validation race)
+      // Non-fatal: startup was created, just membership link failed
+      console.warn(`[autoCreateStartup] startup_members insert failed (${memberError.code}): ${memberError.message}`);
+    }
 
     // Link startup to validator session
     await supabaseAdmin
@@ -313,7 +319,11 @@ try {
   const scoringStartMs = Date.now();
   try {
     if (profile) {
-      scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, interviewContext || undefined);
+      // F-02 fix: Serialize interviewContext to string — runScoring expects string, not object
+      const interviewContextStr = interviewContext
+        ? JSON.stringify(interviewContext.extracted || interviewContext, null, 2)
+        : undefined;
+      scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, interviewContextStr);
       if (!scoring) {
         failedAgents.push('ScoringAgent');
         await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
@@ -490,12 +500,18 @@ try {
     });
   }
 
+  // F-04 fix: If report is null (Composer skipped/failed), mark as 'failed' not 'partial'.
+  // A session without a report row is unusable — 'partial' misleads the frontend into
+  // showing a "View Report" button that leads to a 404.
   const finalStatus = failedAgents.length === 0 ? 'complete' :
+                      !report ? 'failed' :
                       failedAgents.length < 3 ? 'partial' : 'failed';
 
   // H6: Check error on report INSERT
   // P04: Slimmed details — don't re-embed profile/scoring (already stored in validator_runs).
   // Keeps INSERT payload small and fast, reducing risk of exceeding 150s wall-clock.
+  // R-05: reportId hoisted so broadcast can use it without re-querying
+  let insertedReportId: string | undefined;
   if (report) {
     // Inject scoring data into report so the frontend can read it from details.
     // Scoring generates highlights, red_flags, market_factors, execution_factors
@@ -509,24 +525,30 @@ try {
       if (scoring.scores_matrix) enriched.scores_matrix = scoring.scores_matrix;
     }
 
-    const { error: reportError } = await supabaseAdmin
+    // R-05 fix: Return inserted report ID directly via .select('id').single()
+    // Avoids re-querying (getReportId) which can hit read-replica lag
+    const { data: insertedReport, error: reportError } = await supabaseAdmin
       .from('validator_reports')
       .insert({
         run_id: null,
         session_id: sessionId,
         startup_id: startup_id || null,
         report_type: 'overall',
-        score: scoring?.overall_score || 0,
+        // D-04 fix: Store null when scoring failed — 0 renders as misleading "No-Go" verdict
+        score: scoring?.overall_score ?? null,
         summary: report.summary_verdict,
         details: report,
         key_findings: [...(scoring?.highlights || []), ...(scoring?.red_flags || [])],
         verified: verification?.verified || false,
         verification_json: verification,
-      });
+      })
+      .select('id')
+      .single();
 
     if (reportError) {
       console.error('[pipeline] Report INSERT failed:', reportError.message);
     }
+    insertedReportId = insertedReport?.id;
   }
 
   // H6: Check error on session UPDATE
@@ -544,7 +566,8 @@ try {
   }
 
   // RT-1: Broadcast pipeline completion with report ID for instant frontend navigation
-  const reportId = report ? await getReportId(supabaseAdmin, sessionId) : undefined;
+  // R-05 fix: Use insertedReportId directly — no re-query needed
+  const reportId = insertedReportId;
   await broadcastPipelineEvent(supabaseAdmin, sessionId,
     finalStatus === 'failed' ? 'pipeline_failed' : 'pipeline_complete', {
     status: finalStatus,
@@ -579,14 +602,4 @@ try {
 }
 }
 
-/** Fetch the report ID after INSERT — needed for pipeline_complete broadcast */
-async function getReportId(supabase: SupabaseClient, sessionId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('validator_reports')
-    .select('id')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.id || null;
-}
+// R-05: getReportId removed — report ID now returned directly from INSERT .select('id').single()

@@ -26,10 +26,7 @@ create index if not exists idx_profiles_org_id
   on public.profiles(org_id)
   where org_id is not null;
 
--- startup_id fk index
-create index if not exists idx_profiles_startup_id
-  on public.profiles(startup_id)
-  where startup_id is not null;
+-- profiles.startup_id — SKIPPED (column exists in prod only)
 
 -- =============================================================================
 -- 3. projects table
@@ -105,14 +102,11 @@ create index if not exists idx_assumptions_startup_id
 -- 10. experiments table
 -- =============================================================================
 
--- startup_id fk index
-create index if not exists idx_experiments_startup_id
-  on public.experiments(startup_id);
+-- experiments.startup_id — SKIPPED (experiments doesn't have startup_id; uses assumption_id → assumptions.startup_id)
 
--- assumption_id fk index
+-- assumption_id fk index (already exists from create_experiments migration, but IF NOT EXISTS is safe)
 create index if not exists idx_experiments_assumption_id
-  on public.experiments(assumption_id)
-  where assumption_id is not null;
+  on public.experiments(assumption_id);
 
 -- =============================================================================
 -- 11. experiment_results table

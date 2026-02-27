@@ -13,15 +13,17 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 ```
 
 **Environment Variables:**
 ```env
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_... or anon key
+VITE_SUPABASE_URL=https://yvyesmiczbjqwbqtlidy.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_... (publishable key format)
 ```
+
+> **Note:** This project uses `VITE_SUPABASE_ANON_KEY` as the env var name with a publishable key value (`sb_publishable_...`). The Supabase client is initialized in `src/integrations/supabase/client.ts`.
 
 ## Core Auth Methods
 

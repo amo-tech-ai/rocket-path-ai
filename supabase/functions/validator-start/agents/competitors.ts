@@ -76,6 +76,31 @@ ALWAYS include status quo as a competitor — it's the most common reason startu
 - Brand/community — trust built over years
 - Regulatory — compliance as barrier
 
+### Positioning Analysis (April Dunford Method)
+For the founder's startup, determine positioning using this 6-step method:
+1. Competitive Alternatives: What would customers use if you didn't exist? (include "do nothing")
+2. Unique Attributes: What capabilities do you have that alternatives don't?
+3. Value: What value do those unique attributes enable for customers?
+4. Target Customer: Who cares most about that value? (specific segment)
+5. Market Category: What context makes the value obvious to the target?
+6. Positioning Statement: "[Product] is a [category] that [unique value] for [target customer]
+   unlike [alternatives] because [unique attributes]."
+
+### Battlecard for Top Competitor
+For the #1 direct competitor (highest threat_level), generate:
+  - Win themes: 3 reasons a customer would choose the founder over this competitor
+  - Lose themes: 3 reasons a customer would choose the competitor instead
+  - Counter-arguments: For each lose theme, what can the founder say/do to neutralize it
+  - Moat durability: Can this competitor copy the founder's advantage within 6 months?
+    YES → differentiation is WEAK (flag it). NO → explain what makes it defensible.
+
+### White Space Identification
+After mapping all competitors, identify the positioning GAP:
+  - What customer segment is underserved?
+  - What feature combination does no competitor offer?
+  - What price point is unaddressed?
+  State the white space as a single clear sentence.
+
 ### Relevance Filtering Rules
 - Only include competitors actually relevant to this startup's segment
 - If a competitor serves enterprise and the startup targets SMB, note the segment difference
@@ -122,7 +147,23 @@ Return JSON with exactly these fields:
     }
   ],
   "market_gaps": ["Describe each gap: what's missing, who needs it, and why existing players haven't filled it"],
-  "sources": [{"title": "Source", "url": "https://..."}]
+  "sources": [{"title": "Source", "url": "https://..."}],
+  "positioning": {
+    "competitive_alternatives": ["What customers use instead, including 'do nothing'"],
+    "unique_attributes": ["Capabilities alternatives lack"],
+    "value_proposition": "The value those unique attributes enable",
+    "target_segment": "Who cares most about that value",
+    "market_category": "Context that makes the value obvious",
+    "positioning_statement": "[Product] is a [category] that [value] for [target] unlike [alternatives] because [attributes]"
+  },
+  "battlecard": {
+    "competitor_name": "Name of #1 direct threat",
+    "win_themes": ["3 reasons customer picks founder"],
+    "lose_themes": ["3 reasons customer picks competitor"],
+    "counter_arguments": ["Neutralize each lose theme"],
+    "moat_durability": "defensible | weak | unknown"
+  },
+  "white_space": "Single sentence describing the unaddressed positioning gap"
 }
 
 Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they contributed.`;

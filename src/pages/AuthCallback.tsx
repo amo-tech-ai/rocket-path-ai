@@ -42,11 +42,16 @@ export default function AuthCallback() {
       navigate(target, { replace: true });
     };
 
+    let handled = false;
+
     const handleSession = async (session: { user: { id: string } } | null) => {
-      if (!session?.user) return;
+      if (!session?.user || handled) return;
+      handled = true;
 
       const pendingIdea = sessionStorage.getItem('pendingIdea');
       if (pendingIdea) {
+        // Idea from home page hero — send straight to validator.
+        // pendingIdea stays in sessionStorage so ValidateIdea can read it.
         redirect('/validate?hasIdea=true');
         return;
       }
@@ -66,16 +71,20 @@ export default function AuthCallback() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
           handleSession(session);
         }
       }
     );
 
-    const timeout = setTimeout(async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleSession(session);
-    }, 500);
+    // Timeout: if auth state change never fires (PKCE exchange fails, network issue),
+    // redirect to login after 15s so user isn't stuck forever
+    const timeout = setTimeout(() => {
+      if (!handled) {
+        console.warn('[AuthCallback] Auth exchange timed out after 15s');
+        navigate('/login', { replace: true });
+      }
+    }, 15_000);
 
     return () => {
       subscription.unsubscribe();
