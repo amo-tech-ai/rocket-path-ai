@@ -183,42 +183,44 @@ Release → Feedback → Update PRD
 Required meta block (task prompt header)
 
 Every task prompt file MUST start with this.
-id: EVT-DETAIL-02-01
-diagram_id: EVT-DETAIL-02
-prd_section: Events > Event Detail Page
-title: Render event detail UI
+id: VAL-REPORT-03-01
+diagram_id: VAL-REPORT-03
+prd_section: Validation > V3 Dimension Page
+title: Render dimension page UI with consulting template
 skill: frontend
 phase: MVP
 priority: P0
 status: Open
 owner: Frontend
 dependencies:
-  - EVT-DASH-01
+  - VAL-PIPELINE-01
 estimated_effort: L
 percent_complete: 0
 ---
 ## Objective
-Implement the UI for displaying event details.
+Implement the 5-part consulting structure for a validation dimension page.
 
 ## Scope
-- Title
-- Date
-- Location
-- Description
+- Strategic headline
+- Strategy diagram
+- Composite score + sub-scores
+- Executive summary
+- Priority actions
 
 ## Acceptance Criteria
-- Loads data from API
+- Loads dimension data from validation report
+- Renders diagram from report data
 - Handles loading + error states
-- Matches design spec
+- Follows BCG visual storytelling rules
 
 ## Failure Handling
 - Show fallback UI if data fails to load
 
 PRD section
   ↓
-Diagram ID (EVT-DETAIL-02)
+Diagram ID (VAL-REPORT-03)
   ↓
-Task IDs (EVT-DETAIL-02-01, 02, 03)
+Task IDs (VAL-REPORT-03-01, 02, 03)
   ↓
 Roadmap phase (MVP)
   ↓

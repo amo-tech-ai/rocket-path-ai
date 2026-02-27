@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Users,
   FileText,
-  TrendingUp,
   Settings,
   Menu,
   X,
@@ -18,6 +17,7 @@ import {
   SearchCheck,
   BookOpen,
   ChevronDown,
+  Brain,
   type LucideIcon
 } from "lucide-react";
 import { useState, useCallback } from "react";
@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { MobileAISheet } from "@/components/mobile/MobileAISheet";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { NotificationCenter } from "@/components/notifications";
+import { AIPanel } from "@/components/ai/AIPanel";
+import { useAIPanel } from "@/hooks/useAIPanel";
 
 interface NavItem {
   label: string;
@@ -52,12 +54,6 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Tasks", path: "/tasks", icon: CheckSquare },
       { label: "Weekly Review", path: "/weekly-review", icon: BookOpen },
-    ],
-  },
-  {
-    label: "Intelligence",
-    items: [
-      { label: "Market Research", path: "/market-research", icon: TrendingUp },
     ],
   },
   {
@@ -104,6 +100,7 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(getInitialCollapsed);
+  const { isPanelOpen, togglePanel, closePanel, isBelowBreakpoint } = useAIPanel();
 
   const toggleGroup = useCallback((label: string) => {
     setCollapsed((prev) => {
@@ -265,8 +262,8 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar for mobile */}
         <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-4 lg:hidden sticky top-0 bg-background/95 backdrop-blur-lg z-30">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="touch-manipulation"
             onClick={() => setSidebarOpen(true)}
@@ -274,32 +271,66 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
             <Menu className="w-5 h-5" />
           </Button>
           <Link to="/dashboard" className="font-semibold">StartupAI</Link>
-          <NotificationCenter />
+          <div className="flex items-center gap-1">
+            <NotificationCenter />
+            {/* Mobile AI toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="touch-manipulation"
+              onClick={togglePanel}
+              aria-label="Toggle AI panel"
+            >
+              <Brain className="w-5 h-5" />
+            </Button>
+          </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Center Panel - Work Area */}
+          {/* Center Panel — Work Area */}
           <main className={cn(
             "flex-1 overflow-y-auto",
-            "px-4 py-4 sm:p-6 lg:p-8", // Responsive padding
-            !hideBottomNav && "pb-24 lg:pb-8" // Extra bottom padding for mobile nav
+            "px-4 py-4 sm:p-6 lg:p-8",
+            !hideBottomNav && "pb-24 lg:pb-8"
           )}>
             {children}
           </main>
 
-          {/* Right Panel - AI Intelligence (Desktop only) */}
-          {aiPanel && (
-            <aside className="hidden xl:block w-80 ai-panel overflow-y-auto p-6">
-              {aiPanel}
+          {/* Right Panel — Persistent AI Chat (desktop ≥1280px) */}
+          {isPanelOpen && !isBelowBreakpoint && (
+            <aside
+              className="w-[360px] flex-shrink-0 overflow-hidden transition-[width] duration-200"
+              aria-label="AI Assistant Panel"
+            >
+              <AIPanel onClose={closePanel} />
             </aside>
           )}
         </div>
       </div>
 
-      {/* Mobile AI Sheet (shows on mobile/tablet when aiPanel exists) */}
-      {aiPanel && (
+      {/* Floating AI toggle — visible when panel is closed */}
+      {!isPanelOpen && (
+        <Button
+          variant="default"
+          size="icon"
+          onClick={togglePanel}
+          title="AI Assistant (⌘J)"
+          className={cn(
+            "fixed z-40 rounded-full shadow-lg h-12 w-12",
+            "bottom-6 right-6",
+            "lg:bottom-8 lg:right-8",
+            !hideBottomNav && "bottom-20 lg:bottom-8"
+          )}
+          aria-label="Open AI panel (⌘J)"
+        >
+          <Brain className="w-5 h-5" />
+        </Button>
+      )}
+
+      {/* Mobile AI Sheet — slides up on mobile when panel is open */}
+      {isPanelOpen && isBelowBreakpoint && (
         <MobileAISheet title="AI Assistant">
-          {aiPanel}
+          <AIPanel onClose={closePanel} />
         </MobileAISheet>
       )}
 

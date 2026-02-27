@@ -68,8 +68,9 @@ drop table if exists validation_campaigns;
 drop table if exists validation_sessions;
 
 -- validation_runs → FK to startups, organizations, prompt_pack_runs
--- 1 test row (acceptable loss). No inbound FKs after validation_verdicts dropped.
-drop table if exists validation_runs;
+-- 1 test row (acceptable loss). CASCADE drops FK from validation_reports.run_id.
+-- validation_reports data is preserved (renamed to validator_reports in step 4).
+drop table if exists validation_runs cascade;
 
 -- =============================================
 -- 4. Rename active table: validation_reports → validator_reports
@@ -149,7 +150,7 @@ left join lateral (
 left join lateral (
   select
     count(*) as deals_total,
-    count(*) filter (where deals.is_active = true) as deals_active,
+    count(*) filter (where deals.stage != 'lost') as deals_active,
     count(*) filter (where deals.stage = 'won') as deals_won,
     coalesce(sum(deals.amount), 0) as deals_value
   from deals where deals.startup_id = s.id
@@ -175,7 +176,7 @@ left join lateral (
 left join lateral (
   select
     count(*) as deck_count,
-    coalesce(max(pitch_decks.slide_count), 0) as total_slides
+    0 as total_slides  -- slide_count column exists in prod only
   from pitch_decks where pitch_decks.startup_id = s.id
 ) pd on true
 left join lateral (

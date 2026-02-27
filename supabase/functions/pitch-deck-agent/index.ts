@@ -26,6 +26,7 @@ import {
   generateFieldSuggestion,
 } from "./actions/index.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Use environment variables (set automatically by Supabase)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -96,6 +97,20 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     console.log(`[pitch-deck-agent] Action: ${action}, User: ${user.id}`);
+
+    // Rate limit expensive AI actions (generation, image, research)
+    const EXPENSIVE_ACTIONS = [
+      'generate_deck', 'generate_slide_image', 'generate_deck_images',
+      'regenerate_slide_image', 'analyze_slide', 'market_research',
+      'competitor_analysis', 'generate_interview_questions',
+    ];
+    if (EXPENSIVE_ACTIONS.includes(action)) {
+      const rateResult = checkRateLimit(user.id, 'pitch-deck-agent', RATE_LIMITS.heavy);
+      if (!rateResult.allowed) {
+        console.warn(`[pitch-deck-agent] Rate limit hit: user=${user.id}, action=${action}`);
+        return rateLimitResponse(rateResult, corsHeaders);
+      }
+    }
 
     let result;
 

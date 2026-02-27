@@ -6,12 +6,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Target, ArrowLeft, ListChecks, BarChart3, AlertTriangle } from 'lucide-react';
+import { Sparkles, Target, ArrowLeft, ListChecks, BarChart3, AlertTriangle, PlayCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DEV_BYPASS_AUTH } from '@/lib/devConfig';
 import { setReturnPathOnce } from '@/lib/authReturnPath';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Sheet,
   SheetContent,
@@ -29,8 +31,33 @@ export default function ValidateIdea() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const { data: startup, isLoading } = useStartup();
   const [initialIdea, setInitialIdea] = useState<string | undefined>();
+
+  // Query for most recent completed validation with report
+  const { data: recentSession } = useQuery({
+    queryKey: ['recent-validator-session', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('validator_sessions')
+        .select(`
+          id, status, startup_id, updated_at,
+          startups!inner(name, industry),
+          validator_reports(id, score)
+        `)
+        .eq('user_id', user.id)
+        .in('status', ['complete', 'partial'])
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
   const [coverage, setCoverage] = useState<FollowupCoverage | null>(null);
   const [extracted, setExtracted] = useState<ExtractedFields | null>(null);
   const [confidence, setConfidence] = useState<ConfidenceMap | null>(null);
@@ -63,17 +90,19 @@ export default function ValidateIdea() {
     requestAnimationFrame(() => setPrefillText(text));
   }, []);
 
-  // Check for pending idea from homepage
+  // Check for pending idea from homepage — read once, clear only after consumed
   useEffect(() => {
+    if (initialIdea) return; // Already have it, don't re-read
     const hasIdea = searchParams.get('hasIdea') === 'true';
     if (hasIdea) {
       const pendingIdea = sessionStorage.getItem('pendingIdea');
       if (pendingIdea) {
         setInitialIdea(pendingIdea);
-        sessionStorage.removeItem('pendingIdea');
+        // Clear after a short delay so re-mounts during auth hydration don't lose it
+        setTimeout(() => sessionStorage.removeItem('pendingIdea'), 2000);
       }
     }
-  }, [searchParams]);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle validation complete
   const handleValidationComplete = (reportId: string) => {
@@ -147,6 +176,58 @@ export default function ValidateIdea() {
         </div>
       </header>
 
+      {/* Continue where you left off — shown for returning users */}
+      {recentSession && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex-shrink-0 px-4 py-3 bg-primary/5 border-b border-primary/10"
+        >
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              {recentSession.status === 'complete' ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+              ) : (
+                <PlayCircle className="w-5 h-5 text-primary flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {recentSession.status === 'complete' ? 'View latest report' : 'Continue where you left off'}
+                  {' — '}
+                  <span className="text-primary">
+                    {(recentSession.startups as { name: string })?.name || 'Untitled Session'}
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {recentSession.status === 'complete' && (recentSession.validator_reports as { score: number }[])?.[0]?.score != null
+                    ? `Score: ${(recentSession.validator_reports as { score: number }[])[0].score}/100`
+                    : 'Validation in progress'}
+                  {' · '}
+                  {new Date(recentSession.updated_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={recentSession.status === 'complete' ? 'default' : 'outline'}
+              onClick={() => {
+                const reportId = (recentSession.validator_reports as { id: string }[])?.[0]?.id;
+                if (reportId) {
+                  navigate(`/validator?showReport=true&reportId=${reportId}`);
+                } else {
+                  navigate(`/validator/run/${recentSession.id}`);
+                }
+              }}
+              className="flex-shrink-0 gap-1"
+            >
+              {recentSession.status === 'complete' ? 'View Report' : 'Continue'}
+              <ArrowLeft className="w-3.5 h-3.5 rotate-180" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Hero Section - Only visible initially */}
       <motion.div
         initial={{ opacity: 1, height: 'auto' }}
@@ -211,7 +292,7 @@ export default function ValidateIdea() {
                 Fields
                 {coverage && (
                   <span className="text-xs text-primary font-medium">
-                    {Object.values(coverage).filter(v => isCovered(v)).length}/8
+                    {Object.values(coverage).filter(v => isCovered(v)).length}/{Object.keys(coverage).length}
                   </span>
                 )}
               </Button>
@@ -234,7 +315,7 @@ export default function ValidateIdea() {
                 Readiness
                 {coverage && (
                   <span className={`text-xs font-medium ${canGenerate ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                    {Math.round((Object.values(coverage).filter(v => isCovered(v)).length / 8) * 100)}%
+                    {Math.round((Object.values(coverage).filter(v => isCovered(v)).length / Object.keys(coverage).length) * 100)}%
                   </span>
                 )}
               </Button>

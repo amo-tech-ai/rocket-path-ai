@@ -4,7 +4,7 @@
  */
 
 export { mapProfile, checkProfileSync } from "./mapping.ts";
-export { prefillCanvas, suggestBox } from "./generation.ts";
+export { prefillCanvas, suggestBox, generateFromReport } from "./generation.ts";
 export { validateCanvas } from "./validation.ts";
 export { saveVersion, loadVersions, restoreVersion } from "./versions.ts";
 export { canvasToPitch } from "./pitch.ts";

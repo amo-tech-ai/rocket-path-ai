@@ -1,9 +1,10 @@
 # CLAUDE.md
 
-> **Updated:** 2026-02-13 | **Version:** 4.2
+> **Updated:** 2026-02-27 | **Version:** 5.0
 
 StartupAI — AI-powered OS for startup founders. React/TS SPA + Vite + Supabase + shadcn/ui.
 Validator pipeline working E2E (7 agents, V2 report with 6 visual components). 45 edge functions, 47 pages, 284 tests.
+Architecture audit complete: 10 domains verified against live DB, 92 tasks catalogued (30 P0, 34 P1, 28 P2).
 
 ## Commands
 
@@ -49,6 +50,7 @@ lean/                     # Progress trackers, task specs, strategy docs
 |----------|----------|
 | Fast extraction | `gemini-3-flash-preview` |
 | Deep analysis | `gemini-3-pro-preview` |
+| Deep analysis (latest) | `gemini-3.1-pro-preview` |
 | Image gen | `gemini-3-pro-image-preview` |
 | Fast tasks | `claude-haiku-4-5` |
 | Balanced | `claude-sonnet-4-5` |
@@ -69,8 +71,21 @@ Use the **Claude Tasks system** (`TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGe
 - Run `TaskList` at session start to see pending work and pick the next unblocked task
 - Mark tasks `in_progress` when starting, `completed` when done
 - Respect `blockedBy` chains — don't start blocked tasks
-- Source of truth: `tasks/next-steps.md` (28 active tasks, 9 sections, priority-ordered)
+- Source of truth: `tasks/next-steps.md` (92 active tasks, 10 domains, priority-ordered)
 - After completing tasks, update `tasks/next-steps.md`, `tasks/changelog`, and `CHANGELOG.md`
+
+## Task Prompt Format
+
+All task prompts in `tasks/prompts/mvp/` follow a structured format (see `tasks/TASK-TEMPLATE.md` v4.0):
+
+**Description** uses 5-part structure:
+1. **The situation:** Current state — what exists, what's broken, what's missing
+2. **Why it matters:** User pain, business risk, or developer friction
+3. **What already exists:** Specific files, functions, patterns to build on
+4. **The build:** High-level implementation plan
+5. **Example:** Concrete scenario with a named founder/startup
+
+**Every prompt also includes:** Rationale (problem/solution/impact), User Stories, Goals, Acceptance Criteria, Research Before Implementation, Wiring Plan, Edge Cases, Real-World Examples (2-3 scenarios), Outcomes (Before/After table)
 
 ## Context Management
 
@@ -98,6 +113,7 @@ Use the **Claude Tasks system** (`TaskCreate`, `TaskUpdate`, `TaskList`, `TaskGe
 | Changelog | `CHANGELOG.md` |
 | Next Steps (active tasks) | `tasks/next-steps.md` |
 | Task Specs (prompts) | `tasks/prompts/index-prompts.md` |
+| Task Template | `tasks/TASK-TEMPLATE.md` |
 | Progress Tracker | `tasks/index-progress.md` |
 | Validator Strategy | `tasks/validator/strategy/00-INDEX.md` |
 | Gemini Skill | `.agents/skills/gemini/SKILL.md` |

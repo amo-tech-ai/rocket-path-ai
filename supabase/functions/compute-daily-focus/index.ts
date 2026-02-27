@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // =============================================================================
 // STAGE MILESTONES - What's expected at each stage
@@ -313,6 +314,13 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: authError || "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Rate limit — daily focus computation (DB-heavy reads + scoring)
+    const rateResult = checkRateLimit(user.id, 'compute-daily-focus', RATE_LIMITS.standard);
+    if (!rateResult.allowed) {
+      console.warn(`[compute-daily-focus] Rate limit hit: user=${user.id}`);
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

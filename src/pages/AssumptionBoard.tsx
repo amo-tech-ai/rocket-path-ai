@@ -58,7 +58,7 @@ import {
   useCreateAssumption,
   useUpdateAssumption,
   useDeleteAssumption,
-} from '@/hooks/useExperiments';
+} from '@/hooks/useAssumptions';
 
 /* ──────────────────────── Constants ──────────────────────── */
 

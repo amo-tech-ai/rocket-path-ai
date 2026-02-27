@@ -31,6 +31,15 @@ export interface StartupProfile {
     workflow_with: string;
     quantified_impact: string;
   };
+  // CORE-06: Idea quality filters (Paul Graham, Why Now, Tarpit)
+  idea_quality?: {
+    well_or_crater: string;
+    schlep_factor: string;
+    organic_or_manufactured: string;
+    why_now: { trigger: string; category: string; confidence: string };
+    tarpit_flag: boolean;
+    tarpit_reasoning: string;
+  };
 }
 
 export interface MarketResearch {
@@ -40,6 +49,21 @@ export interface MarketResearch {
   methodology: string;
   growth_rate: number;
   sources: Array<{ title: string; url: string }>;
+  // CORE-06: Value theory + cross-validation + trend analysis
+  value_theory_tam?: number;
+  sizing_cross_validation?: {
+    bottom_up: number;
+    top_down: number;
+    value_theory: number;
+    max_discrepancy_factor: number;
+    primary_estimate: string;
+  };
+  source_freshness?: Array<{ source: string; year: number; stale_flag: boolean }>;
+  trend_analysis?: {
+    trajectory: string;
+    adoption_curve_position: string;
+    market_maturity: string;
+  };
 }
 
 export interface Competitor {
@@ -56,6 +80,23 @@ export interface CompetitorAnalysis {
   indirect_competitors: Competitor[];
   market_gaps: string[];
   sources: Array<{ title: string; url: string }>;
+  // CORE-06: Positioning, battlecard, white space
+  positioning?: {
+    competitive_alternatives: string[];
+    unique_attributes: string[];
+    value_proposition: string;
+    target_segment: string;
+    market_category: string;
+    positioning_statement: string;
+  };
+  battlecard?: {
+    competitor_name: string;
+    win_themes: string[];
+    lose_themes: string[];
+    counter_arguments: string[];
+    moat_durability: string;
+  };
+  white_space?: string;
 }
 
 export interface RiskScore {
@@ -78,12 +119,49 @@ export interface ScoringResult {
     dimensions: Array<{ name: string; score: number; weight: number }>;
     overall_weighted: number;
   };
+  // CORE-06: Risk queue, bias detection, evidence grading
+  risk_queue?: Array<{
+    domain: string;
+    category: string;
+    assumption: string;
+    impact: number;
+    probability: number;
+    composite_score: number;
+    severity: string;
+    suggested_experiment: string;
+  }>;
+  bias_flags?: Array<{
+    bias_type: string;
+    evidence_phrase: string;
+    counter_question: string;
+  }>;
+  evidence_grades?: Array<{
+    claim: string;
+    grade: string;
+    source: string;
+    signal_level: number;
+  }>;
+  highest_signal_level?: number;
 }
 
 export interface MVPPlan {
   mvp_scope: string;
   phases: Array<{ phase: number; name: string; tasks: string[] }>;
   next_steps: string[];
+  // CORE-06: Experiment cards, founder stage, recommended methods
+  experiment_cards?: Array<{
+    risk_domain: string;
+    assumption: string;
+    hypothesis: string;
+    method: string;
+    duration: string;
+    smart_goal: string;
+    pass_threshold: string;
+    fail_threshold: string;
+    estimated_cost: string;
+  }>;
+  founder_stage?: string;
+  recommended_methods?: string[];
 }
 
 // V2 structured fields (Composer outputs these for v2 reports)
@@ -126,6 +204,48 @@ export interface NextStepV2 {
   effort: 'low' | 'medium' | 'high';
 }
 
+// V3: Dimension detail page types — SYNC: src/types/validation-report.ts
+export interface SubScore {
+  name: string;      // machine key, e.g. "pain_intensity"
+  score: number;     // 0-100
+  label: string;     // human-readable, e.g. "Pain Intensity"
+}
+
+export interface DimensionDetail {
+  composite_score: number;        // 0-100, mirrors dimension score
+  sub_scores: SubScore[];         // 3-5 sub-scores
+  executive_summary: string;      // 2-3 sentences
+  risk_signals: string[];         // 2-3 what could go wrong
+  priority_actions: string[];     // 2-3 what to fix next
+}
+
+export interface AIStrategyAssessment {
+  detail: DimensionDetail;
+  automation_level: 'assist' | 'copilot' | 'agent';
+  ai_capability_stack: Array<{
+    layer: string;
+    description: string;
+    maturity: 'nascent' | 'developing' | 'mature';
+  }>;
+  data_strategy: 'owned' | 'borrowed' | 'hybrid';
+  governance_readiness: 'not_ready' | 'basic' | 'compliant';
+}
+
+export interface ValidationProofAssessment {
+  detail: DimensionDetail;
+  evidence_items: Array<{
+    type: 'interview' | 'signup' | 'conversion' | 'payment' | 'experiment';
+    count: number;
+    description: string;
+  }>;
+  evidence_confidence: 'high' | 'medium' | 'low' | 'none';
+  assumption_map: Array<{
+    assumption: string;
+    tested: boolean;
+    result?: string;
+  }>;
+}
+
 // P02: Expanded from 8 to 14 sections to match IdeaProof breadth
 export interface ValidatorReport {
   // Original 8 sections (v2: 6 fields upgraded to structured objects)
@@ -156,6 +276,16 @@ export interface ValidatorReport {
   verdict_oneliner?: string;
   success_condition?: string;
   biggest_risk?: string;
+  // V3: Per-dimension consulting-page detail (all optional for backward compat)
+  problem_detail?: DimensionDetail;
+  customer_detail?: DimensionDetail;
+  market_detail?: DimensionDetail;
+  competition_detail?: DimensionDetail;
+  revenue_detail?: DimensionDetail;
+  execution_detail?: DimensionDetail;
+  risk_detail?: DimensionDetail;
+  ai_strategy?: AIStrategyAssessment;
+  validation_proof?: ValidationProofAssessment;
 }
 
 // P02: New section types
@@ -218,7 +348,8 @@ export interface InterviewContext {
   version: number;
   extracted: Record<string, string>;
   coverage: Record<string, string>;
-  discoveredEntities?: Array<{ type: string; value: string }>;
+  // F-03 fix: Type matches extractor's access pattern (competitors/urls/marketData)
+  discoveredEntities?: { competitors?: string[]; urls?: string[]; marketData?: string[] };
 }
 
 // 021-CSP: Composer section groups — merged into ValidatorReport
@@ -257,6 +388,19 @@ export interface ComposerGroupD {
   verdict_oneliner: string;
   success_condition: string;
   biggest_risk: string;
+}
+
+// V3: Composer Group E — dimension details + new assessments (MVP-02 will implement)
+export interface ComposerGroupE {
+  problem_detail: DimensionDetail;
+  customer_detail: DimensionDetail;
+  market_detail: DimensionDetail;
+  competition_detail: DimensionDetail;
+  revenue_detail: DimensionDetail;
+  execution_detail: DimensionDetail;
+  risk_detail: DimensionDetail;
+  ai_strategy: AIStrategyAssessment;
+  validation_proof: ValidationProofAssessment;
 }
 
 // deno-lint-ignore no-explicit-any

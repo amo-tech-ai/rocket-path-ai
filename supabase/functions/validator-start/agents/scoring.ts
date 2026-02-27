@@ -51,6 +51,76 @@ For each dimension (0-100), use these anchor points:
 - CAC payback: PLG < 12mo | Sales-led < 18mo
 - Gross margin: SaaS 75-85% | SaaS+AI 60-75% | Marketplace 60-70%
 
+## Risk Classification
+
+Map EVERY assumption to one of 15 risk domains:
+
+DESIRABILITY (test first for pre-traction startups):
+  Problem Risk — Is this a real, painful, frequent problem?
+  Customer Risk — Can you identify, reach, and convert the buyer?
+  Channel Risk — Is there a viable, scalable acquisition path?
+  Value Prop Risk — Is your offering 10x better than alternatives?
+
+VIABILITY (test second):
+  Revenue Risk — Will customers pay enough, often enough?
+  Financial Risk — Can you sustain burn rate to PMF?
+  Market Risk — Is the market large enough and growing?
+  Competition Risk — Can you differentiate and defend position?
+
+FEASIBILITY (test third):
+  Technical Risk — Can you build it reliably at scale?
+  Team Risk — Do you have the right people and skills?
+  Operational Risk — Can you deliver consistently post-launch?
+
+EXTERNAL (monitor continuously):
+  Legal Risk, Pivot Risk, Reputational Risk, Exit Risk
+
+COMPOSITE RISK SCORE per assumption:
+  Score = Impact (1-10) × Probability (1-5) = 0-50
+  35-50 = Fatal | 20-34 = High | 10-19 = Medium | 1-9 = Low
+
+PRIORITIZATION: Pre-traction → desirability risks first. Within a domain → highest composite score first. Equal scores → cheapest-to-test first. Maximum 5 risks in the validation queue.
+
+## Bias Detection
+
+Scan the founder's input for these 6 validation-killing biases:
+
+| Bias | Red Flag Phrases | Counter-Question |
+|------|-----------------|------------------|
+| Confirmation | "Everyone loved it", "All feedback positive" | "How many said they'd pay $X today?" |
+| Optimism | "The market is $50B", "We'll capture 10%" | "What's the bottom-up SAM for your ICP?" |
+| Sunk Cost | "We've invested too much to stop" | "What's the signal from actual experiments?" |
+| Survivorship | "Look at how Uber/Airbnb did it" | "What about the 50 similar startups that failed?" |
+| Anchoring | Fixating on one market number | "Show 3 different estimates from different sources" |
+| Bandwagon | "AI is the future, everyone needs this" | "What's YOUR unfair advantage vs other AI tools?" |
+
+RULES:
+1. Flag EVERY detected bias in bias_flags output array
+2. For each flagged bias, include the exact phrase that triggered it
+3. Apply COUNTER-SIGNAL REQUIREMENT: for every positive finding, state one counter-signal
+4. If 3+ biases detected → add to red_flags: "Multiple cognitive biases detected — high risk of founder self-delusion"
+5. Evidence grade EVERY major claim:
+   Grade A: Customer payment, usage data, signed LOI (Weight: High)
+   Grade B: Customer interview (behavioral), waitlist signup (Weight: Medium)
+   Grade C: Survey response, industry report, expert opinion (Weight: Low)
+   Grade D: Founder intuition, analogy to other markets (Weight: Very Low)
+
+## Signal Strength Assessment
+
+Rate the founder's CURRENT evidence level:
+| Level | Signal | Example | Confidence |
+|:-----:|--------|---------|:----------:|
+| 1 | Verbal | "I'd use that" / "Great idea" | Very Low |
+| 2 | Engagement | Clicked, browsed, spent time | Low |
+| 3 | Signup | Email, waitlist, free trial | Medium |
+| 4 | Payment | Paid deposit, pre-order, subscription | High |
+| 5 | Referral | Told others, brought a friend | Very High |
+
+THE NICENESS GAP: Most founders get stuck at Level 1-2 and mistake verbal enthusiasm for validation.
+RULE: An idea is NOT validated until Level 3+ signal exists.
+If all evidence is Level 1-2 → overall score CANNOT exceed 65 (caution verdict).
+If any evidence is Level 4-5 → score floor of 50 (caution minimum, not no-go).
+
 ## Writing style:
 - Each description should be 1-2 sentences explaining the score with specific evidence
 - Use concrete numbers and real comparisons — not vague qualifiers
@@ -88,12 +158,40 @@ Return JSON with exactly these fields:
   ],
   "highlights": ["Strength 1 — specific and evidence-based", "Strength 2", "Strength 3"],
   "red_flags": ["Risk 1 — explain what breaks if this goes wrong", "Risk 2"],
-  "risks_assumptions": ["Assumes X — if wrong, Y happens", "Risk: X could cause Y because Z"]
+  "risks_assumptions": ["Assumes X — if wrong, Y happens", "Risk: X could cause Y because Z"],
+  "risk_queue": [
+    {
+      "domain": "e.g. Problem Risk, Customer Risk",
+      "category": "desirability | viability | feasibility | external",
+      "assumption": "The specific testable assumption",
+      "impact": 8,
+      "probability": 4,
+      "composite_score": 32,
+      "severity": "fatal | high | medium | low",
+      "suggested_experiment": "Cheapest way to test this"
+    }
+  ],
+  "bias_flags": [
+    {
+      "bias_type": "confirmation | optimism | sunk_cost | survivorship | anchoring | bandwagon",
+      "evidence_phrase": "The exact founder phrase that triggered the flag",
+      "counter_question": "The question that challenges this bias"
+    }
+  ],
+  "evidence_grades": [
+    {
+      "claim": "The specific claim being graded",
+      "grade": "A | B | C | D",
+      "source": "What evidence supports it",
+      "signal_level": 1
+    }
+  ],
+  "highest_signal_level": 1
 }`;
 
   try {
     // P01: thinkingLevel: 'high' enables deeper multi-criteria reasoning
-    // Note: thinking mode disables responseJsonSchema — we rely on extractJSON fallback
+    // R-01 fix: keepSchemaWithThinking ensures scoring output structure is enforced
     // 022-SKI: Build compact context pack instead of raw JSON.stringify
     const contextPack = [
       `IDEA: ${profile.idea}`,
@@ -116,7 +214,7 @@ Return JSON with exactly these fields:
       AGENTS.scoring.model,
       systemPrompt,
       `Score this startup:\n\n${contextPack}`,
-      { thinkingLevel: 'high', responseJsonSchema: AGENT_SCHEMAS.scoring, timeoutMs: AGENT_TIMEOUTS.scoring }
+      { thinkingLevel: 'high', responseJsonSchema: AGENT_SCHEMAS.scoring, timeoutMs: AGENT_TIMEOUTS.scoring, keepSchemaWithThinking: true }
     );
 
     const rawScoring = extractJSON<Record<string, unknown>>(text);
@@ -142,6 +240,11 @@ Return JSON with exactly these fields:
       red_flags: (rawScoring.red_flags as string[]) || [],
       risks_assumptions: (rawScoring.risks_assumptions as string[]) || [],
       scores_matrix: mathResult.scores_matrix,
+      // CORE-06: Include risk queue, bias detection, evidence grading from Gemini output
+      risk_queue: Array.isArray(rawScoring.risk_queue) ? rawScoring.risk_queue as ScoringResult['risk_queue'] : undefined,
+      bias_flags: Array.isArray(rawScoring.bias_flags) ? rawScoring.bias_flags as ScoringResult['bias_flags'] : undefined,
+      evidence_grades: Array.isArray(rawScoring.evidence_grades) ? rawScoring.evidence_grades as ScoringResult['evidence_grades'] : undefined,
+      highest_signal_level: typeof rawScoring.highest_signal_level === 'number' ? rawScoring.highest_signal_level : undefined,
     };
 
     await completeRun(supabase, sessionId, agentName, 'ok', scoring);

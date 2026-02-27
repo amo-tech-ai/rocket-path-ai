@@ -49,14 +49,21 @@ function trimMarket(market: MarketResearch | null) {
 function trimCompetitors(competitors: CompetitorAnalysis | null) {
   if (!competitors) return {};
   return {
+    // D-05 fix: Pass strengths/weaknesses through to Composer so competitor cards aren't empty
     direct_competitors: (competitors.direct_competitors || []).slice(0, 4).map(c => ({
       name: c.name, description: c.description?.slice(0, 200),
+      strengths: c.strengths || [], weaknesses: c.weaknesses || [],
       threat_level: c.threat_level,
     })),
     indirect_competitors: (competitors.indirect_competitors || []).slice(0, 2).map(c => ({
       name: c.name, description: c.description?.slice(0, 150),
+      strengths: c.strengths || [], weaknesses: c.weaknesses || [],
     })),
     market_gaps: (competitors.market_gaps || []).slice(0, 3),
+    // CORE-06: Pass positioning, battlecard, white_space for deeper competitive analysis
+    ...(competitors.positioning ? { positioning: competitors.positioning } : {}),
+    ...(competitors.battlecard ? { battlecard: competitors.battlecard } : {}),
+    ...(competitors.white_space ? { white_space: competitors.white_space } : {}),
   };
 }
 
@@ -95,13 +102,14 @@ async function callGroupGemini<T>(
     }
     return result;
   } catch (schemaErr) {
-    // Fallback: if responseJsonSchema is rejected (400), retry without schema
+    // R-02 fix: Fallback on retryable schema errors (400, 413, 422, 500), not just 400
     const errMsg = schemaErr instanceof Error ? schemaErr.message : String(schemaErr);
-    const isSchemaError = errMsg.includes('400');
+    const RETRYABLE_SCHEMA_CODES = ['400', '413', '422', '500'];
+    const isRetryable = RETRYABLE_SCHEMA_CODES.some(code => errMsg.includes(code));
     console.warn(`[Composer:${groupName}] Schema attempt error: ${errMsg.slice(0, 300)}`);
-    if (!isSchemaError) throw schemaErr;
+    if (!isRetryable) throw schemaErr;
 
-    console.warn(`[Composer:${groupName}] responseJsonSchema rejected (400), falling back to responseMimeType`);
+    console.warn(`[Composer:${groupName}] Schema rejected, falling back to responseMimeType only`);
     const { text } = await callGemini(
       AGENTS.composer.model,
       systemPrompt,
@@ -275,7 +283,14 @@ Risk Score = Impact (1-10) x Probability (1-5). Top 3 by score → risks_assumpt
 High = well-funded + high feature overlap + growing fast
 Medium = partial overlap OR bootstrapped with traction
 Low = different segment OR declining/stagnant
-Status quo (doing nothing) is ALWAYS a competitor — include it.`;
+Status quo (doing nothing) is ALWAYS a competitor — include it.
+
+### CORE-06: Enhanced Inputs Available
+- If scoring includes a "risk_queue" array, use it to build risks_assumptions — map composite_score to severity (35-50=fatal, 20-34=risky, 10-19=watch)
+- If scoring includes "bias_flags", surface the top 1-2 biases as warnings in risks_assumptions
+- If competitors include "positioning" (April Dunford), use it to inform the positioning map axes and placement
+- If competitors include "battlecard", use win/lose themes to strengthen the SWOT analysis
+- If competitors include "white_space", make it the basis for the strongest opportunity in SWOT`;
 
   const userPrompt = `Generate Market & Risk analysis from agent outputs:
 
@@ -366,7 +381,16 @@ async function composeGroupC(
 - ACV <$5K + self-serve product → PLG (product-led growth)
 - ACV $5K-$100K + technical buyer → Hybrid (PLG + inside sales)
 - ACV $25K+ + complex sale → Sales-led with SDR/AE team
-Match the recommended next_steps to the appropriate GTM motion.`;
+Match the recommended next_steps to the appropriate GTM motion.
+
+### CORE-06: Enhanced Inputs Available
+- If MVP includes "experiment_cards", use them to inform next_steps — the first 1-2 next_steps should match the top experiment cards
+- If MVP includes "founder_stage" (idea_only, problem_validated, demand_validated, presales_confirmed), calibrate the mvp_scope and next_steps to that stage:
+  * idea_only → prioritize customer interviews and smoke tests, NOT building
+  * problem_validated → prioritize fake door tests and demand validation
+  * demand_validated → prioritize pre-sales and prototype
+  * presales_confirmed → prioritize MVP build and actual usage testing
+- If MVP includes "recommended_methods", align next_steps validation_methods to those recommendations`;
 
   const userPrompt = `Generate Execution & Economics plan from agent outputs:
 
@@ -473,7 +497,12 @@ Use these to inform the "Why now" element of the opportunity paragraph.
 - "Early signal" = interviews + smoke test data (pre-seed)
 - "Initial traction" = paying users + retention data (seed)
 - "Proven traction" = consistent MRR growth + unit economics (Series A)
-Never use stronger language than the evidence supports.`;
+Never use stronger language than the evidence supports.
+
+### CORE-06: Bias & Signal Awareness
+- If scoring shows bias_count > 0, mention the dominant bias in the risk paragraph (part 3) — e.g., "The founder shows signs of confirmation bias — all evidence cited is positive."
+- If highest_signal_level is 1-2 (verbal/engagement only), the verdict CANNOT be "Go" — it must be "Conditional go" at best
+- If highest_signal_level is 4-5 (payment/referral), this strengthens the "Go" case — cite the evidence level`;
 
   // 022-SKI: Include consistency notes to enforce cross-group alignment
   const consistencyBlock = consistencyNotes.length > 0
@@ -516,6 +545,9 @@ Never use stronger language than the evidence supports.`;
     overall_score: scoring.overall_score,
     verdict: scoring.verdict,
     dimensions: (scoring.scores_matrix?.dimensions || []).map(d => `${d.name}: ${d.score}`).join(', '),
+    // CORE-06: Pass bias and signal level context for informed synthesis
+    ...(scoring.bias_flags?.length ? { bias_count: scoring.bias_flags.length, top_bias: scoring.bias_flags[0]?.bias_type } : {}),
+    ...(scoring.highest_signal_level ? { highest_signal_level: scoring.highest_signal_level } : {}),
   } : {};
 
   const userPrompt = `Synthesize the executive summary from these completed analyses:
@@ -574,9 +606,9 @@ function mergeGroups(
     success_condition: groupD?.success_condition,
     biggest_risk: groupD?.biggest_risk,
 
-    // Group A (problem & customer) — fallback to strings
-    problem_clarity: groupA?.problem_clarity || 'Problem analysis unavailable — group A generation failed.',
-    customer_use_case: groupA?.customer_use_case || 'Customer use case unavailable — group A generation failed.',
+    // Group A (problem & customer) — D-01 fix: fallback to objects (strings trigger isV2Report()===false)
+    problem_clarity: groupA?.problem_clarity || { who: 'Unknown', pain: 'Problem analysis unavailable — group A generation failed.', current_fix: 'Unknown', severity: 'low' as const },
+    customer_use_case: groupA?.customer_use_case || { persona: { name: 'Unknown', role: 'Unknown', context: 'Data unavailable' }, without: 'Use case unavailable — group A generation failed.', with: 'N/A', time_saved: 'Unknown' },
     key_questions: groupA?.key_questions || [{ question: 'What is the core problem?', why_it_matters: 'Foundation of the business', validation_method: 'Customer interviews', risk_level: 'fatal' as const }],
 
     // Group B (market & risk) — fallback to minimal values
@@ -587,7 +619,8 @@ function mergeGroups(
     risks_assumptions: groupB?.risks_assumptions || scoring?.risks_assumptions || [],
 
     // Group C (execution & economics) — fallback to minimal structures
-    mvp_scope: groupC?.mvp_scope || 'MVP scope unavailable — group C generation failed.',
+    // D-01 fix: fallback to object (string triggers isV2Report()===false)
+    mvp_scope: groupC?.mvp_scope || { one_liner: 'MVP scope unavailable — group C generation failed.', build: [], buy: [], skip_for_now: [], tests_assumption: 'Unknown', success_metric: 'Unknown', timeline_weeks: 0 },
     next_steps: groupC?.next_steps || [],
     revenue_model: groupC?.revenue_model || { recommended_model: 'TBD', reasoning: 'Revenue model analysis unavailable', alternatives: [], unit_economics: { cac: 0, ltv: 0, ltv_cac_ratio: 0, payback_months: 0 } },
     financial_projections: groupC?.financial_projections || { scenarios: [], break_even: { months: 0, revenue_required: 0, assumptions: 'Data unavailable' }, key_assumption: 'Data unavailable' },

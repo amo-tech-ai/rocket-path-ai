@@ -10,6 +10,7 @@ import {
   checkProfileSync,
   prefillCanvas,
   suggestBox,
+  generateFromReport,
   validateCanvas,
   saveVersion,
   loadVersions,
@@ -41,6 +42,7 @@ interface RequestBody {
   box_key?: string;
   canvas_data?: Record<string, unknown>;
   gap_answers?: Record<string, string>;
+  report_id?: string;
   label?: string;
   industry?: string;
   stage?: string;
@@ -142,6 +144,15 @@ Deno.serve(async (req) => {
           body.startup_id,
           body.box_key,
           body.canvas_data
+        );
+        break;
+
+      case "generate_from_report":
+        if (!body.report_id) throw new Error("report_id is required");
+        result = await generateFromReport(
+          supabase,
+          user.id,
+          body.report_id
         );
         break;
 

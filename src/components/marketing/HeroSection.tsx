@@ -3,10 +3,10 @@
  * Matches the "From idea to execution" design
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles, Brain, BarChart3, Calculator, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Sparkles, Brain, BarChart3, Calculator, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -23,10 +23,21 @@ const PHASES = [
 
 const HeroSection = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(0);
+
+  // Detect if we're returning from OAuth with a pending idea
+  const hasPendingIdea = typeof window !== 'undefined' && !!sessionStorage.getItem('pendingIdea');
+
+  // Safety net: if user lands on home page authenticated with a pending idea
+  // (e.g., after email confirmation or OAuth redirect to /), send them to validator
+  useEffect(() => {
+    if (user && sessionStorage.getItem('pendingIdea')) {
+      navigate('/validate?hasIdea=true', { replace: true });
+    }
+  }, [user, navigate]);
 
   const canGenerate = input.trim().length >= 10;
 
@@ -157,6 +168,21 @@ const HeroSection = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Auth-loading overlay: show when returning from OAuth with a pending idea */}
+      {hasPendingIdea && !user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl p-8 md:p-12 max-w-md w-full mx-4 text-center shadow-2xl">
+            <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary mb-6" />
+            <h3 className="font-display text-xl font-semibold text-foreground">
+              Completing sign in...
+            </h3>
+            <p className="text-muted-foreground mt-2">
+              Your idea is saved. Redirecting to validation.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="container-marketing max-w-5xl text-center px-4">
         {/* Headline */}

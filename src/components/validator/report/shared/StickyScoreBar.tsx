@@ -2,8 +2,8 @@ import { memo } from 'react';
 import { cn } from '@/lib/utils';
 
 interface StickyScoreBarProps {
-  score: number;
-  signal: 'go' | 'caution' | 'no-go';
+  score: number | null;
+  signal: 'go' | 'caution' | 'no-go' | 'unavailable';
   metrics: { label: string; value: string }[];
   visible: boolean;
 }
@@ -12,9 +12,10 @@ const signalStyles = {
   go: 'bg-sage-light text-primary border border-primary/20',
   caution: 'bg-warm text-warm-foreground border border-warm-foreground/20',
   'no-go': 'bg-destructive/10 text-destructive border border-destructive/20',
+  unavailable: 'bg-muted text-muted-foreground border border-border',
 } as const;
 
-const signalLabels = { go: 'GO', caution: 'CAUTION', 'no-go': 'NO-GO' } as const;
+const signalLabels = { go: 'GO', caution: 'CAUTION', 'no-go': 'NO-GO', unavailable: 'N/A' } as const;
 
 export const StickyScoreBar = memo(function StickyScoreBar({
   score,
@@ -37,7 +38,7 @@ export const StickyScoreBar = memo(function StickyScoreBar({
     >
       <div className="max-w-[1000px] mx-auto flex items-center justify-center gap-5">
         <span className="text-xl font-display font-medium text-foreground tabular-nums">
-          {score}/100
+          {score !== null ? `${score}/100` : '—'}
         </span>
 
         <span

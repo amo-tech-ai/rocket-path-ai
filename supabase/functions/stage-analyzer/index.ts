@@ -259,23 +259,23 @@ async function gatherStartupMetrics(supabase: any, auth: AuthContext): Promise<S
     customer_interviews: customerContacts.length,
     has_prototype: projectList.some((p: any) => p.status === 'active' || p.status === 'completed'),
     has_landing_page: !!startupData.website_url,
-    waitlist_signups: 0, // Would need dedicated tracking
+    waitlist_signups: 0, // P1-3: No tracking infra yet — excluded from scoring
 
     // MVP
     has_product: projectList.some((p: any) => p.status === 'completed'),
     active_users: customerContacts.length, // Proxy metric
     has_feedback_loop: completedTasks.length > 5,
-    feature_releases: completedTasks.filter((t: any) => t.category === 'feature').length,
+    feature_releases: completedTasks.filter((t: any) => t.priority === 'high' && t.status === 'completed').length,
 
     // Growth
     mrr: totalRevenue / 12, // Rough estimate
     team_size: team.count || 1,
     has_marketing: docs.some((d: any) => d.type === 'marketing'),
-    month_over_month_growth: 0, // Would need historical data
+    month_over_month_growth: 0, // P1-3: No historical data yet — excluded from scoring
 
     // Scale
     funding_raised: startupData.funding_raised || 0,
-    growth_rate: 0, // Would need historical data
+    growth_rate: 0, // P1-3: No historical data yet — excluded from scoring
     has_expansion_plan: docs.some((d: any) => d.type === 'expansion' || d.type === 'business_plan'),
     has_partnerships: investorList.filter((i: any) => i.status === 'committed').length > 0,
   };
@@ -296,27 +296,27 @@ function calculateStageScore(metrics: StartupMetrics): { total: number; categori
   if (metrics.has_market_research) categories.ideation += 5;
   if (metrics.has_competitor_analysis) categories.ideation += 5;
 
-  // Validation (20-40)
+  // Validation (20-40) — 3 real metrics, max 15
   if (metrics.customer_interviews > 0) categories.validation += Math.min(5, metrics.customer_interviews);
   if (metrics.has_prototype) categories.validation += 5;
   if (metrics.has_landing_page) categories.validation += 5;
-  if (metrics.waitlist_signups > 0) categories.validation += Math.min(5, Math.floor(metrics.waitlist_signups / 10));
+  // waitlist_signups excluded: no tracking infra (P1-3)
 
-  // MVP (40-60)
+  // MVP (40-60) — 4 real metrics, max 20
   if (metrics.has_product) categories.mvp += 5;
   if (metrics.active_users > 0) categories.mvp += Math.min(5, Math.floor(metrics.active_users / 10));
   if (metrics.has_feedback_loop) categories.mvp += 5;
   if (metrics.feature_releases > 0) categories.mvp += Math.min(5, metrics.feature_releases);
 
-  // Growth (60-80)
+  // Growth (60-80) — 3 real metrics, max 15
   if (metrics.mrr > 0) categories.growth += Math.min(5, Math.floor(metrics.mrr / 1000));
   if (metrics.team_size > 1) categories.growth += Math.min(5, metrics.team_size);
   if (metrics.has_marketing) categories.growth += 5;
-  if (metrics.month_over_month_growth > 0) categories.growth += Math.min(5, Math.floor(metrics.month_over_month_growth / 5));
+  // month_over_month_growth excluded: no historical data (P1-3)
 
-  // Scale (80-100)
+  // Scale (80-100) — 3 real metrics, max 15
   if (metrics.funding_raised > 0) categories.scale += Math.min(5, Math.floor(metrics.funding_raised / 100000));
-  if (metrics.growth_rate > 20) categories.scale += 5;
+  // growth_rate excluded: no historical data (P1-3)
   if (metrics.has_expansion_plan) categories.scale += 5;
   if (metrics.has_partnerships) categories.scale += 5;
 

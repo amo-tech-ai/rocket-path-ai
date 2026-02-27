@@ -282,6 +282,194 @@ describe('ReportV2Layout', () => {
     });
   });
 
+  describe('React Error #31 regression — objects as React children', () => {
+    it('renders V2 object risks_assumptions when isV2Report is false (mixed format)', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      // KEY SCENARIO: problem_clarity is V1 string (isV2Report → false)
+      // but risks_assumptions and next_steps are V2 objects
+      // This is the exact data shape that caused the production crash
+      const mixedReport = {
+        score: 65,
+        summary: 'Mixed format report',
+        details: {
+          problem_clarity: 'A string, not an object',  // V1 → isV2Report returns false
+          customer_use_case: 'Also a string',
+          summary_verdict: 'Proceed with caution',
+          highlights: ['Strong team'],
+          red_flags: ['Competitive market'],
+          market_sizing: { tam: 5_000_000_000, sam: 500_000_000, som: 50_000_000 },
+          competition: { competitors: [] },
+          mvp_scope: 'Build an MVP',
+          risks_assumptions: [
+            { assumption: 'Market demand exists', if_wrong: 'No revenue', severity: 'fatal', how_to_test: 'Customer interviews', impact: 'high', probability: 'low' },
+            { assumption: 'Tech is feasible', if_wrong: 'Delays', severity: 'risky', how_to_test: 'Prototype', impact: 'high', probability: 'low' },
+          ],
+          next_steps: [
+            { action: 'Run customer interviews', timeframe: 'week_1', effort: 'medium' },
+            { action: 'Build prototype', timeframe: 'month_1', effort: 'high' },
+          ],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      // This MUST NOT throw React Error #31
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: mixedReport }))
+      );
+
+      expect(container.innerHTML).toBeTruthy();
+      // The assumption text from the V2 object should be visible (rendered by RiskHeatmap)
+      expect(screen.getByText('Market demand exists')).toBeTruthy();
+    });
+
+    it('renders V2 object next_steps in overview tab without crashing', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      const report = {
+        score: 70,
+        summary: 'Good idea',
+        details: {
+          problem_clarity: 'String field',
+          summary_verdict: 'Go',
+          highlights: [],
+          red_flags: [],
+          next_steps: [
+            { action: 'Validate assumptions', timeframe: 'week_1', effort: 'low' },
+            { action: 'Build MVP', timeframe: 'month_1', effort: 'high' },
+            { action: 'Launch beta', timeframe: 'quarter_1', effort: 'high' },
+          ],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: report }))
+      );
+
+      expect(container.innerHTML).toBeTruthy();
+      // next_steps rendered in overview tab + print section — safeText extracts .action
+      expect(screen.getAllByText('Validate assumptions').length).toBeGreaterThan(0);
+    });
+
+    it('handles risks_assumptions objects with missing shape fields gracefully', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      // Objects but without .assumption field → shape check fails → safeText fallback
+      const report = {
+        score: 50,
+        summary: 'Test',
+        details: {
+          summary_verdict: 'Test',
+          highlights: [],
+          red_flags: [],
+          risks_assumptions: [
+            { description: 'Some risk without assumption field', severity: 'high' },
+          ],
+          next_steps: [],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: report }))
+      );
+
+      // Should not crash — safeText extracts .description
+      expect(container.innerHTML).toBeTruthy();
+      expect(screen.getByText('Some risk without assumption field')).toBeTruthy();
+    });
+
+    it('handles next_steps objects with missing timeframe gracefully', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      // Objects with .action but no .timeframe → shape check fails → safeText fallback
+      const report = {
+        score: 50,
+        summary: 'Test',
+        details: {
+          summary_verdict: 'Test',
+          highlights: [],
+          red_flags: [],
+          risks_assumptions: [],
+          next_steps: [
+            { action: 'Do something important', effort: 'high' },
+          ],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: report }))
+      );
+
+      // Should not crash — safeText extracts .action (appears in overview + print)
+      expect(container.innerHTML).toBeTruthy();
+      expect(screen.getAllByText('Do something important').length).toBeGreaterThan(0);
+    });
+
+    it('handles highlights containing objects instead of strings', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      const report = {
+        score: 70,
+        summary: 'Test',
+        details: {
+          summary_verdict: 'Test',
+          highlights: [
+            { title: 'Strong market fit', description: 'Details here' } as any,
+            'Normal string highlight',
+          ],
+          red_flags: [
+            { name: 'Competitive pressure', level: 'high' } as any,
+          ],
+          next_steps: [],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: report }))
+      );
+
+      // Should not crash — safeText extracts .title and .name
+      expect(container.innerHTML).toBeTruthy();
+      expect(screen.getByText('Strong market fit')).toBeTruthy();
+      expect(screen.getByText('Normal string highlight')).toBeTruthy();
+      expect(screen.getByText('Competitive pressure')).toBeTruthy();
+    });
+
+    it('handles completely unknown object shapes via JSON.stringify fallback', async () => {
+      const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');
+
+      const report = {
+        score: 50,
+        summary: 'Test',
+        details: {
+          summary_verdict: 'Test',
+          highlights: [{ xyz: 123 } as any],
+          red_flags: [],
+          risks_assumptions: [{ foo: 'bar' } as any],
+          next_steps: [{ baz: true } as any],
+        },
+        created_at: '2026-02-27T00:00:00Z',
+      };
+
+      // Must not crash even with completely unknown shapes
+      const { container } = render(
+        React.createElement(BrowserRouter, null,
+          React.createElement(ReportV2Layout, { report: report }))
+      );
+
+      expect(container.innerHTML).toBeTruthy();
+    });
+  });
+
   describe('getSignal helper (via rendering)', () => {
     it('score 85 → go signal renders correctly', async () => {
       const { ReportV2Layout } = await import('@/components/validator/report/ReportV2Layout');

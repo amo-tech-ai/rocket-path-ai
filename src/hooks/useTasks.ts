@@ -126,17 +126,17 @@ export function useUpdateTask() {
   });
 }
 
-// Delete task
+// Soft delete task (sets deleted_at instead of hard delete)
 export function useDeleteTask() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('tasks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {

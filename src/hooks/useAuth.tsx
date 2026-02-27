@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { DEV_BYPASS_AUTH, DEV_MOCK_USER_ID } from '@/lib/devConfig';
+import { setReturnPathOnce } from '@/lib/authReturnPath';
 
 interface Profile {
   id: string;
@@ -71,17 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Set up auth state listener BEFORE checking session
+    // Single listener handles all auth events (INITIAL_SESSION fires on mount)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user) {
-          // Defer profile/role fetch to avoid blocking auth state update
-          setTimeout(() => {
-            fetchUserData(session.user.id);
-          }, 0);
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          setUserRole(null);
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token refreshed — session/user already up-to-date, skip DB fetch
+        } else if (session?.user) {
+          // INITIAL_SESSION, SIGNED_IN, USER_UPDATED — fetch profile + role
+          await fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setUserRole(null);
@@ -90,18 +94,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-
-      setLoading(false);
-    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -137,10 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async (returnPath?: string) => {
-    const base = window.location.origin + '/auth/callback';
-    const redirectTo = returnPath
-      ? `${base}?next=${encodeURIComponent(returnPath)}`
-      : base;
+    // Store return path in sessionStorage — AuthCallback reads it via getReturnPath()
+    // Do NOT append ?next= to redirectTo — query params break Supabase allowlist matching
+    if (returnPath) setReturnPathOnce(returnPath);
+    const redirectTo = window.location.origin + '/auth/callback';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
@@ -153,10 +145,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithLinkedIn = async (returnPath?: string) => {
-    const base = window.location.origin + '/auth/callback';
-    const redirectTo = returnPath
-      ? `${base}?next=${encodeURIComponent(returnPath)}`
-      : base;
+    // Store return path in sessionStorage — AuthCallback reads it via getReturnPath()
+    // Do NOT append ?next= to redirectTo — query params break Supabase allowlist matching
+    if (returnPath) setReturnPathOnce(returnPath);
+    const redirectTo = window.location.origin + '/auth/callback';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
       options: { redirectTo },
@@ -174,6 +166,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error signing out:', error);
       throw error;
     }
+    // Clear app-level sessionStorage to prevent stale data on next sign-in
+    sessionStorage.removeItem('auth:returnPath');
+    sessionStorage.removeItem('pendingIdea');
     setUser(null);
     setSession(null);
     setProfile(null);

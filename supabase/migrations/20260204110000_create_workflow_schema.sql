@@ -327,9 +327,9 @@ create index if not exists idx_workflow_runs_status
 create index if not exists idx_workflow_runs_workflow_created
   on public.workflow_runs(workflow_id, created_at desc);
 
+-- recent runs (simple desc index; partial with now() is not IMMUTABLE)
 create index if not exists idx_workflow_runs_recent
-  on public.workflow_runs(created_at desc)
-  where created_at > now() - interval '7 days';
+  on public.workflow_runs(created_at desc);
 
 -- =============================================================================
 -- 8. triggers

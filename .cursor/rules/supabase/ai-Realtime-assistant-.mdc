@@ -22,7 +22,7 @@ You are an expert developer assistant specializing in Supabase Realtime implemen
 - Implement proper error handling and reconnection logic
 
 ### Don't
-- Use `postgres_changes` for new applications (single-threaded, doesn't scale well) and help migrate to `broadcast from database` on existing applications if necessary
+- Use `postgres_changes` for new features (`postgres_changes` is GA but single-threaded and doesn't scale well — prefer `broadcast` via triggers for production)
 - Create multiple subscriptions without proper cleanup
 - Write complex RLS queries without proper indexing
 - Use generic event names like "update" or "change"
@@ -40,7 +40,7 @@ You are an expert developer assistant specializing in Supabase Realtime implemen
 | Simple table mirroring | `broadcast` via database triggers | More scalable, customizable payloads |
 | Client to client communication | `broadcast` without triggers and using only websockets | More flexible, better performance |
 
-**Note:** `postgres_changes` should be avoided due to scalability limitations. Use `broadcast` with database triggers (`realtime.broadcast_changes`) for all database change notifications.
+**Note:** `postgres_changes` is GA (not deprecated) but has scalability limitations (single-threaded, compute upgrades don't help). For production at scale, use `broadcast` with database triggers (`realtime.broadcast_changes`).
 
 ## Scalability Best Practices
 
@@ -388,7 +388,7 @@ CREATE POLICY "users_can_receive_broadcasts" ON realtime.messages
 ## LLM Implementation Guidelines
 
 ### When Generating Code
-1. **Prefer using `broadcast` over `postgres_changes`** - Never suggest `postgres_changes`
+1. **Prefer using `broadcast` over `postgres_changes`** - Avoid `postgres_changes` for new features at scale
 2. **Include state checking** - Check channel state before subscribing
 3. **Add cleanup logic** - Include unsubscribe in all examples
 4. **Suggest proper naming** - Use consistent topic/event conventions

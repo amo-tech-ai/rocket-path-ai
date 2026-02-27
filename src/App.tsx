@@ -48,7 +48,6 @@ const Validator = lazy(() => import("./pages/Validator"));
 const ValidateIdea = lazy(() => import("./pages/ValidateIdea"));
 const ValidatorProgress = lazy(() => import("./pages/ValidatorProgress"));
 const ValidatorReport = lazy(() => import("./pages/ValidatorReport"));
-const MarketResearch = lazy(() => import("./pages/MarketResearch"));
 const SharedReport = lazy(() => import("./pages/SharedReport"));
 const EmbedReport = lazy(() => import("./pages/EmbedReport"));
 const WeeklyReview = lazy(() => import("./pages/WeeklyReview"));
@@ -66,7 +65,7 @@ const App = () => (
         <BrowserRouter>
           <AIAssistantProvider>
             <PlaybookProvider>
-            {/* Global AI Assistant - visible on ALL pages */}
+            {/* Global AI Assistant — public pages only (authenticated pages use persistent panel in DashboardLayout) */}
             <GlobalAIAssistant />
             <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
             <Routes>
@@ -296,18 +295,10 @@ const App = () => (
               }
             />
             <Route
-              path="/validator/report/:reportId"
+              path="/validator/report/:reportId/:section?"
               element={
                 <ProtectedRoute>
                   <ValidatorReport />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/market-research"
-              element={
-                <ProtectedRoute>
-                  <MarketResearch />
                 </ProtectedRoute>
               }
             />
@@ -321,11 +312,9 @@ const App = () => (
             />
 
             {/* ── Redirects for removed pages ────────────────── */}
-            <Route path="/experiments" element={<Navigate to="/tasks" replace />} />
             <Route path="/assumption-board" element={<Navigate to="/dashboard" replace />} />
             <Route path="/decision-log" element={<Navigate to="/dashboard" replace />} />
             <Route path="/sprint-plan" element={<Navigate to="/tasks" replace />} />
-            <Route path="/opportunity-canvas" element={<Navigate to="/lean-canvas" replace />} />
             <Route path="/diagrams" element={<Navigate to="/dashboard" replace />} />
 
             {/* ── Catch-all ──────────────────────────────────── */}

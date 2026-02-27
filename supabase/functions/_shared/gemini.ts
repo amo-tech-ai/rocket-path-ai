@@ -9,11 +9,16 @@
 export interface GeminiCallOptions {
   useSearch?: boolean;
   useUrlContext?: boolean;
-  thinkingLevel?: 'none' | 'low' | 'high';
+  thinkingLevel?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
   maxRetries?: number;
   responseJsonSchema?: Record<string, unknown>;
   timeoutMs?: number;
   maxOutputTokens?: number;
+  /** Keep responseJsonSchema even when thinking is active.
+   *  Default: false (schema is deleted to avoid conflicts with thinking mode).
+   *  Set to true when structured output is critical and you accept the risk
+   *  of thinking mode reducing schema adherence. */
+  keepSchemaWithThinking?: boolean;
 }
 
 export interface GeminiCallResult {
@@ -21,6 +26,8 @@ export interface GeminiCallResult {
   searchGrounding: boolean;
   citations: Array<{ url: string; title: string }>;
   urlContextMetadata?: Array<{ url: string; status: string }>;
+  /** D-02: True when Gemini hit maxOutputTokens and output was truncated */
+  truncated: boolean;
 }
 
 export async function callGemini(
@@ -29,7 +36,7 @@ export async function callGemini(
   userPrompt: string,
   options: GeminiCallOptions = {}
 ): Promise<GeminiCallResult> {
-  const { useSearch = false, useUrlContext = false, thinkingLevel, maxRetries = 2, responseJsonSchema, timeoutMs, maxOutputTokens } = options;
+  const { useSearch = false, useUrlContext = false, thinkingLevel, maxRetries = 2, responseJsonSchema, timeoutMs, maxOutputTokens, keepSchemaWithThinking = false } = options;
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
 
@@ -46,10 +53,13 @@ export async function callGemini(
   }
 
   // Thinking config — Gemini 3 uses thinkingLevel (string), not legacy thinkingBudget.
-  // Thinking mode is incompatible with JSON schema enforcement.
+  // R-01 fix: Only delete schema when keepSchemaWithThinking is false (default).
+  // Scoring agent sets keepSchemaWithThinking=true because its output structure is critical.
   if (thinkingLevel && thinkingLevel !== 'none') {
     generationConfig.thinkingConfig = { thinkingLevel };
-    delete generationConfig.responseJsonSchema;
+    if (!keepSchemaWithThinking) {
+      delete generationConfig.responseJsonSchema;
+    }
   }
 
   // Build tools array dynamically
@@ -149,11 +159,22 @@ export async function callGemini(
       // deno-lint-ignore no-explicit-any
       const outputPart = parts.filter((p: any) => !p.thought).pop();
       const text = outputPart?.text || '';
-      // Log truncation warning — helps debug maxOutputTokens issues
+      // D-02: Detect truncation — exposed to callers via result.truncated
       // deno-lint-ignore no-explicit-any
       const finishReason = (data as any).candidates?.[0]?.finishReason;
-      if (finishReason === 'MAX_TOKENS') {
-        console.warn(`[callGemini] Response truncated (MAX_TOKENS). Output length: ${text.length} chars`);
+      const truncated = finishReason === 'MAX_TOKENS';
+      if (truncated) {
+        console.warn(`[callGemini] Response truncated (MAX_TOKENS). Output length: ${text.length} chars, maxOutputTokens: ${generationConfig.maxOutputTokens}`);
+        // D-02: Retry once with 1.5x maxOutputTokens if within retry budget
+        const currentMax = (generationConfig.maxOutputTokens as number) || 8192;
+        const MAX_CEILING = 16384; // Gemini hard limit
+        if (attempt < maxRetries && currentMax < MAX_CEILING) {
+          const newMax = Math.min(Math.round(currentMax * 1.5), MAX_CEILING);
+          console.warn(`[callGemini] Retrying with increased maxOutputTokens: ${currentMax} → ${newMax}`);
+          generationConfig.maxOutputTokens = newMax;
+          lastError = new Error(`MAX_TOKENS truncation at ${currentMax} tokens`);
+          continue; // Let the retry loop handle it
+        }
       }
       // deno-lint-ignore no-explicit-any
       const searchGrounding = (data as any).candidates?.[0]?.groundingMetadata?.webSearchQueries?.length > 0;
@@ -178,7 +199,7 @@ export async function callGemini(
         status: m.url_retrieval_status === 'URL_RETRIEVAL_STATUS_SUCCESS' ? 'fetched' : m.url_retrieval_status || 'unknown',
       }));
 
-      return { text, searchGrounding, citations, urlContextMetadata: urlContextChunks.length > 0 ? urlContextChunks : undefined };
+      return { text, searchGrounding, citations, urlContextMetadata: urlContextChunks.length > 0 ? urlContextChunks : undefined, truncated };
     }
 
     // Error response
@@ -191,6 +212,125 @@ export async function callGemini(
   }
 
   throw lastError || new Error('Gemini API failed after retries');
+}
+
+// ============================================================================
+// Multi-turn Chat — for ai-chat and other conversational edge functions
+// ============================================================================
+
+export interface GeminiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface GeminiChatResult {
+  text: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Call Gemini with multi-turn chat history.
+ * Unlike callGemini (JSON mode), this returns plain text for conversational use.
+ */
+export async function callGeminiChat(
+  model: string,
+  systemPrompt: string,
+  messages: GeminiChatMessage[],
+  options: Pick<GeminiCallOptions, 'timeoutMs' | 'maxOutputTokens' | 'maxRetries'> = {}
+): Promise<GeminiChatResult> {
+  const { timeoutMs = 30_000, maxOutputTokens = 2048, maxRetries = 2 } = options;
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
+
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  const body = {
+    contents,
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: {
+      temperature: 1.0,
+      maxOutputTokens,
+    },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const RETRYABLE_CODES = [429, 500, 502, 503, 504];
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delayMs = 1000 * Math.pow(2, attempt - 1);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+
+    const signal = AbortSignal.timeout(timeoutMs);
+
+    type FetchResult = { ok: true; data: Record<string, unknown> } | { ok: false; status: number; errorText: string };
+
+    const doFetch = async (): Promise<FetchResult> => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        body: JSON.stringify(body),
+        signal,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return { ok: true, data };
+      }
+      return { ok: false, status: response.status, errorText: await response.text() };
+    };
+
+    let result: FetchResult;
+    try {
+      result = await Promise.race([
+        doFetch(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Gemini chat hard timeout after ${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
+    } catch (err) {
+      const isTimeout = (err instanceof Error && err.message.includes('hard timeout'))
+        || (err instanceof DOMException && (err.name === 'TimeoutError' || err.name === 'AbortError'));
+      if (isTimeout && attempt < maxRetries) {
+        lastError = err instanceof Error ? err : new Error('Timeout');
+        continue;
+      }
+      throw err;
+    }
+
+    if (result.ok) {
+      // deno-lint-ignore no-explicit-any
+      const data = result.data as any;
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      // deno-lint-ignore no-explicit-any
+      const outputPart = parts.filter((p: any) => !p.thought).pop();
+      return {
+        text: outputPart?.text || '',
+        inputTokens: data.usageMetadata?.promptTokenCount || 0,
+        outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+      };
+    }
+
+    console.error(`[callGeminiChat] Error (attempt ${attempt + 1}):`, result.status, result.errorText);
+    lastError = new Error(`Gemini API error: ${result.status}`);
+    if (result.status === 429) {
+      lastError = new Error('Rate limit exceeded. Please try again later.');
+    }
+    if (!RETRYABLE_CODES.includes(result.status)) throw lastError;
+  }
+
+  throw lastError || new Error('Gemini chat failed after retries');
 }
 
 // ============================================================================

@@ -110,36 +110,9 @@ supabase status | grep "anon key"
 
 ## Migration Workflow
 
-### Declarative Schema Management (This Project)
+### Manual Migration Workflow (This Project)
 
-**This project uses declarative schema files in `supabase/schemas/`:**
-
-1. **Edit schema files** in `supabase/schemas/*.sql`
-2. **Generate migration** from schema changes:
-   ```bash
-   # Stop local Supabase first
-   supabase stop
-   
-   # Generate migration from schema diff
-   supabase db diff -f <migration_name>
-   
-   # Example
-   supabase db diff -f add_user_profiles
-   ```
-3. **Review generated migration** in `supabase/migrations/`
-4. **Apply locally**:
-   ```bash
-   supabase start
-   supabase db reset  # Applies all migrations + seed.sql
-   ```
-5. **Push to remote**:
-   ```bash
-   supabase db push
-   ```
-
-### Traditional Migration Workflow
-
-**If creating migrations manually:**
+**This project uses manual migrations (66 files in `supabase/migrations/`):**
 
 ```bash
 # Create new migration file
@@ -423,28 +396,7 @@ supabase start
 supabase status
 ```
 
-### Creating a Migration (Declarative)
-
-```bash
-# 1. Edit schema files in supabase/schemas/
-# 2. Stop local Supabase
-supabase stop
-
-# 3. Generate migration
-supabase db diff -f add_new_feature
-
-# 4. Review generated migration
-cat supabase/migrations/*_add_new_feature.sql
-
-# 5. Test locally
-supabase start
-supabase db reset
-
-# 6. Push to remote
-supabase db push
-```
-
-### Creating a Migration (Manual)
+### Creating a Migration
 
 ```bash
 # 1. Create migration file
@@ -567,9 +519,7 @@ cat .supabase/config.toml
    supabase db reset  # Test locally first
    ```
 
-2. **Use declarative schema** (this project's approach):
-   - Edit `supabase/schemas/*.sql`
-   - Generate migrations with `supabase db diff`
+2. **This project uses manual migrations** — write SQL in migration files, push with `supabase db push`
 
 3. **Never edit applied migrations** - create new ones
 
@@ -595,21 +545,18 @@ cat .supabase/config.toml
 ### Current Project Setup
 
 ```bash
-# Project Reference is in .supabase/.temp/project-ref or Dashboard → Settings → General
+# Project Reference: yvyesmiczbjqwbqtlidy
 # Link to project (one-time)
-supabase link --project-ref <your-project-ref>
+supabase link --project-ref yvyesmiczbjqwbqtlidy
 
-# Start local development (requires Docker)
-supabase start
+# Create a new migration
+supabase migration new <descriptive_name>
 
-# Generate migration from schema changes (requires Docker)
-supabase stop
-supabase db diff -f <migration_name>
-supabase start
-supabase db reset
-
-# Deploy to remote (no Docker required)
+# Push migrations to remote (no Docker required)
 supabase db push
+
+# Deploy edge functions
+supabase functions deploy <function-name>
 ```
 
 ---

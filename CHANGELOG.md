@@ -1,5 +1,138 @@
 # Changelog
 
+## [0.10.30] - 2026-02-27
+
+### Audit 29 — Validator Pipeline Hardening (22 findings, all resolved)
+
+Full static analysis audit of the 7-agent validator pipeline, report rendering, and shared infrastructure. 22 failure points identified across 4 severity tiers — all fixed.
+
+**P0 Fixes (6/6) — Critical bugs silently corrupting data:**
+- F-01: Fixed Composer Group D overwriting `summary_verdict` with empty string when Gemini fails
+- F-02: Fixed `isV2Report()` returning false when `problem_clarity` is already a V2 object
+- F-04: Fixed Verifier only checking 8 of 14 required sections (added 6 new P02 sections)
+- D-04: Fixed dimension scores always returning 0 (missing `dimension_scores` in scoring schema)
+- U-01: Fixed Report hero showing 0/100 score when `score` column is null (fallback to `scores_matrix.overall_weighted`)
+- R-01: Fixed 60s Extractor timeout exceeding 300s pipeline budget when retries stack
+
+**P1 Fixes (5/5) — Data quality and resilience:**
+- D-01: Composer Group A/C fallbacks now return V2 objects (not strings that break `isV2Report()`)
+- D-03: Research agent logs original TAM/SAM/SOM before correction, appends methodology note
+- D-05: Added `strengths`/`weaknesses` to Composer Group B competitor schema + `trimCompetitors()` passthrough
+- R-03: Added error check to `startup_members` insert in pipeline (was silently failing)
+- R-05: Report INSERT now returns ID directly (`.select('id').single()`), removed unreliable `getReportId()`
+
+**P2 Fixes (6/6) — UX, observability, resilience:**
+- F-03: Fixed `InterviewContext.discoveredEntities` type to match extractor's access pattern (`{competitors,urls,marketData}`)
+- D-02: Added MAX_TOKENS truncation detection + auto-retry with 1.5x token limit (ceiling 16384) in `callGemini()`
+- U-02: Added "Generation incomplete" amber banner on reports with failed agents
+- U-03: Updated `ReportData.details` with V2 union types (`string | ProblemClarityV2`, etc.)
+- R-02: Expanded Composer fallback to handle 413, 422, 500 (not just 400)
+- R-04: Added circuit breaker to knowledge-search (3 failures → skip for 5 min, half-open probe)
+
+**Files modified:** `pipeline.ts`, `composer.ts`, `research.ts`, `scoring.ts`, `verifier.ts`, `schemas.ts`, `types.ts`, `gemini.ts`, `knowledge-search.ts`, `ValidatorReport.tsx`, `ReportV2Layout.tsx`
+
+**Build:** ✓ | **Tests:** 325/325 | **TypeScript:** 0 errors
+
+## [0.10.29] - 2026-02-25
+
+### CORE-03: Auto-Generate Lean Canvas from Validation Report
+
+One-click canvas generation from completed validation reports. Report dimensions (problem, customer, market, competition, revenue, etc.) are mapped to the 9 Lean Canvas boxes using Gemini. Includes overwrite confirmation dialog when a canvas already exists.
+
+**Edge function changes (`lean-canvas-agent`):**
+- `actions/generation.ts` — Added `generateFromReport()`: fetches report + startup profile, calls Gemini to map report dimensions to 9 canvas boxes, returns canvas data with confidence levels
+- `actions/index.ts` — Added `generateFromReport` export
+- `index.ts` — Added `generate_from_report` action case + `report_id` field to RequestBody interface
+
+**Frontend changes:**
+- `src/hooks/useLeanCanvas.ts` — Added `useGenerateCanvasFromReport()` mutation: calls `lean-canvas-agent` with `generate_from_report`, saves result to `documents` table (insert or update), invalidates queries
+- `src/pages/ValidatorReport.tsx` — Added "Generate Canvas" button in header controls with LayoutGrid icon, loading state during generation, overwrite confirmation dialog (AlertDialog), success navigates to `/lean-canvas`
+
+**Report-to-Canvas mapping (via Gemini):**
+- `problem_clarity` + `red_flags` → Problem box
+- `customer_use_case` → Customer Segments + Solution boxes
+- `competition` gaps + SWOT strengths → Unfair Advantage box
+- `summary_verdict` + tagline → Unique Value Proposition box
+- `revenue_model` + `business_model` → Revenue Streams box
+- `market_sizing` + `market_factors` → Channels box
+- `scores_matrix` + metrics → Key Metrics box
+- `technology_stack` + `mvp_scope` → Cost Structure box
+
+**Build:** ✓ (6.78s) | **Tests:** 325/325 | **TypeScript:** 0 errors
+
+## [0.10.28] - 2026-02-25
+
+### CORE-02: Persistent AI Right Panel (360px in DashboardLayout)
+
+Replaced floating AI overlay with a persistent 360px right-column chat panel in DashboardLayout. Panel survives page navigation, toggles with Cmd/Ctrl+J, and auto-hides below 1280px.
+
+**New files:**
+- `src/hooks/useAIPanel.ts` — Panel visibility state with localStorage persistence, Cmd/Ctrl+J shortcut, responsive breakpoint auto-hide/restore
+- `src/components/ai/AIPanel.tsx` — Persistent chat panel (header, messages, quick actions, auto-scroll, keyboard hint)
+- `src/components/ai/AIChatInput.tsx` — Reusable chat input with auto-resize textarea and send button
+
+**Modified files:**
+- `src/components/layout/DashboardLayout.tsx` — Added 360px right column for AI panel, floating Brain FAB when panel is closed, mobile toggle in header
+- `src/components/ai/GlobalAIAssistant.tsx` — Now hides on dashboard routes (persistent panel handles them), only renders floating overlay on public pages
+- `src/components/ai/index.ts` — Added AIPanel and AIChatInput exports
+
+**Architecture:**
+- Panel state managed in `useAIPanel` hook (separate from AIAssistantProvider chat state)
+- Chat state (messages, sendMessage) from existing `AIAssistantProvider` — zero migration needed
+- `GlobalAIAssistant` floating overlay still works on public/marketing pages
+- Responsive: panel hidden <1280px, sidebar hidden <1024px, floating FAB shows when panel closed
+- Page-specific `aiPanel` prop preserved for backward compat
+
+**Build:** ✓ (6.83s) | **Tests:** 325/325 | **TypeScript:** 0 errors
+
+## [0.10.27] - 2026-02-25
+
+### CORE-06/07/08/09: Validator Agent Intelligence — Skill Framework Wiring
+
+Wired 37 startup skills into 5 validator agents + composer + verifier. All new fields optional for backward compatibility.
+
+**CORE-06 (Validation-Scoring Skills):**
+- Scoring agent: Risk taxonomy (15 domains), bias detection (6 types), signal strength assessment (4 levels)
+- Composer Group B: risk_queue → risks_assumptions mapping, bias_flags warnings, positioning/battlecard/white_space for SWOT
+- Composer Group D: Signal-level verdict constraints (Level 1-2 → max "Conditional go", Level 4-5 → strengthens "Go")
+- Verifier: SWOT depth check, positioning map validation, unit economics sanity checks
+
+**CORE-07 (Idea-Discovery → ExtractorAgent):**
+- Idea Quality Filters: Paul Graham well/crater test, schlep factor, organic vs manufactured demand
+- Why Now analysis: trigger, category, confidence
+- Tarpit detection: flag + reasoning
+
+**CORE-08 (Market-Intelligence → ResearchAgent):**
+- Value Theory TAM sizing, 3-method cross-validation (bottom-up/top-down/value-theory)
+- Source freshness tracking with stale flags, trend analysis (trajectory/adoption curve/maturity)
+- Fixed structural bug: CORE-06 research schema fields placed outside `properties` object
+
+**CORE-09 (MVP Skills → MVPAgent):**
+- Experiment cards: risk_domain, hypothesis, method, SMART goal, pass/fail thresholds
+- Founder stage detection, recommended validation methods alignment
+
+**Schema changes:** 15 optional fields added across 5 TypeScript interfaces (types.ts) + 3 Gemini JSON schemas (schemas.ts)
+
+**Supabase Realtime Audit:** 22 implementations audited, 100% compliant (broadcast pattern, private channels, setAuth(), cleanup, naming conventions). Zero postgres_changes subscriptions.
+
+**Build:** ✓ (6.64s) | **Tests:** 325/325 | **TypeScript:** 0 errors
+
+## [0.10.26] - 2026-02-25
+
+### Supabase Security Audit (Task 27) + Gemini API Audit (Task 28)
+
+Two infrastructure audits completed:
+
+**Supabase audit:** 78% B+ → 93% A. 12 critical/high fixes (RLS gaps, JWT checks, storage policies).
+**Gemini API audit (3 rounds):** 87% → 92% A. 18 locations fixed across 12 files:
+- Thinking-aware extraction (`extractGeminiText()`) in `ai-chat`, `industry-expert-agent`, `onboarding-agent`
+- MODEL_PRICING corrections (Flash, Pro, Image model)
+- `gemini-3.1-pro-preview` added to MODELS registry, skill doc, CLAUDE.md
+- Thinking+schema comment corrected from "incompatible" to "empirical observation"
+- Temperature wording corrected from "hard rule" to "strongly recommended per docs"
+
+**Build:** ✓ (6.89s) | **Tests:** 325/325 | **TypeScript:** 0 errors
+
 ## [0.10.22] - 2026-02-14
 
 ### Luxury Report Hero Redesign (Spec 035)

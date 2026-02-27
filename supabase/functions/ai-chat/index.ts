@@ -4,6 +4,7 @@ import { handleCoachMode, getWelcomeMessage } from "./coach/index.ts";
 import { getRAGContext } from "./rag.ts";
 import { corsHeaders, getCorsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '../_shared/rate-limit.ts';
+import { callGeminiChat as sharedCallGeminiChat, type GeminiChatMessage } from '../_shared/gemini.ts';
 
 // OpenAI Embeddings API
 const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
@@ -219,9 +220,20 @@ Deno.serve(async (req: Request) => {
           .select('name')
           .eq('id', effectiveStartupId)
           .single();
-        
+
         const welcomeMessage = getWelcomeMessage(startupData?.name);
-        
+
+        // Ensure a coach session exists and persist the welcome message
+        const { loadValidationContext, createSession, saveConversation } = await import("./coach/context-loader.ts");
+        let ctx = await loadValidationContext(supabase, effectiveStartupId, user.id);
+        if (!ctx.session) {
+          const newSession = await createSession(supabase, effectiveStartupId, user.id);
+          if (newSession) ctx = { ...ctx, session: newSession };
+        }
+        if (ctx.session) {
+          await saveConversation(supabase, ctx.session.id, user.id, 'assistant', welcomeMessage, 'onboarding');
+        }
+
         return new Response(
           JSON.stringify({
             message: welcomeMessage,
@@ -229,6 +241,7 @@ Deno.serve(async (req: Request) => {
             progress: { phase: 'onboarding', step: 1, totalSteps: 3, percentage: 0 },
             suggestedActions: ['Tell me about my startup', 'Let\'s get started'],
             mode: 'coach',
+            sessionId: ctx.session?.id || null,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -531,6 +544,7 @@ async function callAnthropic(
   ]);
 }
 
+// CHAT-P1-1: Delegates to _shared/gemini.ts callGeminiChat (single source of truth)
 async function callGemini(
   model: string,
   systemPrompt: string,
@@ -538,74 +552,24 @@ async function callGemini(
   userMessage: string,
   context?: { data?: Record<string, unknown> }
 ): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-
-  const contents = [];
-  
+  // Build message list from history + current message with context
+  const chatMessages: GeminiChatMessage[] = [];
   for (const msg of history.slice(0, -1)) {
-    contents.push({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+    chatMessages.push({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content,
     });
   }
-  
   let currentMessage = userMessage;
   if (context?.data) {
     currentMessage += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
   }
-  contents.push({ role: 'user', parts: [{ text: currentMessage }] });
+  chatMessages.push({ role: 'user', content: currentMessage });
 
-  const TIMEOUT_MS = 30_000;
-
-  const doFetch = async () => {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: {
-            temperature: 1.0,
-            maxOutputTokens: 2048,
-          }
-        }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
-
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again later.');
-      }
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-      text: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
-      inputTokens: data.usageMetadata?.promptTokenCount || 0,
-      outputTokens: data.usageMetadata?.candidatesTokenCount || 0
-    };
-  };
-
-  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
-  return await Promise.race([
-    doFetch(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-    ),
-  ]);
+  return sharedCallGeminiChat(model, systemPrompt, chatMessages, {
+    timeoutMs: 30_000,
+    maxOutputTokens: 2048,
+  });
 }
 
 function buildSystemPrompt(action: string, context: Record<string, unknown>): string {

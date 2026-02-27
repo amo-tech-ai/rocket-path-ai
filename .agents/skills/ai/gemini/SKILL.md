@@ -28,6 +28,7 @@ Build AI features using Google's Gemini 3 models with URL Context, Google Search
 
 | Model | Use Case | Context | Pricing |
 |-------|----------|---------|---------|
+| `gemini-3.1-pro-preview` | Latest Pro — complex reasoning, analysis | 1M / 64k | $2-4 / $12-18 |
 | `gemini-3-pro-preview` | Complex reasoning, analysis | 1M / 64k | $2-4 / $12-18 |
 | `gemini-3-flash-preview` | Fast responses, extraction, chat | 1M / 64k | $0.50 / $3 |
 | `gemini-3-pro-image-preview` | Image generation (4K) | 65k / 32k | $2 / $0.134 |

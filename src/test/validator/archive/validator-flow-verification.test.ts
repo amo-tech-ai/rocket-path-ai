@@ -15,62 +15,82 @@ import {
 
 describe('Validator Flow Verification', () => {
   describe('1. useValidatorFollowup — Readiness Logic', () => {
-    it('checkReadiness: Normal ready — 5+ msgs, 5+ shallow+, 2+ deep, minBar → ready', () => {
+    it('checkReadiness: Normal ready — 5+ msgs, 8+ shallow+, 3+ deep, minBar → ready', () => {
       const coverage: FollowupCoverage = {
+        company_name: 'deep',
         customer: 'deep',
         problem: 'deep',
+        solution: 'shallow',
+        competitors: 'shallow',
+        innovation: 'shallow',
+        demand: 'shallow',
+        research: 'shallow',
+        uniqueness: 'none',
+        websites: 'none',
+        industry: 'none',
+        business_model: 'none',
+        stage: 'none',
+      };
+      expect(countAtDepth(coverage, 'shallow')).toBe(8); // shallow or deep
+      expect(countAtDepth(coverage, 'deep')).toBe(3);
+      expect(checkReadiness(coverage, 5)).toBe(true); // 5 msgs, 8 shallow+, 3 deep → Normal Ready
+    });
+
+    it('checkReadiness: Quick ready — 3+ msgs, 9+ shallow+, 4+ deep, minBar → ready', () => {
+      const coverage: FollowupCoverage = {
+        company_name: 'deep',
+        customer: 'deep',
+        problem: 'deep',
+        solution: 'deep',
         competitors: 'shallow',
         innovation: 'shallow',
         demand: 'shallow',
         research: 'shallow',
         uniqueness: 'shallow',
         websites: 'none',
+        industry: 'none',
+        business_model: 'none',
+        stage: 'none',
       };
-      expect(countAtDepth(coverage, 'shallow')).toBe(7); // shallow or deep
-      expect(countAtDepth(coverage, 'deep')).toBe(2);
-      expect(checkReadiness(coverage, 5)).toBe(true); // 5 msgs, 7 shallow+, 2 deep → Normal Ready
-    });
-
-    it('checkReadiness: Quick ready — 3+ msgs, 6+ shallow+, 3+ deep, minBar → ready', () => {
-      const coverage: FollowupCoverage = {
-        customer: 'deep',
-        problem: 'deep',
-        competitors: 'deep',
-        innovation: 'deep',
-        demand: 'shallow',
-        research: 'shallow',
-        uniqueness: 'none',
-        websites: 'none',
-      };
-      expect(countAtDepth(coverage, 'shallow')).toBe(6); // 4 deep + 2 shallow = 6 shallow+
+      expect(countAtDepth(coverage, 'shallow')).toBe(9); // 4 deep + 5 shallow = 9 shallow+
       expect(countAtDepth(coverage, 'deep')).toBe(4);
-      expect(checkReadiness(coverage, 3)).toBe(true); // 3 msgs, 6 shallow+, 4 deep → Quick Ready
+      expect(checkReadiness(coverage, 3)).toBe(true); // 3 msgs, 9 shallow+, 4 deep → Quick Ready
     });
 
     it('checkReadiness: Forced ready — 10+ msgs always ready', () => {
       const coverage: FollowupCoverage = {
+        company_name: 'none',
         customer: 'shallow',
         problem: 'shallow',
+        solution: 'none',
         competitors: 'shallow',
         innovation: 'shallow',
         demand: 'shallow',
         research: 'none',
         uniqueness: 'none',
         websites: 'none',
+        industry: 'none',
+        business_model: 'none',
+        stage: 'none',
       };
       expect(checkReadiness(coverage, 10)).toBe(true); // 10+ msgs → Forced Ready
     });
 
     it('checkReadiness: Not ready — insufficient coverage', () => {
       const coverage: FollowupCoverage = {
+        company_name: 'none',
         customer: 'shallow',
         problem: 'shallow',
+        solution: 'none',
         competitors: 'none',
         innovation: 'none',
         demand: 'none',
         research: 'none',
         uniqueness: 'none',
         websites: 'none',
+        industry: 'none',
+        business_model: 'none',
+        stage: 'none',
       };
       expect(checkReadiness(coverage, 2)).toBe(false);
     });

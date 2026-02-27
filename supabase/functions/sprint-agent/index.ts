@@ -8,6 +8,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { callGemini, extractJSON } from "../_shared/gemini.ts";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // ---------------------------------------------------------------------------
 // Schema for AI-generated sprint tasks
@@ -79,6 +80,13 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
+    }
+
+    // Rate limit — generates 24 tasks via Gemini (heavy)
+    const rateResult = checkRateLimit(user.id, 'sprint-agent', RATE_LIMITS.heavy);
+    if (!rateResult.allowed) {
+      console.warn(`[sprint-agent] Rate limit hit: user=${user.id}`);
+      return rateLimitResponse(rateResult, corsHeaders);
     }
 
     // Parse input

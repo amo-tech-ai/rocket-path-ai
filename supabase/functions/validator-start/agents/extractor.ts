@@ -84,6 +84,35 @@ List 2-5 key assumptions the founder is making. Common categories:
 - Solution assumption: "This approach solves the root cause"
 - Market assumption: "The market is large enough and growing"
 
+### Idea Quality Filters
+
+Apply these 3 founder framework tests to every idea:
+
+**Paul Graham Filters:**
+1. WELL vs CRATER: Is this idea a "well" (deep, narrow, specific problem for specific people)
+   or a "crater" (shallow, broad, vague — "platform for everything")?
+   - Wells are better for startups. Craters need massive funding.
+   - Flag as crater if: no specific customer, no specific problem, "platform" language
+2. SCHLEP FILTER: Does this require hard, unpleasant, unglamorous work that competitors avoid?
+   - Schlep = competitive advantage (others won't bother)
+   - No schlep = low barrier to entry (everyone will copy)
+3. ORGANIC vs MADE-UP: Did the founder discover this problem through personal experience
+   or manufacture it by looking for startup ideas?
+   - Organic = founder has domain insight, likely real problem
+   - Made-up = higher risk of building something nobody wants
+
+**Why Now Test:**
+What changed in the last 1-2 years that makes this possible/necessary NOW?
+Categories: technology shift, regulatory change, behavioral shift, market gap, cost reduction.
+If no clear "Why Now" → flag timing_risk as HIGH.
+
+**Tarpit Detection:**
+Is this a "tarpit" idea — widely attempted with a graveyard of failed startups?
+Common tarpits: social networks for niche, marketplace for local services,
+"Uber for X", general-purpose AI assistants, recipe/meal planning apps.
+If tarpit detected → REQUIRE clear differentiation explanation.
+If no differentiation beyond "better UX" or "AI-powered" → flag as tarpit_risk HIGH.
+
 Return JSON with exactly these fields:
 {
   "idea": "One clear sentence: [Who] gets [what outcome] by [how]. Example: 'Independent fashion labels get a complete production workflow by using an AI that converts creative briefs into schedules, vendor lists, and marketing assets.'",
@@ -109,6 +138,18 @@ Return JSON with exactly these fields:
     "pain": "Quantify the cost: hours wasted, dollars lost, delays caused per week/month/quarter. BAD: 'planning takes too long'. GOOD: 'Teams waste 20-30 hours per shoot on manual planning — at $75/hr blended rate, that is $1,500-$2,250 lost per shoot.'",
     "todays_fix": "Name the specific tools/workarounds AND explain the structural failure. BAD: 'they use spreadsheets'. GOOD: 'Fragmented spreadsheets and Notion pages that cannot capture technical lighting specs or spatial dimensions — forcing last-minute rework on 40% of shoots.'",
     "evidence_tier": "A if founder provided revenue/usage data, B if prototype/beta evidence, C if survey/interview data, D if desk research or intuition only"
+  },
+  "idea_quality": {
+    "well_or_crater": "well or crater — wells are deep, narrow, specific; craters are shallow, broad, vague",
+    "schlep_factor": "high (hard work competitors avoid), medium, or low (easy to copy)",
+    "organic_or_manufactured": "organic (founder experienced the problem) | manufactured (looking for ideas) | unclear",
+    "why_now": {
+      "trigger": "What specifically changed in 1-2 years",
+      "category": "technology | regulatory | behavioral | market_gap | cost_reduction | none",
+      "confidence": "strong | moderate | weak | none"
+    },
+    "tarpit_flag": false,
+    "tarpit_reasoning": "Empty if not a tarpit, explanation if it is"
   }
 }
 ${contextBlock}
