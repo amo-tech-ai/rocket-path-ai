@@ -20,7 +20,7 @@ import type {
   ComposerGroupD,
 } from "../types.ts";
 import { AGENTS, AGENT_TIMEOUTS, COMPOSER_GROUP_TIMEOUTS } from "../config.ts";
-import { COMPOSER_GROUP_SCHEMAS } from "../schemas.ts";
+import { COMPOSER_GROUP_SCHEMAS, DIMENSION_SCHEMAS, DIMENSION_SUB_SCORES } from "../schemas.ts";
 import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 
@@ -561,6 +561,207 @@ SCORING: ${JSON.stringify(compactScoring)}${consistencyBlock}`;
 }
 
 // ---------------------------------------------------------------------------
+// Group E — V3 Dimension Detail Pages (9 parallel calls, one per dimension)
+// MVP-02: Each call generates DimensionDetail + headline + diagram data.
+// ---------------------------------------------------------------------------
+
+/** Dimension-specific prompt context. Tells Gemini what to assess and what diagram to generate. */
+const DIMENSION_PROMPTS: Record<string, { focus: string; diagramHint: string }> = {
+  problem: {
+    focus: 'Assess problem severity: how intense is the pain, how often does it occur, what is the economic impact, and how urgently do users need to replace current solutions. Use problem_structured data if available.',
+    diagramHint: 'Generate a pain-chain diagram: 4-6 nodes showing trigger event → symptoms → consequences → business cost, connected by causal edges with brief labels.',
+  },
+  customer: {
+    focus: 'Assess target customer clarity: how specific is the ICP, do they have buying authority, how disruptive is the workflow change, and are they willing to pay. Use customer_structured data if available.',
+    diagramHint: 'Generate an ICP funnel diagram: 3-4 tiers narrowing from broad market → target segment → ideal customer, each with count estimate and qualifying criteria.',
+  },
+  market: {
+    focus: 'Assess market opportunity: TAM/SAM/SOM methodology rigor, niche focus clarity, growth trajectory, and distribution feasibility. Use market research data.',
+    diagramHint: 'Generate a TAM pyramid diagram: tam, sam, som each with dollar value and label. Include growth_rate if available.',
+  },
+  competition: {
+    focus: 'Assess competitive position: depth of differentiation, switching costs for customers, replicability risk, and likely competitive reactions. Use competitor analysis data.',
+    diagramHint: 'Generate a positioning matrix diagram: choose 2 meaningful axes, plot 3-5 competitors plus the founder\'s position (is_founder: true). x and y are 0-100.',
+  },
+  revenue: {
+    focus: 'Assess revenue model: pricing clarity, monetization validation level, unit economics health, and margin sustainability. Use revenue model and financial data.',
+    diagramHint: 'Generate a revenue engine diagram: 3-5 pipeline stages (e.g., Awareness → Trial → Paid → Expansion) with conversion rates, plus the pricing model name and unit economics.',
+  },
+  'ai-strategy': {
+    focus: 'Assess AI/tech advantage: AI differentiation depth, data moat potential, automation readiness, and governance maturity. Evaluate the startup\'s tech stack.',
+    diagramHint: 'Generate a capability stack diagram: 3-5 tech layers with maturity levels (nascent/developing/mature), plus automation_level (assist/copilot/agent) and data_strategy (owned/borrowed/hybrid).',
+  },
+  execution: {
+    focus: 'Assess founder execution capability: team capability match, resource allocation realism, timeline feasibility, and operational complexity. Use team and MVP data.',
+    diagramHint: 'Generate an execution timeline diagram: 3-4 phases with duration, milestones, and status (planned/in-progress/completed).',
+  },
+  traction: {
+    focus: 'Assess traction evidence: evidence tier quality (A=revenue, B=prototype, C=surveys, D=desk research), experiment count, signal strength, and assumption coverage.',
+    diagramHint: 'Generate an evidence funnel diagram: 2-4 evidence tiers (e.g., "Revenue signals", "User behavior", "Stated intent") each with claim/evidence/confidence items. Set overall_confidence.',
+  },
+  risk: {
+    focus: 'Assess startup risk profile: financial risk, regulatory exposure, execution risk, market volatility, and dependency risk. Use risk queue and scoring data.',
+    diagramHint: 'Generate a risk heat grid diagram: 4-8 specific risks with id, label, category, probability (high/medium/low), impact (high/medium/low), and optional mitigation. List risk categories.',
+  },
+};
+
+/** Maps frontend dimension IDs to the sub-score key in DIMENSION_SUB_SCORES */
+const DIM_TO_SUBSCORES: Record<string, keyof typeof DIMENSION_SUB_SCORES> = {
+  problem: 'problem',
+  customer: 'customer',
+  market: 'market',
+  competition: 'competition',
+  revenue: 'revenue',
+  'ai-strategy': 'ai_strategy',
+  execution: 'execution',
+  traction: 'validation',
+  risk: 'risk',
+};
+
+/** All 9 dimension IDs in call order */
+const DIMENSION_IDS = ['problem', 'customer', 'market', 'competition', 'revenue', 'ai-strategy', 'execution', 'traction', 'risk'] as const;
+
+/**
+ * Single dimension Gemini call — returns DimensionDetail + headline + diagram.
+ * Uses per-dimension schema from DIMENSION_SCHEMAS.
+ */
+// deno-lint-ignore no-explicit-any
+async function composeDimension(
+  dimensionId: string,
+  profile: StartupProfile | null,
+  market: MarketResearch | null,
+  competitors: CompetitorAnalysis | null,
+  scoring: ScoringResult | null,
+  mvp: MVPPlan | null,
+  interviewContext: InterviewContext | undefined,
+  timeoutMs: number,
+// deno-lint-ignore no-explicit-any
+): Promise<Record<string, any> | null> {
+  const prompt = DIMENSION_PROMPTS[dimensionId];
+  const schema = DIMENSION_SCHEMAS[dimensionId];
+  if (!prompt || !schema) {
+    console.warn(`[Composer:GroupE:${dimensionId}] No prompt/schema found — skipping`);
+    return null;
+  }
+
+  const subScoreKey = DIM_TO_SUBSCORES[dimensionId];
+  const subScoreNames = subScoreKey ? DIMENSION_SUB_SCORES[subScoreKey] : [];
+
+  const systemPrompt = `${TONE}
+
+## Your task: Deep-dive assessment of the "${dimensionId}" dimension
+
+${prompt.focus}
+
+### Sub-scores to evaluate (score each 0-100):
+${(subScoreNames as readonly string[]).map((name: string) => `- ${name}`).join('\n')}
+
+### Diagram instructions:
+${prompt.diagramHint}
+
+### Output rules:
+- composite_score: weighted average of your sub-scores (0-100)
+- headline: one punchy assessment line (10-15 words), lead with the key insight
+- executive_summary: 2-3 sentences, specific to THIS startup
+- risk_signals: 2-3 concrete risks for this dimension
+- priority_actions: 2-3 specific, actionable next steps
+- diagram: follow the schema exactly`;
+
+  // Build compact context — include relevant pipeline data
+  const context: Record<string, unknown> = {};
+  if (profile) {
+    context.idea = profile.idea;
+    context.problem = profile.problem;
+    context.customer = profile.customer;
+    context.solution = profile.solution;
+    context.differentiation = profile.differentiation;
+    context.industry = profile.industry;
+    if (profile.problem_structured) context.problem_structured = profile.problem_structured;
+    if (profile.customer_structured) context.customer_structured = profile.customer_structured;
+    if (profile.idea_quality) context.idea_quality = profile.idea_quality;
+  }
+  if (market) {
+    context.market = { tam: market.tam, sam: market.sam, som: market.som, growth_rate: market.growth_rate, methodology: market.methodology };
+  }
+  if (competitors) {
+    context.competitors = {
+      direct: (competitors.direct_competitors || []).slice(0, 3).map(c => ({ name: c.name, threat_level: c.threat_level })),
+      market_gaps: (competitors.market_gaps || []).slice(0, 3),
+      ...(competitors.positioning ? { positioning: competitors.positioning } : {}),
+    };
+  }
+  if (scoring) {
+    context.scoring = {
+      overall: scoring.overall_score,
+      verdict: scoring.verdict,
+      dimension_scores: scoring.dimension_scores,
+      ...(scoring.risk_queue ? { top_risks: scoring.risk_queue.slice(0, 3).map(r => r.assumption) } : {}),
+      ...(scoring.evidence_grades ? { evidence_grades: scoring.evidence_grades.slice(0, 3) } : {}),
+      ...(scoring.highest_signal_level ? { signal_level: scoring.highest_signal_level } : {}),
+    };
+  }
+  if (mvp) {
+    context.mvp = { scope: mvp.mvp_scope, founder_stage: mvp.founder_stage };
+  }
+
+  const userPrompt = `Assess the "${dimensionId}" dimension for this startup:
+
+${JSON.stringify(context)}`;
+
+  return callGroupGemini<Record<string, unknown>>(`GroupE:${dimensionId}`, systemPrompt, userPrompt, schema, timeoutMs, 1536);
+}
+
+/**
+ * Group E orchestrator — runs 9 dimension calls in parallel with 200ms stagger.
+ * Returns a Record<dimensionId, dimensionData> for dimensions that succeeded.
+ */
+async function composeGroupE(
+  profile: StartupProfile | null,
+  market: MarketResearch | null,
+  competitors: CompetitorAnalysis | null,
+  scoring: ScoringResult | null,
+  mvp: MVPPlan | null,
+  interviewContext: InterviewContext | undefined,
+  timeoutMs: number,
+// deno-lint-ignore no-explicit-any
+): Promise<Record<string, any> | null> {
+  const perCallTimeout = Math.min(30_000, timeoutMs - 2_000); // 30s max per call, 2s buffer
+  if (perCallTimeout < 10_000) {
+    console.warn(`[Composer:GroupE] Per-call timeout too low (${perCallTimeout}ms) — skipping`);
+    return null;
+  }
+
+  console.log(`[Composer:GroupE] Starting 9 dimension calls (${perCallTimeout}ms per call, 200ms stagger)`);
+
+  // Stagger calls by 200ms to avoid rate limiting
+  const promises = DIMENSION_IDS.map((dimId, i) =>
+    new Promise<void>(resolve => setTimeout(resolve, i * 200))
+      .then(() => composeDimension(dimId, profile, market, competitors, scoring, mvp, interviewContext, perCallTimeout))
+      .then(result => ({ dimId, result }))
+      .catch(e => {
+        console.error(`[Composer:GroupE:${dimId}] Failed:`, e instanceof Error ? e.message : e);
+        return { dimId, result: null };
+      })
+  );
+
+  const results = await Promise.all(promises);
+
+  // Collect successful dimensions
+  // deno-lint-ignore no-explicit-any
+  const dimensions: Record<string, any> = {};
+  let successCount = 0;
+  for (const { dimId, result } of results) {
+    if (result && typeof result === 'object' && 'composite_score' in result) {
+      dimensions[dimId] = result;
+      successCount++;
+    }
+  }
+
+  console.log(`[Composer:GroupE] ${successCount}/${DIMENSION_IDS.length} dimensions succeeded`);
+  return successCount > 0 ? dimensions : null;
+}
+
+// ---------------------------------------------------------------------------
 // 022-SKI: Normalize group output — strip nulls, ensure arrays
 // ---------------------------------------------------------------------------
 // deno-lint-ignore no-explicit-any
@@ -591,6 +792,8 @@ function mergeGroups(
   groupC: ComposerGroupC | null,
   groupD: ComposerGroupD | null,
   scoring: ScoringResult | null,
+  // deno-lint-ignore no-explicit-any
+  groupE?: Record<string, any> | null,
 ): ValidatorReport | null {
   // If all 3 parallel groups failed, return null (same as old behavior)
   if (!groupA && !groupB && !groupC) {
@@ -627,6 +830,9 @@ function mergeGroups(
     team_hiring: groupC?.team_hiring || { current_gaps: [], mvp_roles: [], monthly_burn: 0, advisory_needs: [] },
     technology_stack: groupC?.technology_stack || { stack_components: [], feasibility: 'medium' as const, feasibility_rationale: 'Data unavailable', technical_risks: [], mvp_timeline_weeks: 0 },
     resources_links: groupC?.resources_links || [],
+
+    // V3: Group E dimension data — keyed by dimension ID
+    ...(groupE ? { dimensions: groupE } : {}),
   };
 
   // Validate all 15 required fields are present
@@ -663,19 +869,21 @@ export async function runComposer(
 
   try {
     const totalBudget = timeoutBudgetMs || AGENT_TIMEOUTS.composer;
+    const composerStart = Date.now();
 
-    // Divide budget: 70% for parallel groups, 30% for synthesis
-    // But respect configured minimums
+    // Budget split: Phase 1 (A+B+C parallel) → Phase 2 (D synthesis) → Phase 3 (Group E dimensions)
+    // Phase 3 uses remaining time after Phase 1+2, capped at groupE timeout.
+    // Skip Group E if < 20s remain after Phase 2.
     let parallelTimeout: number;
     let synthesisTimeout: number;
 
     if (totalBudget < 45_000) {
-      // Tight budget — minimal timeouts
+      // Tight budget — minimal timeouts, no Group E
       parallelTimeout = 20_000;
       synthesisTimeout = 10_000;
     } else {
-      parallelTimeout = Math.min(Math.floor(totalBudget * 0.7), COMPOSER_GROUP_TIMEOUTS.parallel);
-      synthesisTimeout = Math.min(Math.floor(totalBudget * 0.3), COMPOSER_GROUP_TIMEOUTS.synthesis);
+      parallelTimeout = Math.min(COMPOSER_GROUP_TIMEOUTS.parallel, Math.floor(totalBudget * 0.4));
+      synthesisTimeout = Math.min(COMPOSER_GROUP_TIMEOUTS.synthesis, Math.floor(totalBudget * 0.2));
     }
 
     console.log(`[Composer] Budget: ${totalBudget}ms → parallel: ${parallelTimeout}ms, synthesis: ${synthesisTimeout}ms`);
@@ -734,16 +942,36 @@ export async function runComposer(
     const normC = normalizeGroup(groupC, 'C');
     const normD = normalizeGroup(groupD, 'D');
 
-    // Phase 3: Merge all groups into a single ValidatorReport
-    const report = mergeGroups(normA, normB, normC, normD, scoring);
+    // Phase 3: Group E — 9 parallel dimension detail calls (V3)
+    // Only runs if we have enough budget remaining. Skip = V2 report.
+    // deno-lint-ignore no-explicit-any
+    let groupEResult: Record<string, any> | null = null;
+    const elapsedMs = Date.now() - composerStart;
+    const remainingBudget = totalBudget - elapsedMs;
+    const groupETimeout = Math.min(remainingBudget - 5_000, COMPOSER_GROUP_TIMEOUTS.groupE);
+
+    if (groupETimeout >= 20_000 && profile) {
+      console.log(`[Composer] Phase 3 (Group E): ${groupETimeout}ms budget (${remainingBudget}ms remaining)`);
+      const startGroupE = Date.now();
+      groupEResult = await composeGroupE(profile, market, competitors, scoring, mvp, interviewContext, groupETimeout)
+        .catch(e => { console.error('[Composer:GroupE] Failed:', e instanceof Error ? e.message : e); return null; });
+      const groupEMs = Date.now() - startGroupE;
+      console.log(`[Composer] Phase 3 done in ${groupEMs}ms — ${groupEResult ? `${Object.keys(groupEResult).length}/9 dimensions` : 'FAIL'}`);
+    } else {
+      console.log(`[Composer] Skipping Group E: ${groupETimeout < 20_000 ? `insufficient budget (${groupETimeout}ms)` : 'no profile'} — saving as V2`);
+    }
+
+    // Phase 4: Merge all groups into a single ValidatorReport
+    const report = mergeGroups(normA, normB, normC, normD, scoring, groupEResult);
 
     if (!report) {
       await completeRun(supabase, sessionId, agentName, 'failed', null, [], 'All parallel groups failed');
       return null;
     }
 
-    const totalMs = parallelMs + synthesisMs;
-    console.log(`[Composer] Total: ${totalMs}ms (4 Gemini calls: 3 parallel + 1 sequential)`);
+    const totalMs = Date.now() - composerStart;
+    const callCount = 4 + (groupEResult ? Object.keys(groupEResult).length : 0);
+    console.log(`[Composer] Total: ${totalMs}ms (${callCount} Gemini calls: 3 parallel + 1 sequential${groupEResult ? ` + ${Object.keys(groupEResult).length} dimension` : ''})`);
     await completeRun(supabase, sessionId, agentName, 'ok', report);
     return report;
   } catch (e) {

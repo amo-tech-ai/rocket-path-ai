@@ -11,7 +11,7 @@ import {
   ValidationReport, 
   ValidationReportType, 
   getVerdict,
-  DIMENSION_CONFIG,
+  DIMENSION_CONFIG_V2,
   DimensionScore,
   MarketFactor,
   ExecutionFactor,
@@ -24,7 +24,7 @@ function transformReport(data: any): ValidationReport {
   
   // Extract dimension scores from details
   const details = data.details || {};
-  const dimensionScores: DimensionScore[] = DIMENSION_CONFIG.map(dim => ({
+  const dimensionScores: DimensionScore[] = DIMENSION_CONFIG_V2.map(dim => ({
     name: dim.name,
     score: details.dimensions?.[dim.key] ?? 0,
     weight: dim.weight,

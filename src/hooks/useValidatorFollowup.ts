@@ -26,6 +26,11 @@ export interface FollowupCoverage {
   industry: CoverageDepth;
   business_model: CoverageDepth;
   stage: CoverageDepth;
+  // Deep dive topics (optional, enhance V3 dimension quality)
+  ai_strategy: CoverageDepth;
+  risk_awareness: CoverageDepth;
+  execution_plan: CoverageDepth;
+  investor_readiness: CoverageDepth;
 }
 
 export interface ExtractedFields {
@@ -41,6 +46,11 @@ export interface ExtractedFields {
   industry_categories: string;
   stage: string;
   linkedin_url: string;
+  // Deep dive extracted fields
+  ai_strategy: string;
+  risk_awareness: string;
+  execution_plan: string;
+  investor_readiness: string;
 }
 
 export interface ConfidenceMap {
@@ -56,6 +66,11 @@ export interface ConfidenceMap {
   industry_categories: ConfidenceLevel;
   stage: ConfidenceLevel;
   linkedin_url: ConfidenceLevel;
+  // Deep dive confidence
+  ai_strategy: ConfidenceLevel;
+  risk_awareness: ConfidenceLevel;
+  execution_plan: ConfidenceLevel;
+  investor_readiness: ConfidenceLevel;
 }
 
 export interface DiscoveredEntities {
@@ -77,6 +92,20 @@ export interface FollowupResult {
   questionNumber: number;
 }
 
+export type CoverageTier = 'core' | 'deep';
+
+/** Core topics (required for report generation) */
+export const CORE_TOPIC_KEYS: (keyof FollowupCoverage)[] = [
+  'company_name', 'customer', 'problem', 'solution', 'competitors',
+  'innovation', 'demand', 'research', 'uniqueness', 'websites',
+  'industry', 'business_model', 'stage',
+];
+
+/** Deep dive topics (optional, enhance V3 dimension quality) */
+export const DEEP_DIVE_TOPIC_KEYS: (keyof FollowupCoverage)[] = [
+  'ai_strategy', 'risk_awareness', 'execution_plan', 'investor_readiness',
+];
+
 /** Check if a topic is covered (shallow or deep). Handles boolean for backwards compat. */
 export function isCovered(depth: CoverageDepth | boolean): boolean {
   if (typeof depth === "boolean") return depth;
@@ -97,10 +126,20 @@ export function countAtDepth(coverage: FollowupCoverage, minDepth: "shallow" | "
   }).length;
 }
 
-/** Check readiness based on v3 adaptive rules. 13 coverage topics. */
+/** Count topics at a given minimum depth, filtered to specific keys. */
+export function countAtDepthForKeys(coverage: FollowupCoverage, minDepth: "shallow" | "deep", keys: (keyof FollowupCoverage)[]): number {
+  return keys.filter(k => {
+    const d = coverage[k];
+    if (minDepth === "deep") return d === "deep";
+    return d === "shallow" || d === "deep";
+  }).length;
+}
+
+/** Check readiness based on v4 two-tier rules. Core topics (13) determine readiness. Deep dive (4) are optional. */
 export function checkReadiness(coverage: FollowupCoverage, userMessageCount: number): boolean {
-  const shallowPlus = countAtDepth(coverage, "shallow");
-  const deepCount = countAtDepth(coverage, "deep");
+  // Count CORE topics only for readiness
+  const coreShallowPlus = countAtDepthForKeys(coverage, "shallow", CORE_TOPIC_KEYS);
+  const coreDeepCount = countAtDepthForKeys(coverage, "deep", CORE_TOPIC_KEYS);
 
   // Minimum bar: problem AND customer AND company_name must be at least shallow
   const problemCovered = isCovered(coverage.problem);
@@ -108,20 +147,31 @@ export function checkReadiness(coverage: FollowupCoverage, userMessageCount: num
   const nameCovered = isCovered(coverage.company_name);
   const minBarMet = problemCovered && customerCovered && nameCovered;
 
-  // Quick ready: 3+ messages, 9+ shallow+, 4+ deep, min bar met
-  if (userMessageCount >= 3 && shallowPlus >= 9 && deepCount >= 4 && minBarMet) return true;
-  // Normal ready: 5+ messages, 8+ shallow+, 3+ deep, min bar met
-  if (userMessageCount >= 5 && shallowPlus >= 8 && deepCount >= 3 && minBarMet) return true;
+  // Quick ready: 3+ messages, 9+ core shallow+, 4+ core deep, min bar met
+  if (userMessageCount >= 3 && coreShallowPlus >= 9 && coreDeepCount >= 4 && minBarMet) return true;
+  // Normal ready: 5+ messages, 8+ core shallow+, 3+ core deep, min bar met
+  if (userMessageCount >= 5 && coreShallowPlus >= 8 && coreDeepCount >= 3 && minBarMet) return true;
   // Forced ready: 10+ messages always ready
   if (userMessageCount >= 10) return true;
 
   return false;
 }
 
-/** Check minimum data threshold for enabling the Generate button. */
+/** Check if all 13 core topics have at least shallow coverage. */
+export function isCoreComplete(coverage: FollowupCoverage): boolean {
+  return CORE_TOPIC_KEYS.every(k => isCovered(coverage[k]));
+}
+
+/** Determine coverage tier based on deep dive topic coverage. */
+export function getCoverageTier(coverage: FollowupCoverage): CoverageTier {
+  const deepDiveCovered = DEEP_DIVE_TOPIC_KEYS.filter(k => isCovered(coverage[k])).length;
+  return deepDiveCovered >= DEEP_DIVE_TOPIC_KEYS.length ? 'deep' : 'core';
+}
+
+/** Check minimum data threshold for enabling the Generate button. Uses core topics only. */
 export function hasMinimumData(coverage: FollowupCoverage): boolean {
-  const shallowPlus = countAtDepth(coverage, "shallow");
-  return isCovered(coverage.problem) && isCovered(coverage.customer) && isCovered(coverage.company_name) && shallowPlus >= 4;
+  const coreShallowPlus = countAtDepthForKeys(coverage, "shallow", CORE_TOPIC_KEYS);
+  return isCovered(coverage.problem) && isCovered(coverage.customer) && isCovered(coverage.company_name) && coreShallowPlus >= 4;
 }
 
 const EMPTY_EXTRACTED: ExtractedFields = {
@@ -137,6 +187,10 @@ const EMPTY_EXTRACTED: ExtractedFields = {
   industry_categories: "",
   stage: "",
   linkedin_url: "",
+  ai_strategy: "",
+  risk_awareness: "",
+  execution_plan: "",
+  investor_readiness: "",
 };
 
 const EMPTY_CONFIDENCE: ConfidenceMap = {
@@ -152,6 +206,10 @@ const EMPTY_CONFIDENCE: ConfidenceMap = {
   industry_categories: "low",
   stage: "low",
   linkedin_url: "low",
+  ai_strategy: "low",
+  risk_awareness: "low",
+  execution_plan: "low",
+  investor_readiness: "low",
 };
 
 interface ConversationMessage {
@@ -211,7 +269,7 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
         throw new Error(data?.error || 'Failed to get follow-up question');
       }
 
-      // Normalize coverage: handle boolean (v1) or depth string (v2)
+      // Normalize coverage: handle boolean (v1) or depth string (v2/v4)
       const rawCoverage = data.coverage || {};
       const coverage: FollowupCoverage = {
         company_name: normalizeCoverageValue(rawCoverage.company_name),
@@ -227,6 +285,10 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
         industry: normalizeCoverageValue(rawCoverage.industry),
         business_model: normalizeCoverageValue(rawCoverage.business_model),
         stage: normalizeCoverageValue(rawCoverage.stage),
+        ai_strategy: normalizeCoverageValue(rawCoverage.ai_strategy),
+        risk_awareness: normalizeCoverageValue(rawCoverage.risk_awareness),
+        execution_plan: normalizeCoverageValue(rawCoverage.execution_plan),
+        investor_readiness: normalizeCoverageValue(rawCoverage.investor_readiness),
       };
 
       // Normalize confidence: map unknown values to "low"
@@ -244,6 +306,10 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
         industry_categories: normalizeConfidence(rawConfidence.industry_categories),
         stage: normalizeConfidence(rawConfidence.stage),
         linkedin_url: normalizeConfidence(rawConfidence.linkedin_url),
+        ai_strategy: normalizeConfidence(rawConfidence.ai_strategy),
+        risk_awareness: normalizeConfidence(rawConfidence.risk_awareness),
+        execution_plan: normalizeConfidence(rawConfidence.execution_plan),
+        investor_readiness: normalizeConfidence(rawConfidence.investor_readiness),
       };
 
       return {
@@ -343,6 +409,10 @@ export function useFollowupStreaming() {
           industry: normalizeCoverageValue(rawCoverage.industry),
           business_model: normalizeCoverageValue(rawCoverage.business_model),
           stage: normalizeCoverageValue(rawCoverage.stage),
+          ai_strategy: normalizeCoverageValue(rawCoverage.ai_strategy),
+          risk_awareness: normalizeCoverageValue(rawCoverage.risk_awareness),
+          execution_plan: normalizeCoverageValue(rawCoverage.execution_plan),
+          investor_readiness: normalizeCoverageValue(rawCoverage.investor_readiness),
         };
 
         const rawConfidence = payload.confidence || {};
@@ -359,6 +429,10 @@ export function useFollowupStreaming() {
           industry_categories: normalizeConfidence(rawConfidence.industry_categories),
           stage: normalizeConfidence(rawConfidence.stage),
           linkedin_url: normalizeConfidence(rawConfidence.linkedin_url),
+          ai_strategy: normalizeConfidence(rawConfidence.ai_strategy),
+          risk_awareness: normalizeConfidence(rawConfidence.risk_awareness),
+          execution_plan: normalizeConfidence(rawConfidence.execution_plan),
+          investor_readiness: normalizeConfidence(rawConfidence.investor_readiness),
         };
 
         const metadata: FollowupResult = {

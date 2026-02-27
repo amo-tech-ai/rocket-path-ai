@@ -527,6 +527,11 @@ try {
 
     // R-05 fix: Return inserted report ID directly via .select('id').single()
     // Avoids re-querying (getReportId) which can hit read-replica lag
+    // MVP-02: Set report_version based on whether Group E dimension data exists
+    const hasV3Dimensions = report.dimensions && Object.keys(report.dimensions).length > 0;
+    const reportVersion = hasV3Dimensions ? 'v3' : 'v2';
+    console.log(`[pipeline] Report version: ${reportVersion}${hasV3Dimensions ? ` (${Object.keys(report.dimensions!).length} dimensions)` : ''}`);
+
     const { data: insertedReport, error: reportError } = await supabaseAdmin
       .from('validator_reports')
       .insert({
@@ -541,6 +546,7 @@ try {
         key_findings: [...(scoring?.highlights || []), ...(scoring?.red_flags || [])],
         verified: verification?.verified || false,
         verification_json: verification,
+        report_version: reportVersion,
       })
       .select('id')
       .single();

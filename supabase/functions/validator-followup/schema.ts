@@ -28,6 +28,11 @@ export interface FollowupResponse {
     industry: CoverageDepth;
     business_model: CoverageDepth;
     stage: CoverageDepth;
+    // Deep dive topics (optional, enhance V3 dimension quality)
+    ai_strategy: CoverageDepth;
+    risk_awareness: CoverageDepth;
+    execution_plan: CoverageDepth;
+    investor_readiness: CoverageDepth;
   };
   extracted: {
     company_name: string;
@@ -42,6 +47,11 @@ export interface FollowupResponse {
     industry_categories: string;
     stage: string;
     linkedin_url: string;
+    // Deep dive extracted fields
+    ai_strategy: string;
+    risk_awareness: string;
+    execution_plan: string;
+    investor_readiness: string;
   };
   confidence: {
     company_name: ConfidenceLevel;
@@ -56,6 +66,11 @@ export interface FollowupResponse {
     industry_categories: ConfidenceLevel;
     stage: ConfidenceLevel;
     linkedin_url: ConfidenceLevel;
+    // Deep dive confidence
+    ai_strategy: ConfidenceLevel;
+    risk_awareness: ConfidenceLevel;
+    execution_plan: ConfidenceLevel;
+    investor_readiness: ConfidenceLevel;
   };
   contradictions: string[];
   discoveredEntities: {
@@ -100,7 +115,7 @@ export const followupResponseSchema = {
     },
     coverage: {
       type: "object",
-      required: ["company_name", "customer", "problem", "solution", "competitors", "innovation", "demand", "research", "uniqueness", "websites", "industry", "business_model", "stage"],
+      required: ["company_name", "customer", "problem", "solution", "competitors", "innovation", "demand", "research", "uniqueness", "websites", "industry", "business_model", "stage", "ai_strategy", "risk_awareness", "execution_plan", "investor_readiness"],
       properties: {
         company_name: { ...depthEnum, description: "Company or product name depth." },
         customer: { ...depthEnum, description: "Target customer segment depth." },
@@ -115,11 +130,15 @@ export const followupResponseSchema = {
         industry: { ...depthEnum, description: "Industry category depth." },
         business_model: { ...depthEnum, description: "Business model type (B2B/B2C/Marketplace etc) depth." },
         stage: { ...depthEnum, description: "Company stage (Idea/Pre-seed/Seed/Series A/B+) depth." },
+        ai_strategy: { ...depthEnum, description: "AI/technology advantage and data moat depth." },
+        risk_awareness: { ...depthEnum, description: "Key risks, failure modes, and mitigation depth." },
+        execution_plan: { ...depthEnum, description: "90-day milestones, hiring plan, and execution depth." },
+        investor_readiness: { ...depthEnum, description: "Key metrics, fundraising timeline, and investor pitch depth." },
       },
     },
     extracted: {
       type: "object",
-      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url"],
+      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url", "ai_strategy", "risk_awareness", "execution_plan", "investor_readiness"],
       properties: {
         company_name: { type: "string", description: "Company or product name. Empty string if not mentioned." },
         problem: { type: "string", description: "Extracted problem statement from founder's words. Empty string if not discussed." },
@@ -133,11 +152,15 @@ export const followupResponseSchema = {
         industry_categories: { type: "string", description: "Industry categories (comma-separated): SaaS, AI, FinTech, E-commerce, Healthcare, Education, Media, Enterprise, Consumer, Logistics, Real Estate, Gaming, Other. Empty string if not discussed." },
         stage: { type: "string", description: "Company stage: Idea, Pre-seed, Seed, Series A, Series B+. Empty string if not discussed." },
         linkedin_url: { type: "string", description: "Founder or company LinkedIn URL. Empty string if not mentioned." },
+        ai_strategy: { type: "string", description: "AI/technology advantage, data moat, tech stack edge. Empty string if not discussed." },
+        risk_awareness: { type: "string", description: "Key risks, failure modes, mitigation strategies. Empty string if not discussed." },
+        execution_plan: { type: "string", description: "90-day milestones, hiring plan, key next steps. Empty string if not discussed." },
+        investor_readiness: { type: "string", description: "Key metrics, fundraising timeline, investor pitch points. Empty string if not discussed." },
       },
     },
     confidence: {
       type: "object",
-      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url"],
+      required: ["company_name", "problem", "customer", "solution", "differentiation", "demand", "competitors", "business_model", "websites", "industry_categories", "stage", "linkedin_url", "ai_strategy", "risk_awareness", "execution_plan", "investor_readiness"],
       properties: {
         company_name: { ...confidenceEnum, description: "Confidence in extracted company name." },
         problem: { ...confidenceEnum, description: "Confidence in extracted problem statement." },
@@ -151,6 +174,10 @@ export const followupResponseSchema = {
         industry_categories: { ...confidenceEnum, description: "Confidence in extracted industry categories." },
         stage: { ...confidenceEnum, description: "Confidence in extracted company stage." },
         linkedin_url: { ...confidenceEnum, description: "Confidence in extracted LinkedIn URL." },
+        ai_strategy: { ...confidenceEnum, description: "Confidence in extracted AI/technology strategy." },
+        risk_awareness: { ...confidenceEnum, description: "Confidence in extracted risk awareness." },
+        execution_plan: { ...confidenceEnum, description: "Confidence in extracted execution plan." },
+        investor_readiness: { ...confidenceEnum, description: "Confidence in extracted investor readiness." },
       },
     },
     contradictions: {

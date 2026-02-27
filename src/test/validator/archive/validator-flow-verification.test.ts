@@ -15,7 +15,7 @@ import {
 
 describe('Validator Flow Verification', () => {
   describe('1. useValidatorFollowup — Readiness Logic', () => {
-    it('checkReadiness: Normal ready — 5+ msgs, 8+ shallow+, 3+ deep, minBar → ready', () => {
+    it('checkReadiness: Normal ready — 5+ msgs, 8+ core shallow+, 3+ core deep, minBar → ready', () => {
       const coverage: FollowupCoverage = {
         company_name: 'deep',
         customer: 'deep',
@@ -30,13 +30,17 @@ describe('Validator Flow Verification', () => {
         industry: 'none',
         business_model: 'none',
         stage: 'none',
+        ai_strategy: 'none',
+        risk_awareness: 'none',
+        execution_plan: 'none',
+        investor_readiness: 'none',
       };
       expect(countAtDepth(coverage, 'shallow')).toBe(8); // shallow or deep
       expect(countAtDepth(coverage, 'deep')).toBe(3);
-      expect(checkReadiness(coverage, 5)).toBe(true); // 5 msgs, 8 shallow+, 3 deep → Normal Ready
+      expect(checkReadiness(coverage, 5)).toBe(true); // 5 msgs, 8 core shallow+, 3 core deep → Normal Ready
     });
 
-    it('checkReadiness: Quick ready — 3+ msgs, 9+ shallow+, 4+ deep, minBar → ready', () => {
+    it('checkReadiness: Quick ready — 3+ msgs, 9+ core shallow+, 4+ core deep, minBar → ready', () => {
       const coverage: FollowupCoverage = {
         company_name: 'deep',
         customer: 'deep',
@@ -51,10 +55,14 @@ describe('Validator Flow Verification', () => {
         industry: 'none',
         business_model: 'none',
         stage: 'none',
+        ai_strategy: 'none',
+        risk_awareness: 'none',
+        execution_plan: 'none',
+        investor_readiness: 'none',
       };
       expect(countAtDepth(coverage, 'shallow')).toBe(9); // 4 deep + 5 shallow = 9 shallow+
       expect(countAtDepth(coverage, 'deep')).toBe(4);
-      expect(checkReadiness(coverage, 3)).toBe(true); // 3 msgs, 9 shallow+, 4 deep → Quick Ready
+      expect(checkReadiness(coverage, 3)).toBe(true); // 3 msgs, 9 core shallow+, 4 core deep → Quick Ready
     });
 
     it('checkReadiness: Forced ready — 10+ msgs always ready', () => {
@@ -72,6 +80,10 @@ describe('Validator Flow Verification', () => {
         industry: 'none',
         business_model: 'none',
         stage: 'none',
+        ai_strategy: 'none',
+        risk_awareness: 'none',
+        execution_plan: 'none',
+        investor_readiness: 'none',
       };
       expect(checkReadiness(coverage, 10)).toBe(true); // 10+ msgs → Forced Ready
     });
@@ -91,6 +103,10 @@ describe('Validator Flow Verification', () => {
         industry: 'none',
         business_model: 'none',
         stage: 'none',
+        ai_strategy: 'none',
+        risk_awareness: 'none',
+        execution_plan: 'none',
+        investor_readiness: 'none',
       };
       expect(checkReadiness(coverage, 2)).toBe(false);
     });
@@ -165,32 +181,40 @@ describe('Validator Flow Verification', () => {
     });
   });
 
-  describe('5. Coverage topics (8 topics)', () => {
-    it('FollowupCoverage has all 8 topics', () => {
-      const topics = [
-        'customer',
-        'problem',
-        'competitors',
-        'innovation',
-        'demand',
-        'research',
-        'uniqueness',
-        'websites',
+  describe('5. Coverage topics (17 topics: 13 core + 4 deep dive)', () => {
+    it('FollowupCoverage has all 17 topics', () => {
+      const coreTopics = [
+        'company_name', 'customer', 'problem', 'solution', 'competitors',
+        'innovation', 'demand', 'research', 'uniqueness', 'websites',
+        'industry', 'business_model', 'stage',
+      ];
+      const deepDiveTopics = [
+        'ai_strategy', 'risk_awareness', 'execution_plan', 'investor_readiness',
       ];
       const emptyCoverage: FollowupCoverage = {
+        company_name: 'none',
         customer: 'none',
         problem: 'none',
+        solution: 'none',
         competitors: 'none',
         innovation: 'none',
         demand: 'none',
         research: 'none',
         uniqueness: 'none',
         websites: 'none',
+        industry: 'none',
+        business_model: 'none',
+        stage: 'none',
+        ai_strategy: 'none',
+        risk_awareness: 'none',
+        execution_plan: 'none',
+        investor_readiness: 'none',
       };
-      topics.forEach((t) => {
+      [...coreTopics, ...deepDiveTopics].forEach((t) => {
         expect(emptyCoverage).toHaveProperty(t);
       });
-      expect(topics).toHaveLength(8);
+      expect(coreTopics).toHaveLength(13);
+      expect(deepDiveTopics).toHaveLength(4);
     });
   });
 });

@@ -38,8 +38,10 @@ export const AGENT_TIMEOUTS: Record<string, number> = {
 };
 
 // 021-CSP: Composer group timeouts
-// Total worst case: 35s (parallel A+B+C) + 20s (sequential D) = 55s — within 90s Composer budget
+// Total worst case: 35s (parallel A+B+C) + 20s (sequential D) + 35s (Group E) = 90s — within 90s Composer budget
+// Phase 3 (Group E) uses remaining time after D, capped at groupE. Skipped if < 20s remain.
 export const COMPOSER_GROUP_TIMEOUTS = {
   parallel: 35_000,   // Per-group budget for A, B, C (run in parallel)
   synthesis: 20_000,  // Group D budget (runs after A+B+C)
+  groupE: 35_000,     // Group E budget (9 parallel dimension calls, runs after D)
 };

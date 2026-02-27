@@ -23,7 +23,7 @@ import {
   getVerdict,
   getVerdictConfig,
   formatMarketSize,
-  DIMENSION_CONFIG,
+  DIMENSION_CONFIG_V2,
   SECTION_TITLES,
 } from '@/types/validation-report';
 import type { KanbanColumn, SprintTask } from '@/hooks/useSprintAgent';
@@ -46,6 +46,10 @@ describe('Test 1: Chat Readiness & Coverage Tracking', () => {
     industry: 'none',
     business_model: 'none',
     stage: 'none',
+    ai_strategy: 'none',
+    risk_awareness: 'none',
+    execution_plan: 'none',
+    investor_readiness: 'none',
     ...overrides,
   });
 
@@ -84,10 +88,11 @@ describe('Test 1: Chat Readiness & Coverage Tracking', () => {
     expect(checkReadiness(coverage, 10)).toBe(true);
   });
 
-  it('13 topics match expected list', () => {
+  it('17 topics match expected list (13 core + 4 deep dive)', () => {
     const coverage = makeCoverage();
     const keys = Object.keys(coverage);
-    expect(keys).toHaveLength(13);
+    expect(keys).toHaveLength(17);
+    // Core topics
     expect(keys).toContain('company_name');
     expect(keys).toContain('customer');
     expect(keys).toContain('problem');
@@ -101,6 +106,11 @@ describe('Test 1: Chat Readiness & Coverage Tracking', () => {
     expect(keys).toContain('industry');
     expect(keys).toContain('business_model');
     expect(keys).toContain('stage');
+    // Deep dive topics
+    expect(keys).toContain('ai_strategy');
+    expect(keys).toContain('risk_awareness');
+    expect(keys).toContain('execution_plan');
+    expect(keys).toContain('investor_readiness');
   });
 
   it('depth helpers classify correctly', () => {
@@ -242,8 +252,8 @@ describe('Test 3: Report Data Unwrapping & Verdict', () => {
     expect(sectionKeys.length).toBeGreaterThanOrEqual(10);
   });
 
-  it('DIMENSION_CONFIG weights sum to 100', () => {
-    const total = DIMENSION_CONFIG.reduce((sum, d) => sum + d.weight, 0);
+  it('DIMENSION_CONFIG_V2 weights sum to 100', () => {
+    const total = DIMENSION_CONFIG_V2.reduce((sum, d) => sum + d.weight, 0);
     expect(total).toBe(100);
   });
 

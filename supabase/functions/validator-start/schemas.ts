@@ -984,3 +984,288 @@ export const DIMENSION_SUB_SCORES = {
   validation:  ['evidence_tier', 'experiment_count', 'signal_strength', 'assumption_coverage'],
   risk:        ['financial_risk', 'regulatory_risk', 'execution_risk', 'market_volatility', 'dependency_risk'],
 } as const;
+
+// ---------------------------------------------------------------------------
+// V3 MVP-02: Per-dimension Group E schemas
+// Each dimension returns DimensionDetail + headline + diagram data.
+// Diagram schemas match frontend v3-report.ts types (camelCase for diagram fields).
+// ---------------------------------------------------------------------------
+
+/** Base dimension detail properties — shared across all 9 dimension schemas */
+function baseDimensionProps(subScoreNames: readonly string[]) {
+  return {
+    composite_score: { type: 'number', description: '0-100 dimension score' },
+    sub_scores: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: `One of: ${subScoreNames.join(', ')}` },
+          score: { type: 'number', description: '0-100' },
+          label: { type: 'string', description: 'Human-readable label' },
+        },
+        required: ['name', 'score', 'label'],
+      },
+    },
+    headline: { type: 'string', description: 'One-line assessment (10-15 words)' },
+    executive_summary: { type: 'string', description: '2-3 sentence assessment' },
+    risk_signals: { type: 'array', items: { type: 'string' }, description: '2-3 key risk signals' },
+    priority_actions: { type: 'array', items: { type: 'string' }, description: '2-3 priority actions' },
+  };
+}
+
+const BASE_REQUIRED = ['composite_score', 'sub_scores', 'headline', 'executive_summary', 'risk_signals', 'priority_actions'];
+
+export const DIMENSION_SCHEMAS: Record<string, Record<string, unknown>> = {
+  problem: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.problem),
+      diagram: {
+        type: 'object',
+        description: 'Pain chain: causal flow from trigger → symptom → consequence → cost',
+        properties: {
+          nodes: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+              type: { type: 'string', description: 'trigger | symptom | consequence | cost' },
+            },
+            required: ['id', 'label', 'type'],
+          }},
+          edges: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              from: { type: 'string' },
+              to: { type: 'string' },
+              label: { type: 'string' },
+            },
+            required: ['from', 'to'],
+          }},
+        },
+        required: ['nodes', 'edges'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  customer: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.customer),
+      diagram: {
+        type: 'object',
+        description: 'ICP funnel: narrowing customer tiers from broad → narrow',
+        properties: {
+          tiers: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              count: { type: 'string', description: 'e.g. "~5M companies"' },
+              criteria: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['label', 'count', 'criteria'],
+          }},
+        },
+        required: ['tiers'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  market: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.market),
+      diagram: {
+        type: 'object',
+        description: 'TAM pyramid: 3-tier market sizing',
+        properties: {
+          tam: { type: 'object', properties: { value: { type: 'number' }, label: { type: 'string' }, methodology: { type: 'string' } }, required: ['value', 'label'] },
+          sam: { type: 'object', properties: { value: { type: 'number' }, label: { type: 'string' }, methodology: { type: 'string' } }, required: ['value', 'label'] },
+          som: { type: 'object', properties: { value: { type: 'number' }, label: { type: 'string' }, methodology: { type: 'string' } }, required: ['value', 'label'] },
+          growth_rate: { type: 'number' },
+          sources: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['tam', 'sam', 'som'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  competition: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.competition),
+      diagram: {
+        type: 'object',
+        description: 'Positioning matrix: 2x2 with competitor positions',
+        properties: {
+          x_axis: { type: 'string' },
+          y_axis: { type: 'string' },
+          positions: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              x: { type: 'number', description: '0-100' },
+              y: { type: 'number', description: '0-100' },
+              is_founder: { type: 'boolean' },
+            },
+            required: ['name', 'x', 'y', 'is_founder'],
+          }},
+        },
+        required: ['x_axis', 'y_axis', 'positions'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  revenue: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.revenue),
+      diagram: {
+        type: 'object',
+        description: 'Revenue engine: pipeline flow stages + unit economics',
+        properties: {
+          stages: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              value: { type: 'string' },
+              conversion_rate: { type: 'number' },
+            },
+            required: ['label', 'value'],
+          }},
+          model: { type: 'string' },
+          unit_economics: {
+            type: 'object',
+            properties: {
+              cac: { type: 'number' },
+              ltv: { type: 'number' },
+              ltv_cac_ratio: { type: 'number' },
+              payback_months: { type: 'number' },
+            },
+            required: ['cac', 'ltv', 'ltv_cac_ratio', 'payback_months'],
+          },
+        },
+        required: ['stages', 'model'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  'ai-strategy': {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.ai_strategy),
+      diagram: {
+        type: 'object',
+        description: 'Capability stack: layered tech capabilities with maturity',
+        properties: {
+          layers: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              description: { type: 'string' },
+              maturity: { type: 'string', description: 'nascent | developing | mature' },
+              components: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['name', 'description', 'maturity'],
+          }},
+          automation_level: { type: 'string', description: 'assist | copilot | agent' },
+          data_strategy: { type: 'string', description: 'owned | borrowed | hybrid' },
+        },
+        required: ['layers', 'automation_level', 'data_strategy'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  execution: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.execution),
+      diagram: {
+        type: 'object',
+        description: 'Execution timeline: phased milestones',
+        properties: {
+          phases: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              duration: { type: 'string' },
+              milestones: { type: 'array', items: { type: 'string' } },
+              status: { type: 'string', description: 'completed | in-progress | planned' },
+            },
+            required: ['name', 'duration', 'milestones'],
+          }},
+          total_duration: { type: 'string' },
+        },
+        required: ['phases'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  traction: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.validation),
+      diagram: {
+        type: 'object',
+        description: 'Evidence funnel: validated vs assumed evidence tiers',
+        properties: {
+          tiers: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              items: { type: 'array', items: {
+                type: 'object',
+                properties: {
+                  claim: { type: 'string' },
+                  evidence: { type: 'string' },
+                  confidence: { type: 'string', description: 'verified | partial | assumed' },
+                },
+                required: ['claim', 'evidence', 'confidence'],
+              }},
+            },
+            required: ['label', 'items'],
+          }},
+          overall_confidence: { type: 'string', description: 'high | medium | low | none' },
+        },
+        required: ['tiers', 'overall_confidence'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+
+  risk: {
+    type: 'object',
+    properties: {
+      ...baseDimensionProps(DIMENSION_SUB_SCORES.risk),
+      diagram: {
+        type: 'object',
+        description: 'Risk heat grid: probability vs impact matrix',
+        properties: {
+          risks: { type: 'array', items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              label: { type: 'string' },
+              category: { type: 'string' },
+              probability: { type: 'string', description: 'high | medium | low' },
+              impact: { type: 'string', description: 'high | medium | low' },
+              mitigation: { type: 'string' },
+            },
+            required: ['id', 'label', 'category', 'probability', 'impact'],
+          }},
+          categories: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['risks', 'categories'],
+      },
+    },
+    required: [...BASE_REQUIRED, 'diagram'],
+  },
+};
