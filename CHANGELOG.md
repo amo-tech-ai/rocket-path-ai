@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.10.31] - 2026-02-27
+
+### MVP-01: V3 Types Foundation
+
+Type foundation for V3 consulting-grade dimension detail pages (9 drill-downs). Replaces `details: any` with `ReportDetailsV2` across all report consumers. No runtime behavior changes — types only.
+
+- Backend: `SubScore`, `DimensionDetail`, `AIStrategyAssessment`, `ValidationProofAssessment` in `types.ts` + `dimensionDetail` schema + `DIMENSION_SUB_SCORES` config in `schemas.ts`
+- Frontend: Mirrored types in `validation-report.ts` + `ReportDetailsV2` named type + `V3ReportDetails` + `isV3Report()` type guard
+- Consumers: `ValidatorReport.tsx`, `ReportV2Layout.tsx`, `SharedReport.tsx`, `EmbedReport.tsx` — all `details: any` → `ReportDetailsV2`
+
+### Audit 30: React Error #31 — Report Crash Fix
+
+Fixed production crash where JSONB objects (`{assumption, severity, ...}`, `{action, timeframe, ...}`) were rendered as React children in ReportV2Layout.
+
+- Root cause: Global `isV2Report()` gate misidentified mixed-format reports
+- Fix: `safeText()` helper + per-field type detection + shape validation before component delegation
+- 6 regression tests in `ReportV2Layout.test.tsx`
+
+### Audit 31: Auth Redirect Flow Fix
+
+Fixed auth flow where users entering a startup idea → signing up → landing back on empty home page instead of `/validate`.
+
+- Root cause: `redirectTo` URL included `?next=...` query params that broke Supabase redirect URL allowlist matching
+- Fix 1: `useAuth.tsx` — Clean `redirectTo` (no query params), return path in sessionStorage
+- Fix 2: `HeroSection.tsx` — Loading overlay when pendingIdea exists during auth hydration
+- Fix 3: `AuthCallback.tsx` — 15s timeout for stuck auth exchange
+- 26 regression tests in `auth-redirect-flow.test.ts`
+
+**Build:** 0 TS errors | **Tests:** 357/357 (+32) | **Lint:** 0 new errors
+
+---
+
 ## [0.10.30] - 2026-02-27
 
 ### Audit 29 — Validator Pipeline Hardening (22 findings, all resolved)

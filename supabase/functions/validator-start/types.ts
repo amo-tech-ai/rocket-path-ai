@@ -286,6 +286,10 @@ export interface ValidatorReport {
   risk_detail?: DimensionDetail;
   ai_strategy?: AIStrategyAssessment;
   validation_proof?: ValidationProofAssessment;
+  // V3: Keyed dimension data for V3 report pages (populated by Composer Group E)
+  // Keys are dimension IDs: problem, customer, market, competition, revenue, ai-strategy, execution, traction, risk
+  // deno-lint-ignore no-explicit-any
+  dimensions?: Record<string, any>;
 }
 
 // P02: New section types

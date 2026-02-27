@@ -148,22 +148,25 @@ describe('Test 7: Auth Refresh Pattern', () => {
       company_name: 'none', customer: 'none', problem: 'none', solution: 'none',
       competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
       uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
+      ai_strategy: 'none', risk_awareness: 'none', execution_plan: 'none', investor_readiness: 'none',
     };
     expect(hasMinimumData(emptyCoverage)).toBe(false);
 
-    // hasMinimumData requires: problem + customer + company_name covered AND 4+ shallow+
+    // hasMinimumData requires: problem + customer + company_name covered AND 4+ core shallow+
     const minCoverage: FollowupCoverage = {
       company_name: 'shallow', customer: 'shallow', problem: 'shallow', solution: 'shallow',
       competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
       uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
+      ai_strategy: 'none', risk_awareness: 'none', execution_plan: 'none', investor_readiness: 'none',
     };
     expect(hasMinimumData(minCoverage)).toBe(true);
 
-    // Only 3 shallow+ is not enough (need 4+)
+    // Only 3 core shallow+ is not enough (need 4+)
     const insufficientCoverage: FollowupCoverage = {
       company_name: 'shallow', customer: 'shallow', problem: 'shallow', solution: 'none',
       competitors: 'none', innovation: 'none', demand: 'none', research: 'none',
       uniqueness: 'none', websites: 'none', industry: 'none', business_model: 'none', stage: 'none',
+      ai_strategy: 'none', risk_awareness: 'none', execution_plan: 'none', investor_readiness: 'none',
     };
     expect(hasMinimumData(insufficientCoverage)).toBe(false);
   });

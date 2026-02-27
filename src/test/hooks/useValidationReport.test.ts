@@ -9,7 +9,7 @@ import {
   getVerdict,
   formatMarketSize,
   formatCurrency,
-  DIMENSION_CONFIG,
+  DIMENSION_CONFIG_V2,
   SECTION_TITLES,
 } from '@/types/validation-report';
 
@@ -79,18 +79,18 @@ describe('validation-report types & helpers', () => {
     });
   });
 
-  describe('DIMENSION_CONFIG', () => {
+  describe('DIMENSION_CONFIG_V2', () => {
     it('has exactly 7 dimensions', () => {
-      expect(DIMENSION_CONFIG).toHaveLength(7);
+      expect(DIMENSION_CONFIG_V2).toHaveLength(7);
     });
 
     it('weights sum to 100', () => {
-      const totalWeight = DIMENSION_CONFIG.reduce((sum, d) => sum + d.weight, 0);
+      const totalWeight = DIMENSION_CONFIG_V2.reduce((sum, d) => sum + d.weight, 0);
       expect(totalWeight).toBe(100);
     });
 
     it('each dimension has required fields', () => {
-      DIMENSION_CONFIG.forEach(dim => {
+      DIMENSION_CONFIG_V2.forEach(dim => {
         expect(dim).toHaveProperty('key');
         expect(dim).toHaveProperty('name');
         expect(dim).toHaveProperty('weight');
@@ -104,7 +104,7 @@ describe('validation-report types & helpers', () => {
     });
 
     it('has expected dimension names', () => {
-      const names = DIMENSION_CONFIG.map(d => d.name);
+      const names = DIMENSION_CONFIG_V2.map(d => d.name);
       expect(names).toContain('Problem Clarity');
       expect(names).toContain('Solution Strength');
       expect(names).toContain('Market Size');
@@ -142,7 +142,7 @@ describe('transformReport (via module internals)', () => {
   // Since transformReport is not exported, we test it indirectly
   // by verifying the data flow patterns it relies on
 
-  it('DIMENSION_CONFIG.map produces correct DimensionScore shape', () => {
+  it('DIMENSION_CONFIG_V2.map produces correct DimensionScore shape', () => {
     const mockDetails = {
       dimensions: {
         problemClarity: 80,
@@ -155,7 +155,7 @@ describe('transformReport (via module internals)', () => {
       },
     };
 
-    const dimensionScores = DIMENSION_CONFIG.map(dim => ({
+    const dimensionScores = DIMENSION_CONFIG_V2.map(dim => ({
       name: dim.name,
       score: mockDetails.dimensions[dim.key as keyof typeof mockDetails.dimensions] ?? 0,
       weight: dim.weight,
@@ -171,7 +171,7 @@ describe('transformReport (via module internals)', () => {
   it('produces zero scores for missing dimensions', () => {
     const emptyDetails = { dimensions: {} };
 
-    const dimensionScores = DIMENSION_CONFIG.map(dim => ({
+    const dimensionScores = DIMENSION_CONFIG_V2.map(dim => ({
       name: dim.name,
       score: emptyDetails.dimensions[dim.key as keyof typeof emptyDetails.dimensions] ?? 0,
       weight: dim.weight,

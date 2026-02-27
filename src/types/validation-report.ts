@@ -1,7 +1,33 @@
 /**
  * Validation Report Types
  * 14-section validation report with TAM/SAM/SOM and factor scores
+ *
+ * V3 types live in ./v3-report.ts — re-exported below for convenience.
  */
+
+import type { V3ReportDetails } from './v3-report';
+
+// Re-export all V3 types so consumers can import from either file
+export type {
+  SubScore as V3SubScore,
+  PriorityAction,
+  Verdict,
+  RiskSignal,
+  DiagramData,
+  DiagramType,
+  DimensionId,
+  DimensionPageData,
+  V3ReportDetails,
+  PainChainData,
+  ICPFunnelData,
+  TAMPyramidData,
+  PositioningMatrixData as V3PositioningMatrixData,
+  RevenueEngineData,
+  CapabilityStackData,
+  ExecutionTimelineData,
+  EvidenceFunnelData,
+  RiskHeatGridData,
+} from './v3-report';
 
 export type ValidationVerdict = 'go' | 'caution' | 'no_go';
 export type ValidationReportType = 'quick' | 'deep' | 'investor';
@@ -113,8 +139,9 @@ export const SECTION_TITLES: Record<number, { title: string; description: string
   14: { title: 'Appendix', description: 'Sources, methodology, benchmarks' },
 };
 
-// 7-dimension scoring configuration
-export const DIMENSION_CONFIG = [
+// 7-dimension V2 scoring configuration
+/** @deprecated Use DIMENSION_CONFIG from '@/config/dimensions' for V3 */
+export const DIMENSION_CONFIG_V2 = [
   { key: 'problemClarity', name: 'Problem Clarity', weight: 15, factors: ['Pain severity', 'Frequency', 'Urgency'] },
   { key: 'solutionStrength', name: 'Solution Strength', weight: 15, factors: ['Uniqueness', 'Feasibility', 'Defensibility'] },
   { key: 'marketSize', name: 'Market Size', weight: 15, factors: ['TAM', 'SAM', 'SOM', 'Growth rate'] },
@@ -311,15 +338,20 @@ export interface FinancialProjections {
 }
 
 // ============================================================================
-// V3: Dimension Detail Page Types — SYNC: supabase/functions/validator-start/types.ts
+// V3 Legacy Types — kept for edge function backward compatibility
+// DEPRECATED: Use types from ./v3-report.ts for new V3 components
+// SYNC: supabase/functions/validator-start/types.ts
 // ============================================================================
 
+/** @deprecated Use V3SubScore from ./v3-report.ts */
 export interface SubScore {
   name: string;
   score: number;
   label: string;
 }
 
+/** @deprecated DimensionDetail is the simplified pipeline output shape.
+ *  V3 components should use DimensionPageData from ./v3-report.ts */
 export interface DimensionDetail {
   composite_score: number;
   sub_scores: SubScore[];
@@ -328,6 +360,7 @@ export interface DimensionDetail {
   priority_actions: string[];
 }
 
+/** @deprecated Use CapabilityStackData from ./v3-report.ts for V3 components */
 export interface AIStrategyAssessment {
   detail: DimensionDetail;
   automation_level: 'assist' | 'copilot' | 'agent';
@@ -340,6 +373,7 @@ export interface AIStrategyAssessment {
   governance_readiness: 'not_ready' | 'basic' | 'compliant';
 }
 
+/** @deprecated Use EvidenceFunnelData from ./v3-report.ts for V3 components */
 export interface ValidationProofAssessment {
   detail: DimensionDetail;
   evidence_items: Array<{
@@ -391,8 +425,9 @@ export interface ReportDetailsV2 {
   financial_projections?: FinancialProjections;
 }
 
-/** V3 extends V2 with dimension detail pages + new assessments */
-export interface V3ReportDetails extends ReportDetailsV2 {
+/** @deprecated Use V3ReportDetails from ./v3-report.ts for new V3 components.
+ *  This legacy shape is kept for the edge function pipeline (ComposerGroupE). */
+export interface V3ReportDetailsLegacy extends ReportDetailsV2 {
   problem_detail?: DimensionDetail;
   customer_detail?: DimensionDetail;
   market_detail?: DimensionDetail;
@@ -405,7 +440,26 @@ export interface V3ReportDetails extends ReportDetailsV2 {
 }
 
 /** Detect V3: has at least one dimension detail populated */
-export function isV3Report(details: ReportDetailsV2): details is V3ReportDetails {
-  const d = details as V3ReportDetails;
+export function isV3Report(details: ReportDetailsV2): details is V3ReportDetailsLegacy {
+  const d = details as V3ReportDetailsLegacy;
   return !!(d.problem_detail || d.customer_detail || d.ai_strategy);
 }
+
+// ============================================================================
+// V2/V3 Discriminated Union — TypeScript narrows automatically
+// ============================================================================
+
+/**
+ * Discriminated union for version-aware report consumption.
+ * V2 reports render the existing 6-section layout.
+ * V3 reports render the 9-dimension consulting pages.
+ *
+ * Usage:
+ *   if (report.reportVersion === 'v3') {
+ *     // TypeScript knows report.details is V3ReportDetails here
+ *     const dims = report.details.dimensions;
+ *   }
+ */
+export type VersionedReport =
+  | { reportVersion: 'v2'; details: ReportDetailsV2 }
+  | { reportVersion: 'v3'; details: V3ReportDetails };

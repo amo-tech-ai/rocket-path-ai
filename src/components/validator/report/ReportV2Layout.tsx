@@ -21,6 +21,11 @@ import { TeamPlanCards } from '@/components/validator/report/TeamPlanCards';
 import { KeyQuestionsCards } from '@/components/validator/report/KeyQuestionsCards';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { MarketSizeLuxury } from '@/components/validator/report/MarketSizeLuxury';
+import { ValidationRadar } from '@/components/validator/report/charts/ValidationRadar';
+import { GapAnalysisBars } from '@/components/validator/report/charts/GapAnalysisBars';
+import { MaturityFunnel } from '@/components/validator/report/charts/MaturityFunnel';
+import { BenchmarkBlocks } from '@/components/validator/report/charts/BenchmarkBlocks';
+import { ScoreTrendLines } from '@/components/validator/report/charts/ScoreTrendLines';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { formatMarketSize } from '@/types/validation-report';
@@ -538,27 +543,7 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
       <StickyScoreBar score={score} signal={signal} metrics={stickyMetrics} visible={stickyVisible} />
 
       <div className="max-w-[1000px] mx-auto px-4 lg:px-8 py-8 flex flex-col gap-8">
-        {/* Hero — always visible above tabs */}
-        <div ref={heroRef}>
-          <Reveal>
-            <ReportHeroLuxury
-              startupName={startupMeta?.name || companyName}
-              industry={startupMeta?.industry}
-              stage={startupMeta?.stage}
-              tagline={startupMeta?.tagline}
-              score={score}
-              signal={signal}
-              analysis={analysis}
-              metrics={heroMetrics}
-              dimensions={dimensions}
-              topThreat={topThreat}
-              fatalRisk={fatalRisk}
-              revenueModel={revenue?.recommended_model}
-            />
-          </Reveal>
-        </div>
-
-        {/* Tabbed sections — screen only */}
+        {/* Tabbed sections — tabs at top, screen only */}
         <div ref={tabsAnchorRef}>
           <Tabs value={activeTab} onValueChange={handleTabChange} className="report-tabs no-print">
             <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1.5 rounded-lg">
@@ -573,7 +558,48 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
               ))}
             </TabsList>
 
-            <TabsContent value="overview" className="mt-6">
+            <TabsContent value="overview" className="mt-6 space-y-6">
+              {/* Hero — overview summary */}
+              <div ref={heroRef}>
+                <Reveal>
+                  <ReportHeroLuxury
+                    startupName={startupMeta?.name || companyName}
+                    industry={startupMeta?.industry}
+                    stage={startupMeta?.stage}
+                    tagline={startupMeta?.tagline}
+                    score={score}
+                    signal={signal}
+                    analysis={analysis}
+                    metrics={heroMetrics}
+                    dimensions={dimensions}
+                    topThreat={topThreat}
+                    fatalRisk={fatalRisk}
+                    revenueModel={revenue?.recommended_model}
+                  />
+                </Reveal>
+              </div>
+
+              {/* BCG-style charts — validation analytics */}
+              {dimensions.length > 0 && (
+                <PageCard>
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <ValidationRadar dimensions={dimensions} />
+                    <GapAnalysisBars dimensions={dimensions} />
+                  </div>
+                </PageCard>
+              )}
+
+              {dimensions.length > 0 && (
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <PageCard>
+                    <BenchmarkBlocks dimensions={dimensions} overallScore={score} />
+                  </PageCard>
+                  <PageCard>
+                    <MaturityFunnel dimensions={dimensions} />
+                  </PageCard>
+                </div>
+              )}
+
               <PageCard>
                 <div className="grid gap-4 sm:grid-cols-3">
                   {/* Top Strengths */}

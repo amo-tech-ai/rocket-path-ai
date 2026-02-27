@@ -21,6 +21,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // Bypass navigator.locks to prevent deadlocks in single-tab / embedded contexts.
+    // Supabase's default lock uses navigator.locks which can deadlock when a stale
+    // tab or browsing context holds the lock indefinitely.
+    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
   },
   realtime: {
     params: {
