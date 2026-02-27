@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.10.32] - 2026-02-27
+
+### MVP-02: Composer Group E Pipeline Expansion
+
+9 parallel Gemini dimension calls produce per-dimension detail pages with sub-scores, diagrams, risk signals, and priority actions. Reports now versioned as v2 or v3.
+
+- `schemas.ts`: 9 per-dimension JSON schemas (problem, customer, market, competition, revenue, ai-strategy, execution, traction, risk)
+- `composer.ts`: `composeDimension()`, `composeGroupE()` with 200ms stagger, 3-phase budget split (A+B+C → D → E)
+- `pipeline.ts`: `report_version` detection (v2/v3) in INSERT
+- `config.ts`: `groupE: 35_000` timeout
+- `types.ts`: `dimensions?: Record<string, any>` on ValidatorReport
+- DB migration: `report_version text DEFAULT 'v2'` column on `validator_reports`
+
+### MVP-03: Chat Interview 8→12 Topics
+
+Expanded validator followup interview from 8 to 12 discovery topics with structured follow-up questions.
+
+- `validator-followup/prompt.ts`: 12 topics with depth questions
+- `validator-followup/schema.ts`: Updated response schema
+- `useValidatorFollowup.ts`: Enhanced hook logic
+- `ContextPanel.tsx`: Improved topic display
+
+### MVP-04: DimensionPage Shared Components
+
+5 new V3 components + data hook for consulting-grade dimension detail pages.
+
+- `SubScoreBar.tsx`: Animated horizontal bar with IntersectionObserver scroll-trigger
+- `CompositeScoreCard.tsx`: Big score + verdict badge + sub-score breakdown
+- `RiskSignalCard.tsx`: Severity-colored risk alerts (high/medium/low)
+- `PriorityActionList.tsx`: Numbered actions with timeframe/effort chips
+- `DimensionPage.tsx`: Layout shell with state machine (loading/success/error/empty/v2-fallback)
+- `useDimensionPage.ts`: React Query hook with snake_case→camelCase transform
+
+Also: `v3-report.ts` (V3 type system), `dimensions.ts` (9-dimension config), `BenchmarkBlocks.tsx` chart
+
+**Build:** 0 TS errors | **Tests:** 357/357 | **Phase 2:** 4/7 complete (57%)
+
+---
+
 ## [0.10.31] - 2026-02-27
 
 ### MVP-01: V3 Types Foundation
