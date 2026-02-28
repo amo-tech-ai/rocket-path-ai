@@ -39,8 +39,8 @@ export function useModuleProgress(startupId?: string) {
           .eq('type', 'lean_canvas')
           .order('updated_at', { ascending: false })
           .limit(1)
-          .single(),
-        
+          .maybeSingle(),
+
         // Pitch Deck progress
         supabase
           .from('documents')
@@ -50,7 +50,7 @@ export function useModuleProgress(startupId?: string) {
           .eq('type', 'pitch_deck')
           .order('updated_at', { ascending: false })
           .limit(1)
-          .single(),
+          .maybeSingle(),
         
         // Tasks progress
         supabase

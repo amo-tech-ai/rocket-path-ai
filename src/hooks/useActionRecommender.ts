@@ -46,6 +46,7 @@ async function fetchRecommendations(
 
   const { data, error } = await supabase.functions.invoke('action-recommender', {
     body: { startupId, healthScore: healthBreakdown ? { breakdown: healthBreakdown } : undefined },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
   if (error) throw error;
