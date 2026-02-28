@@ -20,6 +20,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useGlobalAIAssistant } from '@/hooks/useGlobalAIAssistant';
+import { useReportAIContext } from '@/hooks/useReportAIContext';
+import { useDashboardAIContext } from '@/hooks/useDashboardAIContext';
 import { AIMessageBubble } from './AIMessageBubble';
 import { AIQuickActions } from './AIQuickActions';
 import { AIChatInput } from './AIChatInput';
@@ -43,6 +45,21 @@ export function AIPanel({ onClose }: AIPanelProps) {
     executeQuickAction,
     handleSuggestedAction,
   } = useGlobalAIAssistant();
+
+  // MVP-06: Section-aware context for report dimension pages
+  const reportAI = useReportAIContext();
+  const isOnDimension = reportAI.isOnDimensionPage && isAuthenticated;
+
+  // Dashboard-specific quick actions
+  const dashboardAI = useDashboardAIContext();
+  const isOnDashboard = dashboardAI.isOnDashboard && isAuthenticated;
+
+  // Priority chain: dimension context > dashboard context > default
+  const effectiveQuickActions = isOnDimension
+    ? reportAI.quickActions
+    : isOnDashboard
+      ? dashboardAI.quickActions
+      : quickActions;
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -73,23 +90,42 @@ export function AIPanel({ onClose }: AIPanelProps) {
               'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0',
               isAuthenticated ? 'bg-primary/10' : 'bg-sage/10',
             )}
+            style={
+              isOnDimension && reportAI.dimensionColor
+                ? { backgroundColor: `${reportAI.dimensionColor}15` }
+                : undefined
+            }
           >
             <Brain
               className={cn(
                 'w-4.5 h-4.5',
                 isAuthenticated ? 'text-primary' : 'text-sage',
               )}
+              style={
+                isOnDimension && reportAI.dimensionColor
+                  ? { color: reportAI.dimensionColor }
+                  : undefined
+              }
             />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-sm truncate">Atlas</h2>
-              <Badge
-                variant={isAuthenticated ? 'default' : 'secondary'}
-                className="text-[10px] h-5 px-1.5 flex-shrink-0"
-              >
-                {modeLabel}
-              </Badge>
+              {isOnDimension && reportAI.dimensionLabel ? (
+                <Badge
+                  className="text-[10px] h-5 px-1.5 flex-shrink-0 text-white"
+                  style={{ backgroundColor: reportAI.dimensionColor ?? undefined }}
+                >
+                  {reportAI.dimensionLabel}
+                </Badge>
+              ) : (
+                <Badge
+                  variant={isAuthenticated ? 'default' : 'secondary'}
+                  className="text-[10px] h-5 px-1.5 flex-shrink-0"
+                >
+                  {modeLabel}
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground truncate">
               {contextLabel}
@@ -138,18 +174,26 @@ export function AIPanel({ onClose }: AIPanelProps) {
               />
             </div>
             <h3 className="font-semibold text-sm mb-1">
-              {isAuthenticated
-                ? 'How can I help you today?'
-                : "Hi! I'm Atlas"}
+              {isOnDimension
+                ? `Ask about ${reportAI.dimensionLabel}`
+                : isOnDashboard
+                  ? 'Your startup at a glance'
+                  : isAuthenticated
+                    ? 'How can I help you today?'
+                    : "Hi! I'm Atlas"}
             </h3>
             <p className="text-xs text-muted-foreground mb-6 max-w-[280px]">
-              {isAuthenticated
-                ? 'Ask about your startup, get recommendations, or explore insights.'
-                : 'I can answer questions about StartupAI. Sign in to unlock personalized guidance!'}
+              {isOnDimension
+                ? 'Get insights about this dimension, drill into sub-scores, or learn how to improve.'
+                : isOnDashboard
+                  ? 'Ask about your health score, risks, next steps, or get a weekly digest.'
+                  : isAuthenticated
+                    ? 'Ask about your startup, get recommendations, or explore insights.'
+                    : 'I can answer questions about StartupAI. Sign in to unlock personalized guidance!'}
             </p>
 
-            {/* Quick Actions */}
-            <AIQuickActions actions={quickActions} onAction={executeQuickAction} />
+            {/* Quick Actions — dimension-specific when on a dimension page */}
+            <AIQuickActions actions={effectiveQuickActions} onAction={executeQuickAction} />
 
             {/* Keyboard hint */}
             <div className="mt-6 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">

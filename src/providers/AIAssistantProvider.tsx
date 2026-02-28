@@ -12,6 +12,7 @@ import { useStartup } from '@/hooks/useDashboardData';
 import type { AIMode, QuickAction } from '@/lib/ai-capabilities';
 import { getQuickActions, checkGatedAction, getAuthenticatedSystemPrompt, PUBLIC_SYSTEM_PROMPT } from '@/lib/ai-capabilities';
 import { supabase } from '@/integrations/supabase/client';
+import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
 
 // ============ Types ============
 
@@ -36,22 +37,38 @@ export interface StartupContext {
   completionPercentage: number;
 }
 
+export interface ReportContext {
+  reportId: string;
+  dimensionId: DimensionId | null;
+  dimensionLabel: string | null;
+}
+
+export interface DashboardContextData {
+  healthScore: number | null;
+  healthTrend: number | null;
+  topRisks: string[];
+  currentStage: string | null;
+  journeyPercent: number;
+}
+
 interface AIAssistantState {
   // UI State
   isOpen: boolean;
   isExpanded: boolean;
-  
+
   // Mode
   mode: AIMode;
-  
+
   // Session
   sessionId: string | null;
   messages: AIMessage[];
-  
+
   // Context
   currentRoute: string;
   startupContext: StartupContext | null;
-  
+  reportContext: ReportContext | null;
+  dashboardContext: DashboardContextData | null;
+
   // Loading
   isLoading: boolean;
   isStreaming: boolean;
@@ -72,7 +89,9 @@ type AIAssistantAction =
   | { type: 'SET_STREAMING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'CLEAR_MESSAGES' }
-  | { type: 'SET_SESSION'; payload: string };
+  | { type: 'SET_SESSION'; payload: string }
+  | { type: 'SET_REPORT_CONTEXT'; payload: ReportContext | null }
+  | { type: 'SET_DASHBOARD_CONTEXT'; payload: DashboardContextData | null };
 
 interface AIAssistantContextValue {
   state: AIAssistantState;
@@ -86,7 +105,8 @@ interface AIAssistantContextValue {
   // Chat Actions
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
-  
+  setDashboardContext: (ctx: DashboardContextData | null) => void;
+
   // Helpers
   quickActions: QuickAction[];
   modeLabel: string;
@@ -103,6 +123,8 @@ const initialState: AIAssistantState = {
   messages: [],
   currentRoute: '/',
   startupContext: null,
+  reportContext: null,
+  dashboardContext: null,
   isLoading: false,
   isStreaming: false,
   error: null,
@@ -147,6 +169,10 @@ function aiAssistantReducer(state: AIAssistantState, action: AIAssistantAction):
       return { ...state, messages: [], error: null };
     case 'SET_SESSION':
       return { ...state, sessionId: action.payload };
+    case 'SET_REPORT_CONTEXT':
+      return { ...state, reportContext: action.payload };
+    case 'SET_DASHBOARD_CONTEXT':
+      return { ...state, dashboardContext: action.payload };
     default:
       return state;
   }
@@ -173,6 +199,32 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
   // Update route
   useEffect(() => {
     dispatch({ type: 'SET_ROUTE', payload: location.pathname });
+  }, [location.pathname]);
+
+  // Update report context from route (MVP-06)
+  useEffect(() => {
+    const match = location.pathname.match(
+      /^\/validator\/report\/([^/]+)(?:\/([^/]+))?/,
+    );
+    if (match) {
+      const reportId = match[1];
+      const section = match[2] ?? null;
+      const dimensionId =
+        section && section in DIMENSION_CONFIG
+          ? (section as DimensionId)
+          : null;
+      const config = dimensionId ? DIMENSION_CONFIG[dimensionId] : null;
+      dispatch({
+        type: 'SET_REPORT_CONTEXT',
+        payload: {
+          reportId,
+          dimensionId,
+          dimensionLabel: config?.label ?? null,
+        },
+      });
+    } else {
+      dispatch({ type: 'SET_REPORT_CONTEXT', payload: null });
+    }
   }, [location.pathname]);
 
   // Update startup context
@@ -213,6 +265,10 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
   const toggle = useCallback(() => dispatch({ type: 'TOGGLE' }), []);
   const toggleExpanded = useCallback(() => dispatch({ type: 'TOGGLE_EXPANDED' }), []);
   const clearMessages = useCallback(() => dispatch({ type: 'CLEAR_MESSAGES' }), []);
+  const setDashboardContext = useCallback(
+    (ctx: DashboardContextData | null) => dispatch({ type: 'SET_DASHBOARD_CONTEXT', payload: ctx }),
+    [],
+  );
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -250,6 +306,31 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
 
     try {
       // Build request body
+      const contextData =
+        state.mode === 'authenticated' && state.startupContext
+          ? {
+              startup_name: state.startupContext.name,
+              industry: state.startupContext.industry,
+              stage: state.startupContext.stage,
+              completion: state.startupContext.completionPercentage,
+              // MVP-06: Include report dimension context when viewing a dimension page
+              ...(state.reportContext
+                ? {
+                    report_context: {
+                      type: 'report-dimension' as const,
+                      report_id: state.reportContext.reportId,
+                      dimension_id: state.reportContext.dimensionId,
+                      dimension_label: state.reportContext.dimensionLabel,
+                    },
+                  }
+                : {}),
+              // Dashboard context when viewing the dashboard
+              ...(state.dashboardContext
+                ? { dashboard_context: state.dashboardContext }
+                : {}),
+            }
+          : undefined;
+
       const requestBody = {
         message: content.trim(),
         messages: state.messages.map(m => ({ role: m.role, content: m.content })),
@@ -259,12 +340,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
           screen: state.currentRoute,
           startup_id: state.startupContext?.id,
           is_public: state.mode === 'public',
-          data: state.mode === 'authenticated' && state.startupContext ? {
-            startup_name: state.startupContext.name,
-            industry: state.startupContext.industry,
-            stage: state.startupContext.stage,
-            completion: state.startupContext.completionPercentage,
-          } : undefined,
+          data: contextData,
         },
       };
 
@@ -302,7 +378,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [state.mode, state.messages, state.currentRoute, state.startupContext]);
+  }, [state.mode, state.messages, state.currentRoute, state.startupContext, state.reportContext, state.dashboardContext]);
 
   // ============ Computed Values ============
 
@@ -313,7 +389,9 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     : 'Guest';
 
   const contextLabel = state.mode === 'authenticated'
-    ? `Active in: ${getScreenLabel(state.currentRoute)}`
+    ? state.reportContext?.dimensionLabel
+      ? `Viewing: ${state.reportContext.dimensionLabel}`
+      : `Active in: ${getScreenLabel(state.currentRoute)}`
     : 'StartupAI Assistant';
 
   // ============ Context Value ============
@@ -326,6 +404,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     toggleExpanded,
     sendMessage,
     clearMessages,
+    setDashboardContext,
     quickActions,
     modeLabel,
     contextLabel,
@@ -367,6 +446,10 @@ function getScreenLabel(path: string): string {
 
   // Check for exact match
   if (labels[path]) return labels[path];
+
+  // Validator routes
+  if (path.startsWith('/validator/report')) return 'Validator Report';
+  if (path.startsWith('/validator')) return 'Validator';
 
   // Check for partial match
   for (const [key, label] of Object.entries(labels)) {
