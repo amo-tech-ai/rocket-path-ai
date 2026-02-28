@@ -29,6 +29,7 @@ async function fetchHealthScore(startupId: string): Promise<HealthScore> {
 
   const { data, error } = await supabase.functions.invoke('health-scorer', {
     body: { action: 'calculate', startupId },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
   if (error) throw error;

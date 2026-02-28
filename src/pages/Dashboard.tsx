@@ -11,7 +11,7 @@
  *   - Day1PlanCard — guided mode only
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { HeroStatus } from '@/components/dashboard/HeroStatus';
@@ -77,13 +77,16 @@ const Dashboard = () => {
     startup?.id,
   );
 
+  // Memoize risk titles to prevent cascading re-renders
+  const topRiskTitles = useMemo(() => topRisks.map((r) => r.title), [topRisks]);
+
   // Dispatch dashboard context to AI assistant for contextual prompts
   const { setDashboardContext } = useAIAssistant();
   useEffect(() => {
     setDashboardContext({
       healthScore: healthScore?.overall ?? null,
       healthTrend: healthScore?.trend ?? null,
-      topRisks: topRisks.map((r) => r.title),
+      topRisks: topRiskTitles,
       currentStage: startup?.stage ?? null,
       journeyPercent: journey.percentComplete,
     });
@@ -91,7 +94,7 @@ const Dashboard = () => {
   }, [
     healthScore?.overall,
     healthScore?.trend,
-    topRisks,
+    topRiskTitles,
     startup?.stage,
     journey.percentComplete,
     setDashboardContext,
