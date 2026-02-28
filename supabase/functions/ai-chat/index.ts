@@ -309,6 +309,35 @@ Deno.serve(async (req: Request) => {
         screen: context?.screen || 'dashboard',
       });
 
+      // MVP-06: If report dimension context provided, load dimension data and inject into system prompt
+      const reportCtx = context?.data?.report_context as { type?: string; report_id?: string; dimension_id?: string; dimension_label?: string } | undefined;
+      if (reportCtx?.type === 'report-dimension' && reportCtx.report_id) {
+        const dimensionBlock = await loadDimensionContext(supabase, reportCtx.report_id, reportCtx.dimension_id, reportCtx.dimension_label);
+        if (dimensionBlock) {
+          systemPrompt += `\n\n${dimensionBlock}`;
+        }
+      }
+
+      // Dashboard context: inject health/risk summary when chatting from dashboard
+      const dashCtx = context?.data?.dashboard_context as {
+        healthScore?: number | null;
+        healthTrend?: number | null;
+        topRisks?: string[];
+        currentStage?: string | null;
+        journeyPercent?: number;
+      } | undefined;
+      if (dashCtx && (context?.screen === '/dashboard' || context?.screen === '/')) {
+        const dashLines = [
+          'DASHBOARD CONTEXT:',
+          dashCtx.healthScore != null ? `Health Score: ${dashCtx.healthScore}/100${dashCtx.healthTrend ? ` (trend: ${dashCtx.healthTrend > 0 ? '+' : ''}${dashCtx.healthTrend})` : ''}` : null,
+          dashCtx.currentStage ? `Stage: ${dashCtx.currentStage}${dashCtx.journeyPercent != null ? ` (${dashCtx.journeyPercent}% journey complete)` : ''}` : null,
+          dashCtx.topRisks && dashCtx.topRisks.length > 0 ? `Top Risks: ${dashCtx.topRisks.join('; ')}` : 'Top Risks: None flagged',
+          '',
+          'When the user asks about their status, health, or risks, use the dashboard data above.',
+        ].filter(Boolean);
+        systemPrompt += `\n\n${dashLines.join('\n')}`;
+      }
+
       // RAG: Search knowledge base before LLM; inject server-side (no raw chunks to client)
       const ragBlock = await getRAGContext(supabase, userMessage, startup?.industry);
       if (ragBlock) {
@@ -456,6 +485,78 @@ ${ragBlock}`;
     );
   }
 });
+
+/**
+ * MVP-06: Load compact dimension context for the AI system prompt.
+ * Queries validator_reports.details.dimensions[dimensionId] and builds
+ * a ~200-400 token summary for the LLM.
+ */
+// deno-lint-ignore no-explicit-any
+async function loadDimensionContext(
+  supabase: any,
+  reportId: string,
+  dimensionId?: string | null,
+  dimensionLabel?: string | null,
+): Promise<string | null> {
+  try {
+    const { data: report, error } = await supabase
+      .from('validator_reports')
+      .select('details, score')
+      .eq('id', reportId)
+      .single();
+
+    if (error || !report?.details) {
+      console.warn('[AI Chat] Could not load report for dimension context:', error?.message);
+      return null;
+    }
+
+    // deno-lint-ignore no-explicit-any
+    const details = report.details as Record<string, any>;
+
+    // If on the report overview (no specific dimension), give a high-level summary
+    if (!dimensionId || !details.dimensions?.[dimensionId]) {
+      return `REPORT CONTEXT:
+The user is viewing their validation report (overall score: ${report.score ?? 'N/A'}/100).
+When answering questions, reference the report's findings and scores.`;
+    }
+
+    // deno-lint-ignore no-explicit-any
+    const dim = details.dimensions[dimensionId] as Record<string, any>;
+    const label = dimensionLabel || dimensionId;
+    const score = dim.composite_score ?? 'N/A';
+
+    // Build compact sub-scores summary
+    // deno-lint-ignore no-explicit-any
+    const subScores = (dim.sub_scores || []).map((s: any) =>
+      `${s.label || s.name}: ${s.score ?? 0}/100`
+    ).join(', ');
+
+    // Top action
+    const topAction = dim.priority_actions?.[0] || null;
+
+    // Risk signals count
+    const riskCount = dim.risk_signals?.length || 0;
+    // deno-lint-ignore no-explicit-any
+    const highRiskCount = (dim.risk_signals || []).filter((s: any) =>
+      typeof s === 'object' && s.severity === 'high'
+    ).length;
+
+    // Headline
+    const headline = dim.headline || '';
+
+    return `CURRENT DIMENSION CONTEXT: ${label} (${score}/100)
+Headline: ${headline}
+Sub-scores: ${subScores || 'None available'}
+Top action: ${topAction || 'None specified'}
+Risk signals: ${riskCount} flagged${highRiskCount > 0 ? ` (${highRiskCount} high severity)` : ''}
+
+When the user asks about "this score", "this dimension", or "how to improve", use the ${label} data above.
+Reference specific sub-scores and actions when giving advice.`;
+  } catch (err) {
+    console.error('[AI Chat] Error loading dimension context:', err);
+    return null;
+  }
+}
 
 async function callAnthropic(
   model: string,
