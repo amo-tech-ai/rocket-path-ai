@@ -206,6 +206,14 @@ export default function ValidatorChat({
     if (followupInFlight.current) return;
     followupInFlight.current = true;
 
+    // Safety: auto-reset followupInFlight after 50s even if the call hangs
+    const flightTimeout = setTimeout(() => {
+      if (followupInFlight.current) {
+        console.warn('[ValidatorChat] followupInFlight stuck — auto-resetting after 50s');
+        followupInFlight.current = false;
+      }
+    }, 50_000);
+
     const conversationMessages = buildConversationMessages(currentMessages);
     const currentUserCount = currentMessages.filter(m => m.role === 'user').length;
 
@@ -216,6 +224,7 @@ export default function ValidatorChat({
       setTimeout(() => {
         setIsTyping(false);
         followupInFlight.current = false;
+        clearTimeout(flightTimeout);
         setMessages(prev => [...prev, {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -246,7 +255,15 @@ export default function ValidatorChat({
 
     try {
       // Pass sessionId so edge function broadcasts tokens
-      const result = await getNextQuestion([...conversationMessages], sessionId);
+      // Wrap in Promise.race with 45s timeout to prevent hanging forever
+      const result = await Promise.race([
+        getNextQuestion([...conversationMessages], sessionId),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Followup request timed out after 45s')), 45_000)
+        ),
+      ]);
+
+      clearTimeout(flightTimeout);
 
       // Streaming metadata may have already arrived via broadcast.
       // The HTTP response is the source of truth for coverage/extracted.
@@ -331,6 +348,7 @@ export default function ValidatorChat({
       } else {
         // Edge function failed — use depth-aware fallback
         console.warn('[ValidatorChat] AI followup failed, using context-aware fallback');
+        clearTimeout(flightTimeout);
         setIsStreamingMessage(false);
         streamingMessageId.current = null;
         resetStream();
@@ -356,8 +374,9 @@ export default function ValidatorChat({
           }];
         });
       }
-    } catch {
-      console.warn('[ValidatorChat] Network error, using context-aware fallback');
+    } catch (err) {
+      console.warn('[ValidatorChat] Network error or timeout, using context-aware fallback', err);
+      clearTimeout(flightTimeout);
       setIsTyping(false);
       setIsStreamingMessage(false);
       streamingMessageId.current = null;

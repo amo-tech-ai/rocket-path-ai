@@ -454,10 +454,12 @@ No hedging. Pick one.
 
 STRICT RULES:
 - No jargon. No "leverage", "synergy", "paradigm", "ecosystem", "robust".
+- No financial abbreviations: write "market size" not "TAM", "customer return" not "LTV:CAC", "target revenue" not "SOM", "customer acquisition cost" not "CAC".
 - No bullet points — write flowing paragraphs.
 - Use plain numbers: "$3,500/month" not "$3.5K MRR". "140,000 clinics" not "140K TAM".
 - Every claim must connect to data from the analysis groups.
 - The summary must feel like advice from a smart friend, not a consulting report.
+- Highlights and red flags must read like advice from a mentor, not an analyst report.
 
 ### verdict_oneliner
 - A complete sentence with a clear stance — not a fragment.
@@ -474,7 +476,7 @@ STRICT RULES:
 - The one risk that could kill the business, stated so a non-expert understands it.
 - Connect it to data: cite the specific evidence from the analysis.
 - BAD: "Competitive dynamics pose a threat."
-- GOOD: "Dentrix (60% market share) could add insurance verification in a software update — your entire value prop would evaporate."
+- GOOD: "Dentrix (60% market share) could add insurance verification in a software update — your entire advantage would disappear."
 
 ## Domain Knowledge — Investor Expectations
 
@@ -482,10 +484,10 @@ STRICT RULES:
 - Pre-seed: "Is the problem real?" → Focus on customer pain evidence + team credibility.
   Expect: 20+ customer interviews, problem validation, early prototype.
 - Seed: "Is it working?" → Focus on early traction + unit economics signals.
-  Expect: $10-50K MRR, 15-20% MoM growth, willingness-to-pay confirmed.
+  Expect: $10-50K monthly recurring revenue, 15-20% month-over-month growth, willingness-to-pay confirmed.
 - Series A: "Can it scale?" → Focus on repeatable growth + proven economics.
-  Expect: $1-3M ARR, 3:1+ LTV:CAC, <18mo payback.
-Match your language to the actual evidence tier, never oversell.
+  Expect: $1-3M annual revenue, 3:1+ customer return ratio, under 18-month payback.
+Match your language to the actual evidence tier, never oversell. NEVER use abbreviations like MRR, ARR, LTV, CAC, TAM, SAM, SOM in the output — always write them out in plain English.
 
 ### Timing & Market Entry Signals
 - Strong entry signal: 3+ independent indicators (funding rounds, job postings, enterprise adoption) + <16% market penetration

@@ -128,8 +128,9 @@ If any evidence is Level 4-5 → score floor of 50 (caution minimum, not no-go).
 - GOOD: "A $8.8B market growing at 41% annually — strong tailwinds for a new entrant"
 - BAD: "Competition is a moderate concern requiring strategic positioning"
 - GOOD: "3 well-funded competitors exist, but none serve independent labels under 50 employees"
-- Highlights should be reasons an investor would get excited
-- Red flags should be honest concerns a founder needs to address
+- Write each highlight as if explaining to a non-technical founder. No analyst language.
+- Highlights should be reasons a founder can feel confident about their idea
+- Red flags should be honest concerns a founder needs to address, with clear consequences
 
 IMPORTANT: Do NOT compute overall_score or verdict — those are calculated deterministically from your dimension scores. Do NOT include a "status" field on factors — that is also derived automatically.
 
@@ -156,8 +157,8 @@ Return JSON with exactly these fields:
     {"name": "Go-to-Market", "score": <1-10>, "description": "How will they reach customers? Is the distribution channel clear?"},
     {"name": "Unit Economics", "score": <1-10>, "description": "Do the numbers work? Estimate CAC, LTV, and margins based on the business model"}
   ],
-  "highlights": ["Strength 1 — specific and evidence-based", "Strength 2", "Strength 3"],
-  "red_flags": ["Risk 1 — explain what breaks if this goes wrong", "Risk 2"],
+  "highlights": ["You're solving a real problem — [specific evidence]. That's a strong starting point.", "Strength 2 — written like advice from a mentor", "Strength 3"],
+  "red_flags": ["If [specific thing] doesn't work out, here's what happens: [consequence]", "Risk 2 — explain in plain language what could go wrong"],
   "risks_assumptions": ["Assumes X — if wrong, Y happens", "Risk: X could cause Y because Z"],
   "risk_queue": [
     {
