@@ -1,0 +1,16 @@
+node_modules
+packages/remotion/out
+backup
+draft
+test-results
+.firecrawl
+.obsidian
+tasks-draft
+mermaid
+screenshots
+figma
+archive
+.backup*
+*.lockb
+pnpm-lock.yaml
+package-lock.json

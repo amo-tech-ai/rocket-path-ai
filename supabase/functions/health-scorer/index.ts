@@ -54,6 +54,7 @@ Deno.serve(async (req) => {
     );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Auth validated
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -77,15 +78,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify user access to startup (defense-in-depth — RLS also enforces)
-    const { data: membership } = await supabase
-      .from('startup_members')
+    // Verify user access to startup via RLS on startups table
+    // (RLS policy: org_id = user_org_id() AND deleted_at IS NULL)
+    const { data: startupAccess, error: accessError } = await supabase
+      .from('startups')
       .select('id')
-      .eq('startup_id', startupId)
-      .eq('user_id', user.id)
-      .single();
+      .eq('id', startupId)
+      .maybeSingle();
 
-    if (!membership) {
+    if (!startupAccess) {
+      console.error(`[health-scorer] Access denied: userId=${user.id}, startupId=${startupId}, error=${accessError?.message || 'no access'}`);
       return new Response(
         JSON.stringify({ error: 'Access denied' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

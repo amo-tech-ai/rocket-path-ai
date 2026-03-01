@@ -13,6 +13,11 @@ dist
 dist-ssr
 *.local
 
+# Environment files — NEVER commit secrets
+.env
+.env.*
+!.env.example
+
 # Backup archives (consolidated)
 .backups/
 
@@ -57,3 +62,4 @@ website/
 30-day/
 lean/
 screenshots/
+.vercel
