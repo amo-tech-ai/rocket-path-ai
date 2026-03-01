@@ -19,8 +19,11 @@ interface ValidatorChatInputProps {
   generateDisabledReason?: string;
   placeholder?: string;
   prefillText?: string;
+  suggestions?: string[];
 }
 
+// Static fallback chips — shown only in the initial empty state before any AI response.
+// Once the AI generates dynamic suggestions (via `suggestions` prop), these are replaced.
 const SUGGESTION_CHIPS = [
   "AI tool for small business",
   "Marketplace connecting X and Y",
@@ -37,6 +40,7 @@ export default function ValidatorChatInput({
   generateDisabledReason,
   placeholder = "Describe your startup idea, problem, or goal...",
   prefillText,
+  suggestions,
 }: ValidatorChatInputProps) {
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(true);
@@ -77,30 +81,46 @@ export default function ValidatorChatInput({
 
   return (
     <div className="space-y-4">
-      {/* Suggestion Chips */}
+      {/* Suggestion Chips — dynamic (AI-generated per question) or static (initial state) */}
       <AnimatePresence>
-        {showSuggestions && !input && (
-          <motion.div
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-            className="flex flex-wrap gap-2"
-          >
-            {SUGGESTION_CHIPS.map((chip, i) => (
-              <motion.button
-                key={chip}
-                initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={shouldReduceMotion ? { duration: 0 } : { delay: i * 0.1 }}
-                onClick={() => handleSuggestionClick(chip)}
-                aria-label={`Suggestion: ${chip}`}
-                className="px-3 py-1.5 text-sm text-muted-foreground bg-muted/50 rounded-full hover:bg-muted hover:text-foreground transition-colors"
-              >
-                {chip}
-              </motion.button>
-            ))}
-          </motion.div>
-        )}
+        {(() => {
+          // 037-DSC: Show AI suggestions when available, static chips for initial empty state.
+          // Dynamic chips bypass `showSuggestions` — they reappear after each AI question
+          // even if the user previously focused/dismissed. Static chips respect `showSuggestions`.
+          const hasDynamic = suggestions && suggestions.length > 0;
+          const showChips = hasDynamic ? !input : (showSuggestions && !input);
+          const chips = hasDynamic ? suggestions : SUGGESTION_CHIPS;
+          if (!showChips) return null;
+
+          return (
+            <motion.div
+              key={hasDynamic ? 'dynamic' : 'static'}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+              className="flex flex-wrap gap-2"
+            >
+              {chips.map((chip, i) => (
+                <motion.button
+                  key={chip}
+                  initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : { delay: i * 0.1 }}
+                  onClick={() => handleSuggestionClick(chip)}
+                  aria-label={`Suggestion: ${chip}`}
+                  className={cn(
+                    "px-3 py-1.5 text-sm rounded-full transition-colors",
+                    hasDynamic
+                      ? "text-primary bg-primary/10 hover:bg-primary/20 hover:text-primary border border-primary/20"
+                      : "text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {chip}
+                </motion.button>
+              ))}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* Input Area */}

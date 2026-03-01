@@ -80,6 +80,7 @@ export interface FollowupResponse {
   };
   questionNumber: number;
   reasoning: string;
+  suggestions: string[];
 }
 
 const depthEnum = {
@@ -94,7 +95,7 @@ const confidenceEnum = {
 
 export const followupResponseSchema = {
   type: "object",
-  required: ["action", "question", "summary", "readiness_reason", "coverage", "extracted", "confidence", "contradictions", "discoveredEntities", "questionNumber", "reasoning"],
+  required: ["action", "question", "summary", "readiness_reason", "coverage", "extracted", "confidence", "contradictions", "discoveredEntities", "questionNumber", "reasoning", "suggestions"],
   properties: {
     action: {
       type: "string",
@@ -213,6 +214,13 @@ export const followupResponseSchema = {
     reasoning: {
       type: "string",
       description: "Internal analysis of what's covered and what's missing (not shown to user).",
+    },
+    suggestions: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 0,
+      maxItems: 4,
+      description: "2-4 short suggestion chips (under 60 chars each) the founder can tap to answer the current question. Context-specific to the question being asked. Empty array when action is 'ready'.",
     },
   },
 };

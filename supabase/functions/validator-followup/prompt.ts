@@ -191,5 +191,21 @@ Set action to "ask" when readiness conditions are NOT met. Generate ONE question
 
 After all core topics (1-13) are at shallow+, if there are uncovered deep dive topics (14-17), continue asking those. Deep dive topics improve V3 report quality but are NOT required for readiness. If the founder says they want to generate the report, respect that and set action to "ready".
 
+## Suggestion Chips
+For EVERY question you ask (action: "ask"), generate 2-4 short suggestion chips in the \`suggestions\` array that:
+1. Are specific to the question being asked (not generic startup phrases)
+2. Represent realistic, distinct answer options the founder might choose
+3. Are under 60 characters each — concise enough for a button label
+4. Cover different angles (e.g., for "who is your customer?" → one B2B, one B2C, one niche)
+5. Use concrete language, not abstract (BAD: "Various stakeholders" GOOD: "HR managers at mid-size companies")
+
+When action is "ready", return an empty suggestions array.
+
+Examples:
+- Question: "What problem are you solving?" → ["Slow manual invoicing for freelancers", "No affordable CRM for solo founders", "Poor inventory tracking in restaurants"]
+- Question: "Who are your main competitors?" → ["Mostly spreadsheets and manual work", "Big players like Salesforce and HubSpot", "Small niche tools I can list"]
+- Question: "What's your business model?" → ["Monthly SaaS subscription", "Marketplace with transaction fees", "Freemium with premium tiers"]
+- Question: "What stage is your company?" → ["Just an idea, no product yet", "Built MVP, testing with users", "Revenue-generating, raising seed"]
+
 ## Conversation Format
 Messages are role/content pairs. "user" = founder, "assistant" = you.`;

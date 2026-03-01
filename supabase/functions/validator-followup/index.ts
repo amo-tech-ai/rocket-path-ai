@@ -178,6 +178,17 @@ Deno.serve(async (req) => {
     if (!Array.isArray(parsed.discoveredEntities.marketData)) parsed.discoveredEntities.marketData = [];
     if (!Array.isArray(parsed.contradictions)) parsed.contradictions = [];
 
+    // 037-DSC: Ensure suggestions array exists and is valid
+    if (!Array.isArray(parsed.suggestions)) {
+      parsed.suggestions = [];
+    }
+    // Cap at 4 suggestions, max 60 chars each, strip HTML for safety
+    parsed.suggestions = parsed.suggestions.slice(0, 4).map((s: unknown) => {
+      if (typeof s === 'string') return s.replace(/<[^>]*>/g, '').slice(0, 60);
+      console.warn('[validator-followup] Non-string suggestion filtered:', typeof s);
+      return '';
+    }).filter((s: string) => s.length > 0);
+
     // Enrich discoveredEntities with search grounding results
     if (result.searchGrounding && result.citations?.length) {
       for (const citation of result.citations) {
@@ -209,6 +220,7 @@ Deno.serve(async (req) => {
             question: parsed.question,
             coverage: parsed.coverage,
             questionNumber: parsed.questionNumber,
+            suggestions: parsed.suggestions || [],
             timestamp: Date.now(),
           },
         });
@@ -233,6 +245,7 @@ Deno.serve(async (req) => {
               summary: parsed.summary,
               readiness_reason: parsed.readiness_reason || '',
               questionNumber: parsed.questionNumber,
+              suggestions: parsed.suggestions || [],
             },
           });
 
@@ -277,6 +290,7 @@ Deno.serve(async (req) => {
         contradictions: parsed.contradictions || [],
         discoveredEntities: parsed.discoveredEntities,
         questionNumber: parsed.questionNumber,
+        suggestions: parsed.suggestions || [],
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

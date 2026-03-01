@@ -90,6 +90,7 @@ export interface FollowupResult {
   contradictions: string[];
   discoveredEntities: DiscoveredEntities;
   questionNumber: number;
+  suggestions: string[];
 }
 
 export type CoverageTier = 'core' | 'deep';
@@ -323,6 +324,7 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
         contradictions: Array.isArray(data.contradictions) ? data.contradictions : [],
         discoveredEntities: data.discoveredEntities || { competitors: [], urls: [], marketData: [] },
         questionNumber: data.questionNumber,
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error';
@@ -446,6 +448,7 @@ export function useFollowupStreaming() {
           contradictions: Array.isArray(payload.contradictions) ? payload.contradictions : [],
           discoveredEntities: payload.discoveredEntities || { competitors: [], urls: [], marketData: [] },
           questionNumber: payload.questionNumber,
+          suggestions: Array.isArray(payload.suggestions) ? payload.suggestions : [],
         };
 
         setStreamingState(prev => ({ ...prev, metadata, isStreaming: true }));

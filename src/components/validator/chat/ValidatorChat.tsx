@@ -124,6 +124,7 @@ export default function ValidatorChat({
   const [latestConfidence, setLatestConfidence] = useState<ConfidenceMap | null>(null);
   const [latestDiscoveries, setLatestDiscoveries] = useState<DiscoveredEntities | null>(null);
   const [latestContradictions, setLatestContradictions] = useState<string[]>([]);
+  const [latestSuggestions, setLatestSuggestions] = useState<string[]>([]);
   const [isStreamingMessage, setIsStreamingMessage] = useState(false);
   const lastAssistantRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
@@ -295,6 +296,7 @@ export default function ValidatorChat({
 
         if (isReady && (currentUserCount >= MIN_EXCHANGES || substantialSingleMessage)) {
           setCanGenerate(true);
+          setLatestSuggestions([]); // 037-DSC: No suggestions when ready
           // Clean up any streaming placeholder — replace with ready message
           setIsStreamingMessage(false);
           streamingMessageId.current = null;
@@ -311,6 +313,9 @@ export default function ValidatorChat({
             }];
           });
         } else {
+          // 037-DSC: Set dynamic suggestions for the current question
+          setLatestSuggestions(result.suggestions || []);
+
           let question = result.question;
           if (!question) {
             const fb = pickFallbackQuestion(currentMessages, result.coverage, fallbackIndex);
@@ -352,6 +357,7 @@ export default function ValidatorChat({
         setIsStreamingMessage(false);
         streamingMessageId.current = null;
         resetStream();
+        setLatestSuggestions([]); // 037-DSC: No suggestions on fallback
 
         const fb = pickFallbackQuestion(currentMessages, latestCoverage, fallbackIndex);
         setFallbackIndex(fb.nextIndex);
@@ -381,6 +387,7 @@ export default function ValidatorChat({
       setIsStreamingMessage(false);
       streamingMessageId.current = null;
       resetStream();
+      setLatestSuggestions([]); // 037-DSC: No suggestions on error
 
       const fb = pickFallbackQuestion(currentMessages, latestCoverage, fallbackIndex);
       setFallbackIndex(fb.nextIndex);
@@ -441,6 +448,8 @@ export default function ValidatorChat({
       content,
       timestamp: new Date(),
     };
+
+    setLatestSuggestions([]); // 037-DSC: Clear suggestions on new message
 
     setMessages(prev => {
       const updated = [...prev, userMessage];
@@ -623,6 +632,7 @@ export default function ValidatorChat({
               }
               placeholder="Describe your startup idea in detail..."
               prefillText={prefillText}
+              suggestions={latestSuggestions}
             />
           </div>
         </div>
