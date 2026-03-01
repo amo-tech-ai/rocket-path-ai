@@ -102,21 +102,26 @@ async function callGroupGemini<T>(
     }
     return result;
   } catch (schemaErr) {
-    // R-02 fix: Fallback on retryable schema errors (400, 413, 422, 500), not just 400
+    // R-02 fix: Fallback on retryable schema errors (400, 413, 422, 500) AND timeouts
     const errMsg = schemaErr instanceof Error ? schemaErr.message : String(schemaErr);
     const RETRYABLE_SCHEMA_CODES = ['400', '413', '422', '500'];
     const isRetryable = RETRYABLE_SCHEMA_CODES.some(code => errMsg.includes(code));
-    console.warn(`[Composer:${groupName}] Schema attempt error: ${errMsg.slice(0, 300)}`);
-    if (!isRetryable) throw schemaErr;
+    // 035-GCF: Timeouts are retryable — schema-free fallback is faster and avoids schema validation overhead
+    const isTimeout = errMsg.includes('hard timeout') || errMsg.includes('TimeoutError') || errMsg.includes('AbortError');
+    console.warn(`[Composer:${groupName}] Schema attempt error (retryable=${isRetryable}, timeout=${isTimeout}): ${errMsg.slice(0, 300)}`);
+    if (!isRetryable && !isTimeout) throw schemaErr;
 
-    console.warn(`[Composer:${groupName}] Schema rejected, falling back to responseMimeType only`);
+    // 035-GCF: For timeouts, use tight fallback (schema-free is faster — no validation overhead)
+    // Cap at 20s to prevent parallel phase from exceeding 55s total (35 + 20), preserving Group E budget
+    const fallbackTimeout = isTimeout ? Math.min(Math.max(timeoutMs - 15_000, 10_000), 20_000) : timeoutMs;
+    console.warn(`[Composer:${groupName}] ${isTimeout ? 'Timed out' : 'Schema rejected'}, falling back to responseMimeType only (${fallbackTimeout}ms)`);
     const { text } = await callGemini(
       AGENTS.composer.model,
       systemPrompt,
       userPrompt,
       {
         thinkingLevel: AGENTS.composer.thinking,
-        timeoutMs,
+        timeoutMs: fallbackTimeout,
         maxRetries: 0,
         maxOutputTokens,
       }
@@ -398,7 +403,9 @@ PROFILE: ${JSON.stringify(profile || {})}
 SCORING: ${JSON.stringify(scoring || {})}
 MVP: ${JSON.stringify(mvp || {})}`;
 
-  return callGroupGemini<ComposerGroupC>('GroupC', systemPrompt, userPrompt, COMPOSER_GROUP_SCHEMAS.groupC as Record<string, unknown>, timeoutMs, 3072);
+  // 035-GCF: Increased from 3072 to 4096 — Group C has 7 sections (vs 3 for A, 5 for B)
+  // and was hitting MAX_TOKENS truncation, causing extractJSON to fail
+  return callGroupGemini<ComposerGroupC>('GroupC', systemPrompt, userPrompt, COMPOSER_GROUP_SCHEMAS.groupC as Record<string, unknown>, timeoutMs, 4096);
 }
 
 // ---------------------------------------------------------------------------
@@ -1066,8 +1073,13 @@ export async function runComposer(
 
     const totalMs = Date.now() - composerStart;
     const callCount = 4 + (groupEResult ? Object.keys(groupEResult).length : 0);
-    console.log(`[Composer] Total: ${totalMs}ms (${callCount} Gemini calls: 3 parallel + 1 sequential${groupEResult ? ` + ${Object.keys(groupEResult).length} dimension` : ''})`);
-    await completeRun(supabase, sessionId, agentName, 'ok', report);
+    // 035-GCF: Track which groups failed so it's visible in the DB
+    const failedGroups = [
+      !normA && 'A', !normB && 'B', !normC && 'C', !normD && 'D',
+    ].filter(Boolean) as string[];
+    const status = failedGroups.length === 0 ? 'ok' : 'partial';
+    console.log(`[Composer] Total: ${totalMs}ms (${callCount} Gemini calls: 3 parallel + 1 sequential${groupEResult ? ` + ${Object.keys(groupEResult).length} dimension` : ''})${failedGroups.length > 0 ? ` — PARTIAL: groups ${failedGroups.join(',')} failed` : ''}`);
+    await completeRun(supabase, sessionId, agentName, status, report, [], failedGroups.length > 0 ? `Partial: groups ${failedGroups.join(',')} failed` : undefined);
     return report;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';

@@ -7,7 +7,7 @@
 
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAIAssistant } from '@/providers/AIAssistantProvider';
+import { useAIAssistant, type ReportContext } from '@/providers/AIAssistantProvider';
 import type { QuickAction } from '@/lib/ai-capabilities';
 
 export interface UseGlobalAIAssistantReturn {
@@ -24,25 +24,28 @@ export interface UseGlobalAIAssistantReturn {
     timestamp: string;
   }>;
   error: string | null;
-  
+
+  // Report context (MVP-06)
+  reportContext: ReportContext | null;
+
   // Labels
   modeLabel: string;
   contextLabel: string;
-  
+
   // Quick Actions
   quickActions: QuickAction[];
-  
+
   // UI Actions
   open: () => void;
   close: () => void;
   toggle: () => void;
   toggleExpanded: () => void;
-  
+
   // Chat Actions
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   executeQuickAction: (action: QuickAction) => void;
-  
+
   // Suggested Action Handler
   handleSuggestedAction: (action: { type: string; label: string; payload?: Record<string, unknown> }) => void;
 }
@@ -96,7 +99,10 @@ export function useGlobalAIAssistant(): UseGlobalAIAssistantReturn {
     isAuthenticated: state.mode === 'authenticated',
     messages: state.messages,
     error: state.error,
-    
+
+    // Report context (MVP-06)
+    reportContext: state.reportContext,
+
     // Labels
     modeLabel,
     contextLabel,

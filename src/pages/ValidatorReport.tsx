@@ -391,6 +391,7 @@ export default function ValidatorReport() {
       {/* V2 Report Layout — handles both v1 (prose) and v2 (structured JSON) */}
       <ReportV2Layout
         report={report}
+        reportId={reportId}
         companyName={companyName}
         startupMeta={startupMeta}
         activeSection={activeSection}
