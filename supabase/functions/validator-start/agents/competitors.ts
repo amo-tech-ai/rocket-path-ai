@@ -107,6 +107,19 @@ After mapping all competitors, identify the positioning GAP:
 - Verify competitors still exist and are active (not acquired/shut down)
 - Deduplicate: if same company appears under different names, merge
 
+### Founder-Provided Competitors (MANDATORY)
+When the user prompt includes "Founder-provided competitor websites:", these are companies the
+founder encounters daily. You MUST:
+1. Include EVERY founder-provided competitor as a direct_competitor entry — never omit them
+2. Analyze their actual services, pricing, and positioning from their website content
+3. Populate source_url with the founder-provided URL
+4. Build SWOT (strengths/weaknesses) from real product details found on their site
+5. If a URL fails to load, still include the competitor using Google Search data and note
+   "Website unavailable — analysis based on public sources" in the description
+Founder-provided competitors take priority. Then add 2-3 MORE competitors found via Google Search
+to complete the competitive landscape. The founder named these for a reason — they are the
+real threats the founder encounters daily.
+
 ## Writing style:
 - Describe each competitor in plain language: what they do, who they serve, and why they matter
 - BAD: "A comprehensive enterprise solution leveraging advanced technology for industry verticals"
@@ -172,19 +185,36 @@ Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they c
     ? `Industry: ${profile.industry} (category: ${matchedIndustry})`
     : `Industry: ${profile.industry}`;
 
+  // 036-CUC: Match label to system prompt mandate ("Founder-provided competitor websites:")
   const websitesLine = profile.websites && profile.websites.trim() && profile.websites.toLowerCase() !== 'skip'
-    ? `\nFounder-provided websites to research: ${profile.websites}`
+    ? `\nFounder-provided competitor websites: ${profile.websites}`
     : '';
 
+  // 036-CUC: Enable URL Context only when founder provided competitor URLs.
+  // Without URLs → fast path (search only, ~15-20s). With URLs → Gemini visits sites (~30-40s).
+  // Safe because CompetitorAgent runs as background promise — doesn't block critical path.
+  const hasFounderUrls = websitesLine.length > 0;
+  if (hasFounderUrls) {
+    console.log(`[CompetitorAgent] Founder URLs detected — enabling URL Context: ${profile.websites}`);
+  }
+
   try {
-    // P02: Removed urlContext — Google Search alone finds competitors in ~15-20s vs 40s+ with URL fetching.
-    // Curated links remain in the prompt as reference context (Gemini can cite them via search grounding).
-    const { text, searchGrounding, citations } = await callGemini(
+    const { text, searchGrounding, citations, urlContextMetadata } = await callGemini(
       AGENTS.competitors.model,
       systemPrompt,
       `Find competitors for: ${profile.idea}\n${industryLine}\nExisting alternatives mentioned: ${profile.alternatives}${websitesLine}`,
-      { useSearch: true, useUrlContext: false, responseJsonSchema: AGENT_SCHEMAS.competitors, timeoutMs: AGENT_TIMEOUTS.competitors }
+      { useSearch: true, useUrlContext: hasFounderUrls, responseJsonSchema: AGENT_SCHEMAS.competitors, timeoutMs: AGENT_TIMEOUTS.competitors }
     );
+
+    // 036-CUC: Log URL fetch results for observability
+    if (urlContextMetadata?.length) {
+      const fetched = urlContextMetadata.filter(m => m.status === 'fetched').length;
+      const failed = urlContextMetadata.filter(m => m.status !== 'fetched');
+      console.log(`[CompetitorAgent] URL Context: ${fetched}/${urlContextMetadata.length} URLs fetched`);
+      if (failed.length > 0) {
+        console.warn(`[CompetitorAgent] URL fetch failures:`, failed.map(f => `${f.url} (${f.status})`).join(', '));
+      }
+    }
 
     const analysis = extractJSON<CompetitorAnalysis>(text);
     if (!analysis) {
@@ -209,10 +239,57 @@ Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they c
       }
     }
 
+    // 036-CUC: Safety net — ensure founder-provided competitors appear in results.
+    // Primary mechanism is the system prompt mandate, but LLMs are non-deterministic.
+    if (hasFounderUrls && profile.websites) {
+      const founderDomains = profile.websites
+        .match(/https?:\/\/([^/\s,]+)/gi)
+        ?.map(url => {
+          try { return new URL(url).hostname.replace(/^www\./, '').toLowerCase(); }
+          catch { return null; }
+        })
+        .filter(Boolean) as string[] || [];
+
+      const existingNames = new Set(
+        [...(analysis.direct_competitors || []), ...(analysis.indirect_competitors || [])]
+          .map(c => c.name.toLowerCase().trim())
+      );
+      const existingUrls = new Set(
+        [...(analysis.direct_competitors || []), ...(analysis.indirect_competitors || [])]
+          .filter(c => c.source_url)
+          .map(c => { try { return new URL(c.source_url!).hostname.replace(/^www\./, '').toLowerCase(); } catch { return ''; } })
+      );
+
+      for (const domain of founderDomains) {
+        const companyName = domain.replace(/\.\w+$/, ''); // "squareshot" from "squareshot.com"
+        const alreadyPresent = existingNames.has(companyName) || existingUrls.has(domain) ||
+          [...existingNames].some(n => n.includes(companyName) || companyName.includes(n));
+
+        if (!alreadyPresent) {
+          console.warn(`[CompetitorAgent] Founder URL ${domain} missing from Gemini results — adding stub`);
+          analysis.direct_competitors = analysis.direct_competitors || [];
+          analysis.direct_competitors.push({
+            name: companyName.charAt(0).toUpperCase() + companyName.slice(1),
+            description: `Founder-identified competitor (${domain}). Website data unavailable — analysis based on public sources.`,
+            strengths: ['Identified as direct competitor by the founder'],
+            weaknesses: ['Analysis pending — limited public data available'],
+            threat_level: 'medium',
+            source_url: `https://${domain}`,
+          });
+        }
+      }
+    }
+
+    // 036-CUC: Enrich output with URL context metadata for debugging/observability
+    const enrichedAnalysis = {
+      ...analysis,
+      ...(urlContextMetadata?.length ? { _url_context: urlContextMetadata } : {}),
+    };
+
     await completeRun(
       supabase, sessionId, agentName,
       searchGrounding ? 'ok' : 'partial',
-      analysis,
+      enrichedAnalysis,
       citations.length > 0 ? citations : analysis.sources
     );
     return analysis;

@@ -9,7 +9,7 @@
 export const AGENTS = {
   extractor:   { name: 'ExtractorAgent',  model: 'gemini-3-flash-preview', tools: [],                             thinking: 'none' as const },
   research:    { name: 'ResearchAgent',   model: 'gemini-3-flash-preview', tools: ['googleSearch', 'urlContext'],  thinking: 'none' as const },
-  competitors: { name: 'CompetitorAgent', model: 'gemini-3-flash-preview', tools: ['googleSearch'],               thinking: 'none' as const },
+  competitors: { name: 'CompetitorAgent', model: 'gemini-3-flash-preview', tools: ['googleSearch', 'urlContext?'], thinking: 'none' as const },
   scoring:     { name: 'ScoringAgent',    model: 'gemini-3-flash-preview', tools: [],                             thinking: 'high' as const },
   mvp:         { name: 'MVPAgent',        model: 'gemini-3-flash-preview', tools: [],                             thinking: 'none' as const },
   composer:    { name: 'ComposerAgent',   model: 'gemini-3-flash-preview', tools: [],                             thinking: 'none' as const },
@@ -30,7 +30,7 @@ export type AgentName = keyof typeof AGENTS;
 export const AGENT_TIMEOUTS: Record<string, number> = {
   extractor: 60_000,    // Flash model, extraction (~6s typical, up to 50s with cold start + interview context + schema)
   research: 40_000,     // Flash model + Google Search + URL Context (parallel, bumped from 30s — URL Context is slow)
-  competitors: 45_000,  // Runs as background promise now — longer timeout is safe
+  competitors: 55_000,  // 036-CUC: Background promise. ~15-20s search-only, ~30-40s with URL Context (when founder URLs present)
   scoring: 15_000,      // Flash model + thinking: high (~13s typical)
   mvp: 30_000,          // Flash model (~10s typical, up to 20s on cold starts)
   composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s). maxOutputTokens: 8192 (set in composer.ts)
