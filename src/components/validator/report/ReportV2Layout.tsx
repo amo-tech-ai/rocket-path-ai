@@ -353,6 +353,18 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, act
   const rawVerdict = d.summary_verdict || report.summary || '';
   const verdict = rawVerdict.replace(/^\d+\/100[.\s]*(?:This is a go\.|This is a no-go\.)?\s*/i, '').trim();
 
+  // Business intro — tell the reader what this startup does
+  const bizName = startupMeta?.name || companyName || '';
+  const oneLiner = d.mvp_scope?.one_liner || d.mvp_scope?.oneLiner || startupMeta?.tagline || '';
+  const problemPain = d.problem_clarity?.pain || '';
+  if (bizName && oneLiner) {
+    parts.push(`${bizName} ${oneLiner.charAt(0).toLowerCase()}${oneLiner.slice(1)}${oneLiner.endsWith('.') ? '' : '.'}`);
+  } else if (bizName && problemPain) {
+    parts.push(`${bizName} aims to solve a specific problem: ${problemPain.charAt(0).toLowerCase()}${problemPain.slice(1)}${problemPain.endsWith('.') ? '' : '.'}`);
+  } else if (oneLiner) {
+    parts.push(`${oneLiner}${oneLiner.endsWith('.') ? '' : '.'}`);
+  }
+
   const verdictLine = score >= 75
     ? `${score}/100 — strong foundation — ready to move forward.`
     : score >= 60
