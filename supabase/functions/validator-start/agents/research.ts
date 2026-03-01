@@ -66,6 +66,20 @@ ${knowledgeBlock}
 
   const systemPrompt = `You are a market research analyst. Find market sizing data for this startup idea.
 
+HARD CONSTRAINTS (non-negotiable):
+1. The market is defined by WHAT customers buy (the activity/category), NOT the technology used (HOW).
+   - If the startup uses AI to serve photographers → market = "product photography services", NOT "AI tools"
+   - If the startup uses AI for HR screening → market = "recruitment services", NOT "AI/ML market"
+   - Only use "AI market" if AI itself is the product being sold (e.g., AI model marketplace)
+2. Output 1 primary_market_label (the specific market) and 2 alternate_market_labels.
+3. REQUIRED: Include a bottom_up_table with at least 1 row:
+   - buyer_segment: who buys this (specific role + company type)
+   - buyer_count: how many exist (cite source or mark "estimated")
+   - price_per_year: average annual spend (cite source or state assumption basis)
+   - frequency: one-time | annual | monthly
+   - resulting_sam: buyer_count × price_per_year
+   If you cannot produce this table, explain why in methodology and set confidence < 40.
+
 ## Domain Knowledge — Market Sizing Methodology
 
 ### Three Approaches (use bottom-up as primary)
@@ -150,7 +164,19 @@ Return JSON with exactly these fields:
     "trajectory": "accelerating | steady | decelerating | declining",
     "adoption_curve_position": "innovators | early_adopters | early_majority | late_majority | laggards",
     "market_maturity": "emerging | growing | mature | declining"
-  }
+  },
+  "primary_market_label": "The specific market WHAT — e.g. 'eCommerce product photography services'",
+  "alternate_market_labels": ["Alternative label 1", "Alternative label 2"],
+  "bottom_up_table": [
+    {
+      "buyer_segment": "e.g. Mid-market eCommerce brands (50-500 employees)",
+      "buyer_count": 45000,
+      "price_per_year": 24000,
+      "frequency": "annual",
+      "resulting_sam": 1080000000
+    }
+  ],
+  "confidence": 65
 }
 
 Prefer citing the preferred sources when they contain relevant data. Include real URLs.`;
@@ -194,25 +220,56 @@ Include: current market valuation, CAGR, forecast period, regional breakdown, ke
       return null;
     }
 
-    // C2 Fix: Validate TAM >= SAM >= SOM hierarchy
-    // D-03 fix: Log original values before override so methodology text stays traceable
+    // Smart validation: TAM >= SAM >= SOM with transparent corrections
+    const corrections: string[] = [];
+
     if (typeof research.tam === 'number' && typeof research.sam === 'number' && typeof research.som === 'number') {
-      const origTam = research.tam, origSam = research.sam, origSom = research.som;
-      let corrected = false;
+      const origSam = research.sam, origSom = research.som;
+
+      // Use bottom-up table SAM if available and hierarchy broken
       if (research.sam > research.tam) {
-        research.sam = Math.round(research.tam * 0.3);
-        corrected = true;
+        const bottomUpSam = research.bottom_up_table?.[0]?.resulting_sam;
+        if (bottomUpSam && bottomUpSam > 0 && bottomUpSam <= research.tam) {
+          research.sam = bottomUpSam;
+          corrections.push(`SAM corrected from $${origSam.toLocaleString()} to bottom-up table value $${bottomUpSam.toLocaleString()}`);
+        } else {
+          research.sam = Math.round(research.tam * 0.3);
+          corrections.push(`SAM corrected from $${origSam.toLocaleString()} to 30% of TAM ($${research.sam.toLocaleString()}) — bottom-up data unavailable`);
+        }
       }
+
+      // SOM calibration by stage (not arbitrary 10%)
       if (research.som > research.sam) {
-        research.som = Math.round(research.sam * 0.1);
-        corrected = true;
+        research.som = Math.round(research.sam * 0.003);
+        corrections.push(`SOM corrected from $${origSom.toLocaleString()} to 0.3% of SAM ($${research.som.toLocaleString()}) — pre-seed calibration`);
       }
-      if (corrected) {
-        console.warn(`[ResearchAgent] TAM/SAM/SOM hierarchy corrected: original TAM=$${origTam} SAM=$${origSam} SOM=$${origSom} → corrected TAM=$${research.tam} SAM=$${research.sam} SOM=$${research.som}`);
-        // Append correction note to methodology so report text matches the numbers
-        research.methodology = `${research.methodology} [Note: SAM/SOM auto-corrected from original SAM=$${origSam.toLocaleString()}, SOM=$${origSom.toLocaleString()} to maintain TAM≥SAM≥SOM hierarchy.]`;
+
+      // SOM floor: if SOM < $500K but TAM > $1B, flag as likely broken
+      if (research.som < 500_000 && research.tam > 1_000_000_000) {
+        corrections.push(`SOM ($${research.som.toLocaleString()}) unusually low for a $${(research.tam / 1e9).toFixed(1)}B market — verify capture rate assumptions`);
+      }
+
+      // CAGR reasonableness check
+      if (typeof research.growth_rate === 'number' && research.growth_rate > 40) {
+        const maturity = research.trend_analysis?.market_maturity;
+        if (maturity && maturity !== 'emerging') {
+          corrections.push(`Growth rate ${research.growth_rate}% exceeds 40% for a ${maturity} market — verify source`);
+        }
+      }
+
+      if (corrections.length > 0) {
+        console.warn(`[ResearchAgent] Corrections applied: ${corrections.join('; ')}`);
+        research.methodology = `${research.methodology} [Corrections: ${corrections.join('. ')}]`;
       }
     }
+
+    // Validate bottom-up table presence
+    if (!research.bottom_up_table || !Array.isArray(research.bottom_up_table) || research.bottom_up_table.length === 0) {
+      corrections.push('Missing bottom-up evidence — market sizing relies on top-down estimates only');
+    }
+
+    // Store corrections for transparency
+    research.corrections_applied = corrections;
 
     await completeRun(
       supabase, sessionId, agentName,

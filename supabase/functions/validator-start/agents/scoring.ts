@@ -231,21 +231,110 @@ Return JSON with exactly these fields:
       (rawScoring.execution_factors as FactorInput[]) || [],
     );
 
+    // === DETERMINISTIC POST-PROCESSING GUARDRAILS ===
+    const capsApplied: string[] = [];
+    const mutableDimensions = { ...(rawScoring.dimension_scores as Record<string, number>) };
+
+    // 1. Signal-level gating: enforce what the prompt says
+    const signalLevel = typeof rawScoring.highest_signal_level === 'number' ? rawScoring.highest_signal_level : 1;
+    if (signalLevel <= 2) {
+      capsApplied.push(`Signal level ${signalLevel} (verbal/engagement only) → score capped at 65`);
+    }
+
+    // 2. Market data gating
+    if (market) {
+      if (typeof market.sam === 'number' && typeof market.tam === 'number' && market.sam > market.tam) {
+        if (!Array.isArray(rawScoring.red_flags)) rawScoring.red_flags = [];
+        (rawScoring.red_flags as string[]).push('Market sizing inconsistent — SAM exceeds TAM');
+        mutableDimensions.marketSize = Math.min(mutableDimensions.marketSize ?? 100, 55);
+        capsApplied.push('SAM > TAM → marketSize capped at 55');
+      }
+    }
+
+    // 3. Missing data caps
+    if (!competitors?.direct_competitors?.length) {
+      mutableDimensions.competition = Math.min(mutableDimensions.competition ?? 100, 55);
+      capsApplied.push('No competitors found → competition capped at 55');
+    }
+    const validation = (profile.validation || '').toLowerCase();
+    if (!validation || validation === 'none' || validation === 'no' || validation.length < 5) {
+      mutableDimensions.businessModel = Math.min(mutableDimensions.businessModel ?? 100, 60);
+      capsApplied.push('No validation evidence → businessModel capped at 60');
+    }
+
+    // 4. Recompute overall score with capped dimensions
+    let finalResult = mathResult;
+    if (capsApplied.length > 0) {
+      finalResult = computeScore(
+        mutableDimensions as DimensionScoresInput,
+        (rawScoring.market_factors as FactorInput[]) || [],
+        (rawScoring.execution_factors as FactorInput[]) || [],
+      );
+      console.log(`[ScoringAgent] Caps applied: ${capsApplied.join('; ')} → score ${mathResult.overall_score} → ${finalResult.overall_score}`);
+    }
+
+    // 5. Apply signal-level cap AFTER recompute (hardest gate)
+    if (signalLevel <= 2 && finalResult.overall_score > 65) {
+      finalResult = {
+        ...finalResult,
+        overall_score: 65,
+        verdict: 'caution' as const,
+        scores_matrix: { ...finalResult.scores_matrix, overall_weighted: 65 },
+      };
+    }
+
+    // 6. Bias flag escalation
+    const biasFlags = Array.isArray(rawScoring.bias_flags)
+      ? rawScoring.bias_flags as Array<{ bias_type: string; evidence_phrase: string; counter_question: string }>
+      : [];
+    const redFlags = Array.isArray(rawScoring.red_flags) ? [...rawScoring.red_flags as string[]] : [];
+    if (biasFlags.length >= 3) {
+      const biasWarning = 'Multiple cognitive biases detected — high risk of founder self-delusion';
+      if (!redFlags.includes(biasWarning)) {
+        redFlags.push(biasWarning);
+        capsApplied.push('3+ biases → added self-delusion red flag');
+      }
+    }
+
+    // 7. Sort risk_queue deterministically and trim to 5
+    const severityOrder: Record<string, number> = { fatal: 0, high: 1, medium: 2, low: 3 };
+    let riskQueue = Array.isArray(rawScoring.risk_queue)
+      ? [...rawScoring.risk_queue as Array<Record<string, unknown>>]
+      : [];
+    riskQueue.sort((a, b) => {
+      const sevA = severityOrder[a.severity as string] ?? 3;
+      const sevB = severityOrder[b.severity as string] ?? 3;
+      if (sevA !== sevB) return sevA - sevB;
+      return ((b.composite_score as number) || 0) - ((a.composite_score as number) || 0);
+    });
+    riskQueue = riskQueue.slice(0, 5);
+
+    // 8. Dedupe evidence_grades by claim (case-insensitive)
+    let evidenceGrades = Array.isArray(rawScoring.evidence_grades)
+      ? rawScoring.evidence_grades as Array<Record<string, unknown>>
+      : [];
+    const seenClaims = new Set<string>();
+    evidenceGrades = evidenceGrades.filter(g => {
+      const key = (g.claim as string || '').toLowerCase().trim();
+      if (seenClaims.has(key)) return false;
+      seenClaims.add(key);
+      return true;
+    });
+
     const scoring: ScoringResult = {
-      overall_score: mathResult.overall_score,
-      verdict: mathResult.verdict,
-      dimension_scores: rawScoring.dimension_scores as Record<string, number>,
-      market_factors: mathResult.market_factors,
-      execution_factors: mathResult.execution_factors,
+      overall_score: finalResult.overall_score,
+      verdict: finalResult.verdict,
+      dimension_scores: finalResult.metadata.clamped_dimensions,
+      market_factors: finalResult.market_factors,
+      execution_factors: finalResult.execution_factors,
       highlights: (rawScoring.highlights as string[]) || [],
-      red_flags: (rawScoring.red_flags as string[]) || [],
+      red_flags: redFlags,
       risks_assumptions: (rawScoring.risks_assumptions as string[]) || [],
-      scores_matrix: mathResult.scores_matrix,
-      // CORE-06: Include risk queue, bias detection, evidence grading from Gemini output
-      risk_queue: Array.isArray(rawScoring.risk_queue) ? rawScoring.risk_queue as ScoringResult['risk_queue'] : undefined,
-      bias_flags: Array.isArray(rawScoring.bias_flags) ? rawScoring.bias_flags as ScoringResult['bias_flags'] : undefined,
-      evidence_grades: Array.isArray(rawScoring.evidence_grades) ? rawScoring.evidence_grades as ScoringResult['evidence_grades'] : undefined,
-      highest_signal_level: typeof rawScoring.highest_signal_level === 'number' ? rawScoring.highest_signal_level : undefined,
+      scores_matrix: finalResult.scores_matrix,
+      risk_queue: riskQueue.length > 0 ? riskQueue as ScoringResult['risk_queue'] : undefined,
+      bias_flags: biasFlags.length > 0 ? biasFlags as ScoringResult['bias_flags'] : undefined,
+      evidence_grades: evidenceGrades.length > 0 ? evidenceGrades as ScoringResult['evidence_grades'] : undefined,
+      highest_signal_level: signalLevel,
     };
 
     await completeRun(supabase, sessionId, agentName, 'ok', scoring);

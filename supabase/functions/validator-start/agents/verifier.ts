@@ -7,6 +7,30 @@
 import type { SupabaseClient, ValidatorReport, VerificationResult } from "../types.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 
+// --- Validation helpers ---
+
+function isNonEmptyString(v: unknown, minLen = 10): boolean {
+  return typeof v === 'string' && v.trim().length >= minLen;
+}
+
+function isArrayOfMin(v: unknown, min: number): boolean {
+  return Array.isArray(v) && v.length >= min;
+}
+
+function countPlaceholders(text: string): number {
+  const placeholders = /\b(Unknown|TBD|N\/A|Not specified|Data unavailable|unavailable|not available)\b/gi;
+  return (text.match(placeholders) || []).length;
+}
+
+interface DetailedWarning {
+  severity: 'info' | 'warn' | 'error';
+  code: string;
+  message: string;
+  fix_hint: string;
+  owner_agent: string;
+  section: string;
+}
+
 export async function runVerifier(
   supabase: SupabaseClient,
   sessionId: string,
@@ -67,12 +91,56 @@ export async function runVerifier(
     return result;
   }
 
-  // Check each section
+  // Section health assessment: ok | weak | missing
+  const sectionHealth: Record<string, { status: 'ok' | 'weak' | 'missing'; reasons: string[] }> = {};
+
   for (const section of requiredSections) {
     const value = report[section as keyof ValidatorReport];
+    const reasons: string[] = [];
+
     if (!value || (typeof value === 'string' && value.length < 10)) {
+      sectionHealth[section] = { status: 'missing', reasons: ['Section missing or too short'] };
       missingSections.push(section);
+      continue;
     }
+
+    // Section-specific quality checks
+    if (section === 'problem_clarity' && typeof value === 'object') {
+      const pc = value as Record<string, unknown>;
+      if (!isNonEmptyString(pc.who, 15)) reasons.push('who field too short — needs job title + company type');
+      if (!isNonEmptyString(pc.pain, 20)) reasons.push('pain field too short — needs quantified impact');
+      if (typeof pc.pain === 'string' && !/\d/.test(pc.pain)) reasons.push('pain has no numbers — quantify the cost');
+    }
+
+    if (section === 'customer_use_case' && typeof value === 'object') {
+      const cu = value as Record<string, unknown>;
+      if (!isNonEmptyString(cu.without, 30)) reasons.push('without scenario too short — needs step-by-step friction');
+      if (!isNonEmptyString(cu.with, 30)) reasons.push('with scenario too short — needs specific product interaction');
+      if (typeof cu.time_saved === 'string' && !/\d/.test(cu.time_saved)) reasons.push('time_saved has no number');
+    }
+
+    if (section === 'market_sizing' && typeof value === 'object') {
+      const ms = value as Record<string, unknown>;
+      if (typeof ms.tam !== 'number' || ms.tam <= 0) reasons.push('TAM missing or zero');
+      if (typeof ms.sam !== 'number' || ms.sam <= 0) reasons.push('SAM missing or zero');
+    }
+
+    if (section === 'summary_verdict' && typeof value === 'string') {
+      const placeholderCount = countPlaceholders(value);
+      if (placeholderCount >= 2) reasons.push(`${placeholderCount} placeholder phrases found`);
+      if (value.length < 100) reasons.push('Summary too short for meaningful analysis');
+    }
+
+    if (section === 'scores_matrix' && typeof value === 'object') {
+      const sm = value as Record<string, unknown>;
+      const dims = sm.dimensions;
+      if (!isArrayOfMin(dims, 3)) reasons.push('Fewer than 3 scored dimensions');
+    }
+
+    sectionHealth[section] = {
+      status: reasons.length > 0 ? 'weak' : 'ok',
+      reasons,
+    };
   }
 
   // Check citations exist for market and competition
@@ -212,14 +280,127 @@ export async function runVerifier(
     }
   }
 
-  const verified = missingSections.length === 0 && failedAgents.length === 0;
+  // === Cross-section consistency checks ===
+
+  // Score vs verdict alignment
+  if (report.scores_matrix?.overall_weighted !== undefined && typeof report.scores_matrix.overall_weighted === 'number') {
+    const overallScore = report.scores_matrix.overall_weighted;
+    if (overallScore < 60 && typeof report.summary_verdict === 'string' && /\*\*Go\.\*\*/.test(report.summary_verdict) && !/Conditional/.test(report.summary_verdict)) {
+      warnings.push(`Consistency: overall score ${overallScore} but verdict is "Go" — should be "Conditional go" or "No-go"`);
+    }
+  }
+
+  // Top threat present in risks
+  if (report.top_threat && typeof report.top_threat === 'object') {
+    const threatAssumption = (report.top_threat as Record<string, unknown>).assumption;
+    if (threatAssumption && typeof threatAssumption === 'string') {
+      const risks = report.risks_assumptions;
+      if (Array.isArray(risks) && risks.length > 0) {
+        const threatInRisks = risks.some((r: Record<string, unknown>) =>
+          typeof r.assumption === 'string' && r.assumption.toLowerCase().includes(threatAssumption.toLowerCase().slice(0, 30))
+        );
+        if (!threatInRisks) {
+          warnings.push('Consistency: top_threat not found in risks_assumptions list');
+        }
+      }
+    }
+  }
+
+  // Missing pricing test in next_steps
+  if (Array.isArray(report.next_steps) && report.next_steps.length > 0) {
+    const hasPricingStep = report.next_steps.some((s: Record<string, unknown>) => {
+      const text = JSON.stringify(s).toLowerCase();
+      return text.includes('price') || text.includes('pricing') || text.includes('willingness to pay');
+    });
+    if (!hasPricingStep) {
+      warnings.push('Consistency: no pricing validation step in next_steps — add willingness-to-pay test');
+    }
+  }
+
+  // Zero competitors but high competition score
+  if (report.competition && typeof report.competition === 'object') {
+    const comp = report.competition as Record<string, unknown>;
+    const competitors = comp.competitors as unknown[];
+    if ((!competitors || competitors.length === 0) && report.scores_matrix?.dimensions) {
+      const compDim = report.scores_matrix.dimensions.find((d: Record<string, unknown>) =>
+        typeof d.name === 'string' && d.name.toLowerCase().includes('compet')
+      );
+      if (compDim && typeof compDim.score === 'number' && compDim.score > 60) {
+        warnings.push(`Consistency: 0 competitors identified but competition score is ${compDim.score} — investigate`);
+      }
+    }
+  }
+
+  // === Classify warnings into detailed format ===
+  const detailedWarnings: DetailedWarning[] = warnings.map(w => {
+    let severity: 'info' | 'warn' | 'error' = 'warn';
+    let code = 'V_GENERAL';
+    let section = 'general';
+    let owner = 'ComposerAgent';
+    let fixHint = 'Review and correct the flagged issue';
+
+    if (w.includes('Data integrity: SAM') || w.includes('Data integrity: SOM')) {
+      severity = 'error'; code = 'V_BAD_MARKET_HIERARCHY'; section = 'market_sizing'; owner = 'ResearchAgent';
+      fixHint = 'Ensure TAM >= SAM >= SOM — check Research agent market calculations';
+    } else if (w.includes('lacks citations')) {
+      severity = 'warn'; code = 'V_MISSING_CITATIONS';
+      section = w.includes('Market') ? 'market_sizing' : 'competition';
+      owner = w.includes('Market') ? 'ResearchAgent' : 'CompetitorAgent';
+      fixHint = 'Add source citations with URLs and publication years';
+    } else if (w.includes('Consistency:')) {
+      severity = 'error'; code = 'V_CROSS_SECTION_MISMATCH'; section = 'summary_verdict';
+      fixHint = 'Align verdict, scores, and risk assessments';
+    } else if (w.includes('unrealistic')) {
+      severity = 'warn'; code = 'V_UNREALISTIC_PROJECTION'; section = 'financial_projections';
+      fixHint = 'Review growth assumptions and validate against benchmarks';
+    } else if (w.includes('Unit economics')) {
+      severity = 'warn'; code = 'V_UNIT_ECONOMICS'; section = 'revenue_model'; owner = 'ComposerAgent';
+      fixHint = 'Review CAC, LTV, and payback period assumptions';
+    } else if (w.includes('SOM is') && w.includes('% of SAM')) {
+      severity = 'warn'; code = 'V_SOM_OVERESTIMATE'; section = 'market_sizing'; owner = 'ResearchAgent';
+      fixHint = 'Apply stage-appropriate SOM calibration (pre-seed: 0.1-0.5% of SAM)';
+    } else if (w.includes('zero competitors')) {
+      severity = 'warn'; code = 'V_NO_COMPETITORS'; section = 'competition'; owner = 'CompetitorAgent';
+      fixHint = 'Every market has alternatives — include status quo and indirect competitors';
+    }
+
+    return { severity, code, message: w, fix_hint: fixHint, owner_agent: owner, section };
+  });
+
+  // Section health: check for 'missing' sections and 'error' severity warnings
+  const hasMissingSections = Object.values(sectionHealth).some(h => h.status === 'missing');
+  const hasErrorWarnings = detailedWarnings.some(w => w.severity === 'error');
+
+  // Failed agents with valid fallback sections -> warn, don't auto-fail
+  const criticalFailedAgents = failedAgents.filter(a => {
+    // If the agent failed but composer provided fallback content, downgrade to warning
+    if (a === 'ResearchAgent' && report.market_sizing && typeof report.market_sizing === 'object') {
+      const ms = report.market_sizing as Record<string, unknown>;
+      if (typeof ms.tam === 'number' && ms.tam > 0) {
+        warnings.push(`${a} failed but market_sizing has fallback data — verify quality`);
+        return false;
+      }
+    }
+    if (a === 'CompetitorAgent' && report.competition && typeof report.competition === 'object') {
+      const comp = report.competition as Record<string, unknown>;
+      if (isArrayOfMin(comp.competitors, 1)) {
+        warnings.push(`${a} failed but competition has fallback data — verify quality`);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const verified = !hasMissingSections && !hasErrorWarnings && criticalFailedAgents.length === 0;
 
   const result: VerificationResult = {
     verified,
     missing_sections: missingSections,
-    failed_agents: failedAgents,
+    failed_agents: criticalFailedAgents,
     warnings,
     section_mappings: sectionMappings,
+    section_health: sectionHealth,
+    detailed_warnings: detailedWarnings,
   };
 
   await completeRun(supabase, sessionId, agentName, 'ok', result);

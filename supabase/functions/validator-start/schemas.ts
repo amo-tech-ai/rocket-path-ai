@@ -137,8 +137,27 @@ export const AGENT_SCHEMAS = {
         },
         required: ['trajectory', 'adoption_curve_position', 'market_maturity'],
       },
+      primary_market_label: { type: 'string', description: 'The specific market category this startup sells into (WHAT, not HOW). E.g. "eCommerce product photography services" not "AI tools"' },
+      alternate_market_labels: { type: 'array', items: { type: 'string' }, description: '2 alternative market category names' },
+      bottom_up_table: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            buyer_segment: { type: 'string', description: 'Who buys this (role + company type)' },
+            buyer_count: { type: 'number', description: 'Estimated number of buyers (with source noted in methodology)' },
+            price_per_year: { type: 'number', description: 'Average annual spend per buyer in USD' },
+            frequency: { type: 'string', description: 'one-time | annual | monthly' },
+            resulting_sam: { type: 'number', description: 'buyer_count × price_per_year' },
+          },
+          required: ['buyer_segment', 'buyer_count', 'price_per_year', 'frequency', 'resulting_sam'],
+        },
+        description: 'REQUIRED bottom-up sizing table with buyers × price × frequency',
+      },
+      corrections_applied: { type: 'array', items: { type: 'string' }, description: 'Any auto-corrections applied to the data' },
+      confidence: { type: 'number', description: 'Confidence level 0-100 in the market sizing data' },
     },
-    required: ['tam', 'sam', 'som', 'methodology', 'growth_rate', 'sources'],
+    required: ['tam', 'sam', 'som', 'methodology', 'growth_rate', 'sources', 'primary_market_label', 'bottom_up_table'],
   },
 
   competitors: {
@@ -346,6 +365,21 @@ export const AGENT_SCHEMAS = {
       },
       founder_stage: { type: 'string', description: 'idea_only | problem_validated | demand_validated | presales_confirmed' },
       recommended_methods: { type: 'array', items: { type: 'string' } },
+      kill_criteria: {
+        type: 'array',
+        items: { type: 'string' },
+        description: '2-3 specific thresholds that trigger pivot or stop. E.g., "If <30% of interviewees rate pain ≥7/10, pivot the value proposition"',
+      },
+      pricing_test: {
+        type: 'object',
+        properties: {
+          hypothesis: { type: 'string' },
+          method: { type: 'string' },
+          price_points: { type: 'array', items: { type: 'string' } },
+          pass_threshold: { type: 'string' },
+        },
+        required: ['hypothesis', 'method', 'price_points', 'pass_threshold'],
+      },
     },
     required: ['mvp_scope', 'phases', 'next_steps'],
   },

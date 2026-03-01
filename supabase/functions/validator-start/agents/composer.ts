@@ -409,6 +409,7 @@ async function composeGroupD(
   groupB: ComposerGroupB | null,
   groupC: ComposerGroupC | null,
   scoring: ScoringResult | null,
+  profile: StartupProfile | null,
   interviewContext: InterviewContext | undefined,
   timeoutMs: number,
   consistencyNotes: string[] = [],
@@ -506,7 +507,14 @@ Never use stronger language than the evidence supports.
 ### CORE-06: Bias & Signal Awareness
 - If scoring shows bias_count > 0, mention the dominant bias in the risk paragraph (part 3) — e.g., "The founder shows signs of confirmation bias — all evidence cited is positive."
 - If highest_signal_level is 1-2 (verbal/engagement only), the verdict CANNOT be "Go" — it must be "Conditional go" at best
-- If highest_signal_level is 4-5 (payment/referral), this strengthens the "Go" case — cite the evidence level`;
+- If highest_signal_level is 4-5 (payment/referral), this strengthens the "Go" case — cite the evidence level
+
+### Verdict Gating Rules (HARD — enforced by pipeline)
+- If highest_signal_level < 3: verdict MUST be "Conditional go" or "No-go" — NEVER "Go."
+- If any risk has severity "fatal": verdict MUST be "Conditional go — [the fatal risk]" or "No-go"
+- If overall_score < 50: verdict MUST be "No-go" unless extraordinary circumstances explained
+- If overall_score 50-65: verdict SHOULD be "Conditional go"
+- These rules are enforced in post-processing — if you output "Go" with signal level 1-2, it will be overridden to "Conditional go"`;
 
   // 022-SKI: Include consistency notes to enforce cross-group alignment
   const consistencyBlock = consistencyNotes.length > 0
@@ -554,8 +562,16 @@ Never use stronger language than the evidence supports.
     ...(scoring.highest_signal_level ? { highest_signal_level: scoring.highest_signal_level } : {}),
   } : {};
 
+  const businessContext = profile ? {
+    idea: profile.idea,
+    industry: profile.industry,
+    customer: profile.customer,
+    solution: profile.solution,
+  } : {};
+
   const userPrompt = `Synthesize the executive summary from these completed analyses:
 
+BUSINESS: ${JSON.stringify(businessContext)}
 PROBLEM & CUSTOMER: ${JSON.stringify(compactA)}
 MARKET & RISK: ${JSON.stringify(compactB)}
 EXECUTION & ECONOMICS: ${JSON.stringify(compactC)}
@@ -716,7 +732,8 @@ ${JSON.stringify(context)}`;
 }
 
 /**
- * Group E orchestrator — runs 9 dimension calls in parallel with 200ms stagger.
+ * Group E orchestrator — runs dimension calls with concurrency limiter.
+ * Budget-aware: if tight on time, runs only the lowest-scoring dimensions.
  * Returns a Record<dimensionId, dimensionData> for dimensions that succeeded.
  */
 async function composeGroupE(
@@ -735,33 +752,71 @@ async function composeGroupE(
     return null;
   }
 
-  console.log(`[Composer:GroupE] Starting 9 dimension calls (${perCallTimeout}ms per call, 200ms stagger)`);
+  // Budget-based dimension selection: if tight, run only lowest-scoring dimensions
+  let dimensionsToRun: string[] = [...DIMENSION_IDS];
+  if (perCallTimeout < 25_000 && scoring?.dimension_scores) {
+    const dimScoreMap: Record<string, number> = {
+      problem: scoring.dimension_scores.problemClarity ?? 100,
+      customer: scoring.dimension_scores.targetCustomer ?? 100,
+      market: scoring.dimension_scores.marketSize ?? 100,
+      competition: scoring.dimension_scores.competition ?? 100,
+      revenue: scoring.dimension_scores.businessModel ?? 100,
+      'ai-strategy': scoring.dimension_scores.aiAdvantage ?? 100,
+      execution: scoring.dimension_scores.executionCapability ?? 100,
+      traction: scoring.dimension_scores.tractionValidation ?? 100,
+      risk: scoring.dimension_scores.riskAwareness ?? 100,
+    };
+    dimensionsToRun = [...DIMENSION_IDS]
+      .sort((a, b) => (dimScoreMap[a] ?? 100) - (dimScoreMap[b] ?? 100))
+      .slice(0, 3);
+    console.log(`[Composer:GroupE] Budget tight — running only ${dimensionsToRun.length} lowest-scoring dimensions: ${dimensionsToRun.join(', ')}`);
+  }
 
-  // Stagger calls by 200ms to avoid rate limiting
-  const promises = DIMENSION_IDS.map((dimId, i) =>
-    new Promise<void>(resolve => setTimeout(resolve, i * 200))
-      .then(() => composeDimension(dimId, profile, market, competitors, scoring, mvp, interviewContext, perCallTimeout))
-      .then(result => ({ dimId, result }))
-      .catch(e => {
+  console.log(`[Composer:GroupE] Starting ${dimensionsToRun.length} dimension calls (${perCallTimeout}ms per call, max 3 concurrent)`);
+
+  // Concurrency limiter: max 3 in flight at a time
+  const MAX_CONCURRENT = 3;
+  const results: { dimId: string; result: Record<string, unknown> | null }[] = [];
+  const queue = [...dimensionsToRun];
+
+  async function runNext(): Promise<void> {
+    while (queue.length > 0) {
+      const dimId = queue.shift()!;
+      try {
+        const result = await composeDimension(dimId, profile, market, competitors, scoring, mvp, interviewContext, perCallTimeout);
+        results.push({ dimId, result });
+      } catch (e) {
         console.error(`[Composer:GroupE:${dimId}] Failed:`, e instanceof Error ? e.message : e);
-        return { dimId, result: null };
-      })
-  );
+        results.push({ dimId, result: null });
+      }
+    }
+  }
 
-  const results = await Promise.all(promises);
+  // Start MAX_CONCURRENT workers
+  await Promise.all(Array.from({ length: MAX_CONCURRENT }, () => runNext()));
 
-  // Collect successful dimensions
+  // Collect successful dimensions with per-dimension validation
   // deno-lint-ignore no-explicit-any
   const dimensions: Record<string, any> = {};
   let successCount = 0;
   for (const { dimId, result } of results) {
     if (result && typeof result === 'object' && 'composite_score' in result) {
+      // Per-dimension validation
+      const score = (result as Record<string, unknown>).composite_score;
+      if (typeof score !== 'number' || score < 0 || score > 100) {
+        console.warn(`[Composer:GroupE:${dimId}] Invalid composite_score ${score} — skipping`);
+        continue;
+      }
+      const subScores = (result as Record<string, unknown>).sub_scores;
+      if (!subScores || typeof subScores !== 'object') {
+        console.warn(`[Composer:GroupE:${dimId}] Missing sub_scores — marking as partial`);
+      }
       dimensions[dimId] = result;
       successCount++;
     }
   }
 
-  console.log(`[Composer:GroupE] ${successCount}/${DIMENSION_IDS.length} dimensions succeeded`);
+  console.log(`[Composer:GroupE] ${successCount}/${dimensionsToRun.length} dimensions succeeded`);
   return successCount > 0 ? dimensions : null;
 }
 
@@ -932,10 +987,27 @@ export async function runComposer(
     if (groupC?.revenue_model?.unit_economics?.ltv_cac_ratio && groupC.revenue_model.unit_economics.ltv_cac_ratio < 2) {
       consistencyNotes.push('LTV:CAC < 2:1 — flag unit economics as key risk');
     }
+    // Signal-level vs score consistency
+    if (scoring?.highest_signal_level && scoring.highest_signal_level <= 2 && scoring.overall_score > 65) {
+      consistencyNotes.push('Signal level 1-2 but score >65 — language must reflect unvalidated status');
+    }
+    // Fatal risk vs verdict consistency
+    if (groupB?.risks_assumptions?.some(r => r.severity === 'fatal') && scoring?.verdict === 'go') {
+      consistencyNotes.push('Fatal risk exists — verdict cannot be unconditional "Go"');
+    }
+    // Missing competitors but high competition score
+    const competitionScore = scoring?.dimension_scores?.competition;
+    if ((!competitors?.direct_competitors?.length || competitors.direct_competitors.length === 0) && typeof competitionScore === 'number' && competitionScore > 60) {
+      consistencyNotes.push('Zero competitors identified but competition score >60 — investigate or justify');
+    }
+    // Bottom-up evidence missing
+    if (market && (!market.bottom_up_table || market.bottom_up_table.length === 0)) {
+      consistencyNotes.push('No bottom-up market sizing evidence — top-down estimates only, treat with caution');
+    }
 
     // Phase 2: Run Group D (synthesis) sequentially — needs A+B+C outputs
     const startSynthesis = Date.now();
-    const groupD = await composeGroupD(groupA, groupB, groupC, scoring, interviewContext, synthesisTimeout, consistencyNotes)
+    const groupD = await composeGroupD(groupA, groupB, groupC, scoring, profile, interviewContext, synthesisTimeout, consistencyNotes)
       .catch(e => { console.error('[Composer:GroupD] Failed:', e instanceof Error ? e.message : e); return null; });
     const synthesisMs = Date.now() - startSynthesis;
     console.log(`[Composer] Synthesis phase done in ${synthesisMs}ms — ${groupD ? 'D:ok' : 'D:FAIL'}`);
@@ -945,6 +1017,25 @@ export async function runComposer(
     const normB = normalizeGroup(groupB, 'B');
     const normC = normalizeGroup(groupC, 'C');
     const normD = normalizeGroup(groupD, 'D');
+
+    // Verdict gating: enforce signal-level and fatal-risk rules
+    if (normD) {
+      const signalLevel = scoring?.highest_signal_level || 0;
+      const hasFatalRisk = normB?.risks_assumptions?.some(r => r.severity === 'fatal');
+
+      if (normD.summary_verdict) {
+        // If signal level < 3 and verdict says "Go." without "Conditional", fix it
+        if (signalLevel > 0 && signalLevel < 3 && /\*\*Go\.\*\*/.test(normD.summary_verdict) && !/Conditional/.test(normD.summary_verdict)) {
+          normD.summary_verdict = normD.summary_verdict.replace(/\*\*Go\.\*\*/, '**Conditional go** — validation signal level too low for unconditional go.');
+          console.log('[Composer:PostProcess] Verdict downgraded: signal level < 3');
+        }
+        // If fatal risk and verdict says "Go.", downgrade
+        if (hasFatalRisk && /\*\*Go\.\*\*/.test(normD.summary_verdict) && !/Conditional/.test(normD.summary_verdict)) {
+          normD.summary_verdict = normD.summary_verdict.replace(/\*\*Go\.\*\*/, '**Conditional go** — fatal risk must be resolved first.');
+          console.log('[Composer:PostProcess] Verdict downgraded: fatal risk exists');
+        }
+      }
+    }
 
     // Phase 3: Group E — 9 parallel dimension detail calls (V3)
     // Only runs if we have enough budget remaining. Skip = V2 report.

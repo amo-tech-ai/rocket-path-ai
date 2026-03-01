@@ -137,8 +137,24 @@ Return JSON with exactly these fields:
     }
   ],
   "founder_stage": "idea_only | problem_validated | demand_validated | presales_confirmed",
-  "recommended_methods": ["Method 1 appropriate for this stage", "Method 2"]
+  "recommended_methods": ["Method 1 appropriate for this stage", "Method 2"],
+  "kill_criteria": ["Threshold 1 that triggers pivot/stop", "Threshold 2"],
+  "pricing_test": {
+    "hypothesis": "We believe [target customer] will pay [$X/mo] for [value prop]",
+    "method": "Pre-sell / LOI / pricing page A/B test",
+    "price_points": ["$X/mo", "$Y/mo", "$Z/mo"],
+    "pass_threshold": "N% conversion or M LOIs collected"
+  }
 }
+
+HARD RULES:
+1. Every task in phases must include: deliverable (artifact) + measurement (number) + timebox (days)
+   BAD: "Validate the market opportunity"
+   GOOD: "Interview 15 Creative Directors using 10-question script → deliverable: spreadsheet with pain scores; pass: 60% rate pain ≥8/10; timebox: 7 days"
+2. Phase 1, Task 1 MUST target the #1 risk from scoring — the riskiest assumption
+3. Include kill_criteria: 2-3 thresholds that trigger pivot/stop. E.g., "If <30% of interviewees rate pain ≥7/10, pivot the value proposition"
+4. Include a pricing_test in experiments for B2B unless evidence_tier is A (revenue/payment data)
+5. Next steps must be ordered by learning speed — cheapest and fastest validation first
 
 Focus on de-risking the biggest unknowns first. The goal is to learn fast, not build everything.`;
 
@@ -169,6 +185,50 @@ Key assumptions: ${scoring.risks_assumptions.join(', ')}${weakDims ? `\nWeakest 
       await completeRun(supabase, sessionId, agentName, 'failed', { rawText: text }, [], 'JSON extraction failed');
       return null;
     }
+
+    // === POST-PROCESSING GUARDRAILS ===
+
+    // Deterministic founder stage detection (override model guess)
+    const v = (profile.validation || '').toLowerCase();
+    if (v.match(/paid|invoice|stripe|revenue|loi|letter of intent|signed/)) {
+      plan.founder_stage = 'presales_confirmed';
+    } else if (v.match(/waitlist|signup|landing|conversion|cpa|registered/)) {
+      plan.founder_stage = 'demand_validated';
+    } else if (v.match(/interview|survey|10\+|confirmed pain|user research/)) {
+      plan.founder_stage = 'problem_validated';
+    } else {
+      plan.founder_stage = 'idea_only';
+    }
+
+    // Ensure phases length = 3
+    if (!Array.isArray(plan.phases) || plan.phases.length === 0) {
+      plan.phases = [
+        { phase: 1, name: 'Validate core assumption', tasks: ['Define and run primary experiment'] },
+        { phase: 2, name: 'Test solution', tasks: ['Build minimal prototype for riskiest feature'] },
+        { phase: 3, name: 'Iterate and measure', tasks: ['Refine based on Phase 2 data'] },
+      ];
+    }
+    while (plan.phases.length < 3) {
+      plan.phases.push({ phase: plan.phases.length + 1, name: `Phase ${plan.phases.length + 1}`, tasks: ['Define based on previous phase results'] });
+    }
+
+    // Ensure next_steps length 5-8
+    if (!Array.isArray(plan.next_steps)) plan.next_steps = [];
+    if (plan.next_steps.length > 8) plan.next_steps = plan.next_steps.slice(0, 8);
+
+    // Ensure experiment_cards exist (at least 1)
+    if (!Array.isArray(plan.experiment_cards) || plan.experiment_cards.length === 0) {
+      console.warn('[MVPAgent] No experiment cards generated — adding placeholder');
+    }
+
+    // Ensure kill_criteria exist
+    if (!Array.isArray((plan as Record<string, unknown>).kill_criteria) || ((plan as Record<string, unknown>).kill_criteria as string[]).length === 0) {
+      (plan as Record<string, unknown>).kill_criteria = [
+        `If <30% of target customers confirm the problem in interviews, reconsider the value proposition`,
+        `If zero pre-sales or LOIs within 60 days, pivot or stop`,
+      ];
+    }
+
     await completeRun(supabase, sessionId, agentName, 'ok', plan);
     return plan;
   } catch (e) {

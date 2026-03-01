@@ -64,6 +64,17 @@ export interface MarketResearch {
     adoption_curve_position: string;
     market_maturity: string;
   };
+  primary_market_label?: string;
+  alternate_market_labels?: string[];
+  bottom_up_table?: Array<{
+    buyer_segment: string;
+    buyer_count: number;
+    price_per_year: number;
+    frequency: string;
+    resulting_sam: number;
+  }>;
+  corrections_applied?: string[];
+  confidence?: number;
 }
 
 export interface Competitor {
@@ -345,6 +356,15 @@ export interface VerificationResult {
   failed_agents: string[];
   warnings: string[];
   section_mappings: Record<string, string>;
+  section_health?: Record<string, { status: 'ok' | 'weak' | 'missing'; reasons: string[] }>;
+  detailed_warnings?: Array<{
+    severity: 'info' | 'warn' | 'error';
+    code: string;
+    message: string;
+    fix_hint: string;
+    owner_agent: string;
+    section: string;
+  }>;
 }
 
 // 002-EFN: Interview context from chat-based discovery

@@ -187,6 +187,71 @@ For assumptions, identify 2-5 things the founder is betting on. If discoveries f
       await completeRun(supabase, sessionId, agentName, 'failed', { rawText: text }, [], 'JSON extraction failed');
       return null;
     }
+
+    // === POST-PROCESSING GUARDS ===
+    // Trim strings
+    if (profile.idea) profile.idea = profile.idea.trim();
+    if (profile.problem) profile.problem = profile.problem.trim();
+    if (profile.customer) profile.customer = profile.customer.trim();
+    if (profile.solution) profile.solution = profile.solution.trim();
+
+    // Ensure arrays exist and are clean
+    profile.assumptions = Array.isArray(profile.assumptions)
+      ? profile.assumptions.filter((a): a is string => typeof a === 'string' && a.trim().length > 0)
+      : [];
+
+    // Ensure evidence_tier is valid
+    if (profile.problem_structured) {
+      const validTiers = ['A', 'B', 'C', 'D'];
+      if (!validTiers.includes(profile.problem_structured.evidence_tier)) {
+        profile.problem_structured.evidence_tier = 'D';
+      }
+    }
+
+    // Ensure tarpit_flag is boolean
+    if (profile.idea_quality) {
+      profile.idea_quality.tarpit_flag = Boolean(profile.idea_quality.tarpit_flag);
+    }
+
+    // Ensure websites contains only explicit URLs (no guessing)
+    if (profile.websites && !profile.websites.match(/https?:\/\//)) {
+      profile.websites = '';
+    }
+
+    // Ensure 2-5 assumptions
+    if (profile.assumptions.length < 2) {
+      if (!profile.assumptions.some(a => a.toLowerCase().includes('market'))) {
+        profile.assumptions.push('Market assumption: sufficient demand exists at this price point');
+      }
+      if (!profile.assumptions.some(a => a.toLowerCase().includes('problem'))) {
+        profile.assumptions.push('Problem assumption: pain is severe enough to pay for a solution');
+      }
+    }
+    if (profile.assumptions.length > 5) {
+      profile.assumptions = profile.assumptions.slice(0, 5);
+    }
+
+    // Ensure search_queries has 5 purpose-tagged items
+    const queries = Array.isArray(profile.search_queries) ? profile.search_queries : [];
+    if (queries.length < 5) {
+      const industry = profile.industry || 'the target market';
+      const defaults = [
+        { purpose: 'Market size + growth', query: `global ${industry} market size CAGR forecast 2025-2033` },
+        { purpose: 'Industry breakdown', query: `${industry} market segmentation by type revenue` },
+        { purpose: 'AI/tech disruption', query: `how is AI changing ${industry} market automation trends` },
+        { purpose: 'Competitors', query: `${industry} top companies competitive landscape market share` },
+        { purpose: 'Pricing models', query: `${industry} pricing models subscription per-unit enterprise` },
+      ];
+      const existingPurposes = new Set(queries.map(q => typeof q === 'string' ? '' : (q.purpose || '').toLowerCase()));
+      for (const d of defaults) {
+        if (queries.length >= 5) break;
+        if (!existingPurposes.has(d.purpose.toLowerCase())) {
+          queries.push(d);
+        }
+      }
+      profile.search_queries = queries;
+    }
+
     await completeRun(supabase, sessionId, agentName, 'ok', profile);
     return profile;
   } catch (e) {
