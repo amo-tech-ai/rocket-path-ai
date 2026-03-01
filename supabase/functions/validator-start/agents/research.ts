@@ -176,7 +176,15 @@ Prefer citing the preferred sources when they contain relevant data. Include rea
     const { text, searchGrounding, citations } = await callGemini(
       AGENTS.research.model,
       systemPrompt,
-      `Research market size for: ${profile.idea}\n${industryLine}\nCustomer: ${profile.customer}${websitesLine}${searchQueriesLine}`,
+      `Research the specific market this startup operates in.
+
+Startup: ${profile.idea}
+${industryLine}
+Target customer: ${profile.customer}
+Problem being solved: ${profile.problem || 'Not specified'}
+
+IMPORTANT: Search for the SPECIFIC industry market (e.g., "eCommerce product photography market" not "AI tools market"). The startup's technology (AI, SaaS, etc.) is the HOW — search for the market of WHAT they sell to.
+Include: current market valuation, CAGR, forecast period, regional breakdown, key drivers, major competitors, pricing models, and demand by segment.${websitesLine}${searchQueriesLine}`,
       { useSearch: true, useUrlContext: true, responseJsonSchema: AGENT_SCHEMAS.research, timeoutMs: AGENT_TIMEOUTS.research }
     );
 

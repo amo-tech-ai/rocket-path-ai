@@ -428,10 +428,12 @@ You have the COMPLETE analysis from three specialist groups. Synthesize into a d
 
 Write in this exact 5-part structure:
 
-**1. The opportunity (2-3 sentences)**
-Explain the business opportunity in simple terms anyone can understand. Lead with a concrete number.
+**1. What this startup does + the opportunity (2-3 sentences)**
+Start by saying what the business actually does and what market it's in. Then explain the opportunity with a concrete number.
 BAD: "The addressable market exhibits significant growth trajectories across multiple verticals."
-GOOD: "Dental clinics waste $3,500/month per office on manual insurance verification. There are 140,000 independent clinics in the US alone."
+BAD: "This targets a $34.5B market." (Never start with a number — tell the reader WHAT the business is first)
+GOOD: "iPix is an AI-powered planning tool for eCommerce product photography — a $27B market growing at 12% annually. Brands waste $1,500-$2,250 per shoot on manual planning that leads to off-brand images and costly reshoots."
+GOOD: "DentaVerify automates insurance verification for dental clinics. Clinics waste $3,500/month per office on manual verification calls — and there are 140,000 independent clinics in the US alone."
 
 **2. One relatable example (2-3 sentences)**
 Start with "Imagine..." — paint a specific scenario the reader can see.

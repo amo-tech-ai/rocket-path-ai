@@ -125,7 +125,13 @@ Return JSON with exactly these fields:
   "industry": "Primary industry (e.g., fintech, healthtech, saas, ecommerce, fashiontech)",
   "websites": "Any URLs or websites the founder wants researched (empty string if none mentioned)",
   "assumptions": ["Key assumptions the founder is making — things that must be true for this to work"],
-  "search_queries": [{"purpose": "Find TAM/SAM data", "query": "specific search query"}, {"purpose": "Find competitors", "query": "specific search query"}],
+  "search_queries": [
+    {"purpose": "Market size + growth", "query": "global [SPECIFIC INDUSTRY] market size CAGR forecast 2025-2033"},
+    {"purpose": "Industry breakdown", "query": "[SPECIFIC INDUSTRY] market segmentation by type revenue"},
+    {"purpose": "AI/tech disruption", "query": "how is AI changing [SPECIFIC INDUSTRY] market automation trends"},
+    {"purpose": "Competitors", "query": "[SPECIFIC INDUSTRY] top companies competitive landscape market share"},
+    {"purpose": "Pricing models", "query": "[SPECIFIC INDUSTRY] pricing models subscription per-unit enterprise"}
+  ],
   "customer_structured": {
     "persona_name": "A realistic name + title. BAD: 'John from Company X'. GOOD: 'Sarah Chen, Production Manager at a 30-person fashion label in LA'.",
     "role_context": "What they're responsible for, who they report to, what budget they control. Include team size and company stage.",
@@ -153,7 +159,20 @@ Return JSON with exactly these fields:
   }
 }
 ${contextBlock}
-If information is not provided, make reasonable inferences based on context. For websites, only include URLs that the user explicitly mentioned — do not invent any. For search_queries, generate 3-5 purpose-tagged queries that will help find TAM/SAM data, competitors, and industry benchmarks. For assumptions, identify 2-5 things the founder is betting on. If discoveries from the interview chat are provided, incorporate known competitors and market data into the profile and use them to generate more targeted search queries.${discoveryBlock}`;
+If information is not provided, make reasonable inferences based on context. For websites, only include URLs that the user explicitly mentioned — do not invent any.
+
+## Search Query Rules (CRITICAL)
+Generate 5 purpose-tagged queries using the SPECIFIC industry name — never generic terms.
+- ALWAYS name the exact industry vertical: "eCommerce product photography" not "AI content platform"
+- ALWAYS name the exact market: "commercial photography services" not "creative tools"
+- Include the words "market size", "CAGR", "forecast", "2025-2033" for sizing queries
+- Include competitor names when known for competitive landscape queries
+- BAD: "AI-powered content creation platform market size" (too vague, returns generic AI market data)
+- GOOD: "global eCommerce product photography market size CAGR forecast 2025-2033" (returns exact market reports)
+- BAD: "content planning competitors" (too broad)
+- GOOD: "Soona Squareshot Snappr eCommerce photography competitive landscape market share" (finds real data)
+
+For assumptions, identify 2-5 things the founder is betting on. If discoveries from the interview chat are provided, incorporate known competitors and market data into the profile and use them to generate more targeted search queries.${discoveryBlock}`;
 
   try {
     const { text } = await callGemini(
