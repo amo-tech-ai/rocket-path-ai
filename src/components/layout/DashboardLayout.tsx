@@ -15,6 +15,7 @@ import {
   BarChart3,
   DollarSign,
   SearchCheck,
+  FileBarChart,
   BookOpen,
   ChevronDown,
   Brain,
@@ -46,6 +47,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: "Command Centre", path: "/dashboard", icon: LayoutDashboard },
       { label: "Startup Validator", path: "/validate", icon: SearchCheck },
+      { label: "Validation Report", path: "/validator", icon: FileBarChart },
       { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
     ],
   },

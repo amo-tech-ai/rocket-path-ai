@@ -31,6 +31,10 @@ import { Button } from '@/components/ui/button';
 import { formatMarketSize } from '@/types/validation-report';
 import type { ReportDetailsV2 } from '@/types/validation-report';
 import type { StartupMeta } from '@/pages/ValidatorReport';
+import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
+import { DimensionSection } from './DimensionSection';
+import { DimensionNavGrid } from './DimensionNavGrid';
+import { ReportLeanCanvas } from './ReportLeanCanvas';
 
 function getSignal(score: number | null): 'go' | 'caution' | 'no-go' | 'unavailable' {
   if (score === null || score === undefined) return 'unavailable';
@@ -140,14 +144,57 @@ const REPORT_TABS = [
   { value: 'business', label: 'Business Model' },
   { value: 'risks-plan', label: 'Risks & Plan' },
   { value: 'questions', label: 'Key Questions' },
+  { value: 'dimensions', label: 'Deep Dive' },
+  { value: 'lean-canvas', label: 'Lean Canvas' },
 ] as const;
 
 type ReportTab = (typeof REPORT_TABS)[number]['value'];
 
-const VALID_TABS = new Set<string>(REPORT_TABS.map(t => t.value));
+/** All dimension IDs that can appear as section values in the URL */
+const DIMENSION_IDS = new Set<string>(Object.keys(DIMENSION_CONFIG));
+
+const VALID_TABS = new Set<string>([
+  ...REPORT_TABS.map(t => t.value),
+  ...DIMENSION_IDS,
+]);
+
+/** Check if a section value is a dimension ID */
+function isDimensionSection(section: string): section is DimensionId {
+  return DIMENSION_IDS.has(section);
+}
 
 /** Prev/Next stepper below each tab's content */
 function TabStepper({ currentTab, onNavigate }: { currentTab: string; onNavigate: (tab: string) => void }) {
+  // If currently on a dimension page, show "Back to Deep Dive" + prev/next dimension
+  if (isDimensionSection(currentTab)) {
+    const dimIds = Object.keys(DIMENSION_CONFIG) as DimensionId[];
+    const idx = dimIds.indexOf(currentTab);
+    const prev = idx > 0 ? dimIds[idx - 1] : null;
+    const next = idx < dimIds.length - 1 ? dimIds[idx + 1] : null;
+    return (
+      <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+        <Button variant="ghost" size="sm" onClick={() => onNavigate('dimensions')} className="gap-1.5">
+          <ChevronLeft className="w-4 h-4" />
+          All Dimensions
+        </Button>
+        <div className="flex gap-2">
+          {prev && (
+            <Button variant="ghost" size="sm" onClick={() => onNavigate(prev)} className="gap-1.5">
+              <ChevronLeft className="w-4 h-4" />
+              {DIMENSION_CONFIG[prev].label}
+            </Button>
+          )}
+          {next && (
+            <Button variant="ghost" size="sm" onClick={() => onNavigate(next)} className="gap-1.5">
+              {DIMENSION_CONFIG[next].label}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const idx = REPORT_TABS.findIndex(t => t.value === currentTab);
   const prev = idx > 0 ? REPORT_TABS[idx - 1] : null;
   const next = idx < REPORT_TABS.length - 1 ? REPORT_TABS[idx + 1] : null;
@@ -185,6 +232,8 @@ interface ReportV2LayoutProps {
     details: ReportDetailsV2;
     created_at: string;
   };
+  /** Report ID for fetching dimension data */
+  reportId?: string;
   companyName?: string;
   startupMeta?: StartupMeta;
   /** Externally controlled active section (e.g. from route params). Falls back to ?tab= query param if omitted. */
@@ -193,7 +242,7 @@ interface ReportV2LayoutProps {
   onSectionChange?: (section: string) => void;
 }
 
-export function ReportV2Layout({ report, companyName, startupMeta, activeSection, onSectionChange }: ReportV2LayoutProps) {
+export function ReportV2Layout({ report, reportId, companyName, startupMeta, activeSection, onSectionChange }: ReportV2LayoutProps) {
   const heroRef = useRef<HTMLDivElement>(null);
   const tabsAnchorRef = useRef<HTMLDivElement>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
@@ -203,7 +252,10 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
   // Self-managed mode: component reads/writes ?tab= query param
   const isControlled = activeSection !== undefined && onSectionChange !== undefined;
   const rawTab = isControlled ? activeSection : searchParams.get('tab');
-  const activeTab = (rawTab && VALID_TABS.has(rawTab) ? rawTab : 'overview') as ReportTab;
+  const activeTab = (rawTab && VALID_TABS.has(rawTab) ? rawTab : 'overview') as string;
+
+  // For the Tabs component: dimension IDs map to the "dimensions" trigger
+  const tabsValue = isDimensionSection(activeTab) ? 'dimensions' : activeTab;
 
   const handleTabChange = (value: string) => {
     if (isControlled) {
@@ -245,17 +297,37 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
   const risks = d.risks_assumptions || [];
 
   const heroMetrics = [
-    market.tam ? { label: 'TAM', value: safeMarketValue(market.tam) } : null,
-    revenue?.unit_economics?.ltv_cac_ratio ? { label: 'LTV:CAC', value: `${revenue.unit_economics.ltv_cac_ratio.toFixed(1)}x` } : null,
-    (mvp.mvp_timeline_weeks || mvp.timeline_weeks) ? { label: 'MVP', value: `${mvp.mvp_timeline_weeks || mvp.timeline_weeks} wk` } : null,
-    market.som ? { label: 'SOM', value: safeMarketValue(market.som) } : null,
-    financial?.break_even?.months ? { label: 'Break-even', value: `${financial.break_even.months} mo` } : null,
-  ].filter(Boolean) as { label: string; value: string }[];
+    market.tam ? { label: 'Market Size', value: safeMarketValue(market.tam), subtitle: 'Total addressable' } : null,
+    revenue?.unit_economics?.ltv_cac_ratio ? { label: 'Return per $1', value: `$${revenue.unit_economics.ltv_cac_ratio.toFixed(1)}`, subtitle: 'Customer lifetime value' } : null,
+    (mvp.mvp_timeline_weeks || mvp.timeline_weeks) ? { label: 'Time to Launch', value: `${mvp.mvp_timeline_weeks || mvp.timeline_weeks} wk`, subtitle: 'Minimum viable product' } : null,
+    market.som ? { label: 'Year 1 Target', value: safeMarketValue(market.som), subtitle: 'Realistic capture' } : null,
+    financial?.break_even?.months ? { label: 'Profitable In', value: `${financial.break_even.months} mo` } : null,
+  ].filter(Boolean) as { label: string; value: string; subtitle?: string }[];
 
   const dimensions = (scoring?.dimensions || []).map((dim: any) => ({
     name: dim.name, score: dim.score, weight: dim.weight,
   }));
   const sorted = [...dimensions].sort((a, b) => b.score - a.score);
+
+  // Build dimension scores for DimensionNavGrid — try V3 dimensions first, fall back to scoring matrix
+  const dimensionScores: Partial<Record<DimensionId, number>> = {};
+  if (d.dimensions && typeof d.dimensions === 'object') {
+    for (const [key, val] of Object.entries(d.dimensions)) {
+      if (val && typeof val === 'object' && 'composite_score' in val) {
+        dimensionScores[key as DimensionId] = (val as any).composite_score;
+      }
+    }
+  } else if (dimensions.length > 0) {
+    // Map V2 scoring dimension names to dimension IDs
+    const nameToId: Record<string, DimensionId> = {};
+    for (const [id, cfg] of Object.entries(DIMENSION_CONFIG)) {
+      nameToId[cfg.label.toLowerCase()] = id as DimensionId;
+    }
+    for (const dim of dimensions) {
+      const id = nameToId[dim.name?.toLowerCase()];
+      if (id) dimensionScores[id] = dim.score;
+    }
+  }
 
   const topThreat = competitors[0] ? {
     name: competitors[0].name,
@@ -266,7 +338,7 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
   const fatal = risks.find((r: any) => r.severity === 'fatal');
   const fatalRisk = fatal ? { assumption: fatal.assumption || (typeof fatal === 'string' ? fatal : '') } : undefined;
 
-  // Build VC-grade narrative
+  // Build founder-friendly narrative
   const parts: string[] = [];
   const mvpWeeks = mvp.mvp_timeline_weeks || mvp.timeline_weeks;
   const ratio = revenue?.unit_economics?.ltv_cac_ratio;
@@ -282,25 +354,25 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
   const verdict = rawVerdict.replace(/^\d+\/100[.\s]*(?:This is a go\.|This is a no-go\.)?\s*/i, '').trim();
 
   const verdictLine = score >= 75
-    ? `${score}/100 — strong opportunity. Ready to move forward.`
+    ? `${score}/100 — strong foundation — ready to move forward.`
     : score >= 60
-      ? `${score}/100 — promising idea, but success depends on execution.`
+      ? `${score}/100 — promising, but there are gaps to address.`
       : score >= 45
-        ? `${score}/100 — too many unanswered questions to invest confidently.`
-        : `${score}/100 — needs major changes before this business can work.`;
+        ? `${score}/100 — too many open questions — needs more validation.`
+        : `${score}/100 — significant changes needed before this can work.`;
   parts.push(verdict ? `${verdictLine} ${verdict}` : verdictLine);
 
   const winParts: string[] = [];
   if (market.tam && market.som) {
-    winParts.push(`This targets a ${safeMarketValue(market.tam)} market, with a realistic capture opportunity of ${safeMarketValue(market.som)} — large enough to build a real business.`);
+    winParts.push(`The market is worth ${safeMarketValue(market.tam)}. Your realistic first-year target is ${safeMarketValue(market.som)} — big enough to build a real business.`);
   }
   if (highlights.length > 0) {
     winParts.push(highlights[0]);
   }
   if (ratio && ratio >= 3 && payback) {
-    winParts.push(`The money math works: every $1 spent acquiring a customer returns $${ratio.toFixed(1)} in revenue, and you'd recover that cost in just ${payback} months. That's a healthy, scalable business from day one.`);
+    winParts.push(`For every $1 you spend getting a customer, you'll make $${ratio.toFixed(1)} back — and you'll recover that cost in ${payback} months.`);
   } else if (ratio && ratio > 0 && payback) {
-    winParts.push(`Early-stage economics: every $1 spent on acquiring a customer returns $${ratio.toFixed(1)}, with a ${payback}-month payback. Workable, but margins are thin — this needs to improve as you scale.`);
+    winParts.push(`For every $1 you spend getting a customer, you'll make $${ratio.toFixed(1)} back, with a ${payback}-month payback. That works, but the margins are thin — this needs to improve as you grow.`);
   }
   if (winParts.length > 0) parts.push(winParts.join(' '));
 
@@ -309,22 +381,23 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
     riskParts.push(redFlags[0]);
   }
   if (fatalItem) {
-    riskParts.push(`The biggest risk: ${fatalItem.assumption || safeText(fatalItem)}. If this turns out to be wrong, the entire business model falls apart.`);
+    riskParts.push(`The biggest risk: ${fatalItem.assumption || safeText(fatalItem)}. If this turns out to be wrong, the whole idea falls apart.`);
   } else if (topComp) {
     riskParts.push(`The biggest competitive threat is ${topComp.name}${topComp.description ? ` — ${topComp.description.toLowerCase()}` : ''}. If a larger player adds this feature for free, it becomes much harder to charge for it as a standalone product.`);
   }
   if (worst && best && worst.name !== best.name) {
-    riskParts.push(`${worst.name} is the weakest area at ${worst.score}/100 — this needs serious attention before the business can grow.`);
+    riskParts.push(`${worst.name} scored only ${worst.score}/100 — that's the area that needs the most work.`);
   }
   if (riskParts.length > 0) parts.push(riskParts.join(' '));
 
   if (mvpWeeks && breakEven) {
+    const weekArticle = mvpWeeks === 8 || mvpWeeks === '8' || mvpWeeks === 11 || mvpWeeks === '11' || mvpWeeks === 18 || mvpWeeks === '18' ? 'An' : 'A';
     if (score >= 75) {
-      parts.push(`You can build a first version in ${mvpWeeks} weeks and reach profitability in about ${breakEven} months. The opportunity is real — validate your core assumption and move quickly.`);
+      parts.push(`You can build a first version in ${mvpWeeks} weeks and become profitable in about ${breakEven} months. Test your main assumption and move quickly.`);
     } else if (score >= 60) {
-      parts.push(`A ${mvpWeeks}-week first version can test whether this works, with profitability expected around ${breakEven} months. Worth pursuing — but resolve the main risk within 90 days or reconsider.`);
+      parts.push(`${weekArticle} ${mvpWeeks}-week first version can test whether this works, and you could become profitable in about ${breakEven} months. Worth pursuing — but resolve the main risk within 90 days or reconsider.`);
     } else {
-      parts.push(`You could build a first version in ${mvpWeeks} weeks, but reaching profitability at ${breakEven} months assumes a lot goes right. Run the most critical experiment first, then decide whether to continue.`);
+      parts.push(`You could build a first version in ${mvpWeeks} weeks, but becoming profitable in ${breakEven} months assumes a lot goes right. Test the riskiest part first, then decide whether to continue.`);
     }
   }
 
@@ -545,7 +618,7 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
       <div className="max-w-[1000px] mx-auto px-4 lg:px-8 py-8 flex flex-col gap-8">
         {/* Tabbed sections — tabs at top, screen only */}
         <div ref={tabsAnchorRef}>
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="report-tabs no-print">
+          <Tabs value={tabsValue} onValueChange={handleTabChange} className="report-tabs no-print">
             <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1.5 rounded-lg">
               {REPORT_TABS.map((tab) => (
                 <TabsTrigger
@@ -679,6 +752,32 @@ export function ReportV2Layout({ report, companyName, startupMeta, activeSection
             <TabsContent value="questions" className="mt-6">
               <PageCard>{renderQuestions()}</PageCard>
               <TabStepper currentTab="questions" onNavigate={handleTabChange} />
+            </TabsContent>
+
+            <TabsContent value="dimensions" className="mt-6">
+              {isDimensionSection(activeTab) && reportId ? (
+                /* Individual dimension page */
+                <PageCard>
+                  <DimensionSection dimensionId={activeTab} reportId={reportId} />
+                  <TabStepper currentTab={activeTab} onNavigate={handleTabChange} />
+                </PageCard>
+              ) : (
+                /* 3-act dimension navigator grid */
+                <PageCard>
+                  <DimensionNavGrid
+                    onNavigate={handleTabChange}
+                    scores={dimensionScores}
+                  />
+                  <TabStepper currentTab="dimensions" onNavigate={handleTabChange} />
+                </PageCard>
+              )}
+            </TabsContent>
+
+            <TabsContent value="lean-canvas" className="mt-6">
+              <PageCard>
+                <ReportLeanCanvas details={d} reportId={reportId || ''} />
+                <TabStepper currentTab="lean-canvas" onNavigate={handleTabChange} />
+              </PageCard>
             </TabsContent>
           </Tabs>
         </div>
