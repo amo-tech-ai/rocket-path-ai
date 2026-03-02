@@ -231,36 +231,53 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
     setError(null);
 
     try {
-      // Force session refresh to ensure functions.invoke() sends a valid JWT.
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      console.log('[useValidatorFollowup] refreshSession result:', {
-        hasSession: !!refreshData?.session,
-        hasUser: !!refreshData?.user,
-        accessToken: refreshData?.session?.access_token?.slice(0, 20) + '...',
-        error: refreshError?.message,
-      });
-      if (refreshError || !refreshData?.session?.access_token) {
+      // Use getSession() (cache-first) instead of refreshSession() to avoid race
+      // conditions with the no-op lock bypass. autoRefreshToken handles token refresh
+      // in the background. If the edge function returns 401, we retry once after
+      // an explicit refreshSession().
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         const msg = 'Please sign in to continue the validation';
-        console.error('[useValidatorFollowup] Session refresh failed:', refreshError);
+        console.error('[useValidatorFollowup] No session available');
         setError(msg);
         toast({ title: 'Sign in required', description: msg, variant: 'destructive' });
         return null;
       }
 
-      const accessToken = refreshData.session.access_token;
-      console.log('[useValidatorFollowup] Got fresh token:', accessToken.slice(0, 20) + '...');
+      let accessToken = session.access_token;
 
-      const { data, error: fnError } = await supabase.functions.invoke('validator-followup', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: { messages, sessionId: sessionId || options?.sessionId },
-      });
+      const invoke = async (token: string) =>
+        supabase.functions.invoke('validator-followup', {
+          headers: { Authorization: `Bearer ${token}` },
+          body: { messages, sessionId: sessionId || options?.sessionId },
+        });
 
+      let { data, error: fnError } = await invoke(accessToken);
+
+      // 401 retry: token may have expired between getSession() and invoke().
+      // Refresh once and retry — this is the recovery path, not the hot path.
       if (fnError) {
-        // Deterministic: prefer status from FunctionsHttpError.context (Response)
         const err = fnError as { context?: { status?: number }; status?: number; message?: string };
         const status = err?.context?.status ?? err?.status;
-        const is401 = status === 401;
-        if (is401) {
+        if (status === 401) {
+          console.warn('[useValidatorFollowup] 401 — refreshing session and retrying');
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (refreshData?.session?.access_token) {
+            accessToken = refreshData.session.access_token;
+            const retry = await invoke(accessToken);
+            data = retry.data;
+            fnError = retry.error;
+          } else {
+            toast({ title: 'Sign in required', description: 'Please sign in to continue.', variant: 'destructive' });
+            throw fnError;
+          }
+        }
+      }
+
+      if (fnError) {
+        const err = fnError as { context?: { status?: number }; status?: number; message?: string };
+        const status = err?.context?.status ?? err?.status;
+        if (status === 401) {
           toast({ title: 'Sign in required', description: 'Please sign in to continue.', variant: 'destructive' });
         }
         throw fnError;
