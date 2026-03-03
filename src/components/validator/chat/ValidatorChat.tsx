@@ -7,7 +7,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ValidatorChatInput from './ValidatorChatInput';
 import ValidatorChatMessage, { ChatMessage } from './ValidatorChatMessage';
@@ -126,6 +126,7 @@ export default function ValidatorChat({
   const [latestContradictions, setLatestContradictions] = useState<string[]>([]);
   const [latestSuggestions, setLatestSuggestions] = useState<string[]>([]);
   const [isStreamingMessage, setIsStreamingMessage] = useState(false);
+  const [retryPayload, setRetryPayload] = useState<ChatMessage[] | null>(null);
   const lastAssistantRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
@@ -197,23 +198,30 @@ export default function ValidatorChat({
     if (meta.discoveredEntities) setLatestDiscoveries(meta.discoveredEntities);
     if (meta.contradictions?.length) setLatestContradictions(meta.contradictions);
 
+    // Propagate coverage to parent during streaming (interim update before HTTP response)
+    if (onCoverageUpdate && meta.coverage) {
+      const isReady = meta.action === 'ready' || checkReadiness(meta.coverage, userMessageCount);
+      onCoverageUpdate(meta.coverage, isReady, meta.extracted, meta.confidence);
+    }
+
     setIsStreamingMessage(false);
     streamingMessageId.current = null;
     resetStream();
-  }, [streamingState.isStreaming, streamingState.metadata, isStreamingMessage, resetStream]);
+  }, [streamingState.isStreaming, streamingState.metadata, isStreamingMessage, resetStream, onCoverageUpdate, userMessageCount]);
 
   // Ask AI for the next question
   const askFollowup = useCallback(async (currentMessages: ChatMessage[]) => {
     if (followupInFlight.current) return;
     followupInFlight.current = true;
+    setRetryPayload(null);
 
-    // Safety: auto-reset followupInFlight after 50s even if the call hangs
+    // Safety: auto-reset followupInFlight after 30s even if the call hangs
     const flightTimeout = setTimeout(() => {
       if (followupInFlight.current) {
-        console.warn('[ValidatorChat] followupInFlight stuck — auto-resetting after 50s');
+        console.warn('[ValidatorChat] followupInFlight stuck — auto-resetting after 30s');
         followupInFlight.current = false;
       }
-    }, 50_000);
+    }, 30_000);
 
     const conversationMessages = buildConversationMessages(currentMessages);
     const currentUserCount = currentMessages.filter(m => m.role === 'user').length;
@@ -256,11 +264,11 @@ export default function ValidatorChat({
 
     try {
       // Pass sessionId so edge function broadcasts tokens
-      // Wrap in Promise.race with 45s timeout to prevent hanging forever
+      // Client timeout is a safety net — server responds within 20-24s + 1 retry, client gives 50s headroom
       const result = await Promise.race([
         getNextQuestion([...conversationMessages], sessionId),
         new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Followup request timed out after 45s')), 45_000)
+          setTimeout(() => reject(new Error('Followup request timed out after 50s')), 50_000)
         ),
       ]);
 
@@ -271,6 +279,40 @@ export default function ValidatorChat({
       setIsTyping(false);
 
       if (result) {
+        // Server fallback: AI was slow, server returned a backup question
+        if (result._serverFallback) {
+          console.warn('[ValidatorChat] Server timeout fallback — showing backup question + retry');
+          setIsStreamingMessage(false);
+          streamingMessageId.current = null;
+          resetStream();
+          setLatestSuggestions([]);
+          setRetryPayload(currentMessages);
+
+          // Preserve last-known coverage (don't overwrite with null)
+          if (onCoverageUpdate && latestCoverage) {
+            onCoverageUpdate(latestCoverage, canGenerate, latestExtracted || undefined, latestConfidence || undefined);
+          }
+
+          const totalUserChars = currentMessages
+            .filter(m => m.role === 'user')
+            .reduce((sum, m) => sum + (m.content?.length || 0), 0);
+          if (currentUserCount >= MIN_EXCHANGES || totalUserChars >= 200) {
+            setCanGenerate(true);
+          }
+
+          followupInFlight.current = false;
+          setMessages(prev => {
+            const cleaned = prev.filter(m => m.id !== streamMsgId);
+            return [...cleaned, {
+              id: crypto.randomUUID(),
+              role: 'assistant' as const,
+              content: `**AI is taking longer than usual** — click Retry or continue below.\n\n${result.question}`,
+              timestamp: new Date(),
+            }];
+          });
+          return;
+        }
+
         // Track latest coverage + extracted + confidence + discoveries
         setLatestCoverage(result.coverage);
         if (result.extracted) setLatestExtracted(result.extracted);
@@ -351,16 +393,22 @@ export default function ValidatorChat({
           }
         }
       } else {
-        // Edge function failed — use depth-aware fallback
-        console.warn('[ValidatorChat] AI followup failed, using context-aware fallback');
+        // Edge function returned null — show error with retry option
+        console.warn('[ValidatorChat] AI followup failed, showing error with retry');
         clearTimeout(flightTimeout);
         setIsStreamingMessage(false);
         streamingMessageId.current = null;
         resetStream();
         setLatestSuggestions([]); // 037-DSC: No suggestions on fallback
 
+        // Preserve last-known coverage so it doesn't freeze at 0
+        if (onCoverageUpdate && latestCoverage) {
+          onCoverageUpdate(latestCoverage, canGenerate, latestExtracted || undefined, latestConfidence || undefined);
+        }
+
         const fb = pickFallbackQuestion(currentMessages, latestCoverage, fallbackIndex);
         setFallbackIndex(fb.nextIndex);
+        setRetryPayload(currentMessages);
 
         const totalUserChars = currentMessages
           .filter(m => m.role === 'user')
@@ -375,13 +423,13 @@ export default function ValidatorChat({
           return [...cleaned, {
             id: crypto.randomUUID(),
             role: 'assistant' as const,
-            content: fb.question,
+            content: `**AI temporarily unavailable** — click Retry or continue below.\n\n${fb.question}`,
             timestamp: new Date(),
           }];
         });
       }
     } catch (err) {
-      console.warn('[ValidatorChat] Network error or timeout, using context-aware fallback', err);
+      console.warn('[ValidatorChat] Network error or timeout, showing error with retry', err);
       clearTimeout(flightTimeout);
       setIsTyping(false);
       setIsStreamingMessage(false);
@@ -389,8 +437,14 @@ export default function ValidatorChat({
       resetStream();
       setLatestSuggestions([]); // 037-DSC: No suggestions on error
 
+      // Preserve last-known coverage so it doesn't freeze at 0
+      if (onCoverageUpdate && latestCoverage) {
+        onCoverageUpdate(latestCoverage, canGenerate, latestExtracted || undefined, latestConfidence || undefined);
+      }
+
       const fb = pickFallbackQuestion(currentMessages, latestCoverage, fallbackIndex);
       setFallbackIndex(fb.nextIndex);
+      setRetryPayload(currentMessages);
 
       const totalUserChars = currentMessages
         .filter(m => m.role === 'user')
@@ -405,12 +459,12 @@ export default function ValidatorChat({
         return [...cleaned, {
           id: crypto.randomUUID(),
           role: 'assistant' as const,
-          content: fb.question,
+          content: `**AI temporarily unavailable** — click Retry or continue below.\n\n${fb.question}`,
           timestamp: new Date(),
         }];
       });
     }
-  }, [buildConversationMessages, getNextQuestion, fallbackIndex, latestCoverage, onCoverageUpdate, subscribeToStream, resetStream]);
+  }, [buildConversationMessages, getNextQuestion, fallbackIndex, latestCoverage, latestExtracted, latestConfidence, canGenerate, onCoverageUpdate, subscribeToStream, resetStream]);
 
   // Process initial idea from homepage if provided
   useEffect(() => {
@@ -457,6 +511,22 @@ export default function ValidatorChat({
       return updated;
     });
   }, [askFollowup]);
+
+  // Retry handler for failed AI followup
+  const handleRetry = useCallback(() => {
+    if (retryPayload) {
+      setRetryPayload(null);
+      // Remove the error/fallback message before retrying
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.content.startsWith('**AI temporarily unavailable**') || last?.content.startsWith('**AI is taking longer than usual**')) {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+      askFollowup(retryPayload);
+    }
+  }, [retryPayload, askFollowup]);
 
   // 4B: Check if minimum data threshold is met for generation
   // Bypass when canGenerate is already true (system decided readiness) or after MAX_EXCHANGES
@@ -605,6 +675,18 @@ export default function ValidatorChat({
                 }}
                 isTyping
               />
+            )}
+
+            {retryPayload && !isTyping && (
+              <div className="flex justify-center py-2">
+                <button
+                  onClick={handleRetry}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retry AI question
+                </button>
+              </div>
             )}
           </div>
         </ScrollArea>

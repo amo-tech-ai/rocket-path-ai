@@ -136,10 +136,10 @@ Deno.serve(async (req) => {
 
     userPrompt += `\n\nAnalyze the coverage and generate the next follow-up question (or signal "ready" if enough info is gathered).`;
 
-    // --- Timeout: base 25s, +10s if search enabled, +5s if URL context enabled ---
-    let timeoutMs = 25000;
-    if (enableSearch) timeoutMs += 10000;
-    if (hasUrls) timeoutMs += 5000;
+    // --- Timeout: interactive chat. 20s base gives headroom beyond Gemini Flash p95 (~14s), +2s per feature ---
+    let timeoutMs = 20000;
+    if (enableSearch) timeoutMs += 2000;
+    if (hasUrls) timeoutMs += 2000;
 
     console.log(`[validator-followup] Features: search=${enableSearch}, urlContext=${hasUrls}, timeout=${timeoutMs}ms, urls=${detectedUrls.length}`);
 
@@ -298,11 +298,28 @@ Deno.serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[validator-followup] Error:', msg);
-    // Differentiate timeout vs generic — but never leak internal details
     const isTimeout = msg.includes('timed out') || msg.includes('hard timeout');
+
+    // Structured fallback: return a backup question + error code so the client
+    // can continue the conversation even when Gemini is slow/down.
+    const backupQuestions = [
+      "What specific problem are you solving, and who feels it most?",
+      "Who is your target customer? Where do they work or live?",
+      "What alternatives or workarounds do your target customers use today?",
+      "What makes your approach different or better than what exists?",
+      "Do you have any evidence of demand — conversations, waitlists, or surveys?",
+    ];
+    const backupQuestion = backupQuestions[Math.floor(Math.random() * backupQuestions.length)];
+
     return new Response(
-      JSON.stringify({ success: false, error: isTimeout ? 'AI request timed out — please try again' : 'Internal server error' }),
-      { status: isTimeout ? 504 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: false,
+        code: isTimeout ? 'FOLLOWUP_TIMEOUT' : 'FOLLOWUP_ERROR',
+        error: isTimeout ? 'AI is taking longer than usual' : 'Internal server error',
+        question: backupQuestion,
+        suggestions: [],
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
