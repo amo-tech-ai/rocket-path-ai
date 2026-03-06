@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -44,10 +45,17 @@ const ticketCostLabels: Record<string, string> = {
 };
 
 export default function PublicEventDetail() {
-  const { eventId } = useParams();
+  const { slug: slugParam } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data: event, isLoading, error } = usePublicEvent(eventId);
+  const { data: event, isLoading, error } = usePublicEvent(slugParam);
+
+  // Redirect to SEO-friendly URL when loaded via UUID (old bookmark)
+  useEffect(() => {
+    if (event?.slug && slugParam !== event.slug && /^[0-9a-f-]{36}$/i.test(slugParam ?? '')) {
+      navigate(`/events/${event.slug}`, { replace: true });
+    }
+  }, [event?.slug, slugParam, navigate]);
 
   const handleShare = async () => {
     const url = window.location.href;

@@ -54,7 +54,7 @@ export default function PublicEventCard({ event, viewMode = 'grid' }: PublicEven
   
   const handleClick = () => {
     if (isHosted) {
-      navigate(`/events/${event.id}`);
+      navigate(`/events/${event.slug ?? event.id}`);
     } else if (event.external_url) {
       window.open(event.external_url, '_blank', 'noopener,noreferrer');
     }
@@ -156,12 +156,24 @@ export default function PublicEventCard({ event, viewMode = 'grid' }: PublicEven
       className="group cursor-pointer hover:shadow-lg transition-all duration-300 overflow-hidden border-border/50 hover:border-border"
       onClick={handleClick}
     >
-      {/* Event header with gradient */}
-      <div className={`h-32 relative ${
-        isHosted 
-          ? 'bg-gradient-to-br from-blue-500/20 via-primary/10 to-blue-600/20' 
-          : 'bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-purple-600/20'
+      {/* Event header: cover image or gradient */}
+      <div className={`h-32 relative overflow-hidden ${
+        !event.cover_image_url
+          ? isHosted
+            ? 'bg-gradient-to-br from-blue-500/20 via-primary/10 to-blue-600/20'
+            : 'bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-purple-600/20'
+          : ''
       }`}>
+        {event.cover_image_url && (
+          <>
+            <img
+              src={event.cover_image_url}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/20" aria-hidden />
+          </>
+        )}
         {/* Date badge */}
         <div className="absolute top-3 left-3 bg-background/95 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground uppercase">

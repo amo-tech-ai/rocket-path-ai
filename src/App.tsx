@@ -76,7 +76,7 @@ const App = () => (
             <Route path="/blog" element={<BlogIndex />} />
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="/events" element={<PublicEventsDirectory />} />
-            <Route path="/events/:eventId" element={<PublicEventDetail />} />
+            <Route path="/events/:slug" element={<PublicEventDetail />} />
             <Route path="/share/report/:token" element={<SharedReport />} />
             <Route path="/embed/report/:token" element={<EmbedReport />} />
             <Route path="/fashion-infographic" element={<FashionInfographic />} />

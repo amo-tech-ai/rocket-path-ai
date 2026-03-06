@@ -106,26 +106,37 @@ export function usePublicEvents(filters?: PublicEventFilters) {
   });
 }
 
-export function usePublicEvent(eventId: string | undefined) {
-  return useQuery({
-    queryKey: ['public-event', eventId],
-    queryFn: async () => {
-      if (!eventId) return null;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-      const { data, error } = await supabase
+export function usePublicEvent(slugOrId: string | undefined) {
+  return useQuery({
+    queryKey: ['public-event', slugOrId],
+    queryFn: async () => {
+      if (!slugOrId) return null;
+
+      const bySlug = supabase
         .from('events_directory' as any)
         .select('*')
-        .eq('id', eventId)
-        .single();
+        .eq('slug', slugOrId)
+        .eq('is_public', true)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching public event:', error);
-        throw error;
+      const { data: bySlugData, error: slugError } = await bySlug;
+      if (!slugError && bySlugData) return bySlugData as unknown as PublicEvent;
+
+      if (UUID_REGEX.test(slugOrId)) {
+        const { data: byIdData, error: idError } = await supabase
+          .from('events_directory' as any)
+          .select('*')
+          .eq('id', slugOrId)
+          .eq('is_public', true)
+          .maybeSingle();
+        if (!idError && byIdData) return byIdData as unknown as PublicEvent;
       }
 
-      return data as unknown as PublicEvent;
+      return null;
     },
-    enabled: !!eventId,
+    enabled: !!slugOrId,
   });
 }
 
