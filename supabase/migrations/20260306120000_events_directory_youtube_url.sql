@@ -1,6 +1,9 @@
 -- Expose industry_events.youtube_url in events_directory for video embed on public event detail page.
+-- DROP first because adding youtube_url column changes the column order
+-- (CREATE OR REPLACE VIEW cannot rename/reorder columns).
+DROP VIEW IF EXISTS public.events_directory;
 
-CREATE OR REPLACE VIEW public.events_directory
+CREATE VIEW public.events_directory
 WITH (security_invoker = true) AS
 SELECT
   events.id,
