@@ -38,7 +38,7 @@ ALTER TABLE interviews
 -- Phase 3: CREATE interview_questions (M1)
 ----------------------------------------------------------------------
 
-CREATE TABLE interview_questions (
+CREATE TABLE IF NOT EXISTS interview_questions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   interview_id uuid NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
   question_text text NOT NULL,

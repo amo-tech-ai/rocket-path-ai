@@ -6,7 +6,7 @@
 -- ─────────────────────────────────────────────
 -- 1. DECISIONS (011-CTL)
 -- ─────────────────────────────────────────────
-CREATE TABLE decisions (
+CREATE TABLE IF NOT EXISTS decisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   startup_id uuid NOT NULL REFERENCES startups(id) ON DELETE CASCADE,
   decision_type text NOT NULL CHECK (decision_type IN ('pivot', 'persevere', 'launch', 'kill', 'invest', 'partner', 'hire', 'other')),
@@ -45,7 +45,7 @@ CREATE TRIGGER set_decisions_updated_at
 -- ─────────────────────────────────────────────
 -- 2. DECISION EVIDENCE (011-CTL)
 -- ─────────────────────────────────────────────
-CREATE TABLE decision_evidence (
+CREATE TABLE IF NOT EXISTS decision_evidence (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   decision_id uuid NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
   evidence_type text NOT NULL CHECK (evidence_type IN ('assumption', 'experiment', 'interview', 'metric', 'research', 'other')),
@@ -73,12 +73,12 @@ CREATE INDEX idx_decision_evidence_decision_id ON decision_evidence(decision_id)
 -- ─────────────────────────────────────────────
 -- 3. SHAREABLE LINKS (012-CTL)
 -- ─────────────────────────────────────────────
-CREATE TABLE shareable_links (
+CREATE TABLE IF NOT EXISTS shareable_links (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   startup_id uuid NOT NULL REFERENCES startups(id) ON DELETE CASCADE,
   resource_type text NOT NULL CHECK (resource_type IN ('validation_report', 'pitch_deck', 'lean_canvas', 'decision_log')),
   resource_id uuid NOT NULL,
-  token text NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  token text NOT NULL UNIQUE DEFAULT replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''),
   created_by uuid NOT NULL REFERENCES auth.users(id),
   expires_at timestamptz NOT NULL DEFAULT (now() + interval '7 days'),
   revoked_at timestamptz,
@@ -118,7 +118,7 @@ CREATE INDEX idx_shareable_links_created_by ON shareable_links(created_by);
 -- ─────────────────────────────────────────────
 -- 4. AI USAGE LIMITS (012-CTL)
 -- ─────────────────────────────────────────────
-CREATE TABLE ai_usage_limits (
+CREATE TABLE IF NOT EXISTS ai_usage_limits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id uuid NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
   monthly_cap_cents integer NOT NULL DEFAULT 5000,

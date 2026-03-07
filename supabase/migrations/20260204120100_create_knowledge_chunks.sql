@@ -9,7 +9,7 @@
 -- 1. verify pgvector extension is enabled
 -- =============================================================================
 
-create extension if not exists vector with schema extensions;
+create extension if not exists vector;
 
 -- =============================================================================
 -- 2. create source_type enum

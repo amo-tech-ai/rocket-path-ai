@@ -14,7 +14,7 @@ ALTER TABLE assumptions
 -- ─────────────────────────────────────────────
 -- 2. WEEKLY REVIEWS (014-CF)
 -- ─────────────────────────────────────────────
-CREATE TABLE weekly_reviews (
+CREATE TABLE IF NOT EXISTS weekly_reviews (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   startup_id uuid NOT NULL REFERENCES startups(id) ON DELETE CASCADE,
   week_start date NOT NULL,
