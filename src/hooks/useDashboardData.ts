@@ -179,6 +179,43 @@ export function useKeyMetrics(startup: Startup | null | undefined) {
   };
 }
 
+/**
+ * Fallback: fetch the latest validator report score directly for the current user.
+ * Used when no startup record exists (useStartup returns null) so the dashboard
+ * can still show the validation score and unblock the journey.
+ */
+export function useLatestValidationScore(startupId: string | undefined) {
+  return useQuery({
+    queryKey: ['latest-validation-score'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('validator_sessions')
+        .select('id, validator_reports(id, score, details)')
+        .eq('user_id', user.id)
+        .eq('status', 'complete')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) return null;
+      const report = (data as any).validator_reports?.[0] ?? (data as any).validator_reports;
+      if (!report) return null;
+
+      return {
+        reportId: report.id as string,
+        score: Number(report.score) || 0,
+        sessionId: data.id as string,
+      };
+    },
+    // Only run when there's NO startup — this is the fallback path
+    enabled: !startupId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 // Format currency for display
 export function formatCurrency(amount: number): string {
   if (amount >= 1000000) {

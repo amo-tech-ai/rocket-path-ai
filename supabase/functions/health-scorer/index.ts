@@ -123,10 +123,13 @@ Deno.serve(async (req) => {
 });
 
 // Map scores_matrix dimension names → health breakdown keys
+// Validator produces 7 dimensions; health model has 6. 'Timing' blends into
+// 'marketUnderstanding' (market timing is part of market understanding).
 const DIMENSION_MAP: Record<string, keyof HealthScore['breakdown']> = {
   'Problem Clarity': 'problemClarity',
   'Solution Strength': 'solutionFit',
   'Market Size': 'marketUnderstanding',
+  'Timing': 'marketUnderstanding', // blended with Market Size
   'Competition': 'tractionProof',
   'Business Model': 'investorReadiness',
   'Team Fit': 'teamReadiness',
@@ -195,14 +198,23 @@ function buildFromValidatorScores(
   }
 
   // Map validator dimensions to health dimensions
+  // Track how many validator dims map to each health key (for averaging when >1)
+  const hitCount: Record<string, number> = {};
   for (const dim of scoresMatrix.dimensions) {
     const healthKey = DIMENSION_MAP[dim.name];
     if (healthKey) {
-      breakdown[healthKey] = {
-        score: Math.round(dim.score),
-        weight: DEFAULT_WEIGHTS[healthKey],
-        label: DIMENSION_LABELS[healthKey],
-      };
+      hitCount[healthKey] = (hitCount[healthKey] || 0) + 1;
+      if (hitCount[healthKey] === 1) {
+        breakdown[healthKey] = {
+          score: Math.round(dim.score),
+          weight: DEFAULT_WEIGHTS[healthKey],
+          label: DIMENSION_LABELS[healthKey],
+        };
+      } else {
+        // Average with existing score (e.g., Market Size + Timing → marketUnderstanding)
+        const prev = breakdown[healthKey].score;
+        breakdown[healthKey].score = Math.round((prev + dim.score) / hitCount[healthKey]);
+      }
     }
   }
 

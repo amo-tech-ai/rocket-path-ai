@@ -19,7 +19,7 @@ import { FocusActions } from '@/components/dashboard/FocusActions';
 import { QuickGlance } from '@/components/dashboard/QuickGlance';
 import { WelcomeBanner, useFirstVisitAfterOnboarding } from '@/components/dashboard/WelcomeBanner';
 import { Day1PlanCard, Day1Task } from '@/components/dashboard/Day1PlanCard';
-import { useStartup, useTaskStats } from '@/hooks/useDashboardData';
+import { useStartup, useTaskStats, useLatestValidationScore } from '@/hooks/useDashboardData';
 import { useDashboardRealtime } from '@/hooks/useRealtimeSubscription';
 import { useHealthScore } from '@/hooks/useHealthScore';
 import { useActionRecommender } from '@/hooks/useActionRecommender';
@@ -46,6 +46,9 @@ const Dashboard = () => {
   // Health score from edge function
   const { data: healthScore, isLoading: healthLoading } = useHealthScore(startup?.id);
 
+  // Fallback: direct validation score when no startup exists
+  const { data: fallbackValidation } = useLatestValidationScore(startup?.id);
+
   // Action recommendations based on health score
   const { data: recommendations, isLoading: actionsLoading } = useActionRecommender(
     startup?.id,
@@ -58,14 +61,17 @@ const Dashboard = () => {
   // Top risks (derived from health breakdown)
   const topRisks = useTopRisks(healthScore?.breakdown, healthScore?.warnings);
 
+  // Effective validation score: prefer health-scorer, fall back to direct report score
+  const effectiveScore = healthScore?.overall ?? fallbackValidation?.score ?? null;
+
   // Journey stage (derived from existing data, no extra queries)
   const journey = useJourneyStage({
     hasStartup: !!startup,
-    validationScore: healthScore?.overall ?? null,
+    validationScore: effectiveScore,
     canvasProgress: moduleProgress?.canvasProgress ?? 0,
     experimentCount: 0,
     sprintProgress: 0,
-    healthScore: healthScore?.overall ?? 0,
+    healthScore: effectiveScore ?? 0,
   });
 
   // Enable real-time updates for all dashboard data
@@ -84,7 +90,7 @@ const Dashboard = () => {
   const { setDashboardContext } = useAIAssistant();
   useEffect(() => {
     setDashboardContext({
-      healthScore: healthScore?.overall ?? null,
+      healthScore: effectiveScore,
       healthTrend: healthScore?.trend ?? null,
       topRisks: topRiskTitles,
       currentStage: startup?.stage ?? null,
@@ -145,7 +151,7 @@ const Dashboard = () => {
         <HeroStatus
           startupName={startupName}
           greeting={greeting}
-          healthScore={healthScore?.overall ?? null}
+          healthScore={effectiveScore}
           healthTrend={healthScore?.trend ?? null}
           journeyStep={journey.currentStep}
           journeyPercent={journey.percentComplete}
