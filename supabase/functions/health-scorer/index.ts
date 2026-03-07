@@ -122,51 +122,138 @@ Deno.serve(async (req) => {
   }
 });
 
+// Map scores_matrix dimension names → health breakdown keys
+const DIMENSION_MAP: Record<string, keyof HealthScore['breakdown']> = {
+  'Problem Clarity': 'problemClarity',
+  'Solution Strength': 'solutionFit',
+  'Market Size': 'marketUnderstanding',
+  'Competition': 'tractionProof',
+  'Business Model': 'investorReadiness',
+  'Team Fit': 'teamReadiness',
+};
+
+// Default weights for health dimensions (used when validator doesn't provide them)
+const DEFAULT_WEIGHTS: Record<keyof HealthScore['breakdown'], number> = {
+  problemClarity: 20,
+  solutionFit: 15,
+  marketUnderstanding: 15,
+  tractionProof: 25,
+  teamReadiness: 10,
+  investorReadiness: 15,
+};
+
+const DIMENSION_LABELS: Record<keyof HealthScore['breakdown'], string> = {
+  problemClarity: 'Problem Clarity',
+  solutionFit: 'Solution Fit',
+  marketUnderstanding: 'Market Understanding',
+  tractionProof: 'Traction Proof',
+  teamReadiness: 'Team Readiness',
+  investorReadiness: 'Investor Readiness',
+};
+
 async function calculateHealthScore(supabase: any, startupId: string): Promise<HealthScore> {
-  // Fetch all relevant data in parallel
-  const [
-    startupResult,
-    canvasResult,
-    pitchDeckResult,
-    tasksResult,
-    contactsResult,
-    documentsResult,
-    wizardResult,
-  ] = await Promise.all([
-    supabase.from('startups').select('*').eq('id', startupId).single(),
-    supabase.from('lean_canvases').select('*').eq('startup_id', startupId).order('updated_at', { ascending: false }).limit(1),
-    supabase.from('pitch_decks').select('*').eq('startup_id', startupId).order('updated_at', { ascending: false }).limit(1),
+  // Fetch startup (for previous score/trend) + latest validator report in parallel
+  const [startupResult, reportResult] = await Promise.all([
+    supabase.from('startups').select('health_score').eq('id', startupId).single(),
+    supabase
+      .from('validator_reports')
+      .select('score, details')
+      .eq('startup_id', startupId)
+      .not('details->scores_matrix', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const previousScore = startupResult.data?.health_score ?? null;
+  const report = reportResult.data;
+  const scoresMatrix = report?.details?.scores_matrix;
+
+  // If we have validator scores, use them directly
+  if (scoresMatrix?.dimensions?.length > 0) {
+    const result = buildFromValidatorScores(scoresMatrix, previousScore);
+    await saveScore(supabase, startupId, result);
+    return result;
+  }
+
+  // Fallback: canvas-based estimation (no validation run yet)
+  const result = await buildFromCanvasData(supabase, startupId, previousScore);
+  await saveScore(supabase, startupId, result);
+  return result;
+}
+
+function buildFromValidatorScores(
+  scoresMatrix: { dimensions: Array<{ name: string; score: number; weight?: number }>; overall_weighted: number },
+  previousScore: number | null,
+): HealthScore {
+  const breakdown = {} as HealthScore['breakdown'];
+  const warnings: string[] = [];
+
+  // Initialize all dimensions with 0
+  for (const key of Object.keys(DEFAULT_WEIGHTS) as Array<keyof HealthScore['breakdown']>) {
+    breakdown[key] = { score: 0, weight: DEFAULT_WEIGHTS[key], label: DIMENSION_LABELS[key] };
+  }
+
+  // Map validator dimensions to health dimensions
+  for (const dim of scoresMatrix.dimensions) {
+    const healthKey = DIMENSION_MAP[dim.name];
+    if (healthKey) {
+      breakdown[healthKey] = {
+        score: Math.round(dim.score),
+        weight: DEFAULT_WEIGHTS[healthKey],
+        label: DIMENSION_LABELS[healthKey],
+      };
+    }
+  }
+
+  // Generate warnings for low scores
+  for (const [key, val] of Object.entries(breakdown)) {
+    if (val.score > 0 && val.score < 50) {
+      warnings.push(`${val.label} needs improvement (${val.score}/100)`);
+    }
+  }
+
+  const overall = scoresMatrix.overall_weighted ?? Math.round(
+    Object.values(breakdown).reduce((sum, d) => sum + d.score * (d.weight / 100), 0)
+  );
+  const trend = previousScore !== null ? overall - previousScore : 0;
+
+  return {
+    overall: Math.round(overall),
+    trend,
+    breakdown,
+    warnings: warnings.slice(0, 3),
+    lastCalculated: new Date().toISOString(),
+  };
+}
+
+async function buildFromCanvasData(supabase: any, startupId: string, previousScore: number | null): Promise<HealthScore> {
+  const [canvasResult, pitchDeckResult, tasksResult, contactsResult, startupFullResult, wizardResult] = await Promise.all([
+    supabase.from('lean_canvases').select('problem, solution, unique_value_proposition, customer_segments, channels').eq('startup_id', startupId).order('updated_at', { ascending: false }).limit(1),
+    supabase.from('pitch_decks').select('status').eq('startup_id', startupId).order('updated_at', { ascending: false }).limit(1),
     supabase.from('tasks').select('id, status').eq('startup_id', startupId),
     supabase.from('contacts').select('id, type').eq('startup_id', startupId),
-    supabase.from('documents').select('id, type').eq('startup_id', startupId),
+    supabase.from('startups').select('problem_statement, one_liner, target_market, team_members').eq('id', startupId).single(),
     supabase.from('wizard_sessions').select('form_data').eq('startup_id', startupId).eq('status', 'completed').limit(1),
   ]);
 
-  const startup = startupResult.data;
   const canvas = canvasResult.data?.[0];
   const pitchDeck = pitchDeckResult.data?.[0];
   const tasks = tasksResult.data || [];
   const contacts = contactsResult.data || [];
-  const documents = documentsResult.data || [];
+  const startup = startupFullResult.data;
   const wizardData = wizardResult.data?.[0]?.form_data;
-
   const warnings: string[] = [];
 
-  // 1. Problem Clarity (20%) - Based on canvas + startup problem statement
-  let problemScore = 30; // Base score
-  if (startup?.problem_statement) {
-    problemScore += 20;
-    if (startup.problem_statement.length > 100) problemScore += 15;
-  }
-  if (canvas?.problem) {
-    problemScore += 20;
-    if (typeof canvas.problem === 'string' && canvas.problem.length > 50) problemScore += 15;
-  }
+  // 1. Problem Clarity (20%)
+  let problemScore = 30;
+  if (startup?.problem_statement) { problemScore += 20; if (startup.problem_statement.length > 100) problemScore += 15; }
+  if (canvas?.problem) { problemScore += 20; if (typeof canvas.problem === 'string' && canvas.problem.length > 50) problemScore += 15; }
   if (wizardData?.problem) problemScore += 10;
   problemScore = Math.min(100, problemScore);
   if (problemScore < 50) warnings.push('Problem statement needs more detail');
 
-  // 2. Solution Fit (15%) - Based on canvas solution + unique value
+  // 2. Solution Fit (15%)
   let solutionScore = 30;
   if (canvas?.solution) solutionScore += 25;
   if (canvas?.unique_value_proposition) solutionScore += 25;
@@ -174,7 +261,7 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
   solutionScore = Math.min(100, solutionScore);
   if (solutionScore < 50) warnings.push('Define your unique value proposition');
 
-  // 3. Market Understanding (15%) - Based on canvas segments + research
+  // 3. Market Understanding (15%)
   let marketScore = 25;
   if (canvas?.customer_segments) marketScore += 25;
   if (canvas?.channels) marketScore += 15;
@@ -183,13 +270,10 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
   marketScore = Math.min(100, marketScore);
   if (marketScore < 50) warnings.push('Add more market research');
 
-  // 4. Traction Proof (25%) - Tasks, contacts, activity
+  // 4. Traction Proof (25%)
   let tractionScore = 20;
   const completedTasks = tasks.filter((t: any) => t.status === 'completed').length;
-  const totalTasks = tasks.length;
-  if (totalTasks > 0) {
-    tractionScore += Math.min(30, completedTasks * 5);
-  }
+  if (tasks.length > 0) tractionScore += Math.min(30, completedTasks * 5);
   const investorContacts = contacts.filter((c: any) => c.type === 'investor').length;
   const customerContacts = contacts.filter((c: any) => c.type === 'customer' || c.type === 'lead').length;
   tractionScore += Math.min(25, investorContacts * 5);
@@ -197,25 +281,19 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
   tractionScore = Math.min(100, tractionScore);
   if (tractionScore < 50) warnings.push('No traction data in 14 days');
 
-  // 5. Team Readiness (10%) - Founder fit assessment
+  // 5. Team Readiness (10%)
   let teamScore = 40;
   if (wizardData?.founder_experience) teamScore += 20;
   if (wizardData?.team_size && wizardData.team_size > 1) teamScore += 20;
   if (startup?.team_members) teamScore += 20;
   teamScore = Math.min(100, teamScore);
 
-  // 6. Investor Readiness (15%) - Pitch deck + documents
+  // 6. Investor Readiness (15%)
   let investorScore = 20;
-  if (pitchDeck) {
-    investorScore += 30;
-    if (pitchDeck.status === 'complete') investorScore += 20;
-  }
-  const pitchDocs = documents.filter((d: any) => d.type === 'pitch' || d.type === 'investor').length;
-  investorScore += Math.min(30, pitchDocs * 10);
+  if (pitchDeck) { investorScore += 30; if (pitchDeck.status === 'complete') investorScore += 20; }
   investorScore = Math.min(100, investorScore);
   if (investorScore < 50) warnings.push('Complete your pitch deck for investors');
 
-  // Calculate weighted overall score
   const breakdown = {
     problemClarity: { score: problemScore, weight: 20, label: 'Problem Clarity' },
     solutionFit: { score: solutionScore, weight: 15, label: 'Solution Fit' },
@@ -226,35 +304,23 @@ async function calculateHealthScore(supabase: any, startupId: string): Promise<H
   };
 
   const overall = Math.round(
-    (breakdown.problemClarity.score * 0.20) +
-    (breakdown.solutionFit.score * 0.15) +
-    (breakdown.marketUnderstanding.score * 0.15) +
-    (breakdown.tractionProof.score * 0.25) +
-    (breakdown.teamReadiness.score * 0.10) +
-    (breakdown.investorReadiness.score * 0.15)
+    (problemScore * 0.20) + (solutionScore * 0.15) + (marketScore * 0.15) +
+    (tractionScore * 0.25) + (teamScore * 0.10) + (investorScore * 0.15)
   );
-
-  // Calculate trend — only when a real previous score exists (P1-4 fix)
-  const previousScore = startup?.health_score ?? null;
   const trend = previousScore !== null ? overall - previousScore : 0;
 
-  // Update startup with new health score (RLS allows member updates)
+  return { overall, trend, breakdown, warnings: warnings.slice(0, 3), lastCalculated: new Date().toISOString() };
+}
+
+async function saveScore(supabase: any, startupId: string, result: HealthScore): Promise<void> {
   await supabase
     .from('startups')
     .update({
-      health_score: overall,
-      score_breakdown: breakdown,
-      last_health_check: new Date().toISOString()
+      health_score: result.overall,
+      score_breakdown: result.breakdown,
+      last_health_check: result.lastCalculated,
     })
     .eq('id', startupId);
-
-  return {
-    overall,
-    trend,
-    breakdown,
-    warnings: warnings.slice(0, 3), // Top 3 warnings
-    lastCalculated: new Date().toISOString(),
-  };
 }
 
 async function getCachedScore(supabase: any, startupId: string): Promise<HealthScore | null> {
