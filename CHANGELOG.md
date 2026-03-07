@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.10.39] - 2026-03-07
+
+### Session 30: PROD-06 Lint Cleanup — 990→340 errors, React hooks bug fixes
+
+Systematic production hardening: fixed all real lint bugs (React hooks, case declarations, escape characters, require imports), excluded non-source directories from ESLint, and added 3 new production task prompts.
+
+**ESLint config cleanup (eslint.config.js):**
+- Added ignores for non-source directories: `.backup*`, `.agents`, `.obsidian`, `figma`, `backup`, `remotion`, `scripts`
+- Immediate reduction from 990 → 458 problems (532 false positives eliminated)
+
+**React hooks bug fixes (18 files):**
+- Fixed exhaustive-deps in 8 component files: `AICostMonitoringPanel`, `DealAdvisorPanel`, `OnboardingIntro`, `AIDetectedFields`, `PresentationMode`, `ShareDialog`, `ValidatorChat`, `CanvasAIPanel`
+- Fixed exhaustive-deps in 10 hook/page files: `useCanvasRealtime`, `useRealtimeAIChat`, `useRealtimeChannel`, `useRealtimeChatRoom`, `useNotifications`, `useOnboardingQuestions`, `useInterviewPersistence`, `useValidatorFollowup`, `useWizardSession`, `PitchDeckEditor`, `LeanCanvas`
+- Wrapped callbacks in `useCallback`, memoized computations with `useMemo`
+- Fixed ref cleanup patterns (copy `ref.current` to local variable inside useEffect)
+- Used `eslint-disable-next-line` only where adding deps would cause infinite loops (channel subscriptions, non-memoized handlers)
+
+**Other lint fixes:**
+- `no-case-declarations`: Added block scope braces to switch cases in `persona.ts`, `state-machine.ts`, `prompt-pack-apply/index.ts`
+- `no-useless-escape`: Fixed regex character class escapes in `CanvasAIPanel.tsx`, `AITaskSuggestions.tsx`, `prompt-utils.ts`
+- `prefer-const`: Fixed in `prompt-pack/index.ts`, `mock-supabase.ts`
+- `no-require-imports`: Converted `tailwind.config.ts` from `require("tailwindcss-animate")` to ESM `import`
+
+**New task prompts (3 files):**
+- `tasks/prompts/production/25-lint-cleanup.md` (PROD-06) — React hooks bugs + TypeScript cleanup
+- `tasks/prompts/production/26-e2e-tests.md` (PROD-07) — Playwright E2E test suites
+- `tasks/prompts/production/27-edge-function-cleanup.md` (PROD-08) — Remove orphaned remote functions
+- Updated `tasks/prompts/00-index.md` to v3.1 (27 tasks, 41 files)
+
+**Files modified:** 30 files (eslint.config.js, tailwind.config.ts, 8 components, 10 hooks/pages, 1 test, 6 supabase files, 4 task prompts)
+**Build:** 0 TS errors | **Tests:** 389/389 pass | **Lint:** 340 (down from 990)
+
+---
+
 ## [0.10.38] - 2026-03-06
 
 ### Session 22: Auth Redirect Fix, Chat Resilience, Pipeline Timeout Fix, Duplicate Icon Fix
