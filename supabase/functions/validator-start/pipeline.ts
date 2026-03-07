@@ -66,10 +66,13 @@ async function autoCreateStartup(
         .maybeSingle();
       if (existingStartup?.id) {
         // User already has a startup — link it to this session
-        await supabaseAdmin
+        const { error: linkError } = await supabaseAdmin
           .from('validator_sessions')
           .update({ startup_id: existingStartup.id })
           .eq('id', sessionId);
+        if (linkError) {
+          console.error(`[autoCreateStartup] Failed to link existing startup to session: ${linkError.message}`);
+        }
         console.log(`[autoCreateStartup] User already has startup ${existingStartup.id}, linked to session`);
         return existingStartup.id;
       }
@@ -99,15 +102,19 @@ async function autoCreateStartup(
       orgId = newOrg.id;
 
       // Link user profile to org
-      await supabaseAdmin
+      const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update({ org_id: orgId })
         .eq('id', userId);
+      if (profileError) {
+        console.error(`[autoCreateStartup] Failed to link profile to org: ${profileError.message}`);
+      }
 
       console.log(`[autoCreateStartup] Created org ${orgId} for user ${userId}`);
     }
 
     // Create startup from extracted data
+    // NOTE: Only use columns that exist on the startups table schema
     const { data: startup, error: startupError } = await supabaseAdmin
       .from('startups')
       .insert({
@@ -116,12 +123,9 @@ async function autoCreateStartup(
         description: profile.idea || null,
         industry: profile.industry || null,
         problem: profile.problem || null,
-        problem_statement: profile.problem || null,
         solution: profile.solution || null,
-        solution_description: profile.solution || null,
-        unique_value: profile.differentiation || null,
+        value_prop: profile.differentiation || null,
         existing_alternatives: profile.alternatives || null,
-        target_customers: profile.customer ? [profile.customer] : [],
         stage: 'idea',
         validation_stage: 'idea',
       })
@@ -146,10 +150,13 @@ async function autoCreateStartup(
     }
 
     // Link startup to validator session
-    await supabaseAdmin
+    const { error: linkError } = await supabaseAdmin
       .from('validator_sessions')
       .update({ startup_id: startup.id })
       .eq('id', sessionId);
+    if (linkError) {
+      console.error(`[autoCreateStartup] Failed to link startup to session: ${linkError.message}`);
+    }
 
     console.log(`[autoCreateStartup] Created startup ${startup.id}, linked to session ${sessionId}`);
     return startup.id;
@@ -607,6 +614,18 @@ try {
       console.error('[pipeline] Report INSERT failed:', reportError.message);
     }
     insertedReportId = insertedReport?.id;
+
+    // Post-report guard: ensure startup linkage even if ExtractorAgent produced no profile.
+    // Without this, reports are orphaned and dashboard/canvas can't find them.
+    if (insertedReportId && !startup_id && user_id) {
+      console.warn('[pipeline] Report created without startup_id — attempting late linkage');
+      const lateStartupId = await autoCreateStartup(supabaseAdmin, user_id, sessionId, profile || { idea: input_text?.slice(0, 200) || 'Untitled' });
+      if (lateStartupId) {
+        startup_id = lateStartupId;
+        await supabaseAdmin.from('validator_reports').update({ startup_id: lateStartupId }).eq('id', insertedReportId);
+        console.log(`[pipeline] Late-linked report ${insertedReportId} to startup ${lateStartupId}`);
+      }
+    }
   }
 
   // H6: Check error on session UPDATE

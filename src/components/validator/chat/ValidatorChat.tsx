@@ -370,11 +370,12 @@ export default function ValidatorChat({
         // Check readiness with v2 rules
         const isReady = result.action === 'ready' || checkReadiness(result.coverage, currentUserCount);
 
-        // Allow ready with single substantial message (pasted/long idea from homepage)
+        // Substantial message flag — a long first message counts toward coverage
+        // but still requires MIN_EXCHANGES so the user gets at least one follow-up.
         const totalUserChars = currentMessages
           .filter(m => m.role === 'user')
           .reduce((sum, m) => sum + (m.content?.length || 0), 0);
-        const substantialSingleMessage = currentUserCount === 1 && totalUserChars >= 400;
+        const substantialSingleMessage = currentUserCount >= MIN_EXCHANGES && totalUserChars >= 400;
 
         // Notify parent of coverage + extracted + confidence updates
         if (onCoverageUpdate) {

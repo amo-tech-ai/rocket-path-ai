@@ -143,7 +143,7 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
           console.log(`[RealtimeAIChat] ✓ Connected to ${topic}`);
           setState(prev => ({ ...prev, isConnected: true, error: null }));
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[RealtimeAIChat] ✗ Error on ${topic}`);
+          console.warn(`[RealtimeAIChat] Channel unavailable: ${topic}`);
           setState(prev => ({ 
             ...prev, 
             isConnected: false, 

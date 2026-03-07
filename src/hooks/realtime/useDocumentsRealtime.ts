@@ -104,7 +104,7 @@ export function useDocumentsRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Documents Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Documents Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Documents Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

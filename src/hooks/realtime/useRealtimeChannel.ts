@@ -189,7 +189,9 @@ export function useRealtimeChannel({
           setIsSubscribed(false);
           const errorMsg = err?.message || 'Channel error';
           setError(errorMsg);
-          console.error(`[Realtime] ✗ Error on ${topic}:`, errorMsg);
+          // Broadcast channels on private mode often fail if Realtime is not
+          // configured for the table — downgrade to warn (not actionable).
+          console.warn(`[Realtime] ✗ Channel unavailable: ${topic}:`, errorMsg);
         } else if (status === 'TIMED_OUT') {
           setIsSubscribed(false);
           setError('Connection timed out');

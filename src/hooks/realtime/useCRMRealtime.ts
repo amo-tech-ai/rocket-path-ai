@@ -165,7 +165,7 @@ export function useCRMRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[CRM Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[CRM Realtime] ✗ Error on ${topic}`);
+          console.warn(`[CRM Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

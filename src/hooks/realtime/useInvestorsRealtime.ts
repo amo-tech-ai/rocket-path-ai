@@ -115,7 +115,7 @@ export function useInvestorsRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Investors Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Investors Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Investors Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

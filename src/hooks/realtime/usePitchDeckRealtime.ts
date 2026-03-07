@@ -133,7 +133,7 @@ export function usePitchDeckRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[PitchDeck Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[PitchDeck Realtime] ✗ Error on ${topic}`);
+          console.warn(`[PitchDeck Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

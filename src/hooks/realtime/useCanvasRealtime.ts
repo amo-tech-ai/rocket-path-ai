@@ -122,7 +122,7 @@ export function useCanvasRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Canvas Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Canvas Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Canvas Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

@@ -319,7 +319,7 @@ export function usePitchDeckGeneration(deckId: string | undefined) {
         if (status === 'SUBSCRIBED') {
           console.log(`[PitchDeck Generation] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[PitchDeck Generation] ✗ Error on ${topic}`);
+          console.warn(`[PitchDeck Generation] Channel unavailable: ${topic}`);
         }
       });
     });

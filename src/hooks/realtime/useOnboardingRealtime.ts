@@ -126,7 +126,7 @@ export function useOnboardingRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Onboarding Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Onboarding Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Onboarding Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

@@ -126,7 +126,7 @@ export function useChatRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Chat Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Chat Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Chat Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

@@ -123,7 +123,7 @@ export function useEventsRealtime(
         if (status === 'SUBSCRIBED') {
           console.log(`[Events Realtime] ✓ Subscribed to ${topic}`);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[Events Realtime] ✗ Error on ${topic}`);
+          console.warn(`[Events Realtime] Channel unavailable: ${topic}`);
         }
       });
     });

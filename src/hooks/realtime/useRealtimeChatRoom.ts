@@ -206,7 +206,7 @@ export function useRealtimeChatRoom(options: UseRealtimeChatRoomOptions) {
             lastSeen: new Date().toISOString(),
           });
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`[RealtimeChatRoom] ✗ Error on ${topic}`);
+          console.warn(`[RealtimeChatRoom] Channel unavailable: ${topic}`);
           setState(prev => ({ 
             ...prev, 
             isConnected: false, 

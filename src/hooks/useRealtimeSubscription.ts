@@ -146,7 +146,9 @@ export function useDashboardRealtime(startupId: string | undefined) {
           if (status === 'SUBSCRIBED') {
             console.log(`[Dashboard Realtime] ✓ Subscribed to ${topic}`);
           } else if (status === 'CHANNEL_ERROR') {
-            console.error(`[Dashboard Realtime] ✗ Error on ${topic}`);
+            // Broadcast channels may fail on private mode if Realtime is not
+            // configured for the table. Downgrade to warn — not actionable.
+            console.warn(`[Dashboard Realtime] Channel unavailable: ${topic}`);
           }
         });
 

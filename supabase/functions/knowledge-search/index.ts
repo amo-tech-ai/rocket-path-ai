@@ -16,6 +16,8 @@ interface SearchRequest {
   filter_industry?: string | null;
   match_count?: number;
   match_threshold?: number;
+  /** Use hybrid (semantic + full-text) search when true; default false for backward compatibility */
+  hybrid?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -41,29 +43,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // User-scoped client for auth verification
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Service-role calls (from pipeline agents) bypass JWT user verification.
+    // The service-role key is a server secret — if it matches, caller is trusted.
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const isServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    let userId = "service-role";
+    if (!isServiceCall) {
+      // User-scoped client for auth verification
+      const supabaseAuth = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
       );
+
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      userId = user.id;
     }
 
-    // Rate limit
-    const rateResult = checkRateLimit(user.id, "knowledge-search", RATE_LIMITS.standard);
-    if (!rateResult.allowed) {
-      return rateLimitResponse(rateResult, corsHeaders);
+    // Rate limit (skip for service-role calls from internal pipeline)
+    if (!isServiceCall) {
+      const rateResult = checkRateLimit(userId, "knowledge-search", RATE_LIMITS.standard);
+      if (!rateResult.allowed) {
+        return rateLimitResponse(rateResult, corsHeaders);
+      }
     }
 
     const body = (await req.json()) as SearchRequest;
-    const { query, filter_category, filter_industry, match_count = 10, match_threshold = 0.5 } = body;
+    const { query, filter_category, filter_industry, match_count = 10, match_threshold = 0.5, hybrid = false } = body;
 
     if (!query?.trim()) {
       return new Response(
@@ -81,14 +94,26 @@ Deno.serve(async (req) => {
     const { embedding } = await generateEmbedding(query.trim());
     const filterCat = filter_category?.trim() || null;
     const filterInd = filter_industry?.trim() || null;
+    const count = Math.min(Math.max(Number(match_count) || 10, 1), 50);
+    const threshold = Number(match_threshold) || 0.5;
 
-    const { data: results, error } = await supabase.rpc("search_knowledge", {
-      query_embedding: embedding,
-      match_threshold: Number(match_threshold) || 0.5,
-      match_count: Math.min(Math.max(Number(match_count) || 10, 1), 50),
-      filter_category: filterCat,
-      filter_industry: filterInd,
-    });
+    const { data: results, error } = hybrid
+      ? await supabase.rpc("hybrid_search_knowledge", {
+          query_embedding: embedding,
+          query_text: query.trim(),
+          match_threshold: threshold,
+          match_count: count,
+          filter_category: filterCat,
+          filter_industry: filterInd,
+          rrf_k: 50,
+        })
+      : await supabase.rpc("search_knowledge", {
+          query_embedding: embedding,
+          match_threshold: threshold,
+          match_count: count,
+          filter_category: filterCat,
+          filter_industry: filterInd,
+        });
 
     if (error) throw error;
 
