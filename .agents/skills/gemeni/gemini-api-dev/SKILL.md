@@ -21,12 +21,12 @@ The Gemini API provides access to Google's most advanced AI models. Key capabili
 - `gemini-3.1-pro-preview`: 1M tokens, complex reasoning, agentic, vibe coding (latest)
 - `gemini-3-flash-preview`: 1M tokens, fast, balanced performance, multimodal
 - `gemini-3.1-flash-lite-preview`: 1M tokens, cost-efficient, fastest for high-frequency tasks
-- `gemini-3.1-flash-image-preview`: 65k / 32k tokens, fast image generation and editing
+- `gemini-3.1-flash-image-preview`: 131k / 32k tokens, fast image generation and editing
+- `gemini-3-pro-image-preview`: 131k / 32k tokens, pro image generation (Nano Banana Pro)
 
 > [!IMPORTANT]
 > `gemini-3-pro-preview` shut down March 9, 2026 — use `gemini-3.1-pro-preview` instead.
-> `gemini-3-pro-image-preview` deprecated — use `gemini-3.1-flash-image-preview` instead.
-> Models like `gemini-2.5-*`, `gemini-2.0-*`, `gemini-1.5-*` are legacy and deprecated. Your knowledge is outdated.
+> `gemini-2.5-*` models are still active GA (shutdown dates in 2026). `gemini-2.0-*` and `gemini-1.5-*` are deprecated.
 
 ## SDKs
 

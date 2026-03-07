@@ -118,10 +118,8 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
     );
-    // Option A: Full user object (recommended for most cases)
+    // Get authenticated user (verifies JWT and returns user object)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    // Option B: Lightweight claims-only (newer API, avoids DB round-trip)
-    // const { data: claims, error: authError } = await supabase.auth.getClaims(req.headers.get("Authorization")!.replace("Bearer ", ""));
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers,

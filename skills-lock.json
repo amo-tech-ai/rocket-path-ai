@@ -21,6 +21,21 @@
       "sourceType": "github",
       "computedHash": "d3a4c7d2f2715a33662c8b06ffc16035d01965a8b4ed81c2958fb22ae94760f8"
     },
+    "drizzle-orm": {
+      "source": "bobmatnyc/claude-mpm-skills",
+      "sourceType": "github",
+      "computedHash": "9aea7469d696c9b5fa54a84b7a92ea692872fb624fb028f866ab0f3deac84867"
+    },
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "computedHash": "a1bc395530ba9116a4509e27321eaf7cc81c5f93aa80a4778ad6f915180b4f2c"
+    },
+    "gemini-interactions-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "computedHash": "f0d51f45c0075be383a0891d239865223cab6cad63d88fde8f859e70c161ed34"
+    },
     "illustrated-slides-with-nano-banana": {
       "source": "fluxa-agent-payment/skills",
       "sourceType": "github",
@@ -55,6 +70,21 @@
       "source": "feiskyer/codex-settings",
       "sourceType": "github",
       "computedHash": "bbb0209ee68343959a8cf43b90437b8e08618d4e2b94c5d329a428da5c96db04"
+    },
+    "pgvector": {
+      "source": "genius-cai/finance-ai",
+      "sourceType": "github",
+      "computedHash": "23d15a822bf6ac51e7ecc953d3ebcb506a5b1c6adea341bedcbf73f547436e85"
+    },
+    "pgvector-semantic-search": {
+      "source": "timescale/pg-aiguide",
+      "sourceType": "github",
+      "computedHash": "4cb1909956cc7a6cf810ce6d6c743d1acbd66d16848a1255ee519fcbfa3b8359"
+    },
+    "pgvector-setup": {
+      "source": "vanman2024/ai-dev-marketplace",
+      "sourceType": "github",
+      "computedHash": "0dc44daecf3f97deeff204ddd16cd4093941746f931fba89b821da6b561d27ab"
     },
     "postgres-drizzle": {
       "source": "ccheney/robust-skills",

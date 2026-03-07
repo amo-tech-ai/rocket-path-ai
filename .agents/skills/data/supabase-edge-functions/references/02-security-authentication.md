@@ -82,32 +82,32 @@ Deno.serve(async (req: Request) => {
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_PUBLISHABLE_KEY')! // or SUPABASE_ANON_KEY
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
 
-  // Verify JWT and get user
-  const { data, error } = await supabase.auth.getClaims(token)
-  const userEmail = data?.claims?.email
-  
-  if (!userEmail || error) {
+  // Verify JWT by getting the user
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+
+  if (!user || error) {
     return Response.json({ msg: 'Invalid JWT' }, { status: 401 })
   }
 
   // Function logic here
-  return Response.json({ message: `hello ${userEmail}` })
+  return Response.json({ message: `hello ${user.email}` })
 })
 ```
 
-### ⚠️ Legacy: verify_jwt Flag (Deprecated)
+### ✅ Standard: verify_jwt Flag
 
 ```toml
 # supabase/config.toml
-# ⚠️ Legacy approach - being deprecated
+# Standard recommended approach — JWT verified automatically by Supabase gateway
 [functions.my-function]
-verify_jwt = true  # Default, but moving to manual verification
+verify_jwt = true  # Default — use false only for public webhooks
 ```
 
-**Status:** Still works but manual verification is recommended for new JWT Signing Keys.
+**Status:** This is the standard recommended approach. Use `verify_jwt = false` only for public webhooks (Stripe, etc.).
 
 ---
 
@@ -180,7 +180,7 @@ return Response.json({ apiKey: Deno.env.get('GEMINI_API_KEY') })  // Never!
 
 | Operation | Key Type | Why |
 |-----------|----------|-----|
-| **User-facing operations** | `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY` | Respects RLS policies |
+| **User-facing operations** | `SUPABASE_ANON_KEY` | Respects RLS policies |
 | **Admin operations** | `SUPABASE_SERVICE_ROLE_KEY` | Bypasses RLS (server-side only) |
 | **External API calls** | Custom secrets (e.g., `GEMINI_API_KEY`) | Third-party services |
 

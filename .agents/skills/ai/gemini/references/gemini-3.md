@@ -64,7 +64,7 @@ All Gemini 3 models are currently in preview.
 |---|---|---|---|
 | **gemini-3-pro-preview** | 1M / 64k | Jan 2025 | $2 / $12 (\<200k tokens) $4 / $18 (\>200k tokens) |
 | **gemini-3-flash-preview** | 1M / 64k | Jan 2025 | $0.50 / $3 |
-| **gemini-3-pro-image-preview** | 65k / 32k | Jan 2025 | $2 (Text Input) / $0.134 (Image Output)\*\* |
+| **gemini-3-pro-image-preview** | 131k / 32k | Jan 2025 | $2 (Text Input) / $0.134 (Image Output)\*\* |
 
 *\* Pricing is per 1 million tokens unless otherwise noted.*
 *\*\* Image pricing varies by resolution. See the [pricing page](https://ai.google.dev/gemini-api/docs/pricing) for details.*
