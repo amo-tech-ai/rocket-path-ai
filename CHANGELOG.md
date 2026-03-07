@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.10.40] - 2026-03-08
+
+### Session 32: R7 + K4 + POST-03 — Chunk split, dedupe, health scores
+
+**R7: Chunk size warning fix (vite.config.ts):**
+- Split combined `pdf` chunk (593kB) into separate `jspdf` (391kB) and `html2canvas` (201kB)
+- Eliminates Vite build chunk size warning, both libs already dynamically imported
+
+**K4: Knowledge chunks deduplication (migration):**
+- Deleted 204 duplicate chunks (same document_id + content, keeping oldest)
+- Deleted ~180 noise chunks under 20 chars ("---", "Highlight:", headers)
+- Added unique index on `(document_id, md5(content))` to prevent future duplicates
+- Added CHECK constraint for minimum 20-char content length
+- Result: 4,130 → 3,746 chunks
+
+**POST-03: Dashboard health from validator scores (edge function):**
+- Updated `health-scorer` to use `validator_reports.details.scores_matrix` when available
+- Falls back to canvas-based estimation for startups without validation runs
+- Same interface — no UI changes needed, scores flow through automatically
+- Deployed as v27
+
+Tests: 389/389 | Build: 7.86s | No chunk warnings
+
 ## [0.10.39] - 2026-03-07
 
 ### Session 30: PROD-06 Lint Cleanup — 990→340 errors, React hooks bug fixes

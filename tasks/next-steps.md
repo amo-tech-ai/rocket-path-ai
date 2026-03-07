@@ -1,13 +1,13 @@
 # Next Steps — Active Work Only
 
-> **Updated:** 2026-03-07 | **Version:** 37.0
+> **Updated:** 2026-03-08 | **Version:** 38.0
 > **Rule:** Only in-progress, incomplete, and failing items. Priority order.
-> **DB (live):** 94 tables | 549 indexes | 94/94 RLS | 119 triggers | 116 migrations (incl. 2 new RLS cleanup)
+> **DB (live):** 94 tables | 549 indexes | 94/94 RLS | 119 triggers | 117 migrations (incl. K4 chunks dedupe)
 > **Validator:** E2E working. 76+ sessions. 39+ reports. V2/V3 report + multipage tabs + 10 BCG charts + 5 V3 components + 9 diagrams + Deep Dive tab + Strategy tab + dynamic suggestion chips + per-agent retry. Realtime RT-1–RT-8. 389/389 tests.
-> **RAG:** 4,251 chunks | 51 documents | 19 playbooks | `search_knowledge` function active
-> **Build:** pass | **TypeScript:** 0 errors | **Lint:** 340 problems (320 errors, 20 warnings) — down from 990
+> **RAG:** 3,746 chunks | 74 documents | 19 playbooks | `search_knowledge` function active | K4 dedupe ✅
+> **Build:** pass (7.86s) | **TypeScript:** 0 errors | **Lint:** 340 problems | No chunk warnings
 > **Frontend:** 47 pages | 458 components | 113 hooks | 32 edge functions | 14 shared modules
-> **Phases complete:** Phase 1 (9/9) ✅ | Phase 2 (7/7) ✅ | Phase 3 (1/4) | Phase 5 (PROD-06 ✅) | Overall ~78%
+> **Phases complete:** Phase 1 (9/9) ✅ | Phase 2 (7/7) ✅ | Phase 3 (2/4) | Phase 5 (PROD-06 ✅) | Overall ~80%
 > **Overall system health:** 98% — Vercel production Ready
 
 ---
@@ -26,6 +26,7 @@
 | 29 | Supabase: CRM FK conditional (db reset/shadow safe), drop 17 redundant service_role RLS, split industry_questions FOR ALL (example), chat P0 idempotent. Verified per `.cursor/rules/supabase`. |
 | 30 | pg-vector skills (15 issue fixes), Supabase live verification (90 migrations, 37 EFs, 56 tables) |
 | 31 | PROD-06 Lint cleanup: 990→340 errors. Fixed 18 React hooks violations, case declarations, escape chars, require imports. 3 new production prompts. |
+| 32 | R7 chunk split (593→391+201kB), K4 chunk dedupe (4,130→3,746), POST-03 health from validator scores. |
 
 ---
 
@@ -37,10 +38,10 @@
 |:-:|------|:------:|:------:|---------|
 | 1 | **POST-02:** Sprint Board ← report priority actions | 2-3d | 🟢 High | Report says "fix your pricing" but actions just sit there — this makes them trackable |
 | 2 | **K5:** Hybrid search function | 2-3d | 🟡 RAG | Only semantic search exists — adding keyword matching makes RAG much more accurate |
-| 3 | **POST-03:** Dashboard health from validation scores | 1-2d | 🟢 High | Dashboard health score is disconnected from actual validation results |
-| 4 | **13A:** Report shared components (6 remaining) | 2d | 🟡 Polish | 4/10 built — some report sections look polished, others look rough |
-| 5 | **A3:** Streaming AI Chat responses | 2d | 🟡 UX | Chat dumps full response at once — streaming makes it feel responsive |
-| 6 | **22:** Interview context → Report pipeline | 2-3d | 🟢 High | Chat extracts rich data but Composer barely uses it — report feels disconnected from interview |
+| 3 | **13A:** Report shared components (6 remaining) | 2d | 🟡 Polish | 4/10 built — some report sections look polished, others look rough |
+| 4 | **A3:** Streaming AI Chat responses | 2d | 🟡 UX | Chat dumps full response at once — streaming makes it feel responsive |
+| 5 | **22:** Interview context → Report pipeline | 2-3d | 🟢 High | Chat extracts rich data but Composer barely uses it — report feels disconnected from interview |
+| 6 | **POST-04:** Research + Planning agent modes | 2-3d | 🟡 Feature | AI chat panel only answers questions — needs Research + Planning modes |
 
 > **What these mean for the founder:**
 > - **POST-02:** The validation report tells you "fix your pricing model" and "talk to 10 customers" — but today those suggestions just sit there. This creates a Kanban sprint board (To Do → In Progress → Done) and auto-imports those action items so you can track them.
@@ -72,7 +73,7 @@
 
 | # | Task | Status | % | Effort | Next Action |
 |---|------|:------:|:-:|:------:|-------------|
-| K4 | Content hash dedupe | 🟡 | 30 | 1d | `content_hash` column exists; needs unique constraint + dedup logic |
+| K4 | Content hash dedupe | 🟢 Done | 100 | — | ✅ Unique index + CHECK constraint + 384 rows cleaned |
 | K5 | Hybrid search function | 🔴 | 0 | 2-3d | Build `hybrid_search_knowledge` (keyword + semantic + RRF) |
 
 > **What these mean for the founder:**
@@ -83,12 +84,12 @@
 
 ## 4. Phase 3: POST-MVP — Enhanced Features (15 days)
 
-> POST-01 (Strategy tab) complete ✅. 3 remaining features.
+> POST-01 (Strategy tab) ✅, POST-03 (Health scores) ✅. 2 remaining features.
 
 | ID | Feature | Status | Effort | Next Action |
 |----|---------|:------:|:------:|-------------|
 | POST-02 | Sprint Board ← report priority actions | 🔴 | 2-3d | Add `import_from_report` to `task-agent` |
-| POST-03 | Dashboard health from validation scores | 🔴 | 1-2d | Update `health-scorer` to use `validator_reports.details.scores_matrix` |
+| POST-03 | Dashboard health from validation scores | 🟢 Done | — | ✅ health-scorer reads scores_matrix, falls back to canvas |
 | POST-04 | Research + Planning agent modes in AI Panel | 🔴 | 2-3d | Extend `ai-chat` with `research` + `planning` actions |
 
 > **What these mean for the founder:**
@@ -171,7 +172,7 @@
 | # | Task | Severity | Status | Effort | Next Action |
 |---|------|:--------:|:------:|:------:|-------------|
 | R4 | Pin dependency versions in edge functions | LOW | 🔴 | 1d | Pin `npm:@supabase/supabase-js@2` versions in import maps |
-| R7 | Chunk size warning (pdf 593kB) | LOW | 🟡 | 1d | Split large vendor chunk via `manualChunks` in vite config |
+| R7 | Chunk size warning (pdf 593kB) | LOW | 🟢 Done | — | ✅ Split to jspdf (391kB) + html2canvas (201kB) |
 
 ### 9.1 Database / Supabase migrations (Session 29)
 
