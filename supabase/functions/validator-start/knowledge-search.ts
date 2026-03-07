@@ -1,7 +1,9 @@
 /**
  * RAG search for validator pipeline.
- * Calls knowledge-search Edge Function (search-only). Ingest uses knowledge-ingest (X-Internal-Token).
+ * Uses direct RPC to hybrid_search_knowledge (no HTTP round-trip, no 401).
  */
+
+import { generateEmbedding } from "../_shared/openai-embeddings.ts";
 
 export interface KnowledgeChunk {
   id: string;
@@ -26,21 +28,18 @@ export interface KnowledgeSearchResult {
   count: number;
 }
 
-const LOAD_KNOWLEDGE_TIMEOUT_MS = 15_000;
-
 // R-04: Circuit breaker — skip knowledge search after repeated failures to save pipeline budget
 const CIRCUIT_BREAKER = {
   failureCount: 0,
   lastFailureAt: 0,
-  FAILURE_THRESHOLD: 3,      // Open circuit after 3 failures
-  COOLDOWN_MS: 5 * 60_000,   // Stay open for 5 minutes
+  FAILURE_THRESHOLD: 3,
+  COOLDOWN_MS: 5 * 60_000,
 };
 
 function isCircuitOpen(): boolean {
   if (CIRCUIT_BREAKER.failureCount < CIRCUIT_BREAKER.FAILURE_THRESHOLD) return false;
   const elapsed = Date.now() - CIRCUIT_BREAKER.lastFailureAt;
   if (elapsed > CIRCUIT_BREAKER.COOLDOWN_MS) {
-    // Half-open: allow one attempt to test recovery
     CIRCUIT_BREAKER.failureCount = CIRCUIT_BREAKER.FAILURE_THRESHOLD - 1;
     console.log('[knowledge-search] Circuit breaker half-open — allowing probe request');
     return false;
@@ -52,89 +51,77 @@ function recordFailure(): void {
   CIRCUIT_BREAKER.failureCount++;
   CIRCUIT_BREAKER.lastFailureAt = Date.now();
   if (CIRCUIT_BREAKER.failureCount >= CIRCUIT_BREAKER.FAILURE_THRESHOLD) {
-    console.warn(`[knowledge-search] Circuit breaker OPEN — skipping for ${CIRCUIT_BREAKER.COOLDOWN_MS / 1000}s after ${CIRCUIT_BREAKER.failureCount} failures`);
+    console.warn(`[knowledge-search] Circuit breaker OPEN — skipping for ${CIRCUIT_BREAKER.COOLDOWN_MS / 1000}s`);
   }
 }
 
 function recordSuccess(): void {
   if (CIRCUIT_BREAKER.failureCount > 0) {
-    console.log('[knowledge-search] Circuit breaker reset — service recovered');
+    console.log('[knowledge-search] Circuit breaker reset');
   }
   CIRCUIT_BREAKER.failureCount = 0;
 }
 
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
+
 /**
- * Search the vector knowledge base via knowledge-search Edge Function.
- * Returns top chunks for the query; optional filter_industry (e.g. "fashion") narrows results.
- * R-04: Circuit breaker skips after 3 failures within 5 minutes.
+ * Direct RPC search — calls hybrid_search_knowledge via the admin Supabase client.
+ * No HTTP round-trip, no 401 issues. Uses OpenAI embedding + Postgres hybrid search.
  */
 export async function searchKnowledge(
-  supabaseUrl: string,
-  serviceRoleKey: string,
+  supabase: SupabaseClient,
   query: string,
   filterIndustry?: string | null
 ): Promise<KnowledgeSearchResult> {
-  // R-04: Circuit breaker — fast-fail if service is persistently down
   if (isCircuitOpen()) {
     return { query, results: [], count: 0 };
   }
 
-  const url = `${supabaseUrl.replace(/\/$/, "")}/functions/v1/knowledge-search`;
-  const body: Record<string, unknown> = {
-    query: query.trim(),
-  };
-  if (filterIndustry?.trim()) {
-    body.filter_industry = filterIndustry.trim().toLowerCase();
-  }
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return { query, results: [], count: 0 };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), LOAD_KNOWLEDGE_TIMEOUT_MS);
-
-  let res: Response;
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+    const { embedding } = await generateEmbedding(trimmedQuery);
+
+    const { data: results, error } = await supabase.rpc("hybrid_search_knowledge", {
+      query_embedding: `[${embedding.join(",")}]`,
+      query_text: trimmedQuery,
+      match_threshold: 0.5,
+      match_count: 10,
+      filter_category: null,
+      filter_industry: filterIndustry?.trim()?.toLowerCase() ?? null,
+      rrf_k: 50,
     });
-  } catch (fetchErr) {
-    clearTimeout(timeout);
-    recordFailure();
-    throw fetchErr;
-  } finally {
-    clearTimeout(timeout);
-  }
 
-  if (!res.ok) {
-    const errText = await res.text();
-    recordFailure();
-    throw new Error(`knowledge-search failed: ${res.status} ${errText}`);
-  }
+    if (error) {
+      recordFailure();
+      throw new Error(`hybrid_search_knowledge RPC: ${error.message}`);
+    }
 
-  // Promise.race hard timeout — AbortSignal.timeout unreliable on Deno Deploy for .json()
-  let data: KnowledgeSearchResult;
-  try {
-    data = await Promise.race([
-      res.json() as Promise<KnowledgeSearchResult>,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("knowledge-search JSON parse timeout")), 10_000)
-      ),
-    ]);
-  } catch (parseErr) {
-    recordFailure();
-    throw parseErr;
-  }
+    recordSuccess();
+    const chunks: KnowledgeChunk[] = (results ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id as string,
+      content: r.content as string,
+      source: r.source as string,
+      source_type: r.source_type as string,
+      year: r.year as number | null,
+      confidence: r.confidence as string | null,
+      category: r.category as string | null,
+      industry: r.industry as string | null,
+      similarity: r.similarity as number,
+      document_id: r.document_id as string | null,
+      document_title: r.document_title as string | null,
+      section_title: r.section_title as string | null,
+      page_start: r.page_start as number | null,
+      page_end: r.page_end as number | null,
+    }));
 
-  recordSuccess();
-  return {
-    query: data.query ?? query,
-    results: Array.isArray(data.results) ? data.results : [],
-    count: data.count ?? 0,
-  };
+    return { query: trimmedQuery, results: chunks, count: chunks.length };
+  } catch (e) {
+    recordFailure();
+    throw e;
+  }
 }
 
 /**

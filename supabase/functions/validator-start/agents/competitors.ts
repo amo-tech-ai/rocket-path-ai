@@ -24,15 +24,13 @@ export async function runCompetitors(
   const { allLinks, matchedIndustry } = getCuratedLinks(profile.industry, keywords);
   const curatedSourcesBlock = formatLinksForPrompt(allLinks);
 
-  // RAG: Search knowledge base for competitor/industry reports; same pattern as ResearchAgent
+  // RAG: Search knowledge base via direct RPC — no HTTP round-trip
   let knowledgeBlock = "";
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ragQuery = [profile.idea, profile.industry, profile.alternatives, "competitors market landscape"].filter(Boolean).join(" ");
   const filterIndustry = profile.industry?.trim() ? profile.industry.trim().toLowerCase() : null;
-  if (supabaseUrl && serviceKey && ragQuery) {
+  if (ragQuery) {
     try {
-      const { results } = await searchKnowledge(supabaseUrl, serviceKey, ragQuery, filterIndustry);
+      const { results } = await searchKnowledge(supabase, ragQuery, filterIndustry);
       if (results.length > 0) {
         console.log("[CompetitorAgent] RAG chunks:", results.length);
         knowledgeBlock = formatKnowledgeForPrompt(results, 4000);

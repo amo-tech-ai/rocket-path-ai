@@ -28,7 +28,7 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
         throw new Error('Not authenticated');
       }
       
-      // Call the dedicated knowledge-search edge function
+      // Call the dedicated knowledge-search edge function with hybrid search
       const { data, error } = await supabase.functions.invoke('knowledge-search', {
         body: {
           query: request.query,
@@ -36,6 +36,7 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
           match_count: request.matchCount || 10,
           filter_category: request.category || null,
           filter_industry: request.industry || null,
+          hybrid: true,
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -44,19 +45,29 @@ export function useKnowledgeSearch(): UseKnowledgeSearchReturn {
       
       if (error) throw error;
       
-      // Map response to typed results
+      // Map response to typed results (includes citation fields from hybrid search)
       const mappedResults: KnowledgeSearchResult[] = (data.results || []).map((r: {
         id: string;
         content: string;
         source: string;
         confidence: 'high' | 'medium' | 'low';
         similarity: number;
+        document_id?: string;
+        document_title?: string;
+        section_title?: string;
+        page_start?: number;
+        page_end?: number;
       }) => ({
         id: r.id,
         content: r.content,
         source: r.source,
         confidence: r.confidence as 'high' | 'medium' | 'low',
         similarity: r.similarity,
+        documentId: r.document_id,
+        documentTitle: r.document_title,
+        sectionTitle: r.section_title,
+        pageStart: r.page_start,
+        pageEnd: r.page_end,
       }));
       
       const context: RAGContext = {
@@ -96,7 +107,10 @@ export function formatRAGContext(context: RAGContext): string {
   }
   
   const formattedChunks = context.chunks.map((chunk, index) => {
-    return `[${index + 1}] ${chunk.content} (Source: ${chunk.source}, Confidence: ${chunk.confidence})`;
+    const title = chunk.documentTitle || chunk.source;
+    const section = chunk.sectionTitle ? ` — ${chunk.sectionTitle}` : '';
+    const page = chunk.pageStart != null ? `, p.${chunk.pageStart}` : '';
+    return `[${index + 1}] ${chunk.content} (Source: ${title}${section}${page}, Confidence: ${chunk.confidence})`;
   }).join('\n\n');
   
   return `

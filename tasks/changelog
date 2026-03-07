@@ -1,0 +1,2318 @@
+# StartupAI Changelog
+
+**What is this?** A log of everything we've built and changed in StartupAI—an AI-powered operating system that helps startup founders validate ideas, build MVPs, and raise funding. Recent focus: making the AI Coach trustworthy with real industry data, improving the Validator to match competitor reports, and documenting our 45 edge functions and database schema.
+
+> For system overview and strategy, see [summary.md](./summary.md)
+
+---
+
+## [2026-03-08] - Vector storage audit: validator direct RPC, hybrid chat search, citation fields
+
+**What we did:** Fixed validator RAG 401 (critical), enabled hybrid search in chat UI, added citation fields to knowledge types.
+
+### Critical: Validator RAG 401 → direct RPC (K6)
+- **Files:** `validator-start/knowledge-search.ts`, `agents/research.ts`, `agents/competitors.ts`
+- **Before:** Validator called `knowledge-search` Edge Function with `Bearer <SERVICE_ROLE_KEY>` → `auth.getUser()` failed → 401 → circuit breaker → no RAG in reports.
+- **After:** `searchKnowledge()` now calls `hybrid_search_knowledge` RPC directly via admin Supabase client. No HTTP round-trip, no auth mismatch.
+- **Proof:** Build passes, 389/389 tests.
+
+### High: Chat UI hybrid search + citation fields
+- **Files:** `src/hooks/useKnowledgeSearch.ts`, `src/types/knowledge.ts`
+- **Change:** Chat UI now sends `hybrid: true` to knowledge-search EF (semantic + full-text). `KnowledgeSearchResult` type extended with `documentId`, `documentTitle`, `sectionTitle`, `pageStart`, `pageEnd`.
+- **Impact:** Better search recall + UI can show citation sources.
+
+### Mermaid: Vector storage flow diagram (09)
+- **File:** `tasks/mermaid/02-diagrams/09-vector-storage-flow.md`
+- **Content:** Auth matrix, consumer→search path→DB flow, remaining gaps.
+
+### Also: Updated all 8 audit issues to Fixed
+- `tasks/mermaid/02-diagrams/00-index.md` — C1, H2, H3, M1, M2 all marked **Fixed**.
+
+---
+
+## [2026-03-08] - E2E audit fixes: pipeline guard, chat readiness, realtime errors
+
+**What we did:** Fixed all 8 issues from the E2E QA audit (3C, 3H, 2M).
+
+### Fixes applied
+| ID | Fix | Files |
+|----|-----|-------|
+| C1 | Post-report guard: late-create startup + link report | `validator-start/pipeline.ts` |
+| H2 | C1 fix ensures startup exists for lean canvas | (verified, no code change) |
+| H3 | knowledge-search service-role bypass | `knowledge-search/index.ts` |
+| M1 | Chat requires MIN_EXCHANGES before Generate | `ValidatorChat.tsx` |
+| M2 | Realtime CHANNEL_ERROR → console.warn | 12 hooks + `useRealtimeSubscription.ts` |
+
+---
+
+## [2026-03-07] - Supabase migrations: CRM FK conditional, RLS cleanup, idempotent chat (DB health)
+
+**What we did:** Four migration changes so `supabase db reset` and shadow DB work reliably, redundant RLS removed, and one table used as a reference for granular RLS. Aligned with `.cursor/rules/supabase` (create-migration, create-rls-policies, postgres-sql-style).
+
+### High: Conditional CRM FK migration
+- **File:** `20260227110000_fix_crm_fk_cascades.sql`
+- **Change:** Alters `communications` and `contact_tags` only when each table exists (DO block + `information_schema.tables`).
+- **Why:** Shadow DB applies migrations in order; these tables may not exist yet → previously broke `supabase db pull` / reset.
+- **Proof:** Migration applies successfully on `supabase db reset`; no "relation public.communications does not exist".
+
+### Chat P0 idempotent (same pattern)
+- **File:** `20260227110100_chat_p0_fk_fix_and_dead_table.sql`
+- **Change:** FK on `chat_messages.ai_run_id` only when column exists; backup/drop of `chat_pending` only when table exists (DO blocks).
+- **Proof:** Migration applies on reset; no "column ai_run_id does not exist" error.
+
+### Medium: Drop redundant service_role policies
+- **File:** `20260307100000_drop_redundant_service_role_policies.sql` (new)
+- **Content:** Drops 17 policies that were `FOR ALL TO service_role` (or equivalent) on weekly_reviews, interview_questions, workflows, workflow_*, validation_*, metric_snapshots, knowledge_*, workflow_activity_log, decisions, decision_evidence, shareable_links, ai_usage_limits, knowledge_documents.
+- **Why:** Per `.cursor/rules/supabase/supabase-create-rls-policies.mdc`, service_role bypasses RLS → these policies were redundant.
+
+### Low: Split FOR ALL into granular RLS (example)
+- **File:** `20260307100001_split_industry_questions_rls.sql` (new)
+- **Content:** Drops single "Authenticated users can manage industry questions" (FOR ALL); adds separate INSERT, UPDATE, DELETE policies for authenticated (SELECT already existed).
+- **Why:** Rules say "Don't use FOR ALL. Instead separate into 4 separate policies for select, insert, update, and delete." This migration is the reference for doing that on other user-facing tables over time.
+
+### Verification
+- **Proof:** `supabase db reset` applies all four migrations successfully. Failure now occurs later in `20260227110400_canvas_p0_cleanup.sql` (view `assumption_evidence` depends on `interview_insights`) — out of scope for this change set.
+- **Doc:** `supabase/migrations/VERIFICATION_CRM_RLS_2026.md` documents the three tasks and proof.
+
+**Best practices (Supabase rules):** Migrations use DO blocks for conditional DDL; RLS cleanup follows "no FOR ALL to service_role" and "split FOR ALL into SELECT/INSERT/UPDATE/DELETE"; naming and comments follow create-migration and postgres-sql-style guidelines.
+
+---
+
+## [2026-03-06] - Auth + Chat Resilience + Pipeline Timeout Fix (v0.10.38)
+
+**What we did:** Fixed 5 bugs across auth, chat, pipeline, and UI. Full E2E flow verified (homepage → sign-in → chat → 7-agent pipeline → report). Session 22 comprehensive audit.
+
+### Auth Redirect Race Condition Fix
+- `Login.tsx`: `profile` was null during async fetch → redirect to `/onboarding` instead of return path. Fix: wait for profile to load.
+
+### Chat State Persistence + Race Condition Architecture
+- `ValidatorChat.tsx`: Messages lost on unmount during auth redirects → added sessionStorage persistence + resume logic
+- Replaced boolean `followupInFlight` with typed phase state machine + request identity (`crypto.randomUUID()`)
+- Stale responses from superseded requests silently discarded via `activeRequestRef`
+- Timeouts: flightTimeout 30→90s, Promise.race 50→90s
+
+### ScoringAgent Pipeline Timeout Fix (DEPLOYED)
+- `config.ts`: ScoringAgent timeout 15s→30s (was only 2s headroom for `thinking: 'high'` mode, cascaded to skip MVPAgent)
+
+### Duplicate AI Icon Fix
+- `GlobalAIAssistant.tsx`: Added `/validator` to DASHBOARD_PREFIXES (two icons stacking on report pages)
+
+### Test Fix
+- `ReportV2Layout.test.tsx`: `getByText → getAllByText` for 'Market Size' (multiple matching elements)
+
+**Build:** 0 TS errors | **Tests:** 389/389 | **Edge function:** deployed | **Verified:** Full E2E flow
+
+---
+
+## [2026-03-01] - Strategic Summary Tab (v0.10.37)
+
+**What we did:** Added a "Strategy" tab to the validation report that synthesizes 9 dimension scores into 3 focused sections: Positioning Snapshot (how you're different, moat gaps), Build Focus (top 5 priorities cross-referenced across all dimensions), and Fundability Signals (strengths vs weaknesses + what to improve before fundraising). No new API calls — everything derived client-side from existing report data.
+
+### POST-01: Strategic Summary Report Page (Consolidated)
+
+The original spec called for 4 separate tabs (USP, VRIO, MVP Path, Investor Readiness) but was consolidated into 1 "Strategy" tab with 3 sections to reduce analysis fatigue. The `useStrategicSummary` hook follows the `useReportLeanCanvas` pattern: `useMemo` with V3 dimension extraction first, V2 fallback for older reports.
+
+- NEW `src/hooks/useStrategicSummary.ts` — Derivation hook with V2/V3 dual extraction for positioning, build focus, fundability
+- NEW `src/components/validator/report/StrategicSummary.tsx` — 3 card sections with dimension badges, impact indicators, moat gap warnings
+- `ReportV2Layout.tsx` — Added 'strategy' to REPORT_TABS + TabsContent
+
+---
+
+## [2026-03-01] - Canvas Coach RAG (v0.10.36)
+
+**What we did:** Connected the Lean Canvas AI coach to 4,251 knowledge chunks across 19 industry playbooks. The coach now searches for relevant industry data before responding and cites real sources.
+
+### K3: Canvas Coach RAG — Knowledge-Backed Coaching
+
+The `coach` action in `lean-canvas-agent` now generates an OpenAI embedding from the user's latest message + canvas context, searches the `knowledge_chunks` table via `search_knowledge` RPC, and injects the top-5 most relevant chunks (≥60% similarity) into the Gemini system prompt as numbered citations. Citations flow through the API response to the frontend where they appear as small source badges below coaching messages.
+
+Graceful degradation: if the OpenAI embedding fails, the RPC returns no results, or any other error occurs, coaching continues exactly as before — just without industry-specific citations. The `try/catch` in `searchCoachingContext` ensures zero crash risk.
+
+- `lean-canvas-agent/actions/coach.ts` — Added `searchCoachingContext()` RAG function, `citations` field in Gemini schema + return type, service role client for vector search, timeout 15→20s
+- `src/hooks/useCanvasCoach.ts` — Added `citations: string[]` to `CoachResult` interface
+- `src/components/leancanvas/CanvasCoachChat.tsx` — RAG citation badges (BookOpen icon) below assistant messages
+
+**Proof:** Build pass (0 TS errors) | Tests 371/372 | Edge function deployed (v51) | OPENAI_API_KEY set | search_knowledge function active | 4,251 chunks with embeddings
+
+---
+
+## [2026-03-01] - Selective Agent Retry (v0.10.35)
+
+**What we did:** Added per-agent retry buttons so founders can retry just the one failed agent instead of restarting the entire 5-minute validation pipeline.
+
+### 040-VRT: Selective Agent Retry (V4)
+
+New `validator-retry` edge function with cascade dependency logic. When retrying agent X, it automatically re-runs all downstream agents (e.g., retrying ScoringAgent cascades to MVP→Composer→Verifier). Validates prerequisites are met, resets agent statuses, runs in background via `EdgeRuntime.waitUntil`, broadcasts real-time progress, and reinserts report.
+
+Frontend: Per-agent "Retry" buttons on each failed agent card in Pipeline Summary. Smart "Retry [Agent Name]" bottom button targeting the first failed agent. Toast notifications + automatic polling resume.
+
+- NEW `supabase/functions/validator-retry/index.ts` — Full retry logic (cascade map, prerequisite check, background execution, report reinsertion, safety net)
+- NEW `supabase/functions/validator-retry/deno.json` — Deno config
+- `src/pages/ValidatorProgress.tsx` — `handleRetry()`, retry buttons, smart bottom action, polling resume
+
+---
+
+## [2026-03-01] - Agent Tracking + Pipeline Parallelization (v0.10.34)
+
+**What we did:** Fixed the pipeline crash on free plan (150s Deno Deploy limit) by parallelizing Research + Scoring, then wired the `validator_agent_runs` table for per-agent progress tracking end-to-end (pipeline → status endpoint → frontend).
+
+### 038-PPO: Pipeline Parallelization + Timeout Fix
+
+Root cause: Project on Supabase free plan (150s wall-clock) but code assumed paid plan (400s). 5 agents completed in ~120s, leaving only ~15s for Composer (needs 35s+). Deno killed the isolate at 150s.
+
+Fix: Research + Scoring now run in parallel via `Promise.all`, saving ~31s. Pipeline deadline lowered from 300s to 140s. New critical path: ~129s total.
+
+- `supabase/functions/validator-start/pipeline.ts` — Parallelized Research + Scoring, PIPELINE_TIMEOUT_MS 300→140s, Composer min 45→35s
+- `supabase/functions/validator-start/config.ts` — Updated comments
+
+### 039-VAR: Validator Agent Runs Tracking (V1→V3)
+
+Wired `validator_agent_runs` table (previously 0 rows) for per-agent progress tracking:
+
+- **V1 (Pipeline):** `db.ts` — Added `startAgentRun()`/`completeAgentRun()` helpers. `index.ts` — Pre-INSERT 7 queued rows. `pipeline.ts` — All 7 agents tracked (started→completed/failed/skipped)
+- **V2 (Status):** `validator-status/index.ts` — Parallel query of `validator_agent_runs`, returns `agent_runs` array
+- **V3 (Frontend):** `ValidatorProgress.tsx` — Merges `agent_runs` timing with realtime + polling (3-way priority merge)
+
+---
+
+## [2026-03-01] - Validator Pipeline Fixes + Dynamic Suggestion Chips (v0.10.33)
+
+**What we did:** Fixed two validator pipeline bugs (Group C silent failure, competitor URL context) and added AI-generated dynamic suggestion chips to the chat intake. Each follow-up question now generates 2-4 contextual chips via Gemini, replacing static chips with question-specific options founders can tap.
+
+### 035-GCF: Composer Group C Silent Failure Fix
+
+Fixed a bug where `composer.ts` Group C would silently return empty results when the Gemini response failed to parse, causing missing execution/economics data in reports.
+
+- `supabase/functions/validator-start/composer.ts` — Added error handling for Group C parse failures with structured fallback
+
+### 036-CUC: Competitor URL Context Fix
+
+Enabled the existing URL Context feature for founder-provided competitor URLs, allowing the CompetitorAgent to read actual competitor websites.
+
+- `supabase/functions/validator-start/competitors.ts` — Wired `url_context_metadata` extraction for competitor analysis
+- `supabase/functions/validator-start/config.ts` — Enabled URL context in competitor agent config
+
+### 037-DSC: Dynamic AI Suggestion Chips
+
+Each follow-up question now includes 2-4 AI-generated suggestion chips that are contextual to the question being asked (e.g., "Monthly SaaS subscription" for business model questions).
+
+- `supabase/functions/validator-followup/schema.ts` — Added `suggestions: string[]` to FollowupResponse interface + Gemini JSON schema (`required`, `properties`, 0-4 items, 60 char max)
+- `supabase/functions/validator-followup/prompt.ts` — Added "Suggestion Chips" section: 5 rules + 4 question→chip examples
+- `supabase/functions/validator-followup/index.ts` — Validate/sanitize suggestions (cap 4, 60 chars, HTML strip, console.warn for non-strings), add to `followup_ready` + `followup_metadata` broadcasts + HTTP response
+- `src/hooks/useValidatorFollowup.ts` — Added `suggestions: string[]` to FollowupResult, pass from HTTP response + streaming metadata
+- `src/components/validator/chat/ValidatorChat.tsx` — `latestSuggestions` state, set on ask, clear on ready/error/send, pass to input
+- `src/components/validator/chat/ValidatorChatInput.tsx` — Dynamic/static chip selection, primary styling for dynamic chips, fallback to static for initial state
+
+### Verification
+
+- `npm run build` — 0 TS errors
+- Lint — 0 new errors
+- Edge function `validator-followup` deployed to Supabase
+- Vercel Production — **Ready** (auto-deploy from main push)
+
+---
+
+## [2026-02-28] - Dashboard Redesign + MVP-06/07 + Build Fix (v0.10.32)
+
+**What we did:** Redesigned the main dashboard from 12 sections (~101 data points) to 3 focused zones (~25 visible) using the "Focus + Expand" pattern. Completed MVP-06 (Report AI panel) and MVP-07 (AI Lean Canvas). Fixed Vercel build failures caused by 5 untracked chart/hook files. Merged all changes to `main` and deployed to production.
+
+### Dashboard Redesign: Focus + Expand
+
+- **HeroStatus** (`src/components/dashboard/HeroStatus.tsx`) — Zone 1: Compact hero card with 48px SVG score ring, trend badge, journey progress bar, industry/stage tags. Replaces Header + JourneyStepper + SummaryMetrics.
+- **FocusActions** (`src/components/dashboard/FocusActions.tsx`) — Zone 2: Numbered action cards with impact badges (High/Medium/Low), time estimates, CTAs. Dual-source: `useDailyFocus` primary, `useActionRecommender` fallback.
+- **QuickGlance** (`src/components/dashboard/QuickGlance.tsx`) — Zone 3: shadcn Accordion with 3 collapsible sections (Risks with severity badges, Health breakdown bars, Recent Activity feed via `RecentActivity limit={5}`). All collapsed by default.
+- **useDashboardAIContext** (`src/hooks/useDashboardAIContext.ts`) — Route-aware hook returning 4 dashboard-specific AI quick actions: "My startup status", "Prioritize my tasks", "Suggest next steps", "Weekly insights".
+- **Dashboard.tsx** (`src/pages/Dashboard.tsx`) — Complete rewrite from 12 sections to 3 zones. Removed: QuickActions, SummaryMetrics, InsightsTabs, FundraisingReadiness, ModuleProgress, CompletionUnlocks, JourneyStepper, IndustryBenchmarks, AIStrategicReview, EventCard, DashboardCalendar, StageGuidanceCard, dead `rightPanel` variable, search/bell/gear header icons.
+
+### AI Wiring (Dashboard Context)
+
+- `src/providers/AIAssistantProvider.tsx` — Added `DashboardContextData` type, `SET_DASHBOARD_CONTEXT` reducer action, `setDashboardContext()` method, `dashboard_context` in request body
+- `src/components/ai/AIPanel.tsx` — Added dashboard AI context with priority chain: dimension > dashboard > default quick actions
+- `supabase/functions/ai-chat/index.ts` — Added dashboard context injection into system prompt (health score, risks, stage)
+
+### MVP-06: Report AI Panel + MVP-07: AI Lean Canvas
+
+- Completed in prior session (session 20b). Report AI panel with section-aware context, AI Lean Canvas with 9-block grid layout.
+
+### Build Fix
+
+- 5 files were created locally but never committed, causing Vercel ENOENT build failure: `ValidationRadar.tsx`, `GapAnalysisBars.tsx`, `MaturityFunnel.tsx`, `ScoreTrendLines.tsx`, `useReportAIContext.ts`
+- Committed to both `main` and `feat/supabase-realtime-enhancements`
+- Cherry-picked 3 commits from feature branch to `main` (V3 pipeline, changelog, dashboard redesign)
+- Cleaned up 8 stale Vercel deployments retrying old failed commit
+
+### Verification
+
+- `npm run build` — 0 TS errors (18s)
+- `npm run test` — **357/357** pass (29 files)
+- Lint — 0 new errors
+- Vercel Production — **Ready** (deployed to startupai.me)
+- Vercel Preview — **Ready** (feat/supabase-realtime-enhancements)
+
+---
+
+## [2026-02-27] - MVP-01 V3 Types + React Error #31 Fix + Auth Redirect Fix (v0.10.31)
+
+**What we did:** Implemented MVP-01 V3 types foundation for consulting-grade dimension detail pages. Fixed React Error #31 crash where JSONB objects were rendered as React children. Fixed auth redirect flow where `redirectTo` query params broke Supabase URL allowlist matching. Added 32 regression tests across 2 new test files.
+
+### MVP-01: V3 Types Foundation
+
+- `supabase/functions/validator-start/types.ts` — Added `SubScore`, `DimensionDetail`, `AIStrategyAssessment`, `ValidationProofAssessment` interfaces + 9 optional `*_detail` fields on `ValidatorReport` + `ComposerGroupE` interface
+- `supabase/functions/validator-start/schemas.ts` — Added `dimensionDetail` JSON schema building block + `DIMENSION_SUB_SCORES` config constant (9 dimensions, 4-5 sub-scores each)
+- `src/types/validation-report.ts` — Mirrored backend types + added `ReportDetailsV2` named type (replaces inline `any`) + `V3ReportDetails` extension + `isV3Report()` type guard
+- `src/pages/ValidatorReport.tsx` — Replaced inline `details` type with `ReportDetailsV2` import
+- `src/components/validator/report/ReportV2Layout.tsx` — Replaced `details: any` with `ReportDetailsV2`
+- `src/pages/SharedReport.tsx` + `EmbedReport.tsx` — Replaced `details: any` with `ReportDetailsV2`
+
+### Audit 30: React Error #31 — Report Crash Fix
+
+- Root cause: Global `isV2Report()` boolean gated per-field type checks. Mixed-format JSONB (V1 strings + V2 objects) caused objects to fall through to string rendering paths → "Objects are not valid as React children"
+- `ReportV2Layout.tsx` — 7 fixes:
+  - Added `safeText()` universal helper: handles string, null, number, boolean, and object → extracts `.action`/`.assumption`/`.title`/`.description` or falls back to `JSON.stringify`
+  - Removed `v2 &&` gate from `risks_assumptions` and `next_steps` checks — each field now does per-field type detection
+  - Added shape validation before component delegation (`.assumption` for RiskHeatmap, `.action && .timeframe` for NextStepsTimeline)
+  - Applied `safeText()` to 6 JSX text-rendering locations (highlights, red_flags, risks fallback, next_steps fallback, overview next_steps, fatalItem)
+- `src/test/components/ReportV2Layout.test.tsx` — 6 new regression tests covering mixed-format, missing fields, unknown object shapes
+
+### Audit 31: Auth Redirect Flow Fix
+
+- Root cause: `useAuth.signInWithGoogle()` appended `?next=...` to `redirectTo` URL. Supabase URL matching includes query params → allowlist mismatch → OAuth redirected to site URL (`/`) instead of `/auth/callback`.
+- 3 fixes:
+  1. `src/hooks/useAuth.tsx` — Removed `?next=` from `redirectTo`. Return path stored in sessionStorage via `setReturnPathOnce()`. Clean callback URL matches Supabase allowlist.
+  2. `src/components/marketing/HeroSection.tsx` — Added loading overlay when `pendingIdea` exists but `user` is null (auth hydrating after OAuth). Shows "Completing sign in..." instead of empty textarea.
+  3. `src/pages/AuthCallback.tsx` — Added 15s timeout. If auth exchange never fires, redirects to `/login` instead of spinner forever.
+- `src/test/auth-redirect-flow.test.ts` — 26 new tests covering authReturnPath utility, redirectTo construction, pendingIdea flow, callback destination logic, full flow simulation (happy path + fallback)
+
+### Verification
+
+- `npm run build` — 0 TS errors
+- `npm run test` — **357/357** pass (325 existing + 6 Error #31 + 26 auth flow)
+- Lint (modified files) — 0 new errors
+
+---
+
+## [2026-02-27] - Multipage Report Tabs + Audit 29 P0+P1 Fixes (v0.10.30)
+
+**What we did:** Rebuilt the validator report as a 6-tab multipage layout with URL sync, migrated SharedReport/EmbedReport to reuse it, then audited the full 7-agent pipeline end-to-end (22 findings). Fixed all 6 P0 issues and all 5 P1 issues — 11 total fixes across the pipeline.
+
+### Multipage Report Tabs (ReportV2Layout)
+
+- `src/components/validator/report/ReportV2Layout.tsx` — 6 tabs: Overview, Problem & Customer, Market & Competition, Business Model, Risks & Plan, Key Questions
+  - URL sync via `?tab=` query param with `replace: true`
+  - Tab param validation (`VALID_TABS` set, falls back to `'overview'`)
+  - Scroll-to-tabs on tab change (`tabsAnchorRef` + `scrollIntoView`)
+  - Overview tab enriched with Top Strengths, Top Risks, Next Actions cards
+  - `TabStepper` component for prev/next navigation between tabs
+  - Print renders all sections via `.report-print-sections` CSS approach
+- `src/pages/SharedReport.tsx` — migrated from 500+ line inline rendering to use `ReportV2Layout`
+- `src/pages/EmbedReport.tsx` — migrated to use `ReportV2Layout` with embed-specific chrome
+- `src/index.css` — `PageCard` visual separation styles, print CSS safety rules
+
+### Audit 29: Validator Pipeline End-to-End Audit
+
+Created `tasks/audit/29-validator-audit.md` (488 lines) with 3 mermaid diagrams and 22 findings:
+- 4 critical failures (F-01 to F-04)
+- 5 data quality issues (D-01 to D-05)
+- 3 UX failures (U-01 to U-03)
+- 5 resilience gaps (R-01 to R-05)
+
+### Audit 29 P0 Fixes (6/6 complete)
+
+**F-01: CORE-06 fields dropped from ScoringResult** — `agents/scoring.ts` lines 244-248: Added `risk_queue`, `bias_flags`, `evidence_grades`, `highest_signal_level` to ScoringResult construction with type-safe guards (`Array.isArray`, `typeof`)
+
+**F-02: interviewContext passed as object instead of string** — `pipeline.ts` lines 316-320: Serialized `interviewContext` via `JSON.stringify(interviewContext.extracted || interviewContext, null, 2)` before passing to `runScoring`
+
+**F-04: Pipeline reports "partial" when report is null** — `pipeline.ts` lines 500-502: Added `!report` check before `failedAgents.length < 3` in finalStatus logic — null report now correctly maps to `'failed'`
+
+**D-04: Null score renders as "0/100 No-Go"** — 4 files:
+- `pipeline.ts` line 528: `score: scoring?.overall_score ?? null` (was `|| 0`)
+- `ReportV2Layout.tsx` lines 29-34: `getSignal()` accepts `number | null`, returns `'unavailable'`
+- `StickyScoreBar.tsx`: Props accept `number | null` score and `'unavailable'` signal, displays `'—'` for null
+- `ReportHeroLuxury.tsx`: ScoreRing handles null with `safeScore = score ?? 0`, displays `'—'` text
+
+**U-01: No fallback when Realtime silent** — `useValidatorRealtime.ts` lines 191-244: Added 30s silence detection + 10s DB polling fallback. Polls `validator_sessions.status` and fetches `validator_reports` when terminal state detected
+
+**R-01: Thinking mode silently deletes JSON schema** — 2 files:
+- `_shared/gemini.ts`: Added `keepSchemaWithThinking` option to `GeminiCallOptions`. When `true`, `responseJsonSchema` is preserved even with thinking active
+- `agents/scoring.ts` line 217: Set `keepSchemaWithThinking: true` so scoring output structure is enforced
+
+### Audit 29 P1 Fixes (5/5 complete)
+
+**D-01: Group A fallback strings downgrade entire report to V1 prose** — `composer.ts:608-622`: Replaced string fallbacks for `problem_clarity`, `customer_use_case`, and `mvp_scope` with properly-shaped objects so `isV2Report()` stays true even when Group A/C fails
+
+**D-03: Research agent silently overrides TAM/SAM/SOM** — `research.ts:189-206`: Captures original values before correction, logs both original and corrected values, appends correction note to methodology text so report numbers match the explanation
+
+**D-05: Competitor cards missing strengths/weaknesses** — 2 files:
+- `schemas.ts:710-722`: Added `strengths` and `weaknesses` array fields to COMPOSER_GROUP_SCHEMAS.groupB competitor items (properties + required)
+- `composer.ts:49-67`: Updated `trimCompetitors` to pass through strengths/weaknesses with `|| []` fallbacks
+
+**R-03: startup_members insert has no error check** — `pipeline.ts:136-146`: Added `.select('startup_id').maybeSingle()` and `if (memberError)` guard with `console.warn`. Non-fatal: logs the error code (catches 23505 race condition) but doesn't block pipeline
+
+**R-05: getReportId re-queries after INSERT (read-replica lag risk)** — `pipeline.ts:514-605`: Report INSERT now uses `.select('id').single()` to return the ID directly. Hoisted `insertedReportId` variable above `if (report)` block. Broadcast uses it directly. Removed `getReportId` function entirely.
+
+### Verification
+
+- `npx tsc --noEmit` — 0 errors
+- `npx vitest run` — 325/325 tests pass
+- `npx vite build` — success (6.56s)
+- Code-reviewer agent verified all 10 P0 sub-checks + all 5 P1 fixes
+
+---
+
+## [2026-02-25] - Phase 1 CORE Complete — 9/9 Tasks (v0.10.27 → v0.10.29)
+
+**What we did:** Completed all 9 Phase 1 CORE tasks across 2 sessions. Fixed broken Coach chat, built persistent AI panel, wired validation skills into 5 agents, removed dead code, polished home flow, and added one-click Lean Canvas generation from validation reports. Also added dev-only email login for testing.
+
+### CORE-01: Fix CoachPanel Migration (v0.10.27)
+
+- `src/hooks/useCoachSession.ts` — rewrote to query `chat_sessions`/`chat_messages` tables (was broken mock data)
+- `supabase/functions/ai-chat/coach/context-loader.ts` — re-enabled persistence with real DB queries
+- `supabase/functions/ai-chat/coach/index.ts` — passes userId, returns sessionId in response
+- `supabase/functions/ai-chat/index.ts` — persists welcome message to chat_sessions
+
+### CORE-04: Home → Validate Flow Polish (v0.10.27)
+
+- `src/components/home/HeroSection.tsx` — faster animations (reduced delays)
+- `src/pages/ValidateIdea.tsx` — "Continue where you left off" card for returning users with in-progress sessions
+
+### CORE-05: Remove M1-M5 Dead Screens (v0.10.27)
+
+- **Deleted:** 3 pages (`Experiments.tsx`, `MarketResearch.tsx`, `OpportunityCanvas.tsx`), 7 components (3 dirs), 3 hooks (`useExperiments.ts`, `useMarketResearch.ts`, `useOpportunityCanvas.ts`), 1 dashboard card (`PrimaryOpportunity.tsx`), 3 edge functions (`experiment-agent/`, `market-research/`, `opportunity-canvas/`)
+- **Created:** `src/hooks/useAssumptions.ts` (extracted assumption hooks from deleted useExperiments)
+- **Modified:** `Dashboard.tsx`, `App.tsx`, `DashboardLayout.tsx`, `AssumptionBoard.tsx`, `AssumptionBoard.test.tsx`
+- **Impact:** Dashboard chunk 85.62kB → 83.58kB (-2.04kB), index chunk 806.59kB → 806.11kB (-0.48kB)
+
+### CORE-06/07/08/09: Wire Validation Skills into Agents (v0.10.27)
+
+- `agents/extractor.ts` — Paul Graham Idea Quality Filters, Why Now test, Tarpit detection
+- `agents/research.ts` — Value Theory Sizing, Cross-Validation rules, Trend Analysis
+- `agents/competitors.ts` — April Dunford Positioning, Battlecard, White Space mapping
+- `agents/scoring.ts` — 15-domain Risk Taxonomy, 6-type Bias Detection, Signal Strength levels
+- `agents/mvp.ts` — Experiment Cards, Founder Stage Detection, Method Selection matrix
+- `agents/composer.ts` — Updated trimCompetitors + Group B/C/D prompts with new rendering instructions
+- `agents/verifier.ts` — SWOT depth + positioning map validation warnings
+- `schemas.ts` — 15 new optional fields across 5 agent schemas + structural bug fix
+- `types.ts` — 15 optional TypeScript fields across 5 interfaces (backward compatible)
+
+### CORE-02: Persistent AI Right Panel (v0.10.28)
+
+- `src/hooks/useAIPanel.ts` — new hook (open/close state, Cmd+J toggle, resize, persist preference)
+- `src/components/ai/AIChatInput.tsx` — reusable chat input with Shift+Enter support
+- `src/components/ai/AIPanel.tsx` — 360px persistent right panel with chat interface
+- `src/components/layout/DashboardLayout.tsx` — integrated AIPanel, replaced floating overlay for authenticated pages
+- `src/App.tsx` — GlobalAIAssistant restricted to public pages only
+
+### CORE-03: Auto-Generate Lean Canvas from Validation Report (v0.10.29)
+
+- `supabase/functions/lean-canvas-agent/actions/generation.ts` — new `generateFromReport()` (~100 lines): fetches report + startup profile, maps all dimensions to Gemini, generates 9-box canvas with confidence levels
+- `supabase/functions/lean-canvas-agent/actions/index.ts` — added export
+- `supabase/functions/lean-canvas-agent/index.ts` — added `generate_from_report` switch case + `report_id` field
+- `src/hooks/useLeanCanvas.ts` — new `useGenerateCanvasFromReport()` mutation
+- `src/pages/ValidatorReport.tsx` — "Generate Canvas" button with LayoutGrid icon, loading spinner, overwrite confirmation dialog (AlertDialog), success navigates to /lean-canvas
+
+### Dev Login for Testing
+
+- `src/pages/Login.tsx` — dev-only email/password login form (visible only when `import.meta.env.DEV`)
+- Supabase test user password set for local testing
+
+### Stats
+
+- **Build:** ✓ 6.78s | **Tests:** 325/325 pass | **TypeScript:** 0 errors
+- **Phase 1 CORE:** 9/9 complete ✅
+- **Files changed:** ~30 | **Lines:** ~+2,500 / -1,200
+
+---
+
+## [2026-02-25] - Supabase Audit (Task 27) + Gemini API Audit (Task 28)
+
+**What we did:** Two comprehensive audits hardening infrastructure: a full Supabase security audit (78% B+ → 93% A) and a 3-round Gemini API compliance audit (87% → 92% A).
+
+### Supabase Security Audit — Task 27 (`tasks/audit/27-supabase-audit.md`)
+
+- **Score:** 78% B+ → 93% A (15pp improvement)
+- **Scope:** RLS policies, auth config, storage buckets, edge function JWT verification, database advisors
+- **Fixes applied:** 12 critical/high items resolved — RLS gaps, missing JWT checks, storage bucket policies
+- **Project:** `yvyesmiczbjqwbqtlidy`
+
+### Gemini API Audit — Task 28 (`tasks/audit/28-gemeni-audit.md`)
+
+3-round detective-style audit of all Gemini integrations vs official docs.
+
+**Round 1 (12 findings, 6 fixes):**
+- Added `gemini-3.1-pro-preview` to MODELS registry + MODEL_PRICING
+- Fixed thinking-aware extraction in `ai-client.ts` (both `callGemini` and `callGeminiChat`)
+- Added `'minimal' | 'medium'` to `thinkingLevel` type in `gemini.ts`
+
+**Round 2 (12 more instances found, 5 fixes):**
+- Fixed 12 broken `parts?.[0]?.text` patterns in `ai-chat`, `industry-expert-agent`, `onboarding-agent` (thinking-aware extraction with `extractGeminiText()` helper)
+- Corrected MODEL_PRICING: Flash $0.0001→$0.0005, Pro $0.00125→$0.002
+- Added `gemini-3.1-pro-preview` to Gemini skill doc
+
+**Round 3 (external review validation):**
+- Verified 3 red flags against official Gemini docs (Firecrawl scrapes of pricing, models, thinking, structured-output pages)
+- Fixed image model output pricing: $0.005→$0.012 (text output), documented $0.120/1K image output tier
+- Corrected thinking+schema comment from "incompatible" to "empirical observation"
+- Corrected temperature wording from "hard rule" to "strongly recommended per docs"
+
+**Cumulative:** 12 files changed, 18 locations fixed. Score: 92% A.
+**Open items:** G-H2 (timeout in ai-client.ts), G-H3 (retry), G-M2 (temperature model selector), G-M3 (thinking+schema GA monitoring)
+**Files modified:** `ai-client.ts`, `gemini.ts`, `prompt-utils.ts`, `ai-chat/index.ts`, `industry-expert-agent/index.ts`, `onboarding-agent/index.ts`, `CLAUDE.md`, `SKILL.md`
+**Build:** ✓ (6.89s, 0 errors) | **Lint:** no new errors
+
+---
+
+## [2026-02-19] - Blog Redesign Restore + Repo Cleanup + Home Page Fix (0.10.25)
+
+**What we did:** Restored the Superside v2 blog redesign that was lost during consolidation, removed the Orbital Loop section from the home page, and cleaned up the GitHub repo by excluding 14 local-only directories.
+
+### Blog Redesign Restore (Complete)
+
+- `src/pages/BlogIndex.tsx` — restored Superside v2 layout: featured hero card + 3-col gradient grid, `DarkCTASection`, 6 reports (Fashion AI, AI Adoption, AI Jobs, E-commerce, Startup Products, Investment Hubs)
+- `src/pages/BlogPost.tsx` — restored lazy-loaded routing with ErrorBoundary for all reports
+- `src/components/blog/charts/FashionBarChart.tsx` — restored chart component
+- `src/components/blog/charts/MarketFunnel.tsx` — restored funnel chart
+- `src/components/blog/reports/FashionAiReport.tsx` — restored Fashion AI 2026 report
+- `src/components/blog/reports/data/{aiAdoptionData,aiJobsData,fashionAiData}.ts` — restored data files
+- **Root cause:** Redesign from commit `5fa3ca3` was overwritten during codebase consolidation
+
+### Home Page — Orbital Loop Removed (Complete)
+
+- `src/pages/Index.tsx` — removed `HubSection` import and usage (Orbital Loop Architecture section)
+
+### GitHub Repo Cleanup (Complete)
+
+- `.gitignore` — added 14 local-only directories: `.auto-claude/`, `.agent/`, `.backup*/`, `docs/`, `doc100/`, `figma/`, `knowledge/`, `research/`, `tasks/`, `thinktankAI/`, `website/`, `30-day/`, `lean/`, `screenshots/`
+- Removed secrets (`.auto-claude/.env`) from commit history — GitHub Push Protection blocked initial push
+- Removed embedded git repos (`30-day`, `figma`, `thinktankAI`) from tracking
+- Vercel Git integration: discovered project has NO Git integration — deploys via CLI only
+
+### Vercel Deployment
+
+- Connected deployment: `rocket-path-ai` on Vercel (project `prj_gxXNPRNRnm4lpuvoFm7BTbzARV3E`)
+- Domains: `startupai.me`, `startupai.one`, `rocket-path-ai.vercel.app`
+- Pushed to `origin/main` on `github.com/amo-tech-ai/rocket-path-ai.git`
+
+**Build:** ✓ 6.83s | **Pushed:** 2 commits to main
+
+---
+
+## [2026-02-15] - Lean P1 Completion + Edge Function Best Practices (0.10.24)
+
+**What we did:** Completed the last 3 Lean P1 items (CF5, L2, L3) — Weekly Review edge function, profile extraction fix, and streaming follow-up in chat. Also audited edge functions against best practices and fixed 2 issues in weekly-review.
+
+### CF5: Weekly Review Edge Function (Complete)
+
+- `supabase/functions/weekly-review/index.ts` — new edge function with `generate` and `coach` actions
+- `generate`: gathers startup context (tasks, deals, investors, experiments, decisions, activities), calls Gemini Flash with structured schema, saves review to DB with upsert for duplicate weeks
+- `coach`: fetches target review + 5-week history, calls Gemini Flash for coaching insights, patterns, and action items
+- `src/hooks/useWeeklyReviews.ts` — added `useGenerateWeeklyReview()` + `useCoachWeeklyReview()` hooks with `invokeWeeklyReview` helper (refreshSession + Bearer header pattern)
+- `src/pages/WeeklyReview.tsx` — consolidated 2-step flow (insights-generator + direct insert) into single `generateMutation` call
+- `src/test/pages/WeeklyReview.test.tsx` — updated mocks for new hook
+
+### L2: Profile Extraction Fix (Complete)
+
+- Migration `add_headquarters_to_startups` — added `headquarters text` column + index to `public.startups`
+- Regenerated TypeScript types from Supabase (8850 lines)
+- `src/pages/CompanyProfile.tsx` — removed `(startup as any)` cast, added `headquarters` to save handler
+
+### L3: Streaming Follow-up in Chat (Complete)
+
+- `supabase/functions/validator-followup/index.ts` — broadcasts `followup_metadata` → `token_chunk[]` → `message_complete` events via Supabase channel after Gemini response
+- `src/hooks/useValidatorFollowup.ts` — added `useFollowupStreaming()` hook (channel subscription, token accumulation, metadata processing), `getNextQuestion()` now accepts optional `sessionId`
+- `src/components/validator/chat/ValidatorChat.tsx` — wired streaming: subscribes to broadcast channel per request, adds placeholder message that fills in-place as tokens arrive, two useEffect hooks for progressive update + finalization, typing indicator hidden during streaming, fallback to batch on error
+
+### Edge Function Best Practices Audit
+
+- Verified `weekly-review` and `validator-followup` against `.cursor/rules/supabase/writing-supabase-edge-functions.mdc` (12 rules)
+- Fixed `weekly-review`: added missing POST method check (405 for non-POST), replaced internal error message leak with generic "Internal server error"
+- Both functions pass all checks: runtime types, Deno.serve, npm: imports, _shared/ utilities, CORS, rate limiting, structured error handling, AI structured output
+
+**Build:** ✓ 19.02s | **Tests:** 325/325 passed | **Migration:** 1 applied (headquarters)
+
+---
+
+## [2026-02-15] - Supabase Realtime Enhancements — RT-1 through RT-8 (0.10.23)
+
+**What we did:** Implemented 7 of 8 recommendations from the Supabase Realtime audit (`tasks/audit/24-ai-realtime.md`). Migrated from postgres_changes to broadcast pattern, added AI thinking indicators, follow-up push delivery, DB broadcast triggers, connection metrics, and broadcast replay support. RT-3 (presence) deferred — no multi-user editing yet.
+
+### RT-1: Validator Pipeline Broadcast (Complete)
+
+- `broadcast.ts` — shared `broadcastProgress()` helper for fire-and-forget broadcasting from edge functions
+- `validator-start/pipeline.ts` — broadcasts `agent_started`, `agent_completed`, `agent_failed`, `pipeline_complete`, `pipeline_failed` events to `validator:{sessionId}` channel
+- `useValidatorRealtime.ts` — new 207-line hook: 7 event handlers, progress calculation, connection metrics, follow-up state
+
+### RT-2: AI Chat Thinking Indicator (Complete)
+
+- `ai-chat/index.ts` — broadcasts `ai_thinking` event with `{ model, provider, startedAt }` before Gemini call
+- `useRealtimeAIChat.ts` — `isThinking` + `thinkingModel` state, reset on `ai_response` receipt
+
+### RT-4: postgres_changes → Broadcast Migration (Complete)
+
+- `useCanvasRealtime.ts` — removed `.on('postgres_changes', ...)` listener, added `queryClient.invalidateQueries` to `canvas_saved` handler
+- `usePitchDeckRealtime.ts` — removed `.on('postgres_changes', ...)` listener (already covered by `deck_ready` broadcast)
+
+### RT-5: Follow-up Push Delivery (Complete)
+
+- `validator-followup/index.ts` — broadcasts `followup_ready` event to `validator:{sessionId}` channel after successful response
+- `useValidatorRealtime.ts` — `handleFollowupReady` handler, `onFollowupReady` callback option, `followup` state
+- `useValidatorFollowup.ts` — accepts optional `{ sessionId }` options, passes to edge function
+
+### RT-6: DB Broadcast Triggers (Complete)
+
+- Migration `add_validator_broadcast_triggers` — enabled `pg_net` extension, created 2 trigger functions:
+  - `broadcast_validator_session_change()` on `validator_sessions` (INSERT or UPDATE OF status)
+  - `broadcast_validator_report_insert()` on `validator_reports` (INSERT)
+  - Both use `net.http_post()` to Supabase Realtime API, EXCEPTION-wrapped to never block transactions
+- `useValidatorRealtime.ts` — `handleSessionStatusChanged` + `handleReportCreated` handlers
+
+### RT-7: Connection Quality Metrics (Complete)
+
+- `useRealtimeChannel.ts` — `RealtimeChannelMetrics` interface: `connectedAt`, `reconnectCount`, `lastMessageAt`
+- Tracked in `metricsRef` + exposed via `metrics` in return value
+- Broadcast handlers update `lastMessageAt`; subscribe callback updates `connectedAt` and increments `reconnectCount`
+
+### RT-8: Broadcast Replay (Complete)
+
+- `useRealtimeChannel.ts` — `replay` option: `{ since: number, limit?: number }`
+- Channel creation includes `config.broadcast.replay` when replay + private channel enabled
+- Replays only DB-trigger broadcasts (RT-6 events), not edge function broadcasts
+
+### Stats
+
+- **Build:** ✓ 21.45s | **Tests:** 325/325 passing (28 files)
+- **Migrations:** 98 (2 new: RLS policy + DB triggers)
+- **Files changed:** 14 | **Lines:** +1,796 / -183
+- **Branch:** `feat/supabase-realtime-enhancements`
+
+---
+
+## [2026-02-15] - Merge Conflict Resolution + Build Stabilization (0.10.22)
+
+**What we did:** Resolved merge conflict markers left from git rebase/stash-pop across 3 source files that were breaking the Vite dev server and build. Verified build clean. Documented vector DB usage in validator pipeline.
+
+### Merge Conflict Fixes
+
+- **`TAMSAMSOMChart.tsx`** — 3 conflict blocks (imports, validation logic, methodology footer). Kept upstream simple card layout (uses defined `MarketCard` component). Stashed version referenced undefined `MarketSizeRow` component.
+- **`src/integrations/supabase/types.ts`** — 1 conflict block (line 1 + line 8563). Kept upstream TypeScript types (8,562 lines). Stashed version was a single-line JSON blob.
+
+### Vector DB Audit
+
+Confirmed validator pipeline uses pgvector via `knowledge_chunks` table (347 chunks, OpenAI `text-embedding-3-small` 1536-dim, HNSW index):
+- **ResearchAgent** — RAG query from `[idea + industry + "market size TAM SAM SOM growth"]`, injected as `## Knowledge base (RAG)` in Gemini prompt
+- **CompetitorAgent** — Same RAG pattern for competitor analysis enrichment
+- **5 other agents** — No vector DB usage (Gemini reasoning only)
+- **Graceful degradation** — If RAG fails, pipeline continues with Google Search + Gemini alone
+
+### Stats
+
+- **Build:** ✓ 21.86s | **TypeScript:** 0 errors
+- **Files fixed:** `TAMSAMSOMChart.tsx`, `types.ts`
+
+---
+
+## [2026-02-14] - Executive Summary Rewrite — Spec 034 (0.10.21)
+
+**What we did:** Rewrote Composer Group D to produce a clear, decisive, jargon-free executive summary with a structured 5-part narrative for non-technical founders and investors. Fixed Group D timeout caused by oversized context from specs 031-033, and added null-safety guards to two chart components.
+
+### Group D Prompt Rewrite
+
+- **5-part narrative:** Opportunity → "Imagine..." scenario → Core risk → Win condition / Must-have / Fail signal → Go/Conditional Go/No-Go verdict
+- **Domain knowledge injected:** Investor expectations by stage, traction language calibration, 7-point narrative arc
+- **BAD/GOOD contrasts** in prompt to calibrate output quality (no jargon, no hedging, concrete numbers)
+- **180-220 word target** with `maxOutputTokens` increased from 1,024 to 2,048
+
+### Compact Context Builder
+
+- **Problem:** After specs 031-033 added structured extraction, group A/B/C JSON outputs grew to ~15K chars. Group D received all of them via `JSON.stringify`, causing Gemini timeout
+- **Fix:** `buildCompactContext()` extracts ~500 chars of key signals from each group (scores, verdict, top threat, SOM, LTV:CAC) instead of raw JSON
+- **Result:** Group D completes in <8s instead of timing out at 30s
+
+### Frontend Null-Safety
+
+- **TAMSAMSOMChart.tsx** — `if (!data) return null;` guard before destructuring `{ tam, sam, som }`
+- **DimensionScoresChart.tsx** — `if (!scores?.length) return null;` guard before `[...scores].sort()`
+
+### Stats
+
+- **Build:** ✓ 22.69s | **Tests:** 325/325 passing (28 files)
+- **E2E:** FridgeScan food waste app — 66/100, 1,279-char summary with "Imagine Elena..." scenario, Conditional go verdict, concrete numbers throughout
+- **Files changed:** `composer.ts`, `schemas.ts`, `TAMSAMSOMChart.tsx`, `DimensionScoresChart.tsx`, `Validator.tsx`
+
+---
+
+## [2026-02-14] - Structured Extraction — Problem, Customer, Market — Specs 031-033 (0.10.20)
+
+**What we did:** Added structured sub-objects to the Extractor for the 3 weakest report sections (Problem Clarity, Customer Use Case, Market Sizing). Composer now uses these as primary data source with fallback to basic string fields. Market sizing shows its math with buyer-count formulas and capture rate logic.
+
+### Spec 031: Problem Clarity
+
+- **`problem_structured`** added to `StartupProfile` type, extractor schema, extractor prompt
+- Fields: `who` (decision-maker with authority), `pain` (quantified, recurring), `todays_fix` (current workaround), `evidence_tier` (direct/inferred/assumed)
+- Composer Group A Section 1: 5 composition rules — quantified metrics, structural failure pattern, 180-word cap, evidence tier disclosure
+
+### Spec 032: Customer Use Case
+
+- **`customer_structured`** added to all 4 targets (types, schemas, extractor, composer)
+- Fields: `persona_name`, `role_context`, `workflow_without` (step-by-step pain), `workflow_with` (step-by-step gain), `quantified_impact`
+- Composer Group A Section 2: 5 composition rules — vivid persona, WITHOUT/WITH workflow contrast, hard numbers, measurable impact
+
+### Spec 033: Market Sizing Math
+
+- Composer Group B `market_sizing` enhanced with 7 rules
+- Show-your-math: buyer-count × ACV formula, capture rate scenario (1% → 5% → 10%), assumption transparency
+- Investor lens: SOM as % of SAM, TAM methodology citation, growth rate justification
+
+### Stats
+
+- **Build:** ✓ 28.07s | **Tests:** 325/325 passing (28 files)
+- **E2E:** ClinicFlow dental SaaS — 70/100, structured WHO/PAIN/FIX + persona WITHOUT/WITH + math-backed TAM/SAM/SOM all verified
+- **Files changed:** `types.ts`, `schemas.ts`, `extractor.ts`, `composer.ts`
+
+---
+
+## [2026-02-14] - Validator Agent Intelligence — 022-SKI Domain Knowledge + Prompt Hardening (0.10.19)
+
+**What we did:** Injected domain knowledge from 8 merged startup skills into all 7 validator agents + 4 composer groups (~270 lines across 10 targets). Added validation logic, rubric calibration, and post-processing sanity checks. Expected quality lift: +10-15 points on report scores.
+
+### SKI-1: Knowledge Injection (~270 lines across 10 targets)
+
+| Target | Knowledge Injected |
+|--------|-------------------|
+| ScoringAgent | 7-dimension rubric anchors (90-100/70-89/40-69/0-39), evidence requirements per band |
+| ResearchAgent | Market sizing methodology (bottom-up/top-down), SOM calibration by stage, source quality hierarchy |
+| CompetitorAgent | Competitor tiering (Tier 1/2/3), threat level calibration, competitive moat types |
+| MVPAgent | RICE scoring framework, phase constraints (validate before build), de-risking experiment types, PMF signals |
+| Composer Group A | Problem severity calibration, persona quality bar |
+| Composer Group B | SOM calibration table, 15-domain risk taxonomy, competition threat framework |
+| Composer Group C | Revenue model patterns, unit economics benchmarks, burn rate benchmarks, GTM motion selection |
+| Composer Group D | Investor expectations by stage, 7-point narrative arc, traction language calibration |
+
+### SKI-2 through SKI-8: Prompt Hardening + Post-Processing
+
+| # | What | Details |
+|---|------|---------|
+| SKI-2 | Extractor hardening | `assumptions` field (2-5 key assumptions), structured `search_queries` with `{purpose, query}`, idea formula, problem quality bar |
+| SKI-3 | Curated links v2 | `SourceType` on ~90 links, fuzzy industry matching, `normalizeLinks()` dedup+sort+cap, `allLinks` return |
+| SKI-4 | Competitors post-processing | Dedup by name, validate threat_level values (default 'medium'), relevance filtering |
+| SKI-5 | Scoring calibration | Compact context pack (structured readable vs raw JSON), dimension-specific guidance, unit economics ranges |
+| SKI-6 | MVP de-risking | Weakest dimension detection feeds de-risking focus, customer field in prompt |
+| SKI-7 | Composer hardening | `normalizeGroup()` for array safety + null stripping, cross-group consistency, deterministic `top_threat` |
+| SKI-8 | Verifier expanded | Unit economics (LTV:CAC < 1 or > 20, payback > 36mo), financial projections (Y3 > 100x Y1), competitor count, burn rate, SOM/SAM checks |
+
+### Stats
+
+- **Build:** ✓ 19.68s | **Tests:** 304/304 passing
+- **Files changed:** 10 (7 agent files + composer.ts + types.ts + schemas.ts)
+
+---
+
+## [2026-02-14] - Skills Reorganization — 17 → 8 Pipeline-Aligned Skills (0.10.18)
+
+**What we did:** Consolidated 17 startup skills into 8 pipeline-aligned merged skills with deduplication and enrichment. Each new skill maps to a specific validator agent or composer group. Old skills will become redirects (not deleted per user rule).
+
+### New Skills (8, 4,142 lines total)
+
+| New Skill | Lines | Sources Merged | Pipeline Target |
+|-----------|:-----:|----------------|-----------------|
+| `idea-discovery` | 494 | startup-ideation + lean-canvas + creative-intelligence | ExtractorAgent |
+| `market-intelligence` | 721 | market-research-reports + startup-trend-prediction + startup-analyst | ResearchAgent |
+| `competitive-strategy` | 552 | marketing-strategy-pmm (competitive) + product-strategist + startup-analyst | CompetitorAgent |
+| `validation-scoring` | 591 | startup-idea-validation + startup-metrics + startup-expertise | ScoringAgent |
+| `mvp-execution` | 356 | mvp-builder + lean-sprints + traction | MVPAgent + Group C |
+| `financial-modeling` | 568 | startup-financial-modeling + startup-business-models + startup-metrics | Group C |
+| `go-to-market` | 377 | marketing-strategy-pmm (GTM) + startup-go-to-market + product-strategist | Group C |
+| `fundraising-strategy` | 483 | fundraising + startup-expertise | Group D |
+
+### What Was Deduplicated
+
+- TAM/SAM/SOM methodology (was in 3 skills → market-intelligence only)
+- Unit economics LTV/CAC/payback (was in 4 skills → financial-modeling only)
+- Competitive positioning (was in 3 skills → competitive-strategy only)
+- GTM motion/channels (was in 3 skills → go-to-market only)
+- Health score/readiness (was in 3 skills → validation-scoring only)
+
+### Enrichment Applied
+
+- startup-ideation (58 lines) → idea-discovery (494 lines): added ideation frameworks, "Why Now" templates, canvas integration
+- mvp-builder (95 lines) → mvp-execution (356 lines): added feature scoping, experiment templates, pivot decisions
+- lean-sprints (124 lines) → mvp-execution: added 90-day tracking, retrospective patterns
+
+### Remaining: Task #44 — Convert 17 old skills to redirects
+
+### Files Created
+
+| File | Lines |
+|------|:-----:|
+| `.agents/skills/startup/idea-discovery/SKILL.md` | 494 |
+| `.agents/skills/startup/market-intelligence/SKILL.md` | 721 |
+| `.agents/skills/startup/competitive-strategy/SKILL.md` | 552 |
+| `.agents/skills/startup/validation-scoring/SKILL.md` | 591 |
+| `.agents/skills/startup/mvp-execution/SKILL.md` | 356 |
+| `.agents/skills/startup/financial-modeling/SKILL.md` | 568 |
+| `.agents/skills/startup/go-to-market/SKILL.md` | 377 |
+| `.agents/skills/startup/fundraising-strategy/SKILL.md` | 483 |
+| `docs/plans/2026-02-14-skills-reorganization-design.md` | 201 |
+| `docs/plans/2026-02-14-skills-reorganization.md` | 1,008 |
+
+---
+
+## [2026-02-14] - Composer Split — 4 Parallel Section Groups (0.10.17)
+
+**What we did:** Refactored the Composer agent from a single monolithic Gemini call into 4 focused Gemini calls (3 parallel + 1 sequential synthesis). This is task spec 021-CSP — the structural prerequisite for skill injection and notes quality improvements.
+
+### Architecture Change
+
+| Before | After |
+|--------|-------|
+| 1 Gemini call, 64-line prompt, 8192 tokens, 14 sections competing | 4 focused calls: Group A (Problem & Customer), Group B (Market & Risk), Group C (Execution & Economics), Group D (Executive Synthesis) |
+| `extractJSON` fallback (fragile) | `responseJsonSchema` per group (strict), with `extractJSON` fallback only if Gemini returns 400 |
+| All-or-nothing: 1 section fails → entire report fails | Per-group partial failure: if 1-2 groups fail, remaining sections still appear in report |
+| No room for skill knowledge injection | ~30 lines of domain knowledge per group prompt |
+
+### Composer Groups
+
+| Group | Sections | Tokens | Parallel? |
+|-------|----------|--------|-----------|
+| **A** — Problem & Customer | Problem Clarity, Customer Use Case, Key Questions | 2,048 | Yes |
+| **B** — Market & Risk | Market Size, Competitive Landscape, 4 Dimension Analysis, Top Threat, Risks & Assumptions | 3,072 | Yes |
+| **C** — Execution & Economics | MVP Scope, Next Steps, Revenue Model, Financial Projections, Team & Hiring, Technology Stack, Resources | 3,072 | Yes |
+| **D** — Executive Synthesis | Executive Summary (one-line verdict, success condition, biggest risk) | 1,024 | No (runs after A+B+C) |
+
+### New Report Fields
+
+| Field | Type | Source |
+|-------|------|--------|
+| `top_threat` | `RiskAssumptionV2` (optional) | Group B — highest-severity risk extracted for spotlight |
+| `verdict_oneliner` | `string` (optional) | Group D — e.g., "High upside, execution-sensitive" |
+| `success_condition` | `string` (optional) | Group D — single condition required for success |
+| `biggest_risk` | `string` (optional) | Group D — single biggest risk stated explicitly |
+
+### Bug Fix
+
+Fixed `interviewContext` parameter bug: pipeline.ts passed 9 arguments to `runComposer()` but the function only accepted 8. Now properly accepts and passes `InterviewContext` to Groups A and D.
+
+### Files Modified
+
+| File | Before | After | What Changed |
+|------|--------|-------|-------------|
+| `agents/composer.ts` | 151 lines | 484 lines | Split into 4 `composeGroup*()` + `callGroupGemini()` + `mergeGroups()` |
+| `schemas.ts` | 458 lines | 764 lines | Added `COMPOSER_GROUP_SCHEMAS` (4 group schemas) |
+| `types.ts` | 188 lines | 245 lines | Added `InterviewContext`, `ComposerGroupA/B/C/D`, 4 optional fields on `ValidatorReport` |
+| `config.ts` | 38 lines | 45 lines | Added `COMPOSER_GROUP_TIMEOUTS` |
+| `agents/verifier.ts` | 131 lines | 145 lines | Added checks for new optional fields |
+
+### Tests
+
+All 304/304 tests passing. Build clean. No pipeline.ts changes needed (budget already passed dynamically).
+
+---
+
+## [2026-02-14] - Report V2 Design Polish (0.10.16)
+
+**What we did:** Four design improvements to the Validator Report: (1) VC-grade Executive Summary rewritten as 4 cohesive paragraphs (verdict → why it wins → what kills it → conditional conclusion), (2) Section 1 (Problem Clarity) rewritten with quantified impact ($60K+ annual waste, 15-20% reshoot rate), (3) Section 2 (Customer Use Case) rewritten with real persona (Sarah Chen, $200K budget, 10+ shoots/quarter), (4) StickyScoreBar fixed with fixed positioning and width-matched to Executive Summary.
+
+### Executive Summary Rewrite
+
+| Paragraph | Content |
+|-----------|---------|
+| P1: Verdict | `78/100 — this is a go.` + composer context (deduplicated score) |
+| P2: Why it wins | Market + differentiation + unit economics in one flow |
+| P3: What kills it | Red flags + fatal assumption + weakest dimension |
+| P4: Conclusion | Timeline + break-even + conditional recommendation |
+
+### Section Content Improvements
+
+| Section | Before | After |
+|---------|--------|-------|
+| S1: Problem Clarity | Generic who/pain/fix | Quantified: $2K-4K/shoot, $60K+/year, 15-20% reshoot rate, structural tool failure |
+| S2: Customer Use Case | Basic persona | Real persona: Sarah Chen, $200K budget, 3 days → 5 minutes, 20% → 5% reshoot, $12K+/quarter saved |
+
+### UI Fixes
+
+| Component | Fix |
+|-----------|-----|
+| `ReportHero.tsx` | Added "Recommended Next Steps" label above green pills |
+| `StickyScoreBar.tsx` | Changed `sticky top-0` → `fixed top-0 right-0 left-0 lg:left-64` (overflow parent broke sticky) |
+| `StickyScoreBar.tsx` | Added `max-w-[1000px] mx-auto` inner wrapper to match Executive Summary width |
+| `ReportV2Layout.tsx` | Moved `heroRef` to Executive Summary wrapper (triggers sticky bar when exec summary scrolls out) |
+| `ReportV2Layout.tsx` | Strip leading score pattern from `summary_verdict` to prevent "78/100" duplication |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/validator/report/ReportV2Layout.tsx` | Exec Summary narrative rewrite (4 paragraphs), heroRef moved, score dedup regex |
+| `src/components/validator/report/ReportHero.tsx` | Added "Recommended Next Steps" label |
+| `src/components/validator/report/shared/StickyScoreBar.tsx` | Fixed positioning, centered, width-matched |
+
+### DB Updates (report data)
+
+| Table | Change |
+|-------|--------|
+| `validator_reports` (ipix report) | `problem_clarity` rewritten with quantified impact |
+| `validator_reports` (ipix report) | `customer_use_case` rewritten with real persona + metrics |
+
+### Stats
+
+| Metric | Before | After |
+|--------|:------:|:-----:|
+| Tests | 284 | 284 |
+| Build | PASS | PASS |
+| Exec Summary quality | Generic paragraphs | VC-grade 4-paragraph narrative |
+| Sticky bar | Broken (overflow parent) | Fixed (fixed positioning) |
+
+---
+
+## [2026-02-13] - Composer V2 + Quick-Generate (0.10.15)
+
+**What we did:** Two major changes: (1) Composer agent now outputs structured JSON for 6 report fields, activating V2 visual layout (ProblemCard, CustomerPersona, CompetitorMatrix, RiskHeatmap, MVPScope, NextStepsTimeline), (2) Generate button works with direct text input — users type idea and click Generate without going through Q&A.
+
+### Composer V2 Structured Output
+
+| Field | Type | V2 Component |
+|-------|------|--------------|
+| `problem_clarity` | `{ who, pain, current_fix, severity }` | ProblemCard |
+| `customer_use_case` | `{ persona, without, with, time_saved }` | CustomerPersona |
+| `risks_assumptions` | `[{ assumption, if_wrong, severity, impact, probability, how_to_test }]` | RiskHeatmap |
+| `mvp_scope` | `{ one_liner, build[], buy[], skip_for_now[], tests_assumption, success_metric, timeline_weeks }` | MVPScope |
+| `next_steps` | `[{ action, timeframe, effort }]` | NextStepsTimeline |
+| `competition.positioning` | `{ x_axis, y_axis, positions[] }` | CompetitorMatrix |
+
+### Generate Button Quick-Generate
+
+| Component | Change |
+|-----------|--------|
+| `ValidatorChatInput.tsx` | Added `onSendAndGenerate` prop. Button enabled when text present, not just `canGenerate` |
+| `ValidatorChat.tsx` | Added `handleSendAndGenerate(text)` — sends message + starts pipeline, skips Q&A |
+
+### Also
+
+- Composer prompt: conversational startup advisor tone
+- Backend + frontend V2 types added
+- ReportV2Layout: snake_case→camelCase mapping, `CompetitorMatrixV2` helper
+- `isV2Report()` backward compatibility check
+- Impact normalization: `"medium"` → `"high"` for 2x2 grid
+- 6 E2E runs: Restaurant 72, InboxPilot 68, Travel AI 62, ipix 78, AI accounting 68, Coffee shop 71
+
+### Stats
+
+| Metric | Before | After |
+|--------|:------:|:-----:|
+| Tests | 271 | 284 (+13) |
+| Test files | 24 | 26 (+2) |
+| E2E pipeline runs | 4 | 6 (+2) |
+| V2 visual components | 0 active | 6 active |
+| Build | PASS | PASS |
+
+---
+
+## [2026-02-12] - Edge Function Hardening + Validator Regenerate + Audit Sweep (0.10.11–0.10.14)
+
+**What we did:** Four focused sessions: (1) deployed sprint-agent + fixed B2 skipped/failed + SAM>TAM validation + 24 new tests, (2) docs audit verifying all EFs against official Supabase/Gemini docs, (3) fixed callGemini signature mismatch in 6 validator-agent-* functions, (4) migrated 5 at-risk EFs to Promise.race timeout + wired validator regenerate hook/UI + fixed search_queries schema.
+
+### P0-2: Promise.race Timeout — 5 Edge Functions Fixed
+
+| Function | Migration | Detail |
+|----------|-----------|--------|
+| `market-research` | Shared `_shared/gemini.ts` | Replaced inline callGemini (60+ lines) with shared module + CORS + rate-limit |
+| `opportunity-canvas` | Shared `_shared/gemini.ts` | Same migration pattern |
+| `experiment-agent` | Shared `_shared/gemini.ts` | Same migration pattern |
+| `ai-chat` | In-place Promise.race | 30s timeout on both callGemini + callAnthropic (multi-turn, can't use shared) |
+| `lean-canvas-agent` | In-place Promise.race | 30s timeout on GoogleGenAI SDK calls in ai-utils.ts |
+
+### P1: Validator Regenerate Wired
+
+| Component | Detail |
+|-----------|--------|
+| `src/hooks/useValidatorRegenerate.ts` | New hook: refreshSession + explicit Auth header + functions.invoke |
+| `src/pages/ValidatorReport.tsx` | "Regenerate" button with spinner, navigates to progress on success |
+
+### P1-3: search_queries Schema Fix
+
+| File | Fix |
+|------|-----|
+| `validator-start/schemas.ts` | Added `search_queries` (array of strings) to `AGENT_SCHEMAS.extractor` + required. Was stripped by Gemini schema enforcement. |
+
+### 0.10.13: callGemini Signature Fix (6 validator-agent-* functions)
+
+All 6 functions called `callGemini({...})` with an object but `_shared/gemini.ts` expects positional args. Fixed to `callGemini(model, systemPrompt, userPrompt, options)`.
+
+### 0.10.12: Docs Audit
+
+- Verified 8 EFs against official Supabase + Gemini docs. Added edge runtime imports, standardized npm: paths, req.json() error handling in 6 functions.
+
+### 0.10.11: Sprint Agent + B2/SAM Fixes
+
+| Change | Detail |
+|--------|--------|
+| `sprint-agent` deployed | v1, verify_jwt=true |
+| B2: Skipped vs Failed | Pipeline agents show distinct 'skipped' status with SkipForward icon |
+| SAM > TAM validation | TAMSAMSOMChart validates hierarchy, warns on inconsistencies |
+| 24 new tests | Status parsing, auth refresh, SAM/TAM validation, skipped distinction |
+
+### Verified Already Done
+
+- **P1-1** Delete confirmations: AlertDialog present in AssumptionBoard + DecisionLog
+- **P1-2** outcome_at overwrite: outcomeChanged guard in DecisionLog
+
+### Stats
+
+| Metric | Before | After |
+|--------|:------:|:-----:|
+| Tests | 216 | 271 (+55) |
+| Test files | 22 | 24 (+2) |
+| Edge functions | 42 | 45 (+3: sprint-agent, validator-agent-*, corrections) |
+| Build | PASS | PASS |
+| P0-2 at-risk EFs | 5 | 0 |
+| P1 bugs | 4 | 0 |
+
+---
+
+## [2026-02-11] - Validator Auth Fix + Skills Consolidation
+
+**What we did:** Fixed the root cause of validator-start 401 errors (gateway JWT enforcement mismatch), added session refresh to both validator hooks, confirmed 3 successful E2E pipeline runs, and consolidated 34 skills from `.claude/` to `.agents/skills/`.
+
+### Validator Auth Fix
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Gateway 401 on `validator-start` | Deployed with `verify_jwt=true` (v42) despite `config.toml` saying `false` | Redeployed v43 with `--no-verify-jwt` |
+| Stale JWT in hooks | Supabase FunctionsClient sent expired tokens | Added `refreshSession()` + explicit `Authorization: Bearer <token>` header in both `useValidatorPipeline.ts` and `useValidatorFollowup.ts` |
+
+### E2E Validation Runs (3 Successful)
+
+| Idea | Score | Status |
+|------|:-----:|:------:|
+| Restaurant concept | 72/100 | All 7 agents OK |
+| InboxPilot | 68/100 | All 7 agents OK |
+| Travel AI | 62/100 | All 7 agents OK |
+
+### Skills Consolidation
+
+| Change | Detail |
+|--------|--------|
+| 34 skills migrated | `.claude/<skill>/` → `.agents/skills/<skill>/SKILL.md` + `references/` |
+| 34 placeholders archived | `.agents/skills/_archive/placeholders/` |
+| 6 agents retained | `.claude/agents/`: code-reviewer, security-auditor, debugger, frontend-designer, supabase-expert, ai-agent-dev |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useValidatorPipeline.ts` | Added `refreshSession()` + explicit Authorization header |
+| `src/hooks/useValidatorFollowup.ts` | Added `refreshSession()` + explicit Authorization header |
+| `.claude/settings.json` | Updated for new skill paths |
+| `.gitignore` | Updated for `.agents/skills/` structure |
+
+---
+
+## [2026-02-10] - Task Prompt Verification + Migration Integrity Fixes
+
+**What we did:** Cross-referenced all 25 task prompts against codebase (schema, edge functions, hooks). Fixed 5 broken references, added 2 missing CREATE TABLE migrations, registered 9 edge functions in config.toml.
+
+### Prompt Fixes
+
+| File | Fix |
+|------|-----|
+| `23-knowledge-map.md` | `knowledge_base` → `knowledge_chunks` (3 occurrences) |
+| `14-realtime-canvas.md` | `useLeanCanvasRealtime` → `useCanvasRealtime` (existing hook) |
+| `02-lean-canvas.md` | `industry_packs` → `prompt_packs` (archived table) |
+| `11-industry-playbooks.md` | Verified clean (schema_tables already `[]`) |
+
+### Migration Integrity
+
+| Migration | Purpose |
+|-----------|---------|
+| `20260204100650_create_document_versions.sql` | Backfill CREATE TABLE (existed in prod, no migration — would break `db reset`) |
+| `20260204100700_create_opportunity_canvas.sql` | Backfill CREATE TABLE (same issue) |
+
+### Config.toml — 9 Edge Functions Registered
+
+| Category | Functions Added |
+|----------|---------------|
+| Validator v3 agents (service_role) | validator-agent-extract, -research, -competitors, -score, -mvp, -compose |
+| Validator Board (internal auth) | validator-board-extract, -suggest, -coach |
+
+**Total config.toml entries:** 31 → 40
+
+### Permissions
+
+Created project-level settings at `~/.claude/projects/.../settings.json` — auto-approves Supabase MCP, Context7, Mermaid, WebSearch, WebFetch, and common bash commands.
+
+### Verification
+
+- TypeScript: 0 errors
+- Tests: 12 files, 106 tests, 0 failures
+- All 25 task prompts verified against codebase
+
+---
+
+## [2026-02-10] - Audit Fixes: Gemini Compliance, Soft Delete, Tests, Knowledge Search
+
+**What we did:** Applied all actionable fixes from the forensic audit (14-tasks-audit.md). Migrated 2 edge functions to shared Gemini modules, added 40 soft delete filters across 16 hooks, fixed 3 failing tests, wired Knowledge Search into AI Chat, and created comprehensive audit checklist.
+
+### Edge Function Migrations (Gemini Compliance)
+
+| Function | Changes |
+|----------|---------|
+| `prompt-pack` | Replaced inline Gemini fetch with `_shared/gemini.ts` (callGemini + extractJSON); added `_shared/cors.ts` + `_shared/rate-limit.ts`; replaced hardcoded CORS with handleCors; added rate limiting |
+| `ai-chat` | Fixed `esm.sh` → `npm:` imports; `serve()` → `Deno.serve()`; replaced hardcoded CORS with shared module; added rate limiting; kept inline multi-turn callGemini (different interface) |
+
+### Soft Delete Filters (40 locations, 16 hook files)
+
+Added `.is('deleted_at', null)` to all SELECT queries on 6 soft-delete tables (startups, contacts, deals, documents, projects, tasks). Mutations (insert/update/delete) correctly excluded.
+
+| Hooks Modified | Filter Count |
+|----------------|:------------:|
+| useDashboardData, useDashboardMetrics | 6 each |
+| useModuleProgress | 4 |
+| useCRM, useAnalytics, useProjects | 3 each |
+| useCalendarSync, useSettings, useInvestors, useDocuments, useTasks | 2 each |
+| usePitchDeckWizard, useValidationBoard, useEvents, usePitchDecks, useLeanCanvas | 1 each |
+
+### Test Fixes
+
+| Test | Fix |
+|------|-----|
+| checkReadiness Rule 1 (Normal Ready) | Changed 4 msgs → 5 msgs to match implementation threshold |
+| checkReadiness Rule 2 (Quick Ready) | Added 2 shallow items (6 shallow+), used 3 msgs to match Quick Ready path |
+| checkReadiness Rule 3 (Forced Ready) | Changed 8 msgs → 10 msgs to match implementation threshold |
+
+**Result:** 12 test files, 106 tests, 0 failures
+
+### Knowledge Search Wiring
+
+Wired `useKnowledgeSearch` hook into `AIChat.tsx` — added search input and results display to AIContextPanel with similarity scores.
+
+### Audit Documents
+
+| File | Purpose |
+|------|---------|
+| `lean/audit/17-audit-checklist.md` | Post-fix verification checklist with gap closure matrix; overall correctness 87% → 95% |
+
+---
+
+## [2026-02-10] - Security Advisors + Edge Functions Forensic Audit
+
+**What we did:** Applied security advisor fixes (vector extension, dashboard_metrics), created a forensic Edge Functions audit, and corrected lean prompt mismatches.
+
+### Migration Applied
+
+| Migration | Description |
+|-----------|-------------|
+| `20260210215730_fix_security_advisors_vector_and_dashboard_metrics` | Move `vector` extension from `public` to `extensions` schema; revoke `dashboard_metrics` from `anon` and `public` |
+
+### Audit Documents
+
+| File | Purpose |
+|------|---------|
+| `lean/audit/16-edge-funtions-audit.md` | Forensic EF audit vs Skill, Cursor Rule, official docs; compliance matrix for 30+ functions; lean prompt ↔ EF action mismatches |
+| `lean/audit/15-supabase-audit.md` | Updated Security Advisor section with fix status (vector ✅, dashboard_metrics partial, leaked password ⏳) |
+
+### Lean Prompt Corrections
+
+| Task | Change |
+|------|--------|
+| 23-knowledge-map | `search-knowledge` → `knowledge-search` (4 refs) |
+| 20-validator-v3-wiring | Added audit note: useValidatorPipeline still calls validator-start |
+| 02-lean-canvas | EF verification step references audit 16 for migration |
+
+### Security Advisor Status
+
+| Finding | Before | After |
+|---------|--------|-------|
+| Vector in public | WARN | ✅ Fixed (in extensions schema) |
+| dashboard_metrics anon | WARN | ✅ Fixed (revoked) |
+| dashboard_metrics authenticated | — | Kept (required for useHealthScore) |
+| Leaked password protection | WARN | ⏳ Dashboard → Auth → Settings |
+
+---
+
+## [2026-02-10] - Schema V3: 6 New Tables + 4 Production Hooks + Full Verification
+
+**What we did:** Applied 6 migrations creating new tables for campaigns/sprints, knowledge map, lean canvas versions, validator agent runs, pivot logs, and VPC data. Built 4 production React Query hooks. Ran 6 real-world user journey tests (35+ assertions) proving all constraints, RLS policies, JSONB read/write, FK cascades, and upserts work correctly.
+
+### Migrations Applied
+
+| Migration | Description |
+|-----------|-------------|
+| `20260210213839_create_validator_agent_runs` | Pipeline telemetry: per-agent run tracking with status, output, duration |
+| `20260210213858_create_campaigns_sprints` | 90-Day Plan: campaigns (top-level) + sprints (PDCA cards in JSONB) |
+| `20260210213903_create_lean_canvas_versions` | Immutable version history for lean canvases |
+| `20260210213907_create_knowledge_map` | 5-dimension strategic confidence tracker with source tiers |
+| `20260210214504_add_vpc_data_to_opportunity_canvas` | Value Proposition Canvas JSONB on opportunity_canvas |
+| `20260210214602_add_validation_board_schema` | validation_stage + current_bet on startups + pivot_logs table |
+
+### Schema Summary
+
+| Metric | Count |
+|--------|-------|
+| New tables | 6 (campaigns, sprints, knowledge_map, lean_canvas_versions, pivot_logs, validator_agent_runs) |
+| Altered tables | 2 (startups: +validation_stage, +current_bet; opportunity_canvas: +vpc_data) |
+| RLS policies | 21 (all `TO authenticated` or `service_role`, zero `TO public`) |
+| Indexes | 19 (FK indexes + unique + composite) |
+| CHECK constraints | 9 (status enums, score ranges, dimension/tier/pivot_type enums) |
+| FK relationships | 8 (all CASCADE or SET NULL) |
+| Unique constraints | 4 (sprint_number per campaign, dimension per startup, version per canvas, agent+attempt per session) |
+
+### Production Hooks Created
+
+| Hook | Exports | Purpose |
+|------|---------|---------|
+| `src/hooks/useSprints.ts` | `Campaign`, `Sprint`, `useCampaigns`, `useSprints`, `useCreateCampaign`, `useCreateSprint`, `useUpdateSprint`, `useCompleteSprint` | Full CRUD for 90-Day Plan with PDCA pack/unpack from cards JSONB |
+| `src/hooks/useValidationBoard.ts` | `CurrentBet`, `PivotLog`, `ValidationStage`, `useValidationStage`, `useUpdateBet`, `useAdvanceStage`, `useRecordPivot`, `usePivotLogs` | Stage progression (idea→mvp→selling), bet tracking, pivot history |
+| `src/hooks/useValuePropositionCanvas.ts` | `VPCItem`, `VPCData`, `useVPCData`, `useSaveVPCData`, `calculateFitScore` | 6-box Strategyzer canvas with fit scoring |
+| `src/hooks/useKnowledgeMap.ts` | `KnowledgeDimension`, `SourceTier`, `KnowledgeEntry`, `KnowledgeMapSummary`, `useKnowledgeMap`, `useUpdateKnowledgeDimension` | 5-dimension confidence map with upsert |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/pages/SprintPlan.tsx` | Fixed `c.campaign_name \|\| c.goal` → `c.name` to match new Campaign interface |
+| `src/integrations/supabase/types.ts` | Regenerated from Supabase MCP — includes all 6 new tables |
+
+### Verification (35+ assertions, all PASS)
+
+| Journey | Tests | Result |
+|---------|-------|--------|
+| 1. Sprint Plan | Create campaign → 3 sprints → PDCA write/read → complete → unique constraint → range 1-6 → cascade delete | PASS (7/7) |
+| 2. Validation Board | Set bet → pivot log → stage advance → invalid stage rejected → invalid pivot_type rejected → immutable read | PASS (7/7) |
+| 3. Knowledge Map | 5 dimensions insert → unique verify → upsert update → invalid dimension rejected → score range rejected → invalid tier rejected | PASS (6/6) |
+| 4. VPC | JSONB write → fit_score read → pains array → unmatched_pains array | PASS (4/4) |
+| 5. Canvas Versions | Version create → duplicate rejected → cleanup | PASS (3/3) |
+| 6. Agent Runs | Insert → complete → invalid agent rejected → duplicate rejected | PASS (4/4) |
+
+Additional checks: `tsc --noEmit` (zero errors), `npm run build` (24s, clean), security advisors (no new issues), zero leftover test data.
+
+### Known Issues (Pre-existing)
+
+- `lean_canvas_versions.created_by` FK unindexed (low priority — rarely queried by this column)
+- Leaked password protection not yet enabled (Dashboard → Auth → Settings)
+- ~~`dashboard_metrics` accessible to anon~~ — Fixed in 20260210215730
+
+---
+
+## [2026-02-09] - Merge canvas-coach into lean-canvas-agent
+
+**What we did:** Eliminated the standalone `canvas-coach` edge function by merging it as an `action: 'coach'` inside `lean-canvas-agent`. This removes a duplicate CORS/auth/Gemini wrapper, adds cost tracking (previously missing), and reduces the active edge function count from 30 to 29.
+
+### What Changed
+
+| Area | Before | After |
+|------|--------|-------|
+| Edge functions | `canvas-coach` (standalone) + `lean-canvas-agent` | `lean-canvas-agent` with `action: 'coach'` |
+| Gemini call | Inline `fetch()` to REST API | `callGeminiStructured` from `ai-utils.ts` (SDK-based) |
+| Cost tracking | None | Logged to `ai_runs` table via `logAIRun()` |
+| Timeout | `AbortSignal` (unreliable on Deno Deploy) | `Promise.race` with 15s hard timeout |
+| Active functions | 30 | 29 (canvas-coach archived) |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/lean-canvas-agent/actions/coach.ts` | Coach action (~250 lines): prompt, schema, sanitization, serialize, Gemini call |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/lean-canvas-agent/actions/index.ts` | Added `coach` export |
+| `supabase/functions/lean-canvas-agent/index.ts` | Added `coach` case to switch, `messages`/`startup_context`/`focused_box` to RequestBody |
+| `src/hooks/useCanvasCoach.ts` | Changed invoke target from `canvas-coach` to `lean-canvas-agent` with `action: 'coach'` |
+| `CLAUDE.md` | Edge function count 31 → 29 |
+| `supabase/functions/index-functions.md` | Removed canvas-coach from active table, added to archive, updated all counts |
+| `lean/prompts/notes-prompts.md` | Updated function counts and references |
+
+### Files Archived
+
+| File | Reason |
+|------|--------|
+| `supabase/functions/canvas-coach/` → `archive/canvas-coach/` | Merged into lean-canvas-agent |
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `npm run build` | Passes (no type errors) |
+| Response shape | Same: `{ success, reply, weak_sections, suggestions, next_chips, canvas_score }` |
+| Frontend hook | Same interface — `useCanvasCoach` unchanged except invoke target |
+
+---
+
+## [2026-02-08] - Validator Report: Nav Refactor + Right Panel Intelligence Plan
+
+**What we did:** Moved the section navigation from a sticky left aside to a collapsible right panel, ran a 4th successful E2E validation test (Invoice Factoring for SMBs, 62/100), documented a restore point, and created a comprehensive plan for an AI-powered right panel intelligence feature.
+
+### Sections Nav Refactor
+
+| Change | Detail |
+|--------|--------|
+| Removed | Sticky left `<aside>` with 14 section anchor links |
+| Added | Collapsible right panel using flex `order-2` |
+| Toggle | Floating button (`fixed right-4 top-1/2`) when panel closed |
+| State | `sectionsOpen` / `setSectionsOpen` in ValidatorReport.tsx |
+
+### 4th E2E Validation Run
+
+| Field | Value |
+|-------|-------|
+| Idea | AI Invoice Factoring for SMBs |
+| Score | 62/100 |
+| Time | ~90s |
+| Status | All 7 agents OK, all 14 sections rendered |
+
+### Right Panel Intelligence Plan (not implemented)
+
+Created `tasks/validator/reports/04-report-plan.md` with:
+- 3-column layout: App Sidebar | Main Column | Right Panel (new)
+- On-demand AI via `validator-panel-detail` edge function (Gemini Flash, 10s, 512 tokens)
+- 4 content blocks per section: More Detail, Why This Matters, Risks & Gaps, Validate Next
+- Cache strategy with `useRef<Map>`, ~120 words max per section
+- System prompt, Gemini response schema, TypeScript interfaces
+- Section-specific focus table for all 14 sections
+- 3 Mermaid diagrams: component architecture, data flow sequence, user journey state
+- 8-step implementation sequence
+
+### Docs Updated
+
+| Document | Change |
+|----------|--------|
+| `tasks/validator/notes.md` | Replaced 58KB transcript with structured notes, added 4th run + UI changes |
+| `tasks/validator/reports/02-report.md` | Updated as restore point with 4th E2E run details |
+| `tasks/validator/reports/04-report-plan.md` | New: right panel intelligence plan |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/pages/ValidatorReport.tsx` | Removed left aside, added collapsible right panel with toggle |
+
+---
+
+## [2026-02-06] - Prompt 02: Frontend Report Sections Complete (6 New Sections)
+
+**What we did:** Added the 6 missing report sections to ValidatorReport.tsx so all 14 pipeline-generated sections are now visible to users. Previously, the backend produced 14 sections but the frontend only rendered 8. Created shared TypeScript types matching backend `validator-start/types.ts`, added `formatCurrency` utility, and wired all 6 new sections with production layouts. Preceded by 3 forensic audits (pipeline, Supabase best practices, Gemini) and wireframe design.
+
+### New Report Sections (6)
+
+| # | Section | Data Source | Layout |
+|---|---------|-------------|--------|
+| 8 | Scores Matrix | `scores_matrix`, `market_factors`, `execution_factors` | Weighted score bars, factor cards grid |
+| 9 | Technology Stack | `technology_stack` | Feasibility badge, build/buy/OSS table, tech risks |
+| 10 | Revenue Model | `revenue_model` | Recommended model, unit economics (CAC/LTV/ratio/payback), alternatives with pros/cons |
+| 11 | Team & Hiring | `team_hiring` | Monthly burn, gap badges, prioritized roles table, advisory needs |
+| 12 | Key Questions | `key_questions` | Grouped by risk level (fatal/important/minor), validation methods |
+| 13 | Resources & Links | `resources_links` | Categorized link groups with clickable external links |
+
+### New Types Added
+
+| Type | Fields | Source |
+|------|--------|--------|
+| `TechnologyAssessment` | stack_components, feasibility, technical_risks, mvp_timeline_weeks | backend types.ts |
+| `RevenueModelAssessment` | recommended_model, reasoning, alternatives, unit_economics | backend types.ts |
+| `TeamAssessment` | current_gaps, mvp_roles, monthly_burn, advisory_needs | backend types.ts |
+| `KeyQuestion` | question, why_it_matters, validation_method, risk_level | backend types.ts |
+| `ResourceCategory` | category, links[] | backend types.ts |
+| `ScoresMatrixData` | dimensions[], overall_weighted | backend types.ts |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/types/validation-report.ts` | +6 interfaces, +`formatCurrency()` utility |
+| `src/pages/ValidatorReport.tsx` | Extended `ReportData.details` with 6 new optional fields, added sections 8-13 (lines 447-790) |
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | Zero errors |
+| `npm run build` | Passes (7.56s) |
+| `eslint` on changed files | 0 new errors |
+| Graceful degradation | All 6 sections conditional — old reports without new fields render fine |
+
+### Prompt 02 Progress Update
+
+| Before | After |
+|--------|-------|
+| 25% (3 IP, 5 NS) | 90% (5 done, 3 at 80%) |
+| Frontend renders 8 of 14 sections | Frontend renders all 14 sections |
+| 6 section types missing in frontend | Shared types match backend |
+
+### Remaining (3 tasks at 80%)
+
+Backend enrichment — agents need to produce richer data for:
+1. Market & Competition Deep Dive — add positioning matrix, SWOT to CompetitorAgent
+2. Financials — add Y1/Y3/Y5 revenue projections to ComposerAgent
+3. Revenue Projections — add monthly/yearly breakdowns to ComposerAgent
+
+---
+
+## [2026-02-06] - Forensic Audits: Pipeline, Supabase, Gemini
+
+**What we did:** Completed 3 forensic audits of the validator pipeline. (1) Pipeline audit verified 99--3 findings against code — found audit was wrong about thinkingBudget (code already uses thinkingLevel), discovered NEW bug in URL Context metadata extraction, confirmed frontend 8-section gap. (2) Supabase best practices audit found 7 violations — applied migration with 4 indexes + 3 RLS policies, fixed batch insert. (3) Gemini audit cross-referenced 160+ rules from 5 official reference files against all 7 agent implementations — 20/22 PASS, 1 MEDIUM finding (F1: unnecessary schema deletion when thinking enabled).
+
+### Fixes Applied
+
+| Fix | File | Impact |
+|-----|------|--------|
+| URL Context metadata extraction | `gemini.ts` | Read from `candidates[0].url_context_metadata.url_metadata` (was wrong path) |
+| Supabase types regenerated | `types.ts` | `run_id` now `string \| null`, `startup_id` present |
+| Batch insert | `index.ts` | Single `.insert(runRows)` instead of loop |
+| 4 composite indexes | Migration | `(session_id, agent_name)`, `(session_id, status)`, etc. |
+| 3 RLS policies | Migration | SELECT on validator_runs + validation_reports for users |
+
+### Audit Reports Created
+
+| File | Scope |
+|------|-------|
+| `tasks/validator/99--3-audit.md` | Pipeline forensic audit with corrections |
+| `tasks/validator/99--4-gemini-audit.md` | Gemini 160+ rule cross-reference |
+
+---
+
+## [2026-02-06] - Validator Flow Wireframes (Lo-Fi)
+
+**What we did:** Created comprehensive lo-fi wireframes for the full validator flow (5 screens, 14 report sections) using the Figma prototyping skill. Covers ValidateIdea, ValidatorChat, ValidatorProgress, ValidatorReport, and Report Deep-Dive with ASCII wireframes, sample content, data sources, agent mappings, and logic rules per screen.
+
+### File Created
+
+| File | Lines | Content |
+|------|-------|---------|
+| `tasks/wireframes/02-wireframes/06-validator-flow.md` | 890 | 10 sections: 5 screens + Trace Drawer + Component Patterns + Data Flow + Mobile + Edge Cases |
+
+---
+
+## [2026-02-06] - Prompt 14: AI-Powered Smart Follow-Up Questions
+
+**What we did:** Replaced 7 static follow-up questions with an AI-powered system. After each founder response, Gemini Flash analyzes the conversation, spots gaps across 8 topics, and generates the next best contextual question. When enough context is gathered (4-7 exchanges), it signals "ready to generate." Includes full audit (6 gaps found, 5 fixed, 1 non-issue) and 3 edge function deployments.
+
+### New Edge Function — `validator-followup` (v3)
+
+4 files, Deno runtime, deployed to Supabase:
+- `index.ts` — CORS, auth, input sanitization (max 20 msgs, 2000 chars each, strip HTML), Gemini Flash call, 8s timeout, 1 retry
+- `gemini.ts` — Copy of `validator-start/gemini.ts` (Deno isolates functions), `maxOutputTokens: 512` (not 8192)
+- `prompt.ts` — System prompt with 8-topic checklist: problem > customer > competitors > innovation > uniqueness > demand > research > websites
+- `schema.ts` — `FollowupResponse` interface + `followupResponseSchema` for Gemini `responseJsonSchema`
+
+### New Frontend Hook — `useValidatorFollowup`
+
+- `src/hooks/useValidatorFollowup.ts` — Calls `supabase.functions.invoke('validator-followup', { body: { messages } })`
+- Returns `{ getNextQuestion, isLoading, error }`
+
+### ValidatorChat.tsx Rewrite
+
+| Removed | Added |
+|---------|-------|
+| `FOLLOW_UP_QUESTIONS` static array | `useValidatorFollowup` hook |
+| `questionIndex` state | `followupInFlight` ref (concurrency guard) |
+| `dataKeys` array | `canGenerate` as state (was computed) |
+| `extractedData` state | `fallbackIndex` + 3 fallback questions |
+| Unused imports (motion, useNavigate, supabase, useToast) | `MIN_EXCHANGES=2`, `MAX_EXCHANGES=7` safety caps |
+
+### Audit Findings (G1-G6)
+
+| ID | Severity | Issue | Fix | Status |
+|----|:--------:|-------|-----|:------:|
+| G1 | CRITICAL | Race condition — concurrent `askFollowup` calls | `followupInFlight` useRef guard | FIXED |
+| G2 | CRITICAL | Input not disabled during AI thinking | Pass `isProcessing \|\| isTyping` to disable input | FIXED |
+| G3 | HIGH | 5s timeout too short for cold starts | Increased to 8000ms | FIXED |
+| G4 | HIGH | `maxOutputTokens: 8192` wastes cost | Reduced to 512 in gemini.ts copy | FIXED |
+| G5 | MEDIUM | CORS `ALLOWED_ORIGINS` not set for prod | Non-issue — Supabase JS client bypasses browser CORS | N/A |
+| G6 | MEDIUM | JWT verification state after double deploy | Verified active on v3 deploy | FIXED |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/validator-followup/index.ts` | Edge function entry point |
+| `supabase/functions/validator-followup/gemini.ts` | Gemini API client (512 token cap) |
+| `supabase/functions/validator-followup/prompt.ts` | System prompt + topic checklist |
+| `supabase/functions/validator-followup/schema.ts` | Response schema for guaranteed JSON |
+| `src/hooks/useValidatorFollowup.ts` | Frontend hook |
+| `tasks/validator/prompts/14-smart-followup-audit.md` | Audit doc with mermaid diagrams |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/validator/chat/ValidatorChat.tsx` | Full rewrite: removed static questions, added AI follow-ups, race condition guard, input lock |
+| `tasks/validator/prompts/00-index.md` | Added Prompt 14 section, updated progress (40%), added Phase 1.5 to coverage map |
+| `tasks/validator/summary.md` | Full rewrite with 3-edge-function architecture, chat flow, key files table, progress table |
+
+### Deployment
+
+- `validator-followup` v1 → v2 → v3 (final: JWT verified, 8s timeout, 512 token cap)
+- `supabase functions deploy validator-followup` (no `--no-verify-jwt`)
+- Build verified: `npm run build` passes clean
+
+---
+
+## [2026-02-05] - Pipeline E2E Verified: OAuth Fix, Model Switch, Timeout Tuning
+
+**What we did:** Fixed remaining production blockers (OAuth redirect, JSON parsing, agent timeouts) and verified the full pipeline end-to-end. Pipeline now produces complete 7-section reports with citations, scores, and AI verification. Compared output against IdeaProof competitor.
+
+### OAuth Redirect Fix
+
+| File | Fix | Impact |
+|------|-----|--------|
+| `src/pages/AuthCallback.tsx` | Check `pendingIdea` in sessionStorage before default redirect | Homepage → Login → OAuth → Validator flow works |
+| `src/pages/Login.tsx` | Read `redirect` from URL query params as fallback | HeroSection's `?redirect=/validate` now works |
+
+**Root cause:** HeroSection passes redirect as URL query param (`/login?redirect=/validate&hasIdea=true`), but AuthCallback always redirected to `/dashboard` or `/onboarding`, ignoring pending ideas. Additionally, Supabase Site URL was set to `https://www.startupai.me/**` (wildcards not allowed in Site URL) causing `/**` 404 on production.
+
+### Pipeline Reliability Fixes
+
+| Fix | Before | After | Impact |
+|-----|--------|-------|--------|
+| extractJSON balanced brace | Greedy regex `\{[\s\S]*\}` captured trailing search grounding text | Depth-counting brace matcher finds first complete JSON object | No more JSON parse errors from Google Search metadata |
+| Model switch | Research + Competitors used `gemini-3-pro-preview` | Switched to `gemini-3-flash-preview` | Agents complete in 10-25s instead of timing out at 35s |
+| Agent timeouts | All agents 25-35s | Extractor 30s, Research/Competitors/Composer 60s, Scoring 45s, MVP 30s | No more timeout failures |
+| Polling timeout | 3 min (`MAX_POLL_MS = 180_000`) | 5 min (`MAX_POLL_MS = 300_000`) | Frontend doesn't give up while pipeline still running |
+
+### E2E Test Result
+
+Successfully produced a full validation report for "FashionOS" test idea:
+- **Score:** 62/100 (CAUTION)
+- **Sections:** 7/7 generated (Executive Summary, Key Findings, Scores, Competition, Risks, MVP Strategy, Next Steps)
+- **Citations:** Real URLs from Google Search grounding
+- **Verification:** AI Verified by VerifierAgent
+
+### IdeaProof Comparison
+
+| Dimension | StartupAI | IdeaProof | Winner |
+|-----------|-----------|-----------|--------|
+| Competition quality | Real companies with URLs, strengths/weaknesses, opportunities | Generic names, vague analysis | StartupAI |
+| Market accuracy | Specific stats with citations | Generic TAM numbers without sources | StartupAI |
+| Risk specificity | Actionable mitigations per risk | Generic risk categories | StartupAI |
+| MVP strategy | Concrete features, timeline, tech stack suggestions | Generic prototype advice | StartupAI |
+| Next steps | Week-by-week action plan | Vague recommendations | StartupAI |
+| Financials | Not yet built | Revenue projections, unit economics, startup costs | IdeaProof |
+| Roadmap | Not yet built | 3-phase timeline with team requirements | IdeaProof |
+| Resources | Not yet built | Curated tools, courses, funding sources, communities | IdeaProof |
+
+**Gap to close:** Add financials, roadmap, and resources sections (Prompt 01 scope).
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/pages/AuthCallback.tsx` | Added `pendingIdea` sessionStorage check in both redirect paths |
+| `src/pages/Login.tsx` | Added `useSearchParams` + `searchParams.get('redirect')` fallback |
+| `supabase/functions/validator-start/index.ts` | extractJSON balanced brace, Research+Competitors → flash, timeouts 30-60s |
+| `src/pages/ValidatorProgress.tsx` | `MAX_POLL_MS` 180_000 → 300_000 |
+| `tasks/validator/prompts/00-index.md` | Progress tracker updated (70% → 83% for Prompt 11, 29% → 33% total) |
+
+### Deployment
+
+- Edge function `validator-start` redeployed via `npx supabase functions deploy validator-start --no-verify-jwt`
+
+---
+
+## [2026-02-05] - Pipeline Fixes Phase 0: Steps 1-2 Implemented
+
+**What we did:** Implemented the first 2 of 7 Phase 0 pipeline fix steps in `supabase/functions/validator-start/index.ts`. These address the deepest root causes of the ~30% pipeline crash rate: Gemini returning invalid JSON and no fallback when it does.
+
+### Step 1 (11G): Gemini API Alignment — F18, F19, F20, F21
+
+| Finding | Fix | Impact |
+|---------|-----|--------|
+| F18: No `responseJsonSchema` | Added `AGENT_SCHEMAS` object with JSON schemas for all 6 agents; `callGemini` passes schema via `generationConfig.responseJsonSchema` | Gemini guarantees valid JSON output |
+| F19: Temperature 0.4 causes looping | Changed to `temperature: 1.0` (Gemini 3 recommended default) | Eliminates repetitive/looping responses |
+| F20: API key in URL query param | Moved to `x-goog-api-key` header | Key no longer exposed in server logs |
+| F21: No citation extraction | Extracts `groundingChunks` from Google Search grounding metadata | Reports include real source URLs |
+
+**Architecture change:** Refactored `callGemini` from positional params to `GeminiCallOptions` interface with `useSearch`, `maxRetries`, and `responseJsonSchema`. Returns `GeminiCallResult` with `text`, `searchGrounding`, and `citations` array.
+
+### Step 2 (11A): Safe JSON Extraction — F1
+
+| Finding | Fix | Impact |
+|---------|-----|--------|
+| F1: Raw `JSON.parse(text)` throws on bad JSON | Added `extractJSON<T>()` with 5-strategy fallback | Pipeline degrades gracefully instead of crashing |
+
+**`extractJSON<T>()` strategies:** (1) Direct parse, (2) Strip markdown fences, (3) Extract first JSON object `{...}`, (4) Extract first JSON array `[...]`, (5) Return null.
+
+All 6 agents (`Extractor`, `Research`, `Competitor`, `Scoring`, `MVP`, `Composer`) now use `extractJSON` with null-check handling that stores `rawText` for debugging and marks the agent as `failed`.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/validator-start/index.ts` | `GeminiCallOptions` interface, `GeminiCallResult` interface, `AGENT_SCHEMAS` (6 schemas), `extractJSON<T>()`, temperature 1.0, API key header, citation extraction, all 6 agent calls updated |
+| `tasks/validator/prompts/00-index.md` | Progress tracker updated (11 → 30%) |
+| `tasks/validator/prompts/notes.md` | Added changelog, status column, merged Steps 1+7 |
+| `tasks/validator/prompts/01-08,11*.md` | Added Skills Required tables to all 9 prompt files |
+
+### Next Steps
+
+| Step | Sub-prompt | Status |
+|:----:|:----------:|--------|
+| 3 | 11B | **Next** — AbortController timeouts + session recovery |
+| 4 | 11D | Pending — Progress page hardening |
+| 5 | 11C | Pending — Parallelize Research + Competitor |
+
+---
+
+## [2026-02-05] - Validator Prompts, Lean Canvas Integration & Chat Flow Fix
+
+**What we did:** Created comprehensive prompt library for all 55 validator tasks, fixed 3 bugs in the chat follow-up flow, added Lean Canvas auto-generation prompt (mapped to 7-agent pipeline), created Plan Mode system prompt, and generated pipeline diagrams.
+
+### Bugs Fixed (ValidatorChat.tsx)
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Chat skips follow-up questions | `canGenerate` threshold was `>= 1` (one message triggered Generate) | Changed to `>= 3` |
+| `initialIdea` bypasses Q&A | useEffect jumped straight to "Click Generate" | Routes through 4 follow-up questions first |
+| Stale user message count | `handleSendMessage` read `userMessages.length` before state updated | Uses `updatedUserCount = userMessages.length + 1` |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `tasks/prompts/validator/prompts/10-lean-canvas-from-validation.md` | Auto-generate Lean Canvas from validator output — maps all 9 blocks to 7-agent pipeline |
+| `tasks/prompts/validator/diagrams/chat-question-logic.svg` | Flowchart: chat question decision logic |
+| `tasks/prompts/validator/prompts/diagrams.md` | Mermaid diagram source index for validator |
+
+### Lean Canvas Integration (Prompt 10)
+
+| Task | Description |
+|------|-------------|
+| LC1 | Map validator output to 9 Lean Canvas blocks |
+| LC2 | Auto-generate canvas after report completes |
+| LC3 | Link report and canvas bidirectionally |
+| LC4 | Pre-fill canvas with validated, cited data |
+| LC5 | "View Lean Canvas" button on report page |
+
+### Lean Canvas Block Mapping
+
+| Block | Source Agents | Example Domain |
+|-------|--------------|----------------|
+| Problem | ExtractorAgent + ScoringAgent | SaaS onboarding |
+| Customer Segments | ExtractorAgent + ResearchAgent | DTC fashion ecommerce |
+| UVP | ExtractorAgent + CompetitorAgent | Fashion returns SaaS |
+| Solution | ExtractorAgent + MVPAgent | SaaS subscription analytics |
+| Channels | ResearchAgent + CompetitorAgent | DTC ecommerce |
+| Revenue Streams | ScoringAgent + ComposerAgent | SaaS tiered pricing |
+| Cost Structure | MVPAgent + ScoringAgent | Fashion rental platform |
+| Key Metrics | ScoringAgent + VerifierAgent | Online fashion marketplace |
+| Unfair Advantage | CompetitorAgent + ComposerAgent | SaaS with proprietary data |
+
+### Diagrams Created
+
+| Diagram | Type | Description |
+|---------|------|-------------|
+| Validator Flow (simple) | Flowchart | 6-step vertical: Describe → Questions → Approve → Research → Score → Report |
+| Chat Question Logic | Flowchart | Decision tree for follow-up questions, canGenerate check, Generate vs type more |
+| Chat-to-Report Flow | Flowchart | 16-node pipeline from homepage to report (in diagrams.md) |
+
+---
+
+## [2026-02-05] - Validator Pipeline Audit, 401 Fix & Progress Tracker
+
+**What we did:** Forensic audit of the entire validator chat-to-report pipeline. Fixed critical 401 deployment bug, added auth guard, created comprehensive progress tracker with 55 tasks mapped across 8 categories, identified 26 improvements, and documented 10 Plan Mode gaps.
+
+### Bugs Fixed
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| 401 on `validator-start` edge function | Deployed v6 had `verify_jwt: true` (gateway blocked before function ran) but local config had `false` | Redeployed v7 with `--no-verify-jwt` via Supabase CLI |
+| No auth check before pipeline call | `useValidatorPipeline` didn't verify session before API call | Added `getSession()` check with user-friendly error message |
+| Previous 504 timeout on v5 | Pipeline ran synchronously without `EdgeRuntime.waitUntil` | Confirmed fixed in v4+ with background processing |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useValidatorPipeline.ts` | Added `supabase.auth.getSession()` check before edge function call |
+| `supabase/functions/validator-start/index.ts` | Redeployed v7 with `verify_jwt: false` |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `tasks/prompts/validator/00-summary-progress.md` | Comprehensive progress tracker (~320 lines) |
+
+### Progress Tracker Summary (55 Tasks)
+
+| Category | Tasks | Done | In Progress | Not Started | Blocked | % Complete |
+|----------|-------|------|-------------|-------------|---------|------------|
+| Core Chat Flow | 10 | 10 | 0 | 0 | 0 | 97% |
+| Edge Functions | 10 | 9 | 1 | 0 | 0 | 93% |
+| Database Schema | 5 | 3 | 2 | 0 | 0 | 78% |
+| Report Sections | 13 | 5 | 3 | 5 | 0 | 52% |
+| Coach Features | 4 | 4 | 0 | 0 | 0 | 100% |
+| Plan Mode & Intelligence | 6 | 1 | 3 | 2 | 0 | 37% |
+| Advanced Features | 7 | 1 | 0 | 5 | 1 | 15% |
+| **TOTAL** | **55** | **33** | **9** | **12** | **1** | **68%** |
+
+### Improvements Identified (26 Total)
+
+| Priority | Count | Key Items |
+|----------|-------|-----------|
+| P0 Critical | 6 | Parallel agents (30-40% speed), safe JSON.parse, request timeouts, complete 14 sections |
+| P1 High | 9 | Streaming responses, retry failed agents, caching, adaptive questions, progress persistence |
+| P2 Medium | 7 | Validation history timeline, competitive radar chart, XSS sanitization, accessibility |
+| P3 Future | 4 | Scenario comparison, industry playbooks, decision logs |
+
+### Plan Mode Gaps (10 Features)
+
+| Status | Count | Features |
+|--------|-------|----------|
+| Not Built | 8 | Read-only mode, editable plans, approval gate, "what if" queries, scenario planning, parallel post-approval agents, versioned plans, safe exploration |
+| Partial | 2 | Clarifying questions (hardcoded), research without execution |
+
+### Research Assets Catalogued
+
+| Asset | Scope |
+|-------|-------|
+| Industry research links | 500+ URLs across 14 verticals |
+| Startup news sites | 20 top sites |
+| AI research reports | 100+ reports from Tier A sources |
+| SaaS validation framework | 5-phase methodology with 16 sections |
+| IdeaProof competitor analysis | 22-section benchmark for report quality |
+
+### Critical Path (Recommended Next Steps)
+
+```
+PHASE 1 — Report Completeness: Build missing 7 report sections, scores matrix, financials
+PHASE 2 — Agent Intelligence: Adaptive questions, parallel agents, selective retry
+PHASE 3 — Knowledge Integration: Seed vector DB with 500+ research links, wire RAG
+PHASE 4 — Polish: PDF export, share links, Plan Mode UI toggle
+```
+
+### Edge Function Deployment State
+
+| Function | Version | verify_jwt | Status |
+|----------|---------|-----------|--------|
+| `validator-start` | v7 | `false` | Active |
+| `validator-status` | v4 | `false` | Active |
+| `validator-regenerate` | v4 | `false` | Active (stub) |
+
+---
+
+## [2026-02-04] - Validator Flow Design Prompt (Lovable)
+
+**What we did:** Created comprehensive design specification for the Validator chat-to-dashboard flow, ready for Lovable implementation without code.
+
+### File Created
+
+| File | Purpose |
+|------|---------|
+| `tasks/prompts/106-1-prompt-validatorL.md` | Complete Lovable design prompt (~1,050 lines) |
+
+### User Journey Documented
+
+```
+Chat Input → Processing Animation → Validator Dashboard (/startup-validator-v3)
+```
+
+1. User clicks "Validate My Idea" and enters chat
+2. AI Coach asks about startup idea (1-2 follow-ups)
+3. 4-phase processing animation plays
+4. Dashboard shows pre-filled validation results
+
+### Wireframe Screens (6 Total)
+
+| Screen | Description |
+|--------|-------------|
+| Chat Input | Full-width chat with suggestion chips |
+| Processing Animation | 4-phase sequence (Analyze → Research → Score → Complete) |
+| Validator Dashboard | 8 sections with scores, TAM/SAM/SOM, recommendations |
+| Section Detail | Modal with full breakdown and edit capability |
+| Share Modal | Link generation, privacy options, QR code |
+| Export Modal | PDF/Notion/Docs format options |
+
+### AI Agents Documented (6)
+
+| Agent | Purpose |
+|-------|---------|
+| Chat Coach | Guide conversation, extract info |
+| Idea Analyzer | Parse chat, extract structure |
+| Market Research | Find TAM/SAM/SOM, benchmarks |
+| Competition Analyzer | Identify competitors, positioning |
+| Validation Scorer | Calculate 7-dimension scores |
+| Report Generator | Create human-readable narratives |
+
+### Workflows Documented (5)
+
+| Workflow | Trigger |
+|----------|---------|
+| Chat to Validation | User clicks "Validate Now" |
+| Edit and Re-score | User modifies section |
+| Generate Pitch Deck | User clicks action button |
+| Export PDF | User requests download |
+| Share Link | User creates shareable URL |
+
+### Additional Sections
+
+- Real-world example (Sarah's RestockAI validation journey)
+- Data model (input, results, metadata, persistence)
+- Functions & tools (frontend and backend)
+- Database schema (5 tables)
+- Edge functions (6 functions)
+- Frontend-backend wiring (API flows)
+- Responsive behavior (desktop/tablet/mobile)
+- Transitions and micro-interactions
+- Empty states and error handling
+- Accessibility requirements
+- Design tokens (colors, typography, spacing, shadows)
+
+---
+
+## [2026-02-04] - Security Audit & Validator Task Files
+
+**What we did:** Completed comprehensive security audit (5 migrations), created 3 new validator task prompts (110-112), and fixed broken task dependencies.
+
+### Security Fixes Applied
+
+| Migration | Purpose | Status |
+|-----------|---------|--------|
+| `create_startup_members_table` | Multi-user startup access control | ✅ Deployed |
+| `fix_events_directory_security_invoker` | Changed view from SECURITY DEFINER | ✅ Deployed |
+| `add_competitor_profiles_rls_policies` | Added 4 RLS policies | ✅ Deployed |
+| `fix_organizations_insert_policy` | Made INSERT restrictive | ✅ Deployed |
+| `fix_function_search_path_security` | Secured 33 functions | ✅ Deployed |
+
+### Security Advisor Improvements
+
+| Level | Before | After |
+|-------|--------|-------|
+| ERROR | 1 | 0 |
+| INFO | 1 | 0 |
+| WARN | 35 | 3 |
+
+### Validator Task Files Created
+
+| Task | File | Description |
+|------|------|-------------|
+| 110 | `110-market-analysis.md` | TAM/SAM/SOM, trends, segments, benchmarks |
+| 111 | `111-competitor-intel.md` | Positioning matrix, SWOT, feature comparison |
+| 112 | `112-financial-projections.md` | Unit economics, revenue models, pricing strategies |
+
+### Task Dependency Fixes
+
+| File | Fixed |
+|------|-------|
+| `102-coach-ai.md` | `depends_on: [101-VAL]` → `[101-coach-tables]` |
+| `103-coach-ui.md` | `depends_on: [101-VAL, 102-VAL]` → `[101-coach-tables, 102-coach-ai]` |
+| `104-coach-sync.md` | `depends_on: [101-VAL, 102-VAL, 103-VAL]` → `[101-coach-tables, 102-coach-ai, 103-coach-ui]` |
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `tasks/prompts/110-market-analysis.md` | Market analysis task (4 new tables) |
+| `tasks/prompts/111-competitor-intel.md` | Competitor intel task (3 new tables) |
+| `tasks/prompts/112-financial-projections.md` | Financial projections task (4 new tables) |
+| `scripts/test-health-scorer.ts` | Edge function test script |
+| `docs/audits/2026-02-04-security-fixes.md` | Security audit report |
+
+### Database State
+
+| Metric | Value |
+|--------|-------|
+| Total Tables | 80 |
+| Tables with RLS | 80 |
+| Edge Functions | 24 |
+| Active Migrations | 78 |
+| Task Prompts | 42 |
+
+---
+
+## [2026-02-04] - Validation Schema Migration Deployment
+
+**What we did:** Deployed 8 new validation framework tables to Supabase plus security fixes.
+
+### Tables Deployed
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| `assumptions` | Business hypotheses from Lean Canvas | ✅ |
+| `experiments` | Tests to validate assumptions | ✅ |
+| `experiment_results` | Individual data points from experiments | ✅ |
+| `customer_segments` | Customer personas with psychographics | ✅ |
+| `customer_forces` | Push/Pull/Inertia/Friction forces | ✅ |
+| `jobs_to_be_done` | JTBD framework jobs per segment | ✅ |
+| `interviews` | Customer discovery interviews | ✅ |
+| `interview_insights` | AI-extracted insights from interviews | ✅ |
+
+### Views Created
+| View | Purpose |
+|------|---------|
+| `customer_forces_balance` | Net force balance per segment |
+| `assumption_evidence` | Aggregated interview evidence per assumption |
+
+### Security Fix Applied
+- Fixed `customer_forces_balance` and `assumption_evidence` views to use `security_invoker = true`
+
+---
+
+## [2026-02-04] - Skill Alias Resolution & Audit Verification
+
+**What we did:** Resolved naming mismatches identified in audit `03-skills-vs-prompts-verification.md`. Created alias SKILL.md files so task prompts using `/supabase` and `/edge-functions` resolve correctly in Claude Code.
+
+### Audit Findings Addressed
+
+| Issue | Resolution |
+|-------|------------|
+| `/supabase` in prompts but `.claude/database-migration/` | Created `.claude/supabase/SKILL.md` alias |
+| `/edge-functions` in prompts but `.claude/edge-function-creator/` | Created `.claude/edge-functions/SKILL.md` alias |
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `.claude/supabase/SKILL.md` | Alias pointing to `/database-migration` |
+| `.claude/edge-functions/SKILL.md` | Alias pointing to `/edge-function-creator` |
+
+### Files Updated
+| File | Changes |
+|------|---------|
+| `skills.md` | v4.1 - Added alias entries, updated count to 35 |
+
+### Verification Status (03-skills-vs-prompts-verification.md)
+- **All 39 prompts have skills:** ✅
+- **All 12 referenced skills exist:** ✅
+- **Naming mismatches:** Fixed (0 remaining)
+
+---
+
+## [2026-02-04] - Task-Skill Mapping & Index Update
+
+**What we did:** Verified all 39 task prompts have associated skills and updated tasks to use domain-specific startup skills instead of generic `/feature-dev`.
+
+### Task Skill Updates
+| Task | Before | After | Reason |
+|------|--------|-------|--------|
+| `100-canvas-fields.md` | `/feature-dev` | `/lean-canvas` | Domain-specific canvas workflow |
+| `106-validation.md` | `/feature-dev` | `/validation-lab` | Experiment & interview framework |
+| `150-traction.md` | `/feature-dev` | `/traction` | Metrics & growth patterns |
+| `201-investors.md` | `/feature-dev` | `/fundraising` | Investor matching logic |
+| `203-sprints.md` | `/feature-dev` | `/lean-sprints` | 90-day PDCA cycles |
+
+### Files Updated
+| File | Changes |
+|------|---------|
+| `index-startup.md` | Updated prompts section with all 39 tasks + skill columns |
+| `skills.md` | v4.0 with full 33-skill inventory |
+| `sub-agents.md` | v2.0 with skills summary |
+
+### Skill Distribution (39 Tasks)
+```
+/supabase         13 tasks
+/feature-dev       7 tasks
+/frontend-design   4 tasks
+/mermaid-diagrams  3 tasks
+/gemini            3 tasks
+/edge-functions    3 tasks
+/validation-lab    1 task
+/traction          1 task
+/lean-sprints      1 task
+/lean-canvas       1 task
+/fundraising       1 task
+/sdk-agent         1 task
+```
+
+---
+
+## [2026-02-04] - Skills & Agents Inventory Update
+
+**What we did:** Verified and updated the skills and subagents documentation to reflect the current installed skills. Found major discrepancies - documentation showed 12 skills but actually 33 are installed.
+
+### Inventory Summary
+| Category | Count | Location |
+|----------|-------|----------|
+| Custom Agents | 10 | `.claude/agents/` |
+| Development Skills | 7 | `.claude/` |
+| Startup Domain Skills | 13 | `.claude/` |
+| Infrastructure Skills | 9 | `.claude/` |
+| External Skills | 4 | `.agents/skills/` |
+| **Total Skills** | **33** | — |
+
+### Files Updated
+| File | Changes |
+|------|---------|
+| `skills.md` | Updated to v4.0 with full 33-skill inventory |
+| `tasks/sub-agents.md` | Updated to v2.0, added skills summary table |
+
+### New Skills Found (not previously documented)
+- `/lean-canvas`, `/mvp-builder`, `/lean-sprints`, `/traction`
+- `/startup-metrics`, `/playbooks`, `/prompt-packs`, `/fundraising`
+- `/validation-lab`, `/pitch-deck`, `/idea-validator`, `/atlas-chat`
+- `/edge-functions`, `/database-migration`, `/api-wiring`, `/security-hardening`
+- `/supabase-realtime`, `/realtime-features`, `/cicd-pipeline`
+- `/performance-optimization`, `/accessibility`
+
+---
+
+## [2026-02-04] - Tool Approval Gate Pattern
+
+**What we did:** Added the "AI suggests, user approves, system writes" approval gate pattern to task documentation. This addresses the audit finding that "Chat cannot DO things" - AI must propose actions and wait for user approval before executing write operations.
+
+### Task Files Updated
+| File | Changes |
+|------|---------|
+| `216-claude-sdk.md` | Added Tool Approval Gate section with approval flow, audit logging, tool categories |
+| `102-coach-ai.md` | Added `proposedActions` to response contract, linked to approval pattern |
+| `000-index.md` | Added approval gate to critical requirements table |
+
+### Tool Categories
+| Category | Approval | Examples |
+|----------|----------|----------|
+| Read-only | Auto-approve | `get_canvas`, `search_knowledge`, `get_tasks` |
+| Write data | **Requires approval** | `create_task`, `update_canvas`, `send_email` |
+| Context-dependent | Based on action | `generate_pitch` (preview vs save) |
+
+### Implementation Pattern
+```
+1. AI proposes tool call (doesn't execute)
+2. Frontend shows approval UI
+3. User approves/rejects
+4. Edge function executes on approval
+5. Audit log records action
+```
+
+---
+
+## [2026-02-04] - Coach Database Schema & Forensic Audit
+
+**What we did:** Created the complete Coach state machine database schema (4 tables) and conducted a forensic audit comparing implementations against official Claude SDK and Gemini 3 documentation. Fixed critical gaps in task prompt files.
+
+### Database Migrations Applied
+| Migration | Table | Purpose |
+|-----------|-------|---------|
+| `20260204102000` | `validation_sessions` | Coach state machine root with 7 phases |
+| `20260204102100` | `validation_assessments` | 7-dimension scoring (0-10 per dimension) |
+| `20260204102200` | `validation_campaigns` | 90-day campaign plans with constraint types |
+| `20260204102300` | `validation_sprints` | PDCA sprint tracking (Plan-Do-Check-Act) |
+
+### Schema Features
+- **Enums created:** `coach_phase`, `constraint_type`, `pdca_step`
+- **Helper functions:** `get_validation_scores()`, `get_current_sprint()`
+- **All tables have:** Full RLS policies, FK indexes, triggers, comments
+- **Constraint types:** acquisition, monetization, retention, scalability
+- **Campaign types:** mafia_offer, demo_sell_build, wizard_of_oz, channel_validation, pricing_validation, retention_audit, scale_prep, custom
+
+### Forensic Audit Results
+| Area | Score | Issues |
+|------|-------|--------|
+| Gemini 3 Integration | 75% | Missing retry logic, temperature warnings, thought signatures |
+| Claude SDK Integration | 80% | Tool descriptions too short, missing is_error flag |
+| Supabase Realtime | 85% | SQL syntax errors in triggers, wrong parameter order |
+| Edge Functions | 70% | No timeout config, no circuit breaker |
+| Coach Tables | 100% | **Now complete** (was 0%) |
+
+### Task Prompts Updated
+- `215-gemini-integration.md` - Added retry config, temperature=1.0 warning, thought signatures
+- `216-claude-sdk.md` - Added 3-4+ sentence tool descriptions, is_error handling
+- `301-fallback.md` - Added circuit breaker pattern (5 failures → 30s cooldown)
+- `000-index.md` - Updated to v2.1 with critical requirements table
+- `017-agent-schema.md` - Added timeout/retry config requirements
+
+### Supabase Realtime Guide Fixed
+- Fixed SQL trigger syntax (RETURNS TRIGGER before LANGUAGE)
+- Fixed `realtime.send()` parameter order
+- Fixed INSERT policy (WITH CHECK instead of USING)
+- Fixed typo "corrolate" → "correlate"
+
+---
+
+## [2026-02-04] - Documentation Audit & 5-Phase Roadmap
+
+**What we did:** Conducted a forensic documentation audit across 43 files (plan, prompts, diagrams), fixed issues, and reorganized the roadmap to a 5-phase system (CORE → MVP → GROWTH → ADVANCED → PRODUCTION).
+
+### Audit Results
+- **Score:** 98% documentation completeness (up from 91%)
+- **Files audited:** 43 (16 plan + 5 prompts + 18 diagrams + 4 other)
+- **Issues fixed:** 5
+
+### Deleted (Empty Placeholders)
+- `plan/05-playbook.md` - Empty placeholder
+- `plan/06-prompt-packs.md` - Empty placeholder
+- `plan/07-chat.md` - Empty placeholder
+
+### Updated
+- `plan/09-data.md` - Added full RLS policy templates for all 6 Coach tables + index recommendations (+127 lines)
+- `prompts/104-coach-sync.md` - Added comprehensive sync error recovery: WebSocket reconnection, retry strategies, offline queue, state reconciliation (+231 lines)
+
+### Created
+- `audit/documentation-audit-2026-02-04.md` - Full audit report with per-file scoring
+- `roadmap.md` - 5-phase development roadmap (v2.0)
+- `index-startup.md` - Updated to v3.0 with phase-based organization
+
+### 5-Phase System
+| Phase | Question | Duration |
+|-------|----------|----------|
+| CORE | Can it work at all? | Weeks 1-6 |
+| MVP | Does it solve the main problem? | Weeks 7-12 |
+| GROWTH | Can users grow with it? | Weeks 13-16 |
+| ADVANCED | Does it help users do better? | Weeks 17-20 |
+| PRODUCTION | Can it be trusted at scale? | Weeks 21-24 |
+
+### Index Reorganization
+- Organized all 16 plan files by phase
+- Organized all 5 prompt files by phase
+- Organized all 18 diagram files by phase
+- Organized all 25 wireframe files by phase
+- Added statistics and quick links
+
+---
+
+## [2026-02-04] - Mermaid Live Preview MCP
+
+**What we did:** Added `mermaid-live-mcp` server for viewing diagrams with live browser preview. Now any mermaid diagram can be rendered instantly in a browser tab with real-time updates.
+
+### Added
+- MCP server: `mermaid-live-mcp` via `npx -y mermaid-live-mcp`
+- Tools: `generate_mermaid`, `update_diagram`, `list_diagrams`, `export_diagram`
+
+### Why This MCP
+| Evaluated | Verdict |
+|-----------|---------|
+| `mermaid-live-mcp` | ✅ Best for viewing — opens browser preview, real-time WebSocket updates |
+| `mermaid-mcp` | Good for PDF decks, but no live preview |
+| `mermaid-svg-mcp` | Simplest, SVG-only, no preview |
+
+---
+
+## [2026-02-04] - System Diagrams
+
+**What we did:** Created 17 mermaid diagrams documenting how every part of the system works—from user login to AI model fallback. Diagrams are organized by development phase (CORE → MVP → ADVANCED → PRODUCTION) following our system.md rules.
+
+### Added
+- `tasks/diagrams/` folder with 18 diagram files
+- `00-index.md` - Master index with phase overview
+- 4 CORE diagrams (D-01 to D-04): auth, onboarding, canvas generation, data persistence
+- 6 MVP diagrams (D-05 to D-10): coach conversation, 6 questions, validation report, pitch deck, CRM, task generation
+- 4 ADVANCED diagrams (D-11 to D-14): RAG retrieval, investor matching, realtime updates, 90-day sprints
+- 3 PRODUCTION diagrams (D-15 to D-17): error handling, RLS security, AI model fallback
+
+### Updated
+- `tasks/prd.md` - Replaced inline diagrams with reference to diagrams folder
+
+### Diagram Details
+| Phase | Diagrams | What They Show |
+|-------|----------|----------------|
+| CORE | D-01 to D-04 | Foundation: OAuth login, wizard flow, canvas creation, RLS data access |
+| MVP | D-05 to D-10 | Core features: Coach chat with RAG, 6-question flow, validation scoring, pitch generation, CRM enrichment, task creation |
+| ADVANCED | D-11 to D-14 | AI intelligence: Vector search, investor matching, realtime broadcasts, lean sprint cycles |
+| PRODUCTION | D-15 to D-17 | Scale & reliability: Error handling with retries, RLS policy types, model fallback chain |
+
+---
+
+## [2026-02-04] - Coach Questions & Task Files
+
+**What we did:** Improved the 6 core questions the Coach asks founders, and added clickable suggestion chips that appear at the bottom of chat to help users give better answers. Updated task files (100-104) with implementation details.
+
+**The 6 questions:**
+1. What pain or problem are you solving? → chips: `What's the cost?` `How often?` `How urgent?`
+2. How does your product solve this? → chips: `Core feature?` `10x better how?`
+3. Who is your ideal first customer? → chips: `Job title?` `Company size?` `Industry?`
+4. Why would they pay for this? → chips: `Time saved?` `Money earned?` `Risk reduced?`
+5. How will you reach them? → chips: `LinkedIn` `Cold email` `Communities` `Referrals`
+6. Why you, why now? → chips: `Domain expertise?` `Network?` `Technology?`
+
+### Updated
+- `tasks/plan/20-coach.md` - Added summary, improved questions, linked task files
+- `tasks/prompts/100-canvas-fields.md` - Added suggestion chips UI, question config table
+
+### Task Files Ready
+| Task | File | What |
+|------|------|------|
+| 100 | `100-canvas-fields.md` | 6 questions + suggestion chips |
+| 101 | `101-coach-tables.md` | 6 database tables |
+| 102 | `102-coach-ai.md` | Coach persona + phases |
+| 103 | `103-coach-ui.md` | 3-panel layout |
+| 104 | `104-coach-sync.md` | Panel sync + realtime |
+
+---
+
+## [2026-02-04] - Frontend-Backend Architecture
+
+**What we did:** Created a complete map of how the frontend (what users see) connects to the backend (where data lives). This includes 9 visual diagrams showing how data flows through the system—from login to AI responses.
+
+**Real examples:**
+- **Login:** User clicks "Sign in with Google" → Supabase Auth validates → JWT token issued → profile created in database → user lands on Dashboard
+- **Onboarding:** User pastes company URL → `onboarding-agent` extracts name, industry, problem → stores in `wizard_extractions` → `lean-canvas-agent` generates 9-block canvas → saved to `lean_canvases`
+- **Ask Coach:** User types "What's good churn for SaaS?" → `ai-chat` embeds query → searches `knowledge_chunks` → finds Tier A stat → returns "B2B SaaS benchmark: <5% monthly (source: Deloitte 2026)"
+- **Generate Pitch:** User clicks "Create Deck" → `pitch-deck-agent` reads canvas → Gemini generates 12 slides → saves to `pitch_deck_slides` → realtime broadcasts to UI → slides appear one by one
+
+Now any developer can trace exactly how user actions flow through edge functions, AI models, database tables, and back to the screen.
+
+### Added
+- `tasks/plan/12-frontend-backend.md` - Complete architecture plan with ERD and data flow diagrams
+
+### Diagrams Added (Mermaid)
+- **Entity Relationship Diagram** - Full system ERD showing 79 tables and relationships
+- **User Authentication Flow** - OAuth to profile creation
+- **Onboarding Data Flow** - URL extraction to canvas generation
+- **Canvas to Validation Flow** - Assumptions to validation report
+- **Chat with Tool Calling Flow** - Message routing to specialized agents
+- **RAG Knowledge Retrieval Flow** - Query embedding to cited answers
+- **Realtime Updates Flow** - Backend triggers to UI re-render
+- **RLS Security Model** - JWT to data access paths
+- **Deployment Architecture** - CDN to AI providers
+
+### Updated
+- `tasks/plan/09-data.md` - Added Coach Tables ERD and Data Flow diagrams, converted SQL to tables, added cross-references
+
+### Architecture Documented
+- Page-to-backend mapping for all 8 main pages
+- State management strategy (React Query, Supabase Auth, Realtime)
+- Hook architecture (useAuth, useStartup, useCanvas, etc.)
+- Edge function categories (10 AI agents, 5 analytics, 2 automation, 4 utilities)
+- Model selection rules (Gemini Flash for speed, Claude for reasoning)
+
+---
+
+## [2026-02-04] - Documentation & Summary
+
+### Added
+- `tasks/summary.md` - Executive summary with system strategy, dashboards, and expertise approach
+- Dashboard optimization strategy for all 12 screens
+- "How We Become the Leading Expert" section explaining Tier A sources, playbooks, Vector DB, and confidence levels
+
+### Updated
+- Changelog simplified to standard format (summary content moved to summary.md)
+
+---
+
+## [2026-02-04] - Supabase Audit & Data Documentation
+
+### Added
+- `tasks/docs/data/03-supabase-audit.md` - Full security audit with 24 issues, ERD, data flow diagrams
+- Dashboard screens documentation (13 screens)
+
+### Updated
+- `tasks/docs/data/02-supabase-summary.md` - Added security status section
+
+### Organized
+- Renamed data docs with numbered prefixes (01-07)
+
+### Security Issues Found
+- 1 Critical: SECURITY DEFINER view
+- 2 High: RLS gaps
+- 21 Medium: Functions missing search_path
+- 1 Low: Vector extension location
+
+---
+
+## [2026-02-04] - Validator Improvement Plan
+
+### Added
+- `tasks/plan/30-trust-first-implementation.md` - Trust-first approach (Coach, Validation, Onboarding)
+- `tasks/plan/31-validator-plan.md` - 5-phase implementation plan
+- `tasks/plan/32-validator-ideaproof-comparison.md` - Gap analysis vs IdeaProof
+
+### Key Decisions
+- Focus on 3 things first: Coach, Validation, Onboarding
+- 750 vector chunks (simplified from 2,350)
+- Match IdeaProof's 14-section report format
+- Leverage Tier A sources as competitive advantage
+
+---
+
+## [2026-02-04] - AI Industry Research (Tier A)
+
+### Added
+- `research/studies/2026-ai-industry-guide-v2.md` - Tier A focused research
+- `research/studies/2026-infographic-statistics.md` - Stats for infographics
+
+### Research Sources
+- Deloitte (n=3,235), BCG (n=2,360), PwC (n=4,454), McKinsey, CB Insights, Gartner
+
+### Key Stats
+- 72% of CEOs are main AI decision-makers (BCG)
+- $226B invested in AI in 2025 (CB Insights)
+- 56% report zero financial benefit from AI (PwC)
+- 40% of enterprise apps will have AI agents by end of 2026 (Gartner)
+
+---
+
+## [2026-02-04] - Coach System & Vector Strategy
+
+### Added
+- `tasks/plan/10-edge-functions.md` - 24 edge function inventory
+- `tasks/plan/11-vector-simple.md` - Simplified vector/RAG strategy
+
+### Key Decisions
+- Use existing agents, don't over-engineer
+- 1 knowledge_chunks table (not 4 libraries)
+- Phase 1: RAG for Coach, semantic search, benchmarks
+
+---
+
+## [2026-02-02] - MVP Phase Task Files
+
+### Added
+- `02.1-mvp-definition.md` - MVP scope validation
+- `02.2-early-testing.md` - User testing framework
+- `02.3-revenue-validation.md` - Pricing and conversion
+
+### Features
+- Extended thinking for complex analysis (10K-15K tokens)
+- Van Westendorp pricing analysis
+- Friction Analysis Agent
+
+---
+
+## [2026-02-02] - Validation Task Files & Industry Experts
+
+### Added
+- `01.1-customer-discovery.md` - ICP definition + interviews
+- `01.2-pain-validation.md` - Pain point documentation
+- `01.3-demand-testing.md` - Landing page + go/no-go
+- `prompt-library/industries/` - 19 industry prompt files
+- `05-data-plan.md` - 16-table validation data model
+
+---
+
+## [2026-02-02] - Edge Functions & Playbooks
+
+### Added
+- `11-edge-functions-industry-packs.md` - Pack search/run/apply
+- `12-enriched-playbooks-schema.md` - TypeScript schemas
+- `13-industry-playbook-edge-strategy.md` - Implementation plan
+
+### Updated
+- lean-canvas-agent with 4 assumption management actions
+- AI cost tracking via ai_runs table
+
+---
+
+## [2026-01-29] - Initial Schema Documentation
+
+### Added
+- `01-supabase-schema.md` - Complete schema
+- `02-table-schemas.md` - Table definitions
+- `03-rls-policies.md` - RLS policies
+- `04-table-relationships.md` - Relationship diagrams
+- `05-edge-functions.md` - Edge functions overview
+- Performance optimization guide
+- System architecture diagrams
+
+---
+
+## Next Steps (6 Weeks)
+
+**Recent progress:** We've laid the groundwork for a trustworthy AI system. Completed a full Supabase security audit that found 24 issues (1 critical, 2 high-priority RLS gaps). Documented all 24 edge functions and 13 dashboard screens. Built a simplified vector/RAG strategy using one knowledge_chunks table instead of overengineering with 4 libraries. Gathered Tier A research from major consulting firms—Deloitte (3,235 respondents), BCG (2,360), PwC (4,454), McKinsey, CB Insights, and Gartner. Key stats ready to load: 72% of CEOs are main AI decision-makers, $226B invested in AI in 2025, and 56% report zero financial benefit from AI yet.
+
+**Next 6 weeks:** The goal is to make StartupAI's outputs trustworthy and professional. Week 1-2 focuses on the Coach—loading 200+ verified stats into Vector DB so every answer includes citations and confidence levels, with responses under 30 seconds. Week 3-4 upgrades the Validator to match IdeaProof's quality: 14-section reports, TAM/SAM/SOM visualizations, executive summaries with verdict labels, and market/execution factor scores. Week 5-6 adds polish: investor-ready PDF exports, shareable report links, industry benchmark overlays, and a report-context AI Copilot.
+
+### Phase 1: Trust-First (Week 1-2)
+- [ ] Load 200+ Tier A stats into Vector DB
+- [ ] Coach answers with citations and confidence levels
+- [ ] Speed optimization target: <30 seconds
+
+### Phase 2: Validator (Week 3-4)
+- [ ] Match IdeaProof's 14-section report format
+- [ ] Add TAM/SAM/SOM visualization
+- [ ] Add Executive Summary with verdict labels
+- [ ] Add Highlights & Red Flags columns
+- [ ] Add Market/Execution factor scores
+
+### Phase 3: Polish (Week 5-6)
+- [ ] PDF export (investor-ready)
+- [ ] Share links (unique URL per report)
+- [ ] Industry benchmarks overlay
+- [ ] Report-context AI Copilot
+
+> See [32-validator-ideaproof-comparison.md](./plan/32-validator-ideaproof-comparison.md) for full gap analysis

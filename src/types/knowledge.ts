@@ -3,7 +3,22 @@
  * Types for vector database and RAG system
  */
 
-export type SourceType = 'deloitte' | 'bcg' | 'pwc' | 'mckinsey' | 'cb_insights' | 'gartner';
+/** Matches DB enum knowledge_source_type (14 values). */
+export type SourceType =
+  | 'deloitte'
+  | 'bcg'
+  | 'pwc'
+  | 'mckinsey'
+  | 'cb_insights'
+  | 'gartner'
+  | 'forrester'
+  | 'harvard_business_review'
+  | 'mit_sloan'
+  | 'yc_research'
+  | 'a16z'
+  | 'sequoia'
+  | 'internal'
+  | 'other';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface KnowledgeChunk {
@@ -26,6 +41,11 @@ export interface KnowledgeSearchResult {
   source: string;
   confidence: ConfidenceLevel;
   similarity: number;
+  documentId?: string;
+  documentTitle?: string;
+  sectionTitle?: string;
+  pageStart?: number;
+  pageEnd?: number;
 }
 
 export interface KnowledgeSearchRequest {

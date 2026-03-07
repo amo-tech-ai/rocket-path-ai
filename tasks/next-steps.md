@@ -27,6 +27,8 @@
 | 30 | pg-vector skills (15 issue fixes), Supabase live verification (90 migrations, 37 EFs, 56 tables) |
 | 31 | PROD-06 Lint cleanup: 990→340 errors. Fixed 18 React hooks violations, case declarations, escape chars, require imports. 3 new production prompts. |
 | 32 | R7 chunk split (593→391+201kB), K4 chunk dedupe (4,130→3,746), POST-03 health from validator scores. |
+| 33 | E2E audit: 8 issues found+fixed (C1-C3, H1-H3, M1-M2). 9 mermaid diagrams. knowledge-search 401 fix, realtime warn, pipeline startup guard, chat readiness. |
+| 34 | Vector storage audit: K6 validator direct RPC (no 401), K5 hybrid search in chat UI, citation fields in types. |
 
 ---
 
@@ -37,7 +39,7 @@
 | # | Task | Effort | Impact | Why Now |
 |:-:|------|:------:|:------:|---------|
 | 1 | **POST-02:** Sprint Board ← report priority actions | 2-3d | 🟢 High | Report says "fix your pricing" but actions just sit there — this makes them trackable |
-| 2 | **K5:** Hybrid search function | 2-3d | 🟡 RAG | Only semantic search exists — adding keyword matching makes RAG much more accurate |
+| 2 | **K7:** RAG in ai-chat EF (hybrid) | 1d | 🟡 RAG | ai-chat/rag.ts still uses semantic-only search — switch to hybrid for better recall |
 | 3 | **13A:** Report shared components (6 remaining) | 2d | 🟡 Polish | 4/10 built — some report sections look polished, others look rough |
 | 4 | **A3:** Streaming AI Chat responses | 2d | 🟡 UX | Chat dumps full response at once — streaming makes it feel responsive |
 | 5 | **22:** Interview context → Report pipeline | 2-3d | 🟢 High | Chat extracts rich data but Composer barely uses it — report feels disconnected from interview |
@@ -74,7 +76,8 @@
 | # | Task | Status | % | Effort | Next Action |
 |---|------|:------:|:-:|:------:|-------------|
 | K4 | Content hash dedupe | 🟢 Done | 100 | — | ✅ Unique index + CHECK constraint + 384 rows cleaned |
-| K5 | Hybrid search function | 🔴 | 0 | 2-3d | Build `hybrid_search_knowledge` (keyword + semantic + RRF) |
+| K5 | Hybrid search function | 🟢 Done | 100 | — | ✅ `hybrid_search_knowledge` RPC live; validator + chat UI use it |
+| K6 | Validator RAG direct RPC | 🟢 Done | 100 | — | ✅ No HTTP round-trip, no 401. Research + Competitors use admin client |
 
 > **What these mean for the founder:**
 > - **K4:** If someone uploads the same document twice, we currently store duplicate chunks wasting space and cluttering search results. This adds a fingerprint check so identical content is stored only once.
