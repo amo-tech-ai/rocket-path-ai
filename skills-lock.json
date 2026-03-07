@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "skills": {
+    "canvas-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "a2fe47d24b3fd8e52faef731fff099c557e698083cd644b2e5695cc4dd8c7715"
+    },
+    "daily-ai-news": {
+      "source": "yyh211/claude-meta-skill",
+      "sourceType": "github",
+      "computedHash": "e98e0d29ff4b5425e7a422108082671f5ccca2208ea1ce86673137959a0a4d88"
+    },
+    "daily-news-report": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "9cca04192446a6b7df8c816fb45dfb06653062d2fcb9d3a90c250be7528f8105"
+    },
+    "design-md": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "computedHash": "d3a4c7d2f2715a33662c8b06ffc16035d01965a8b4ed81c2958fb22ae94760f8"
+    },
+    "illustrated-slides-with-nano-banana": {
+      "source": "fluxa-agent-payment/skills",
+      "sourceType": "github",
+      "computedHash": "9805702ce56e146cb2aa91623c9b8028685f8c9ab92d7a396f27ec0acc89aee5"
+    },
+    "image-manipulation-image-magick": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "f4f81a1054a423c5eff04f05c1b72335beae2251201c5b5729b0dce4bee06f7e"
+    },
+    "infographic-creator": {
+      "source": "antvis/chart-visualization-skills",
+      "sourceType": "github",
+      "computedHash": "28d634f32712ca06aec83497aa3aef1fdc591d12845f464dd43c29d0ac0769f2"
+    },
+    "logo-design-guide": {
+      "source": "inference-sh-9/skills",
+      "sourceType": "github",
+      "computedHash": "b243868db3430341e2f17554f0911d7091c4a0893cb7c37e0d59310d7d3e962e"
+    },
+    "mvp-architect": {
+      "source": "shipshitdev/library",
+      "sourceType": "github",
+      "computedHash": "24ff9e751812d857e103dc1f3900707f89937498f0760b5cd139bd63b224680c"
+    },
+    "nano-banana-2-image-assets": {
+      "source": "moose-lab/landing-page-marketing-skills",
+      "sourceType": "github",
+      "computedHash": "d75b98cd0e4c8ed9b90c1de756520fd086b597845899be4ff3acc32c63029680"
+    },
+    "nanobanana-skill": {
+      "source": "feiskyer/codex-settings",
+      "sourceType": "github",
+      "computedHash": "bbb0209ee68343959a8cf43b90437b8e08618d4e2b94c5d329a428da5c96db04"
+    },
+    "postgres-drizzle": {
+      "source": "ccheney/robust-skills",
+      "sourceType": "github",
+      "computedHash": "60534e1aa880981e26360db836115df77a8e73be219c7a027e635802686b5bd9"
+    },
+    "remotion": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "computedHash": "73a794b428f2bb568859f0db83b66219c842a0a088db9818a45ac72c37b6aa66"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "computedHash": "9851afb52e1b892c43b2af973bda1776ce01fedfdfe704e0cfd70069a3a9c300"
+    },
+    "researching-ai-news": {
+      "source": "jamesgray007/hoai-course",
+      "sourceType": "github",
+      "computedHash": "07542796216fcee3998dc8289f41158e83c4058712734e551d2a063707d19d84"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "9b03bb78ec5c81c4e0546dbb78cfc970368c72dcae5482e8c59690175abbc8e7"
+    },
+    "supabase-auth": {
+      "source": "nice-wolf-studio/claude-code-supabase-skills",
+      "sourceType": "github",
+      "computedHash": "8c0e53a0cb9739954966c689ac714608ae8d4d1a1c2c65321eddde1cb12ece71"
+    },
+    "troubleshoot-errors": {
+      "source": "iskysun96/aptos-agent-skills",
+      "sourceType": "github",
+      "computedHash": "166390e3937d29dd5fc46dc9f0076630e44abe225cff667e29e431c92a60fe5a"
+    }
+  }
+}

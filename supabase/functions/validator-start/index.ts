@@ -149,6 +149,17 @@ Deno.serve(async (req) => {
       console.error('[validator-start] Failed to create runs:', runsError);
     }
 
+    // V1: Pre-create lightweight agent tracking rows in validator_agent_runs (all queued)
+    const agentRunRows = agentNames.map(agentKey => ({
+      session_id: sessionId,
+      agent_name: AGENTS[agentKey].name,
+      status: 'queued',
+    }));
+    const { error: agentRunsError } = await supabaseAdmin.from('validator_agent_runs').insert(agentRunRows);
+    if (agentRunsError) {
+      console.error('[validator-start] Failed to create agent runs:', agentRunsError);
+    }
+
     // 3. Background pipeline via EdgeRuntime.waitUntil (official Supabase pattern).
     // Keeps the isolate alive for the pipeline up to the 400s wall-clock limit (paid plan).
     // Falls back to fire-and-forget if waitUntil is unavailable.

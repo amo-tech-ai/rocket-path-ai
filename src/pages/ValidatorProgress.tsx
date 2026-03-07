@@ -11,6 +11,7 @@
  import { Button } from '@/components/ui/button';
  import { Badge } from '@/components/ui/badge';
  import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
  import { useValidatorRealtime } from '@/hooks/realtime/useValidatorRealtime';
  import type { ValidatorPipelineCompletePayload } from '@/hooks/realtime/types';
  import { 
@@ -42,11 +43,24 @@
    error?: string;
  }
  
+ // V1: Per-agent tracking from validator_agent_runs table
+ interface AgentRun {
+   step: number;
+   name: string;
+   agent: string;
+   status: 'queued' | 'running' | 'completed' | 'failed' | 'skipped';
+   started_at: string | null;
+   ended_at: string | null;
+   duration_ms: number | null;
+   error: string | null;
+ }
+
  interface SessionStatus {
    session_id: string;
    status: 'running' | 'complete' | 'partial' | 'failed';
    progress: number;
    steps: PipelineStep[];
+   agent_runs?: AgentRun[];
    report?: {
      id: string;
      score: number;
@@ -82,6 +96,8 @@
    const statusRef = useRef<SessionStatus | null>(null);
    const MAX_POLL_MS = 360_000; // B3 fix: 6 min (pipeline deadline 300s + 60s buffer)
    const [navigating, setNavigating] = useState(false);
+   // V4: Per-agent retry state
+   const [retryingAgent, setRetryingAgent] = useState<string | null>(null);
 
    // RT-1: Realtime pipeline progress — instant agent status updates
    const handleRealtimeComplete = useCallback((p: ValidatorPipelineCompletePayload) => {
@@ -120,6 +136,43 @@
      setNavigating(false);
      if (data?.id) navigate(`/validator/report/${data.id}`);
    }, [sessionId, status?.report?.id, navigate]);
+
+   // V4: Retry a single failed agent via validator-retry edge function
+   const handleRetry = useCallback(async (agentName: string) => {
+     if (!sessionId || retryingAgent) return;
+     setRetryingAgent(agentName);
+
+     try {
+       const session = await supabase.auth.getSession();
+       const token = session.data.session?.access_token;
+       if (!token) throw new Error('Not authenticated');
+
+       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+       const response = await fetch(
+         `${supabaseUrl}/functions/v1/validator-retry`,
+         {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${token}`,
+           },
+           body: JSON.stringify({ session_id: sessionId, agent_name: agentName }),
+         }
+       );
+
+       const data = await response.json();
+       if (!response.ok) throw new Error(data.error || `Status ${response.status}`);
+
+       // Resume polling — pipeline is running again
+       pollingStart.current = Date.now();
+       setPolling(true);
+       toast.success(`Retrying ${agentName.replace('Agent', '')}...`);
+     } catch (e) {
+       toast.error(e instanceof Error ? e.message : 'Retry failed');
+     } finally {
+       setRetryingAgent(null);
+     }
+   }, [sessionId, retryingAgent]);
 
    // Keep ref in sync with state so the polling closure always has latest value
    useEffect(() => {
@@ -354,11 +407,18 @@
                has_citations: false,
                error: a.error,
              }))).map((step, index) => {
-               // RT-1: Prefer realtime status when available (more responsive)
+               // RT-1: Prefer realtime status when available (most responsive)
                const rtAgent = rt.eventCount > 0 ? rt.agents.find(a => a.name === step.agent) : null;
-               const mergedStatus = rtAgent && rtAgent.status !== 'queued' ? rtAgent.status : step.status;
-               const mergedDuration = rtAgent?.durationMs || step.duration_ms;
-               const mergedError = rtAgent?.error || step.error;
+               // V1: Also merge agent_runs data for accurate pipeline timing
+               const ar = status?.agent_runs?.find(r => r.agent === step.agent);
+               // Map agent_runs 'completed' → 'ok' for UI consistency
+               const arStatus = ar?.status === 'completed' ? 'ok' : ar?.status;
+               // Priority: realtime > agent_runs > polling steps
+               const mergedStatus = (rtAgent && rtAgent.status !== 'queued') ? rtAgent.status
+                 : (arStatus && arStatus !== 'queued') ? arStatus
+                 : step.status;
+               const mergedDuration = rtAgent?.durationMs || ar?.duration_ms || step.duration_ms;
+               const mergedError = rtAgent?.error || ar?.error || step.error;
 
                const mergedStep = { ...step, status: mergedStatus, duration_ms: mergedDuration, error: mergedError };
                const Icon = getStepIcon(mergedStep);
@@ -527,7 +587,21 @@
                </p>
              )}
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-               {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').map(step => (
+               {/* V1: Merge steps + agent_runs for summary. Map completed→ok for display */}
+               {(() => {
+                 // Build merged summary: prefer agent_runs status/timing
+                 const merged = status.steps.map(step => {
+                   const ar = status.agent_runs?.find(r => r.agent === step.agent);
+                   const arStatus = ar?.status === 'completed' ? 'ok' : ar?.status;
+                   return {
+                     ...step,
+                     status: (arStatus && arStatus !== 'queued') ? arStatus : step.status,
+                     duration_ms: ar?.duration_ms || step.duration_ms,
+                     error: ar?.error || step.error,
+                   };
+                 });
+                 return merged;
+               })().filter(s => s.status === 'ok' || s.status === 'partial').map(step => (
                  <div key={step.agent} className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                    <span className="text-sm text-foreground">{step.name}</span>
@@ -539,12 +613,29 @@
                {status.steps.filter(s => s.status === 'failed').map(step => (
                  <div key={step.agent} className="flex items-center gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
                    <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
-                   <div className="min-w-0">
+                   <div className="flex-1 min-w-0">
                      <span className="text-sm text-foreground">{step.name}</span>
                      {step.error && (
                        <p className="text-xs text-muted-foreground truncate">{step.error}</p>
                      )}
                    </div>
+                   {/* V4: Per-agent retry button */}
+                   <Button
+                     size="sm"
+                     variant="ghost"
+                     className="flex-shrink-0 h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                     onClick={() => handleRetry(step.agent)}
+                     disabled={retryingAgent !== null}
+                   >
+                     {retryingAgent === step.agent ? (
+                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                     ) : (
+                       <>
+                         <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                         <span className="text-xs">Retry</span>
+                       </>
+                     )}
+                   </Button>
                  </div>
                ))}
                {status.steps.filter(s => s.status === 'skipped').map(step => (
@@ -563,7 +654,9 @@
                {status.steps.filter(s => s.status === 'ok' || s.status === 'partial').length} agents completed
                {status.steps.filter(s => s.status === 'failed').length > 0 && `, ${status.steps.filter(s => s.status === 'failed').length} failed`}
                {status.steps.filter(s => s.status === 'skipped').length > 0 && `, ${status.steps.filter(s => s.status === 'skipped').length} skipped`}.
-               {' '}Try again — the pipeline has been updated with longer timeouts.
+               {status.steps.some(s => s.status === 'failed')
+                 ? ' Click Retry on a failed agent to re-run it, or start over with a fresh pipeline.'
+                 : ' Try again — the pipeline has been updated with longer timeouts.'}
              </p>
            </motion.div>
          )}
@@ -574,10 +667,29 @@
              <Button variant="outline" onClick={() => navigate('/validate')}>
                Start Over
              </Button>
-             <Button onClick={() => navigate('/validate')}>
-               <RefreshCw className="w-4 h-4 mr-2" />
-               Try Again
-             </Button>
+             {/* V4: Smart retry — retry the first failed agent instead of restarting */}
+             {(() => {
+               const firstFailed = status.steps?.find(s => s.status === 'failed');
+               if (!firstFailed) return (
+                 <Button onClick={() => navigate('/validate')}>
+                   <RefreshCw className="w-4 h-4 mr-2" />
+                   Try Again
+                 </Button>
+               );
+               return (
+                 <Button
+                   onClick={() => handleRetry(firstFailed.agent)}
+                   disabled={retryingAgent !== null}
+                 >
+                   {retryingAgent ? (
+                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                   ) : (
+                     <RefreshCw className="w-4 h-4 mr-2" />
+                   )}
+                   Retry {firstFailed.name}
+                 </Button>
+               );
+             })()}
            </div>
          )}
        </div>

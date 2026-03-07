@@ -43,6 +43,13 @@ export const COLORS = {
   axis: '#D0CBC4',
   gridLine: '#EDE8E2',
   track: '#F5F3EF',          // same as surfaceAlt — bar/ring backgrounds
+
+  // Dark-on-light helpers (used by components on gradient backgrounds)
+  white: '#FFFFFF',
+  muted: '#8A8580',           // alias for textMuted
+  dimmed: '#BAB5AE',          // alias for textDimmed
+  green: '#5C8A68',           // alias for sage
+  surfaceLight: '#F5F3EF',    // alias for surfaceAlt — bar track backgrounds
 } as const;
 
 export type ColorKey = keyof typeof COLORS;

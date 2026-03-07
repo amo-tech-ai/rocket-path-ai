@@ -25,6 +25,7 @@ export interface CoachResult {
   suggestions: CoachSuggestion[];
   next_chips: string[];
   canvas_score: number;
+  citations: string[];
 }
 
 interface StartupContext {
@@ -75,6 +76,7 @@ export function useCanvasCoach() {
         suggestions: data.suggestions || [],
         next_chips: data.next_chips || [],
         canvas_score: data.canvas_score ?? 0,
+        citations: data.citations || [],
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error';

@@ -1,7 +1,8 @@
 /**
  * Validator Database Helpers
- * Functions for updating agent run status in validator_runs table.
+ * Functions for updating agent run status in validator_runs + validator_agent_runs tables.
  * H6 Fix: All writes check and log errors.
+ * V1: Added validator_agent_runs helpers for lightweight per-agent progress tracking.
  */
 
 import type { SupabaseClient } from "./types.ts";
@@ -82,5 +83,58 @@ export async function completeRun(
 
   if (dbError) {
     console.error(`[db] completeRun update failed for ${agentName}:`, dbError.message);
+  }
+}
+
+// ===== validator_agent_runs helpers (V1: lightweight per-agent progress tracking) =====
+
+/**
+ * Mark an agent as 'running' in validator_agent_runs.
+ * Called when agent starts execution (after broadcast agent_started).
+ * Row must already exist (pre-created as 'queued' in index.ts).
+ */
+export async function startAgentRun(
+  supabase: SupabaseClient,
+  sessionId: string,
+  agentName: string,
+) {
+  const { error } = await supabase
+    .from('validator_agent_runs')
+    .update({ status: 'running', started_at: new Date().toISOString() })
+    .eq('session_id', sessionId)
+    .eq('agent_name', agentName);
+
+  if (error) {
+    console.error(`[db] startAgentRun failed for ${agentName}:`, error.message);
+  }
+}
+
+/**
+ * Mark an agent as completed/failed/skipped in validator_agent_runs.
+ * Called when agent finishes execution (after broadcast agent_completed/agent_failed).
+ */
+export async function completeAgentRun(
+  supabase: SupabaseClient,
+  sessionId: string,
+  agentName: string,
+  status: 'completed' | 'failed' | 'skipped',
+  durationMs?: number,
+  errorMsg?: string,
+) {
+  const update: Record<string, unknown> = {
+    status,
+    ended_at: new Date().toISOString(),
+  };
+  if (durationMs !== undefined) update.duration_ms = durationMs;
+  if (errorMsg) update.error = errorMsg;
+
+  const { error } = await supabase
+    .from('validator_agent_runs')
+    .update(update)
+    .eq('session_id', sessionId)
+    .eq('agent_name', agentName);
+
+  if (error) {
+    console.error(`[db] completeAgentRun failed for ${agentName}:`, error.message);
   }
 }

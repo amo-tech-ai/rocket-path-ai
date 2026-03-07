@@ -3,6 +3,13 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    },
+    "stitch": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f .env.local ] && . ./.env.local; set +a; exec npx -y @_davideast/stitch-mcp@latest proxy"
+      ]
     }
   }
 }

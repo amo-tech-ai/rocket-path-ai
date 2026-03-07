@@ -213,7 +213,7 @@ describe('ReportV2Layout', () => {
         )
       );
 
-      expect(screen.getByText('Market Size')).toBeTruthy();
+      expect(screen.getAllByText('Market Size').length).toBeGreaterThan(0);
     });
 
     it('renders MVP Scope section', async () => {

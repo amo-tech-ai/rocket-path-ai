@@ -5,9 +5,72 @@
  */
 
 import { callGeminiStructured, logAIRun } from "../ai-utils.ts";
+import { generateEmbedding } from "../../_shared/openai-embeddings.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
+
+// ---------------------------------------------------------------------------
+// RAG: Knowledge search for coaching context
+// ---------------------------------------------------------------------------
+
+interface KnowledgeChunk {
+  content: string;
+  source: string;
+  source_type: string;
+  category: string;
+  industry: string | null;
+  similarity: number;
+  document_title: string | null;
+}
+
+/**
+ * Search knowledge base for relevant industry data to enrich coaching.
+ * Returns formatted citation string for injection into system prompt.
+ * Graceful degradation: returns empty string on any failure.
+ */
+async function searchCoachingContext(
+  supabase: SupabaseClient,
+  query: string,
+  industry?: string,
+): Promise<{ context: string; sources: string[] }> {
+  try {
+    const { embedding } = await generateEmbedding(query);
+
+    const { data: chunks, error } = await supabase.rpc('search_knowledge', {
+      query_embedding: embedding,
+      match_threshold: 0.6,
+      match_count: 5,
+      filter_category: null,
+      filter_industry: industry?.toLowerCase() || null,
+    });
+
+    if (error || !chunks?.length) {
+      return { context: '', sources: [] };
+    }
+
+    const validChunks = (chunks as KnowledgeChunk[]).filter(c => c.similarity >= 0.6);
+    if (validChunks.length === 0) return { context: '', sources: [] };
+
+    // Format as numbered citations for the prompt
+    const lines = validChunks.map((c, i) =>
+      `[${i + 1}] ${c.content.slice(0, 400)}${c.content.length > 400 ? '...' : ''}\n    — ${c.source}${c.document_title ? ` (${c.document_title})` : ''} | ${c.category} | Relevance: ${(c.similarity * 100).toFixed(0)}%`
+    );
+
+    const sources = validChunks.map(c =>
+      c.document_title || c.source
+    );
+
+    return {
+      context: `\n\n## Relevant Industry Data\nUse these data points to back up your coaching advice. Reference them by number [1], [2], etc. when relevant — but only cite data that directly supports your point. Do not force-fit citations.\n\n${lines.join('\n\n')}`,
+      sources: [...new Set(sources)],
+    };
+  } catch (e) {
+    // Graceful degradation — coaching works without RAG
+    console.warn('[coach] RAG search failed (continuing without):', e instanceof Error ? e.message : e);
+    return { context: '', sources: [] };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +94,7 @@ interface CanvasCoachResponse {
   next_chips: string[];
   canvas_score: number;
   reasoning: string;
+  citations: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -39,7 +103,7 @@ interface CanvasCoachResponse {
 
 const coachResponseSchema = {
   type: "OBJECT",
-  required: ["reply", "weak_sections", "suggestions", "next_chips", "canvas_score", "reasoning"],
+  required: ["reply", "weak_sections", "suggestions", "next_chips", "canvas_score", "reasoning", "citations"],
   properties: {
     reply: {
       type: "STRING",
@@ -84,6 +148,11 @@ const coachResponseSchema = {
     reasoning: {
       type: "STRING",
       description: "Internal analysis of canvas state (not shown to user).",
+    },
+    citations: {
+      type: "ARRAY",
+      items: { type: "STRING" },
+      description: "Source references cited in reply, e.g. 'Deloitte State of AI 2026'. Empty array if no data was referenced.",
     },
   },
 };
@@ -184,6 +253,7 @@ export async function coach(
   suggestions: CoachSuggestion[];
   next_chips: string[];
   canvas_score: number;
+  citations: string[];
 }> {
   const { messages, canvas_data, startup_context, focused_box } = input;
 
@@ -207,16 +277,42 @@ export async function coach(
     ? cleanMessages.map(m => `${m.role === 'user' ? 'Founder' : 'Coach'}: ${m.content}`).join('\n')
     : 'Founder: Hi, I need help with my canvas.';
 
+  // K3: RAG — search knowledge base for relevant industry data
+  // Build search query from latest user message + canvas context
+  const latestUserMsg = cleanMessages.filter(m => m.role === 'user').pop()?.content || '';
+  const ragQuery = [
+    latestUserMsg,
+    focused_box ? `lean canvas ${focused_box}` : '',
+    startup_context?.industry || '',
+    startup_context?.description?.slice(0, 100) || '',
+  ].filter(Boolean).join(' ').slice(0, 500);
+
+  // Service role client for vector search (bypasses RLS on knowledge_chunks)
+  const serviceUrl = Deno.env.get('SUPABASE_URL');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  let ragContext = '';
+  let ragSources: string[] = [];
+
+  if (serviceUrl && serviceKey && ragQuery.trim()) {
+    const { createClient } = await import("npm:@supabase/supabase-js@2");
+    const adminClient = createClient(serviceUrl, serviceKey);
+    const ragResult = await searchCoachingContext(adminClient, ragQuery, startup_context?.industry);
+    ragContext = ragResult.context;
+    ragSources = ragResult.sources;
+  }
+
+  const systemPromptWithRAG = SYSTEM_PROMPT + ragContext;
+
   const userPrompt = `${startupInfo}Current Canvas State:\n${canvasStr}\n${focusNote}\nConversation:\n${conversationText}`;
 
-  console.log(`[coach] User ${userId} | ${cleanMessages.length} messages | focused: ${focused_box || 'none'}`);
+  console.log(`[coach] User ${userId} | ${cleanMessages.length} messages | focused: ${focused_box || 'none'} | RAG: ${ragSources.length} sources`);
 
-  // Call Gemini via shared SDK wrapper with 15s hard timeout
-  const COACH_TIMEOUT_MS = 15_000;
+  // Call Gemini via shared SDK wrapper with 20s hard timeout (added 5s for RAG embedding)
+  const COACH_TIMEOUT_MS = 20_000;
   const { data: parsed, response: aiResponse } = await Promise.race([
     callGeminiStructured<CanvasCoachResponse>(
       'gemini-3-flash-preview',
-      SYSTEM_PROMPT,
+      systemPromptWithRAG,
       userPrompt,
       coachResponseSchema,
     ),
@@ -245,5 +341,6 @@ export async function coach(
     suggestions: parsed.suggestions || [],
     next_chips: parsed.next_chips || [],
     canvas_score: parsed.canvas_score ?? 0,
+    citations: parsed.citations?.length ? parsed.citations : ragSources,
   };
 }

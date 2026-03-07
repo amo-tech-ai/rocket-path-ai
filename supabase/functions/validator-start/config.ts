@@ -19,9 +19,10 @@ export const AGENTS = {
 export type AgentName = keyof typeof AGENTS;
 
 // F2: Per-agent timeout budgets
-// Critical path (Competitors decoupled to background):
-//   Extractor(60s) + Research(40s) + Scoring(15s) + MVP(30s) + grace(5s) + Composer(~90s) + Verifier(5s) = ~245s
-// Pipeline deadline is 300s (paid plan 400s). Composer budget is dynamically capped to remaining time minus 10s buffer.
+// Critical path (Research + Competitors + Scoring run in PARALLEL after Extractor):
+//   Extractor(60s) + max(Research(40s), Competitors(55s), Scoring(30s)) + MVP(30s) + grace(5s) + Composer(~50s) + Verifier(5s) = ~205s
+// Pipeline deadline is 140s (free plan 150s). Change to 300s when upgrading to Pro plan (400s wall-clock).
+// Composer budget is dynamically capped to remaining time minus 10s buffer.
 // P04→P06: Composer maxOutputTokens restored to 8192 (P04 halved to 4096, but P06 reverted — 4096 caused truncation).
 // Composer budget is dynamically capped in pipeline.ts (COMPOSER_MAX_BUDGET_MS = 90s).
 // MVP increased from 15s to 30s — was timing out on cold starts. Typical ~11s, worst ~20s.
@@ -31,7 +32,7 @@ export const AGENT_TIMEOUTS: Record<string, number> = {
   extractor: 60_000,    // Flash model, extraction (~6s typical, up to 50s with cold start + interview context + schema)
   research: 40_000,     // Flash model + Google Search + URL Context (parallel, bumped from 30s — URL Context is slow)
   competitors: 55_000,  // 036-CUC: Background promise. ~15-20s search-only, ~30-40s with URL Context (when founder URLs present)
-  scoring: 15_000,      // Flash model + thinking: high (~13s typical)
+  scoring: 30_000,      // Flash model + thinking: high (~13s typical, up to 20s under load). Bumped from 15s — only 2s headroom caused timeouts
   mvp: 30_000,          // Flash model (~10s typical, up to 20s on cold starts)
   composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s). maxOutputTokens: 8192 (set in composer.ts)
   verifier: 5_000,      // P03: Pure JS validation (no Gemini call), 5s safety net

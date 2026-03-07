@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { FileText, LineChart, Brain, Users, Workflow, Shield } from "lucide-react";
+import { ShieldCheck, LayoutGrid, Zap, Target, BarChart3, Presentation } from "lucide-react";
 
 const FeaturesSection = () => {
   const ref = useRef(null);
@@ -9,34 +9,34 @@ const FeaturesSection = () => {
 
   const features = [
     {
-      icon: FileText,
-      title: "Instant pitch materials",
-      description: "Generate investor-ready decks, one-pagers, and memos in minutes, not weeks.",
+      icon: ShieldCheck,
+      title: "AI Startup Validator",
+      description: "Run a 7-agent analysis that scores problem fit, market realism, revenue strength, risk exposure, and execution feasibility.",
     },
     {
-      icon: LineChart,
-      title: "Live financial models",
-      description: "Dynamic projections that update with your actual metrics and market data.",
+      icon: LayoutGrid,
+      title: "AI Lean Canvas Builder",
+      description: "Auto-generate and refine your 9-block business model from validated data. Every box connects to strategy, financials, and your pitch.",
     },
     {
-      icon: Brain,
-      title: "Strategic intelligence",
-      description: "AI-powered insights on market positioning, competition, and opportunities.",
+      icon: Zap,
+      title: "Strategic Intelligence Engine",
+      description: "Get dimension-level scores, bottleneck detection, and priority actions. The system tells you where your startup is weak — and what to do next.",
     },
     {
-      icon: Users,
-      title: "Investor pipeline",
-      description: "Track conversations, manage follow-ups, and close rounds efficiently.",
+      icon: Target,
+      title: "MVP & Execution Planning",
+      description: "Turn validation insights into sprint-ready tasks. Design experiments, define scope, and move from idea to shipped product.",
     },
     {
-      icon: Workflow,
-      title: "Guided workflows",
-      description: "Step-by-step processes for every stage from ideation to exit.",
+      icon: BarChart3,
+      title: "Live Financial Modeling",
+      description: "Model revenue, burn, runway, and unit economics based on your real assumptions. Update the canvas — projections adjust instantly.",
     },
     {
-      icon: Shield,
-      title: "Secure & private",
-      description: "Enterprise-grade security with SOC 2 compliance. Your data stays yours.",
+      icon: Presentation,
+      title: "Investor-Ready Pitch Decks",
+      description: "Generate a structured, defensible deck directly from your validated strategy. No fluff. Every slide traces back to evidence.",
     },
   ];
 
@@ -50,12 +50,15 @@ const FeaturesSection = () => {
           transition={{ duration: 0.4 }}
           className="text-center mb-16 md:mb-20"
         >
-          <p className="eyebrow">Capabilities</p>
+          <p className="eyebrow">CAPABILITIES</p>
           <h2 className="headline-lg text-foreground mb-4">
-            Everything you need to move fast
+            From Idea to Investor-Ready
           </h2>
-          <p className="body-lg max-w-2xl mx-auto">
-            Built for founders who need clarity, speed, and investor confidence.
+          <p className="body-lg max-w-2xl mx-auto mb-4">
+            AI validation, strategy, and execution — in one system.
+          </p>
+          <p className="body-md max-w-2xl mx-auto text-muted-foreground">
+            Built for founders who want clarity, proof, and momentum — not generic AI output.
           </p>
         </motion.div>
 

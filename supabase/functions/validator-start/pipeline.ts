@@ -1,7 +1,7 @@
 /**
  * Validator Pipeline Orchestrator
- * Runs all 7 agents. Competitors fires as background promise; critical path is
- * Extractor -> Research -> Scoring -> MVP -> [grace period] -> Composer -> Verifier.
+ * Runs all 7 agents. Research + Competitors + Scoring run in parallel after Extractor.
+ * Critical path: Extractor -> [Research||Scoring||Competitors] -> MVP -> [grace] -> Composer -> Verifier.
  * F3: Catch-all safety net — session NEVER stays "running" forever.
  * H6: All DB writes check and log errors.
  */
@@ -26,14 +26,14 @@ import {
   runComposer,
   runVerifier,
 } from "./agents/index.ts";
-import { completeRun } from "./db.ts";
+import { completeRun, startAgentRun, completeAgentRun } from "./db.ts";
 import { broadcastPipelineEvent, AGENT_STEPS, TOTAL_STEPS } from "./broadcast.ts";
 
 // P03: Global pipeline wall-clock budget.
-// Supabase paid plan: 400s wall-clock. Free plan: 150s.
-// Budget: 300s for agents, ~100s buffer for Verifier + DB writes + safety margin.
-// Increased from 115s after discovering paid plan supports 400s (was 150s).
-const PIPELINE_TIMEOUT_MS = 300_000;
+// Supabase free plan: 150s wall-clock. Pro plan: 400s.
+// Budget: 140s for agents + DB writes, 10s reserve for HTTP overhead before pipeline starts.
+// IMPORTANT: Change to 300_000 when upgrading to Supabase Pro plan.
+const PIPELINE_TIMEOUT_MS = 140_000;
 
 /**
  * Auto-create org + startup from extracted profile when user has none.
@@ -197,6 +197,7 @@ try {
   await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
     agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
   });
+  await startAgentRun(supabaseAdmin, sessionId, 'ExtractorAgent');
   try {
     profile = await runExtractor(supabaseAdmin, sessionId, input_text, interviewContext || undefined);
     if (!profile) {
@@ -205,19 +206,24 @@ try {
         agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
         error: 'Extractor returned null',
       });
+      await completeAgentRun(supabaseAdmin, sessionId, 'ExtractorAgent', 'failed', Date.now() - pipelineStart, 'Extractor returned null');
     } else {
+      const extractorDurationMs = Date.now() - pipelineStart;
       await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
         agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
-        durationMs: Date.now() - pipelineStart,
+        durationMs: extractorDurationMs,
       });
+      await completeAgentRun(supabaseAdmin, sessionId, 'ExtractorAgent', 'completed', extractorDurationMs);
     }
   } catch (e) {
     console.error('[ExtractorAgent] Failed:', e);
     failedAgents.push('ExtractorAgent');
+    const extractorError = e instanceof Error ? e.message : 'Unknown error';
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
       agent: 'ExtractorAgent', step: AGENT_STEPS.ExtractorAgent, totalSteps: TOTAL_STEPS,
-      error: e instanceof Error ? e.message : 'Unknown error',
+      error: extractorError,
     });
+    await completeAgentRun(supabaseAdmin, sessionId, 'ExtractorAgent', 'failed', Date.now() - pipelineStart, extractorError);
   }
 
   // Auto-create startup profile if user doesn't have one yet
@@ -236,144 +242,175 @@ try {
     throw new Error('Pipeline exceeded wall-clock limit');
   }
 
-  // FIX: Fire Competitors as background promise — do NOT block critical path.
-  // Scoring doesn't need competitor data; Composer gets it via grace period.
+  // FIX: Fire Competitors as background promise alongside Research + Scoring.
+  // All three run in parallel after Extractor. Scoring uses null for market/competitor data.
   let competitorPromise: Promise<CompetitorAnalysis | null> | null = null;
   if (profile) {
     // RT-1: Broadcast agent_started for Competitors (background)
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
       agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
     });
+    await startAgentRun(supabaseAdmin, sessionId, 'CompetitorAgent');
     const competitorStartMs = Date.now();
     competitorPromise = runCompetitors(supabaseAdmin, sessionId, profile)
       .then((result) => {
+        const compDuration = Date.now() - competitorStartMs;
         if (result) {
           broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
             agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
-            durationMs: Date.now() - competitorStartMs,
+            durationMs: compDuration,
           });
+          completeAgentRun(supabaseAdmin, sessionId, 'CompetitorAgent', 'completed', compDuration);
         } else {
           broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
             agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
             error: 'Returned null',
           });
+          completeAgentRun(supabaseAdmin, sessionId, 'CompetitorAgent', 'failed', compDuration, 'Returned null');
         }
         return result;
       })
       .catch((e) => {
         console.error('[CompetitorAgent] Failed:', e);
         failedAgents.push('CompetitorAgent');
+        const compError = e instanceof Error ? e.message : 'Unknown error';
         broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
           agent: 'CompetitorAgent', step: AGENT_STEPS.CompetitorAgent, totalSteps: TOTAL_STEPS,
-          error: e instanceof Error ? e.message : 'Unknown error',
+          error: compError,
         });
+        completeAgentRun(supabaseAdmin, sessionId, 'CompetitorAgent', 'failed', Date.now() - competitorStartMs, compError);
         return null;
       });
 
-    // RT-1: Broadcast agent_started for Research
+    // PARALLEL GROUP: Run Research + Scoring simultaneously.
+    // Free plan = 150s wall-clock. Sequential took ~135s and crashed.
+    // Parallel saves ~31s (Scoring's ~31s runs alongside Research's ~34s).
+    // Scoring handles null market/competitor data gracefully ("No data" fallback in contextPack).
+
+    // Start Research as promise
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
       agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
     });
+    await startAgentRun(supabaseAdmin, sessionId, 'ResearchAgent');
     const researchStartMs = Date.now();
-    // Await only Research on the critical path
-    try {
-      marketResearch = await runResearch(supabaseAdmin, sessionId, profile);
-      if (!marketResearch) {
+    const researchPromise = runResearch(supabaseAdmin, sessionId, profile)
+      .then((result) => {
+        const resDuration = Date.now() - researchStartMs;
+        if (!result) {
+          failedAgents.push('ResearchAgent');
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+            agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+            error: 'Returned null',
+          });
+          completeAgentRun(supabaseAdmin, sessionId, 'ResearchAgent', 'failed', resDuration, 'Returned null');
+        } else {
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+            agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
+            durationMs: resDuration,
+          });
+          completeAgentRun(supabaseAdmin, sessionId, 'ResearchAgent', 'completed', resDuration);
+        }
+        return result;
+      })
+      .catch((e) => {
+        console.error('[ResearchAgent] Failed:', e);
         failedAgents.push('ResearchAgent');
-        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+        const resError = e instanceof Error ? e.message : 'Unknown error';
+        broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
           agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
-          error: 'Returned null',
+          error: resError,
         });
-      } else {
-        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
-          agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
-          durationMs: Date.now() - researchStartMs,
-        });
-      }
-    } catch (e) {
-      console.error('[ResearchAgent] Failed:', e);
-      failedAgents.push('ResearchAgent');
-      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
-        agent: 'ResearchAgent', step: AGENT_STEPS.ResearchAgent, totalSteps: TOTAL_STEPS,
-        error: e instanceof Error ? e.message : 'Unknown error',
+        completeAgentRun(supabaseAdmin, sessionId, 'ResearchAgent', 'failed', Date.now() - researchStartMs, resError);
+        return null as MarketResearch | null;
       });
-    }
+
+    // Start Scoring as promise IN PARALLEL with Research
+    // Scoring uses profile + interviewContext primarily; market/competitor data is optional enrichment.
+    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
+      agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+    });
+    await startAgentRun(supabaseAdmin, sessionId, 'ScoringAgent');
+    const scoringStartMs = Date.now();
+    // F-02 fix: Serialize interviewContext to string — runScoring expects string, not object
+    const interviewContextStr = interviewContext
+      ? JSON.stringify(interviewContext.extracted || interviewContext, null, 2)
+      : undefined;
+    const scoringPromise = runScoring(supabaseAdmin, sessionId, profile, null, null, interviewContextStr)
+      .then((result) => {
+        const scoreDuration = Date.now() - scoringStartMs;
+        if (!result) {
+          failedAgents.push('ScoringAgent');
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+            agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+            error: 'Returned null',
+          });
+          completeAgentRun(supabaseAdmin, sessionId, 'ScoringAgent', 'failed', scoreDuration, 'Returned null');
+        } else {
+          broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
+            agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+            durationMs: scoreDuration,
+          });
+          completeAgentRun(supabaseAdmin, sessionId, 'ScoringAgent', 'completed', scoreDuration);
+        }
+        return result;
+      })
+      .catch((e) => {
+        console.error('[ScoringAgent] Failed:', e);
+        failedAgents.push('ScoringAgent');
+        const scoreError = e instanceof Error ? e.message : 'Unknown error';
+        broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
+          agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
+          error: scoreError,
+        });
+        completeAgentRun(supabaseAdmin, sessionId, 'ScoringAgent', 'failed', Date.now() - scoringStartMs, scoreError);
+        return null as ScoringResult | null;
+      });
+
+    // Await both in parallel: ~35s instead of ~65s sequential
+    [marketResearch, scoring] = await Promise.all([researchPromise, scoringPromise]);
   } else {
     // B2 fix: Mark downstream agents as "skipped" when ExtractorAgent fails
     const skippedAgents = ['ResearchAgent', 'CompetitorAgent', 'ScoringAgent', 'MVPAgent', 'ComposerAgent'];
     for (const agentName of skippedAgents) {
       await completeRun(supabaseAdmin, sessionId, agentName, 'skipped', null, [], 'Skipped: ExtractorAgent failed');
+      await completeAgentRun(supabaseAdmin, sessionId, agentName, 'skipped', undefined, 'Skipped: ExtractorAgent failed');
       failedAgents.push(agentName);
     }
   }
 
-  // FIX: Deadline check before Scoring
+  // FIX: Deadline check before MVP (after parallel Research + Scoring group)
   if (isExpired()) {
-    console.error(`[pipeline] DEADLINE EXCEEDED after Research (${Date.now() - pipelineStart}ms)`);
-    throw new Error('Pipeline exceeded wall-clock limit');
-  }
-
-  await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
-    agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
-  });
-  const scoringStartMs = Date.now();
-  try {
-    if (profile) {
-      // F-02 fix: Serialize interviewContext to string — runScoring expects string, not object
-      const interviewContextStr = interviewContext
-        ? JSON.stringify(interviewContext.extracted || interviewContext, null, 2)
-        : undefined;
-      scoring = await runScoring(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, interviewContextStr);
-      if (!scoring) {
-        failedAgents.push('ScoringAgent');
-        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
-          agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
-          error: 'Returned null',
-        });
-      } else {
-        await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
-          agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
-          durationMs: Date.now() - scoringStartMs,
-        });
-      }
-    }
-  } catch (e) {
-    console.error('[ScoringAgent] Failed:', e);
-    failedAgents.push('ScoringAgent');
-    await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
-      agent: 'ScoringAgent', step: AGENT_STEPS.ScoringAgent, totalSteps: TOTAL_STEPS,
-      error: e instanceof Error ? e.message : 'Unknown error',
-    });
-  }
-
-  // FIX: Deadline check before MVP
-  if (isExpired()) {
-    console.error(`[pipeline] DEADLINE EXCEEDED after ScoringAgent (${Date.now() - pipelineStart}ms)`);
+    console.error(`[pipeline] DEADLINE EXCEEDED after parallel group (${Date.now() - pipelineStart}ms)`);
     throw new Error('Pipeline exceeded wall-clock limit');
   }
 
   await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
     agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
   });
+  await startAgentRun(supabaseAdmin, sessionId, 'MVPAgent');
   const mvpStartMs = Date.now();
   try {
     if (profile && scoring) {
       mvpPlan = await runMVP(supabaseAdmin, sessionId, profile, scoring);
+      const mvpDuration = Date.now() - mvpStartMs;
       if (!mvpPlan) {
         failedAgents.push('MVPAgent');
         await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
           agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
           error: 'Returned null',
         });
+        await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'failed', mvpDuration, 'Returned null');
       } else {
         await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
           agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
-          durationMs: Date.now() - mvpStartMs,
+          durationMs: mvpDuration,
         });
+        await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'completed', mvpDuration);
       }
     } else if (profile && !scoring) {
       // B2 fix: Skip MVP when Scoring failed (MVP depends on scoring data)
       await completeRun(supabaseAdmin, sessionId, 'MVPAgent', 'skipped', null, [], 'Skipped: ScoringAgent failed');
+      await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'skipped', undefined, 'Skipped: ScoringAgent failed');
       failedAgents.push('MVPAgent');
       await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
         agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
@@ -383,10 +420,12 @@ try {
   } catch (e) {
     console.error('[MVPAgent] Failed:', e);
     failedAgents.push('MVPAgent');
+    const mvpError = e instanceof Error ? e.message : 'Unknown error';
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
       agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
-      error: e instanceof Error ? e.message : 'Unknown error',
+      error: mvpError,
     });
+    await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'failed', Date.now() - mvpStartMs, mvpError);
   }
 
   // COMPETITORS GRACE PERIOD: Give Competitors a chance to finish before Composer.
@@ -437,10 +476,12 @@ try {
   await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
     agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
   });
+  await startAgentRun(supabaseAdmin, sessionId, 'ComposerAgent');
   const composerStartMs = Date.now();
-  if (composerBudget < 45_000) {
-    console.error(`[pipeline] Only ${composerBudget}ms left for Composer — skipping (need 45s minimum)`);
+  if (composerBudget < 35_000) {
+    console.error(`[pipeline] Only ${composerBudget}ms left for Composer — skipping (need 35s minimum)`);
     await completeRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', null, [], 'Skipped: insufficient time budget');
+    await completeAgentRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', undefined, 'Skipped: insufficient time budget');
     failedAgents.push('ComposerAgent');
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
       agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
@@ -452,20 +493,24 @@ try {
     try {
       if (profile) {
         report = await runComposer(supabaseAdmin, sessionId, profile, marketResearch, competitorAnalysis, scoring, mvpPlan, composerBudget, interviewContext || undefined);
+        const composerDuration = Date.now() - composerStartMs;
         if (!report) {
           failedAgents.push('ComposerAgent');
           await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
             agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
             error: 'Returned null',
           });
+          await completeAgentRun(supabaseAdmin, sessionId, 'ComposerAgent', 'failed', composerDuration, 'Returned null');
         } else {
           await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
             agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
-            durationMs: Date.now() - composerStartMs,
+            durationMs: composerDuration,
           });
+          await completeAgentRun(supabaseAdmin, sessionId, 'ComposerAgent', 'completed', composerDuration);
         }
       } else {
         await completeRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', null, [], 'Skipped: no profile data available');
+        await completeAgentRun(supabaseAdmin, sessionId, 'ComposerAgent', 'skipped', undefined, 'Skipped: no profile data');
         failedAgents.push('ComposerAgent');
         await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
           agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
@@ -475,29 +520,36 @@ try {
     } catch (e) {
       console.error('[ComposerAgent] Failed:', e);
       failedAgents.push('ComposerAgent');
+      const composerError = e instanceof Error ? e.message : 'Unknown error';
       await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
         agent: 'ComposerAgent', step: AGENT_STEPS.ComposerAgent, totalSteps: TOTAL_STEPS,
-        error: e instanceof Error ? e.message : 'Unknown error',
+        error: composerError,
       });
+      await completeAgentRun(supabaseAdmin, sessionId, 'ComposerAgent', 'failed', Date.now() - composerStartMs, composerError);
     }
   }
 
   await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {
     agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
   });
+  await startAgentRun(supabaseAdmin, sessionId, 'VerifierAgent');
   const verifierStartMs = Date.now();
   try {
     verification = await runVerifier(supabaseAdmin, sessionId, report, failedAgents);
+    const verifierDuration = Date.now() - verifierStartMs;
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_completed', {
       agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
-      durationMs: Date.now() - verifierStartMs,
+      durationMs: verifierDuration,
     });
+    await completeAgentRun(supabaseAdmin, sessionId, 'VerifierAgent', 'completed', verifierDuration);
   } catch (e) {
     console.error('[VerifierAgent] Failed:', e);
+    const verifierError = e instanceof Error ? e.message : 'Unknown error';
     await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
       agent: 'VerifierAgent', step: AGENT_STEPS.VerifierAgent, totalSteps: TOTAL_STEPS,
-      error: e instanceof Error ? e.message : 'Unknown error',
+      error: verifierError,
     });
+    await completeAgentRun(supabaseAdmin, sessionId, 'VerifierAgent', 'failed', Date.now() - verifierStartMs, verifierError);
   }
 
   // F-04 fix: If report is null (Composer skipped/failed), mark as 'failed' not 'partial'.

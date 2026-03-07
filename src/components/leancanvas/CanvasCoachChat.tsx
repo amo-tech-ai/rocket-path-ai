@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Plus, Loader2, MessageSquare } from 'lucide-react';
+import { Send, Plus, Loader2, MessageSquare, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   suggestions?: CoachResult['suggestions'];
+  citations?: string[];
 }
 
 const DEFAULT_CHIPS = [
@@ -92,6 +93,7 @@ export function CanvasCoachChat({ canvasData, startup, onApplySuggestion }: Canv
         role: 'assistant',
         content: result.reply,
         suggestions: result.suggestions,
+        citations: result.citations,
       };
       setMessages(prev => [...prev, aiMsg]);
       setChips(result.next_chips.length > 0 ? result.next_chips : DEFAULT_CHIPS);
@@ -208,6 +210,21 @@ export function CanvasCoachChat({ canvasData, startup, onApplySuggestion }: Canv
                       </Card>
                     );
                   })}
+                </div>
+              )}
+
+              {/* RAG citations */}
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="mt-1.5 flex items-start gap-1 flex-wrap">
+                  <BookOpen className="w-3 h-3 text-muted-foreground/60 mt-0.5 shrink-0" />
+                  {msg.citations.map((cite, i) => (
+                    <span
+                      key={`${msg.id}-cite-${i}`}
+                      className="text-[9px] text-muted-foreground/70 bg-muted/40 rounded px-1.5 py-0.5"
+                    >
+                      {cite}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>

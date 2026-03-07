@@ -99,6 +99,10 @@ function pickFallbackQuestion(
 const MIN_EXCHANGES = 2;
 const MAX_EXCHANGES = 10; // v3: raised to match adaptive 10-message forced readiness
 
+/** State machine for follow-up request lifecycle — prevents race conditions between
+ *  streaming (broadcast channel) and HTTP (invoke) completion paths. */
+type FollowupPhase = 'idle' | 'requesting' | 'streaming' | 'delivered' | 'error';
+
 export default function ValidatorChat({
   startupId,
   onValidationComplete,
@@ -108,13 +112,28 @@ export default function ValidatorChat({
 }: ValidatorChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialIdeaProcessed = useRef(false);
-  const followupInFlight = useRef(false);
+  // Request lifecycle: phase state machine + request identity for race-condition safety
+  const followupPhaseRef = useRef<FollowupPhase>('idle');
+  const activeRequestRef = useRef<string | null>(null);
+  const lastDeliveredQuestionRef = useRef<string | null>(null);
+  const streamDeliveredForRequestRef = useRef<string | null>(null);
+
   const { startValidation, isStarting } = useValidatorPipeline();
   const { getNextQuestion, isLoading: isFollowupLoading } = useValidatorFollowup();
   const { streamingState, subscribe: subscribeToStream, reset: resetStream } = useFollowupStreaming();
   const streamingMessageId = useRef<string | null>(null);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  // Restore chat messages from sessionStorage if available (survives auth redirects)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('validator:chatMessages');
+      if (saved) {
+        const parsed = JSON.parse(saved) as ChatMessage[];
+        if (parsed.length > 1) return parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+      }
+    } catch { /* ignore parse errors */ }
+    return [WELCOME_MESSAGE];
+  });
   const [isTyping, setIsTyping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [canGenerate, setCanGenerate] = useState(false);
@@ -130,6 +149,13 @@ export default function ValidatorChat({
   const lastAssistantRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
+
+  // Persist chat messages to sessionStorage (survives auth redirects)
+  useEffect(() => {
+    if (messages.length > 1) {
+      sessionStorage.setItem('validator:chatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -206,22 +232,34 @@ export default function ValidatorChat({
 
     setIsStreamingMessage(false);
     streamingMessageId.current = null;
+    // Mark streaming as delivered for THIS specific request — unambiguous signal
+    // (replaces null check which could mean "not started" or "error cleanup")
+    streamDeliveredForRequestRef.current = activeRequestRef.current;
+    followupPhaseRef.current = 'delivered';
     resetStream();
   }, [streamingState.isStreaming, streamingState.metadata, isStreamingMessage, resetStream, onCoverageUpdate, userMessageCount]);
 
   // Ask AI for the next question
   const askFollowup = useCallback(async (currentMessages: ChatMessage[]) => {
-    if (followupInFlight.current) return;
-    followupInFlight.current = true;
+    // Phase guard: only allow new requests from idle, delivered, or error states
+    const phase = followupPhaseRef.current;
+    if (phase === 'requesting' || phase === 'streaming') return;
+
+    // Request identity: each request gets a unique ID to prevent stale responses
+    const requestId = crypto.randomUUID();
+    activeRequestRef.current = requestId;
+    followupPhaseRef.current = 'requesting';
+    streamDeliveredForRequestRef.current = null;
     setRetryPayload(null);
 
-    // Safety: auto-reset followupInFlight after 30s even if the call hangs
+    // Safety: auto-reset after 90s, but only if THIS request is still active
+    // (requestId guard ensures a superseded request's timeout is harmless)
     const flightTimeout = setTimeout(() => {
-      if (followupInFlight.current) {
-        console.warn('[ValidatorChat] followupInFlight stuck — auto-resetting after 30s');
-        followupInFlight.current = false;
+      if (activeRequestRef.current === requestId && followupPhaseRef.current === 'requesting') {
+        console.warn('[ValidatorChat] followup stuck — auto-resetting after 90s (request:', requestId.slice(0, 8), ')');
+        followupPhaseRef.current = 'error';
       }
-    }, 30_000);
+    }, 90_000);
 
     const conversationMessages = buildConversationMessages(currentMessages);
     const currentUserCount = currentMessages.filter(m => m.role === 'user').length;
@@ -232,7 +270,7 @@ export default function ValidatorChat({
       setIsTyping(true);
       setTimeout(() => {
         setIsTyping(false);
-        followupInFlight.current = false;
+        followupPhaseRef.current = 'delivered';
         clearTimeout(flightTimeout);
         setMessages(prev => [...prev, {
           id: crypto.randomUUID(),
@@ -264,15 +302,24 @@ export default function ValidatorChat({
 
     try {
       // Pass sessionId so edge function broadcasts tokens
-      // Client timeout is a safety net — server responds within 20-24s + 1 retry, client gives 50s headroom
+      // Client timeout is a safety net — server responds within 20-36s + retry, client gives 90s headroom
+      // (Gemini + Google Search + URL Context can take 30-40s, then broadcast streaming adds 1-2s)
+      const raceTimeoutId = { current: 0 as ReturnType<typeof setTimeout> };
       const result = await Promise.race([
         getNextQuestion([...conversationMessages], sessionId),
-        new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Followup request timed out after 50s')), 50_000)
-        ),
+        new Promise<null>((_, reject) => {
+          raceTimeoutId.current = setTimeout(() => reject(new Error('Followup request timed out after 90s')), 90_000);
+        }),
       ]);
-
+      clearTimeout(raceTimeoutId.current);
       clearTimeout(flightTimeout);
+
+      // Stale request guard: if a newer request superseded this one, discard response
+      if (activeRequestRef.current !== requestId) {
+        console.log('[ValidatorChat] Stale request', requestId.slice(0, 8), '— discarding response');
+        setIsTyping(false);
+        return;
+      }
 
       // Streaming metadata may have already arrived via broadcast.
       // The HTTP response is the source of truth for coverage/extracted.
@@ -300,7 +347,7 @@ export default function ValidatorChat({
             setCanGenerate(true);
           }
 
-          followupInFlight.current = false;
+          followupPhaseRef.current = 'error';
           setMessages(prev => {
             const cleaned = prev.filter(m => m.id !== streamMsgId);
             return [...cleaned, {
@@ -343,7 +390,7 @@ export default function ValidatorChat({
           setIsStreamingMessage(false);
           streamingMessageId.current = null;
           resetStream();
-          followupInFlight.current = false;
+          followupPhaseRef.current = 'delivered';
           setMessages(prev => {
             // Remove the streaming placeholder if it exists with no content
             const cleaned = prev.filter(m => m.id !== streamMsgId || m.content.length > 0);
@@ -365,13 +412,25 @@ export default function ValidatorChat({
             setFallbackIndex(fb.nextIndex);
           }
 
+          // Duplicate question guard: prevent showing the same question twice
+          // (can happen when retry response arrives after original was already delivered)
+          if (question === lastDeliveredQuestionRef.current) {
+            console.warn('[ValidatorChat] Duplicate question detected — skipping display');
+            setIsStreamingMessage(false);
+            streamingMessageId.current = null;
+            resetStream();
+            followupPhaseRef.current = 'delivered';
+            return;
+          }
+          lastDeliveredQuestionRef.current = question;
+
           // If streaming finalize effect already handled the message, skip.
-          // Otherwise, set message from the HTTP response (source of truth).
-          const streamAlreadyFinalized = streamingMessageId.current === null;
+          // Uses explicit delivery tracking (not null check which is ambiguous).
+          const streamAlreadyFinalized = streamDeliveredForRequestRef.current === requestId;
           setIsStreamingMessage(false);
           streamingMessageId.current = null;
           resetStream();
-          followupInFlight.current = false;
+          followupPhaseRef.current = 'delivered';
           if (!streamAlreadyFinalized) {
             setMessages(prev => {
               const streamIdx = prev.findIndex(m => m.id === streamMsgId);
@@ -393,9 +452,15 @@ export default function ValidatorChat({
           }
         }
       } else {
-        // Edge function returned null — show error with retry option
+        // Edge function returned null — check if streaming already delivered for THIS request
+        const streamDelivered = streamDeliveredForRequestRef.current === requestId;
+        if (streamDelivered) {
+          console.log('[ValidatorChat] getNextQuestion returned null but streaming delivered for request', requestId.slice(0, 8), '— skipping error');
+          followupPhaseRef.current = 'delivered';
+          return;
+        }
+
         console.warn('[ValidatorChat] AI followup failed, showing error with retry');
-        clearTimeout(flightTimeout);
         setIsStreamingMessage(false);
         streamingMessageId.current = null;
         resetStream();
@@ -417,7 +482,7 @@ export default function ValidatorChat({
           setCanGenerate(true);
         }
 
-        followupInFlight.current = false;
+        followupPhaseRef.current = 'error';
         setMessages(prev => {
           const cleaned = prev.filter(m => m.id !== streamMsgId);
           return [...cleaned, {
@@ -429,8 +494,26 @@ export default function ValidatorChat({
         });
       }
     } catch (err) {
-      console.warn('[ValidatorChat] Network error or timeout, showing error with retry', err);
       clearTimeout(flightTimeout);
+      clearTimeout(raceTimeoutId.current);
+
+      // Stale request guard in catch block
+      if (activeRequestRef.current !== requestId) {
+        console.log('[ValidatorChat] Stale request in catch — discarding');
+        setIsTyping(false);
+        return;
+      }
+
+      // If streaming already delivered for THIS request, don't overwrite with error
+      const streamDelivered = streamDeliveredForRequestRef.current === requestId;
+      if (streamDelivered) {
+        console.log('[ValidatorChat] HTTP timeout but streaming delivered for request', requestId.slice(0, 8), '— skipping error');
+        setIsTyping(false);
+        followupPhaseRef.current = 'delivered';
+        return;
+      }
+
+      console.warn('[ValidatorChat] Network error or timeout, showing error with retry', err);
       setIsTyping(false);
       setIsStreamingMessage(false);
       streamingMessageId.current = null;
@@ -453,7 +536,7 @@ export default function ValidatorChat({
         setCanGenerate(true);
       }
 
-      followupInFlight.current = false;
+      followupPhaseRef.current = 'error';
       setMessages(prev => {
         const cleaned = prev.filter(m => m.id !== streamMsgId);
         return [...cleaned, {
@@ -465,6 +548,21 @@ export default function ValidatorChat({
       });
     }
   }, [buildConversationMessages, getNextQuestion, fallbackIndex, latestCoverage, latestExtracted, latestConfidence, canGenerate, onCoverageUpdate, subscribeToStream, resetStream]);
+
+  // Resume chat after auth redirect: if restored messages end with a user message, trigger followup
+  const resumeProcessed = useRef(false);
+  useEffect(() => {
+    if (resumeProcessed.current || initialIdea) return;
+    const wasRestored = sessionStorage.getItem('validator:chatMessages');
+    if (!wasRestored) return;
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'user' && messages.length > 1) {
+      resumeProcessed.current = true;
+      // Clear the flag so we don't re-trigger
+      sessionStorage.removeItem('validator:chatMessages');
+      setTimeout(() => askFollowup(messages), 500);
+    }
+  }, [messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Process initial idea from homepage if provided
   useEffect(() => {
@@ -536,6 +634,9 @@ export default function ValidatorChat({
 
   // Quick generate: send text + start pipeline immediately (skip Q&A)
   const handleSendAndGenerate = useCallback(async (text: string) => {
+    // Clear persisted chat — validation started
+    sessionStorage.removeItem('validator:chatMessages');
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -575,6 +676,9 @@ export default function ValidatorChat({
   // Handle generate validation
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
+
+    // Clear persisted chat — validation started, no need to restore
+    sessionStorage.removeItem('validator:chatMessages');
 
     const ideaDescription = messages
       .filter(m => m.role === 'user')

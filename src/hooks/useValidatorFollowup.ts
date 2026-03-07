@@ -80,7 +80,7 @@ export interface DiscoveredEntities {
 }
 
 export interface FollowupResult {
-  action: "ask" | "ready";
+  action: "ask" | "ready" | "followup";
   question: string;
   summary: string;
   readiness_reason: string;
@@ -91,6 +91,8 @@ export interface FollowupResult {
   discoveredEntities: DiscoveredEntities;
   questionNumber: number;
   suggestions: string[];
+  /** True when the server returned a fallback question due to timeout */
+  _serverFallback?: boolean;
 }
 
 export type CoverageTier = 'core' | 'deep';
@@ -284,6 +286,24 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
       }
 
       if (!data?.success) {
+        // Structured fallback: server returned a backup question on timeout/error
+        if (data?.code === 'FOLLOWUP_TIMEOUT' && data?.question) {
+          console.warn('[useValidatorFollowup] Server timeout — using server fallback question');
+          return {
+            action: 'followup' as const,
+            question: data.question,
+            summary: '',
+            readiness_reason: '',
+            coverage: null as unknown as FollowupCoverage, // No coverage from timeout
+            extracted: EMPTY_EXTRACTED,
+            confidence: {} as ConfidenceMap,
+            contradictions: [],
+            discoveredEntities: { competitors: [], urls: [], marketData: [] },
+            questionNumber: 0,
+            suggestions: data.suggestions || [],
+            _serverFallback: true,
+          };
+        }
         throw new Error(data?.error || 'Failed to get follow-up question');
       }
 

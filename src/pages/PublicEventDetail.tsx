@@ -19,6 +19,7 @@ import {
 
 import Header from '@/components/marketing/Header';
 import Footer from '@/components/marketing/Footer';
+import { YoutubeEmbed } from '@/components/public-events/YoutubeEmbed';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -258,6 +259,21 @@ export default function PublicEventDetail() {
           <div className="grid md:grid-cols-3 gap-6">
             {/* Main content */}
             <div className="md:col-span-2 space-y-6">
+              {/* Video embed */}
+              {event.youtube_url && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Video</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <YoutubeEmbed
+                      url={event.youtube_url}
+                      title={event.display_name || event.name || 'Event video'}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Description */}
               {event.description && (
                 <Card>

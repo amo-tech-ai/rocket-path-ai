@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
     },
     watch: {
       ignored: [
+        "**/.backup*/**",
         "**/.backups/**",
         "**/thinktankAI/**",
         "**/node_modules/**",

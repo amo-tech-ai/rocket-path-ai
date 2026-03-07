@@ -27,6 +27,7 @@ export interface PublicEvent {
   registration_url: string | null;
   categories: string[] | null;
   topics: string[] | null;
+  youtube_url: string | null;
   slug: string | null;
   tags: string[] | null;
   cover_image_url: string | null;

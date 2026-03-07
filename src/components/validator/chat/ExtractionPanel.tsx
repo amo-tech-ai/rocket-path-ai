@@ -97,49 +97,49 @@ export function ExtractionPanel({ coverage, canGenerate, onSuggestionClick }: Ex
           Quick prompts
         </h4>
         <div className="flex flex-wrap gap-1.5">
-          {!coverage?.customer && (
+          {(!coverage || !isCovered(coverage.customer)) && (
             <SuggestionChip
               text="My target customer is..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.problem && (
+          {(!coverage || !isCovered(coverage.problem)) && (
             <SuggestionChip
               text="The problem I'm solving is..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.competitors && (
+          {(!coverage || !isCovered(coverage.competitors)) && (
             <SuggestionChip
               text="Current alternatives include..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.demand && (
+          {(!coverage || !isCovered(coverage.demand)) && (
             <SuggestionChip
               text="I know there's demand because..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.innovation && (
+          {(!coverage || !isCovered(coverage.innovation)) && (
             <SuggestionChip
               text="What makes us different is..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.research && (
+          {(!coverage || !isCovered(coverage.research)) && (
             <SuggestionChip
               text="I've validated this by..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.uniqueness && (
+          {(!coverage || !isCovered(coverage.uniqueness)) && (
             <SuggestionChip
               text="Our unique advantage is..."
               onClick={onSuggestionClick}
             />
           )}
-          {!coverage?.websites && (
+          {(!coverage || !isCovered(coverage.websites)) && (
             <SuggestionChip
               text="Check out these links..."
               onClick={onSuggestionClick}

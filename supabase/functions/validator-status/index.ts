@@ -117,12 +117,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get runs
-    const { data: runs, error: runsError } = await supabase
-      .from('validator_runs')
-      .select('agent_name, status, started_at, finished_at, duration_ms, citations, error_message')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true });
+    // Get runs (both tables in parallel for V1/V2 compatibility)
+    const [runsResult, agentRunsResult] = await Promise.all([
+      supabase
+        .from('validator_runs')
+        .select('agent_name, status, started_at, finished_at, duration_ms, citations, error_message')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('validator_agent_runs')
+        .select('agent_name, status, started_at, ended_at, duration_ms, error')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true }),
+    ]);
+
+    const { data: runs, error: runsError } = runsResult;
+    const { data: agentRuns } = agentRunsResult;
 
     if (runsError) {
       throw runsError;
@@ -172,6 +182,21 @@ Deno.serve(async (req) => {
     const skippedSteps = steps.filter(s => s.status === 'skipped').length;
     const progress = Math.round(((completedSteps + failedSteps + skippedSteps) / steps.length) * 100);
 
+    // V2: Format agent_runs from validator_agent_runs for per-agent status bars
+    const formattedAgentRuns = agentOrder.map((agentName, index) => {
+      const ar = agentRuns?.find(r => r.agent_name === agentName);
+      return {
+        step: index + 1,
+        name: getStepName(agentName),
+        agent: agentName,
+        status: ar?.status || 'queued',
+        started_at: ar?.started_at || null,
+        ended_at: ar?.ended_at || null,
+        duration_ms: ar?.duration_ms || null,
+        error: ar?.error || null,
+      };
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -180,6 +205,7 @@ Deno.serve(async (req) => {
         progress,
         failedSteps,
         steps,
+        agent_runs: formattedAgentRuns,
         report: report ? {
           id: report.id,
           score: report.score,

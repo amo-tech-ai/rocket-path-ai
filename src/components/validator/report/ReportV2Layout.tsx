@@ -35,6 +35,7 @@ import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
 import { DimensionSection } from './DimensionSection';
 import { DimensionNavGrid } from './DimensionNavGrid';
 import { ReportLeanCanvas } from './ReportLeanCanvas';
+import { StrategicSummary } from './StrategicSummary';
 
 function getSignal(score: number | null): 'go' | 'caution' | 'no-go' | 'unavailable' {
   if (score === null || score === undefined) return 'unavailable';
@@ -146,6 +147,7 @@ const REPORT_TABS = [
   { value: 'questions', label: 'Key Questions' },
   { value: 'dimensions', label: 'Deep Dive' },
   { value: 'lean-canvas', label: 'Lean Canvas' },
+  { value: 'strategy', label: 'Strategy' },
 ] as const;
 
 type ReportTab = (typeof REPORT_TABS)[number]['value'];
@@ -789,6 +791,13 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, act
               <PageCard>
                 <ReportLeanCanvas details={d} reportId={reportId || ''} />
                 <TabStepper currentTab="lean-canvas" onNavigate={handleTabChange} />
+              </PageCard>
+            </TabsContent>
+
+            <TabsContent value="strategy" className="mt-6">
+              <PageCard>
+                <StrategicSummary details={d} />
+                <TabStepper currentTab="strategy" onNavigate={handleTabChange} />
               </PageCard>
             </TabsContent>
           </Tabs>

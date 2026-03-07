@@ -53,11 +53,8 @@ export default function PublicEventCard({ event, viewMode = 'grid' }: PublicEven
   const displayLocation = event.display_location || event.location || 'TBA';
   
   const handleClick = () => {
-    if (isHosted) {
-      navigate(`/events/${event.slug ?? event.id}`);
-    } else if (event.external_url) {
-      window.open(event.external_url, '_blank', 'noopener,noreferrer');
-    }
+    // Always open our event detail page (details + images); external link is on detail page
+    navigate(`/events/${event.slug ?? event.id}`);
   };
 
   const renderStarRating = (rating: number) => {

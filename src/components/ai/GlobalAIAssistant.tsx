@@ -20,8 +20,8 @@ import { AIBottomSheet } from './AIBottomSheet';
 const DASHBOARD_PREFIXES = [
   '/dashboard', '/tasks', '/crm', '/documents', '/investors',
   '/settings', '/lean-canvas', '/user-profile', '/company-profile',
-  '/app/', '/projects', '/validate', '/analytics', '/weekly-review',
-  '/ai-chat', '/sprint-plan',
+  '/app/', '/projects', '/validate', '/validator', '/analytics',
+  '/weekly-review', '/ai-chat', '/sprint-plan',
 ];
 
 interface GlobalAIAssistantProps {

@@ -26,21 +26,24 @@ const Login = () => {
   }, [searchParams, fullFrom]);
 
   useEffect(() => {
-    if (user && !loading) {
-      // If there's a pending idea from homepage, go straight to validator
-      const pendingIdea = sessionStorage.getItem('pendingIdea');
-      if (pendingIdea) {
-        clearReturnPath();
-        navigate('/validate?hasIdea=true', { replace: true });
-        return;
-      }
+    if (!user || loading) return;
 
-      if (profile?.onboarding_completed) {
-        clearReturnPath();
-        navigate(returnPath, { replace: true });
-      } else {
-        navigate('/onboarding', { replace: true });
-      }
+    // If there's a pending idea from homepage, go straight to validator
+    const pendingIdea = sessionStorage.getItem('pendingIdea');
+    if (pendingIdea) {
+      clearReturnPath();
+      navigate('/validate?hasIdea=true', { replace: true });
+      return;
+    }
+
+    // Wait for profile to load before deciding — profile is null during fetch
+    if (profile === null) return;
+
+    if (profile.onboarding_completed) {
+      clearReturnPath();
+      navigate(returnPath, { replace: true });
+    } else {
+      navigate('/onboarding', { replace: true });
     }
   }, [user, profile, loading, navigate, returnPath]);
 

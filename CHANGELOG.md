@@ -1,5 +1,142 @@
 # Changelog
 
+## [0.10.38] - 2026-03-06
+
+### Session 22: Auth Redirect Fix, Chat Resilience, Pipeline Timeout Fix, Duplicate Icon Fix
+
+5 fixes across auth, chat, pipeline, and UI — full E2E flow verified (homepage → sign-in → chat → pipeline → report).
+
+**Auth redirect race condition (Login.tsx):**
+- After sign-in, `profile` was still `null` during async fetch → `profile?.onboarding_completed` was falsy → redirected to `/onboarding` instead of saved return path
+- Fix: Added `if (profile === null) return;` to wait for profile data before deciding redirect destination
+
+**Chat state persistence (ValidatorChat.tsx):**
+- Messages stored only in React state — lost on unmount during auth redirects
+- Added sessionStorage persistence + restore on mount + resume logic (re-triggers followup if restored messages end with user message)
+
+**Chat timeout race condition (ValidatorChat.tsx):**
+- Promise.race 50s timeout overwrote streaming-delivered answers; flightTimeout 30s safety reset fired during normal operation
+- Replaced boolean `followupInFlight` with typed phase state machine (`idle → requesting → streaming → delivered → error`)
+- Added request identity (`activeRequestRef` with `crypto.randomUUID()`) — stale responses from superseded requests silently discarded
+- Added `streamDeliveredForRequestRef` for explicit delivery tracking, duplicate question guard (`lastDeliveredQuestionRef`)
+- Increased timeouts: flightTimeout 30→90s, Promise.race 50→90s
+
+**ScoringAgent pipeline timeout (config.ts) — DEPLOYED:**
+- ScoringAgent timeout was 15s with `thinking: 'high'` mode (typical ~13s, only 2s headroom)
+- Timeout cascaded to skip MVPAgent (dependency chain)
+- Fix: `scoring: 15_000 → 30_000` — safe because Scoring runs parallel with 55s Competitors
+
+**Duplicate AI floating icons (GlobalAIAssistant.tsx):**
+- `/validator` was missing from `DASHBOARD_PREFIXES` — both GlobalAIAssistant's Sparkles icon and DashboardLayout's Brain icon rendered on report pages
+- Fix: Added `/validator` to exclusion list
+
+**Test fix (ReportV2Layout.test.tsx):**
+- Fixed `getByText('Market Size')` failing due to multiple matching elements → `getAllByText`
+
+**Files modified:** `Login.tsx`, `ValidatorChat.tsx`, `GlobalAIAssistant.tsx`, `validator-start/config.ts`, `ReportV2Layout.test.tsx`
+**Build:** 0 TS errors | **Tests:** 389/389 pass | **Edge function:** deployed | **Vercel:** Ready
+
+---
+
+## [0.10.37] - 2026-03-01
+
+### POST-01: Strategic Summary Report Tab
+
+New "Strategy" tab in the validation report synthesizes insights across all 9 scored dimensions into 3 actionable sections — no new API calls, pure client-side derivation.
+
+- NEW `src/hooks/useStrategicSummary.ts`: Derivation hook (follows `useReportLeanCanvas` pattern). V3 dimensions first → V2 fallback. Returns `PositioningData`, `BuildFocusData`, `FundabilityData`.
+  - **Positioning Snapshot**: Synthesizes competition + problem dimensions into positioning sentence, 3 differentiators, moat gap warning
+  - **Build Focus**: Collects all priority actions across 9 dimensions, sorts by impact (Critical > High > Medium), returns top 5 + 90-day timeline preview
+  - **Fundability Signals**: Ranks dimensions by composite score → top 3 strengths, bottom 3 weaknesses, improvement actions from weakest dims
+- NEW `src/components/validator/report/StrategicSummary.tsx`: 3-section presentational component with dimension badges, impact indicators, strength/weakness cards, and empty-state handling
+- `ReportV2Layout.tsx`: Added 'strategy' tab to `REPORT_TABS` + `TabsContent` with `StrategicSummary` component. Tab stepper prev/next works automatically.
+
+**Build:** 0 TS errors | **Tests:** 371/372 pass (1 pre-existing) | **No new API calls** — all derived from existing report data
+
+---
+
+## [0.10.36] - 2026-03-01
+
+### K3: Canvas Coach RAG — Knowledge-Backed Coaching
+
+The Lean Canvas AI coach now searches 4,251 knowledge chunks (19 industry playbooks) before responding, enriching coaching advice with real industry data and citations.
+
+- `lean-canvas-agent/actions/coach.ts`: Added `searchCoachingContext()` RAG function — generates OpenAI embedding → calls `search_knowledge` RPC → injects top-5 relevant chunks as numbered citations into Gemini system prompt. Graceful degradation: coaching continues without RAG on any failure. Service role client for vector search (bypasses RLS on knowledge_chunks). Timeout 15→20s for embedding overhead.
+- `coach.ts` schema: Added `citations: string[]` to Gemini `responseJsonSchema` and return type. Fallback: if Gemini doesn't cite sources, returns RAG source names instead.
+- `useCanvasCoach.ts`: Added `citations: string[]` to `CoachResult` interface, passes through from API response.
+- `CanvasCoachChat.tsx`: Displays RAG citations as small source badges (BookOpen icon) below coach messages. Only shown when citations are present.
+
+**Build:** 0 TS errors | **Tests:** 371/372 pass (1 pre-existing) | **Edge function:** deployed (v51) | **RAG:** 4,251 chunks, 14 categories, 13 industries
+
+---
+
+## [0.10.35] - 2026-03-01
+
+### 040-VRT: Selective Agent Retry (V4)
+
+Per-agent retry button on failed pipeline agents — retry just the failed agent + downstream cascade instead of restarting the entire 5-minute pipeline.
+
+- NEW `supabase/functions/validator-retry/index.ts`: Background retry via `EdgeRuntime.waitUntil`, cascade map (e.g. retrying ScoringAgent cascades to MVP→Composer→Verifier), prerequisite validation, report delete+reinsert, safety net preventing stuck sessions
+- NEW `supabase/functions/validator-retry/deno.json`: Deno config
+- `ValidatorProgress.tsx`: `handleRetry()` calls retry endpoint, per-agent retry buttons on failed cards, smart "Retry [Agent]" bottom button, toast feedback, polling auto-resume
+
+**Build:** 0 TS errors | **Tests:** 371/372 pass (1 pre-existing) | **Edge function:** deployed
+
+---
+
+## [0.10.34] - 2026-03-01
+
+### 038-PPO: Pipeline Parallelization + Timeout Fix
+
+Fixed pipeline crash ("Isolate killed by Deno Deploy") on free plan by parallelizing Research + Scoring and lowering timeout from 300s to 140s.
+
+- `pipeline.ts`: Research + Scoring run in parallel via Promise.all (saves ~31s), PIPELINE_TIMEOUT_MS 300→140s, Composer minimum 45→35s
+- `config.ts`: Updated critical path comments for parallel execution
+
+### 039-VAR: Validator Agent Runs Tracking (V1→V3)
+
+Wired `validator_agent_runs` table for per-agent progress tracking across pipeline, status endpoint, and frontend.
+
+- `db.ts`: Added `startAgentRun()` + `completeAgentRun()` helpers for `validator_agent_runs` table
+- `index.ts`: Pre-INSERT 7 agent rows as 'queued' in `validator_agent_runs`
+- `pipeline.ts`: All 7 agents call `startAgentRun`/`completeAgentRun` alongside existing broadcasts
+- `validator-status/index.ts`: Parallel query of `validator_agent_runs`, returns `agent_runs` array in response
+- `ValidatorProgress.tsx`: Merges `agent_runs` timing data with realtime + polling (priority: realtime > agent_runs > steps)
+
+**Build:** 0 TS errors | **Tests:** 371/372 pass (1 pre-existing) | **Edge functions:** deployed
+
+---
+
+## [0.10.33] - 2026-03-01
+
+### 035-GCF: Composer Group C Silent Failure Fix
+
+Fixed silent empty-result bug in `composer.ts` Group C when Gemini response parsing failed.
+
+- `composer.ts`: Added error handling for Group C parse failures with structured fallback
+
+### 036-CUC: Competitor URL Context Fix
+
+Wired URL Context for founder-provided competitor URLs so CompetitorAgent reads actual competitor websites.
+
+- `competitors.ts`: Enabled `url_context_metadata` extraction for competitor analysis
+- `config.ts`: Enabled URL context in competitor agent config
+
+### 037-DSC: Dynamic AI Suggestion Chips
+
+Each validator follow-up question now generates 2-4 contextual suggestion chips via Gemini, replacing static hardcoded chips.
+
+- `schema.ts`: `suggestions: string[]` in FollowupResponse + Gemini JSON schema (0-4 items, 60 char max)
+- `prompt.ts`: "Suggestion Chips" instructions — 5 rules + 4 examples
+- `index.ts`: Validate/sanitize (cap 4, HTML strip), broadcast + HTTP response
+- `useValidatorFollowup.ts`: Pass suggestions from API + streaming metadata
+- `ValidatorChat.tsx`: `latestSuggestions` state, wire to input
+- `ValidatorChatInput.tsx`: Dynamic/static chip selection with primary styling for AI chips
+
+**Build:** 0 TS errors | **Edge function:** deployed | **Vercel:** Production Ready
+
+---
+
 ## [0.10.32] - 2026-02-27
 
 ### MVP-02: Composer Group E Pipeline Expansion
