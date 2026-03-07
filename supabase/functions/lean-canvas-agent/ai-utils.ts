@@ -20,7 +20,7 @@ export interface AIResponse {
 // Model pricing per 1K tokens
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'gemini-3-flash-preview': { input: 0.0001, output: 0.0004 },
-  'gemini-3-pro-preview': { input: 0.00125, output: 0.005 },
+  'gemini-3.1-pro-preview': { input: 0.00125, output: 0.005 },
   'default': { input: 0.001, output: 0.002 },
 };
 
@@ -32,7 +32,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
  * Call Gemini API directly with structured output support
  */
 export async function callGemini(
-  model: 'gemini-3-flash-preview' | 'gemini-3-pro-preview',
+  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview',
   systemPrompt: string,
   userPrompt: string,
   options?: {
@@ -92,7 +92,7 @@ export async function callGemini(
  * Call Gemini with structured JSON schema output
  */
 export async function callGeminiStructured<T>(
-  model: 'gemini-3-flash-preview' | 'gemini-3-pro-preview',
+  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview',
   systemPrompt: string,
   userPrompt: string,
   schema: Record<string, unknown>

@@ -13,7 +13,7 @@ import { getRAGContext } from "../rag.ts";
 type SupabaseClient = any;
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-3-pro-preview";
+const DEFAULT_MODEL = "google/gemini-3.1-pro-preview";
 const FALLBACK_MODEL = "google/gemini-3-flash-preview";
 const AI_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;

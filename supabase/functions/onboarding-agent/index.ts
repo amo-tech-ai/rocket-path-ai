@@ -440,7 +440,7 @@ Find 3-5 REAL competitors with REAL websites. If unsure about a company, exclude
 An empty competitors array is better than fake data.`;
 
   // Try multiple models with fallback - use Gemini 3 models
-  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
+  const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
   let competitorData = null;
   let usedModel = "";
 
@@ -585,7 +585,7 @@ Return ONLY valid JSON with these fields:
 CRITICAL: Never return empty arrays for key_features, target_audience, or detected_phrases. Always synthesize from available context.`;
 
   // Try multiple models with fallback - use Gemini 3 models
-  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
+  const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
   let extractions = null;
   let usedModel = "";
 
@@ -714,7 +714,7 @@ Extract the following information. Return ONLY valid JSON:
 
   try {
     const geminiData = await geminiWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent`,
       {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
@@ -739,7 +739,7 @@ Extract the following information. Return ONLY valid JSON:
       org_id: orgId,
       agent_name: "ProfileExtractor",
       action: "enrich_context",
-      model: "gemini-3-pro-preview",
+      model: "gemini-3.1-pro-preview",
       duration_ms: duration,
       status: "success",
     });
@@ -816,7 +816,7 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
 }`;
 
   // Try primary model, fallback to alternative models - use Gemini 3 models
-  const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
+  const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
   let readinessScore = null;
   let usedModel = "";
 
@@ -1253,7 +1253,7 @@ Evaluate like an investor would. Return ONLY valid JSON:
 }`;
 
     // Try multiple models with fallback - use Gemini 3 models only
-    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
+    const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
 
     for (const model of models) {
       try {
@@ -1362,7 +1362,7 @@ Return ONLY valid JSON:
 }`;
 
     // Try multiple models with fallback - use Gemini 3 models only
-    const models = ["gemini-3-flash-preview", "gemini-3-pro-preview"];
+    const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
 
     for (const model of models) {
       try {

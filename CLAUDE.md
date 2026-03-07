@@ -49,9 +49,9 @@ lean/                     # Progress trackers, task specs, strategy docs
 | Use Case | Model ID |
 |----------|----------|
 | Fast extraction | `gemini-3-flash-preview` |
-| Deep analysis | `gemini-3-pro-preview` |
-| Deep analysis (latest) | `gemini-3.1-pro-preview` |
-| Image gen | `gemini-3-pro-image-preview` |
+| Deep analysis | `gemini-3.1-pro-preview` |
+| Cost-efficient fast | `gemini-3.1-flash-lite-preview` |
+| Image gen | `gemini-3.1-flash-image-preview` |
 | Fast tasks | `claude-haiku-4-5` |
 | Balanced | `claude-sonnet-4-5` |
 | Complex reasoning | `claude-opus-4-6` |

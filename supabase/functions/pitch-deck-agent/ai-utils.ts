@@ -34,7 +34,7 @@ async function jsonWithTimeout<T>(res: Response, timeoutMs = 15_000): Promise<T>
 // ============================================================================
 
 export async function callGemini(
-  model: "google/gemini-3-pro-preview" | "google/gemini-3-flash-preview",
+  model: "google/gemini-3.1-pro-preview" | "google/gemini-3-flash-preview",
   systemPrompt: string,
   userPrompt: string,
   tools?: unknown[]
@@ -160,7 +160,7 @@ Return a JSON response with:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -261,7 +261,7 @@ High contrast, suitable for presentations`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
+        model: "google/gemini-3.1-flash-image-preview",
         messages: [
           { role: "user", content: fullPrompt }
         ],

@@ -27,7 +27,7 @@ interface IndustryRequest {
 
 // Model configuration - using Gemini 3 Flash for speed
 const GEMINI_MODEL = 'gemini-3-flash-preview';
-const GEMINI_PRO_MODEL = 'gemini-3-pro-preview';
+const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
 
 // KNOW-P1-2: Migrated to _shared/gemini.ts (callGemini, callGeminiChat, extractJSON)
 

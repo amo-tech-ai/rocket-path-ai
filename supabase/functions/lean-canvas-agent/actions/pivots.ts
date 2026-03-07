@@ -97,7 +97,7 @@ Pivot types: customer, problem, channel, revenue, technology
 Opportunity score: 1-10 based on likelihood of success`;
 
   const response = await callGemini(
-    "gemini-3-pro-preview",
+    "gemini-3.1-pro-preview",
     systemPrompt,
     userPrompt,
     { jsonMode: true, maxTokens: 3000 }

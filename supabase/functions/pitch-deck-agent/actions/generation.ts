@@ -74,7 +74,7 @@ export async function generateDeck(
     id: crypto.randomUUID(),
     generation_status: "in_progress",
     started_at: new Date().toISOString(),
-    ai_model_used: { model: "google/gemini-3-pro-preview", thinkingLevel: "high" },
+    ai_model_used: { model: "google/gemini-3.1-pro-preview", thinkingLevel: "high" },
   };
 
   // Update deck status to generating
@@ -125,7 +125,7 @@ export async function generateDeck(
 
   // Try AI generation with Gemini Pro
   const aiResponse = await callGemini(
-    "google/gemini-3-pro-preview",
+    "google/gemini-3.1-pro-preview",
     systemPrompt,
     userPrompt
   );

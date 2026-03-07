@@ -87,7 +87,7 @@ Risk levels:
 - "low": Low-risk or already validated`;
 
   const response = await callGemini(
-    "gemini-3-pro-preview",
+    "gemini-3.1-pro-preview",
     systemPrompt,
     userPrompt,
     { jsonMode: true, maxTokens: 2500 }

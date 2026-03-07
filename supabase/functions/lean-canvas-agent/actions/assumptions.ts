@@ -136,7 +136,7 @@ Extract the TOP 5-8 riskiest assumptions from this canvas. Return JSON:
 Focus on assumptions that, if wrong, would fundamentally break the business model.`;
 
   const response = await callGemini(
-    "gemini-3-pro-preview",
+    "gemini-3.1-pro-preview",
     systemPrompt,
     userPrompt,
     { jsonMode: true, maxTokens: 2000 }

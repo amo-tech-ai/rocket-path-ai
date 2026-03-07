@@ -309,11 +309,15 @@ export async function getStartupContext(
  * Model pricing per 1K tokens (as of Feb 2026)
  */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  // Gemini 3 models (current)
-  'gemini-3-flash-preview': { input: 0.0005, output: 0.003 },
-  'gemini-3-pro-preview': { input: 0.002, output: 0.012 },
+  // Gemini 3.1 models (current)
   'gemini-3.1-pro-preview': { input: 0.002, output: 0.012 },
-  'gemini-3-pro-image-preview': { input: 0.002, output: 0.012 }, // text output; image output is $0.120/1K ($0.134/image)
+  'gemini-3.1-flash-lite-preview': { input: 0.0005, output: 0.003 },
+  'gemini-3.1-flash-image-preview': { input: 0.002, output: 0.012 }, // text; image output $0.134/image
+
+  // Gemini 3 models
+  'gemini-3-flash-preview': { input: 0.0005, output: 0.003 },
+  'gemini-3-pro-preview': { input: 0.002, output: 0.012 },       // DEPRECATED: shutdown March 9, 2026
+  'gemini-3-pro-image-preview': { input: 0.002, output: 0.012 }, // DEPRECATED: use gemini-3.1-flash-image-preview
 
   // Legacy Gemini models (kept for cost tracking of older runs)
   'gemini-2.0-flash': { input: 0.000075, output: 0.0003 },
