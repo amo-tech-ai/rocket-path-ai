@@ -71,7 +71,7 @@ const mockStore: Record<string, unknown[]> = {
 
 // Mock query builder
 function createMockQueryBuilder(tableName: string) {
-  let filters: Record<string, unknown> = {};
+  const filters: Record<string, unknown> = {};
   let selectedColumns = '*';
   let limitCount: number | null = null;
   let orderColumn: string | null = null;

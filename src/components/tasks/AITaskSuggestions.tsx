@@ -96,7 +96,7 @@ export function AITaskSuggestions({
     // Parse numbered or bulleted list
     const lines = response.split('\n').filter(line => line.trim());
     for (const line of lines) {
-      const taskMatch = line.match(/^[\d\-\*\•]+[\.\):]?\s*(.+)/);
+      const taskMatch = line.match(/^[\d\-*•]+[.):]?\s*(.+)/);
       if (taskMatch) {
         const taskText = taskMatch[1].trim();
         if (taskText.length > 10 && taskText.length < 200) {

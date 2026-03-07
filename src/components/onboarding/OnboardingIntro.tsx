@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Globe, BarChart3, Sparkles, LayoutDashboard, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,10 +88,10 @@ export default function OnboardingIntro({ onComplete, onSkip }: OnboardingIntroP
     onComplete();
   };
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     markIntroSeen();
     onSkip();
-  };
+  }, [onSkip]);
 
   // Handle keyboard escape
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function OnboardingIntro({ onComplete, onSkip }: OnboardingIntroP
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleSkip]);
 
   const duration = prefersReducedMotion ? 0 : 0.5;
   const stagger = prefersReducedMotion ? 0 : 0.15;

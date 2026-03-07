@@ -162,6 +162,7 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
         channelRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleAIResponse and handleTokenChunk are defined below but used inside channel event listeners; adding them would cause resubscription loops since they depend on state
   }, [user, roomId, startupId]);
 
   // ============ Event Handlers ============

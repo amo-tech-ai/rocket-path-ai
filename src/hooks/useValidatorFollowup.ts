@@ -371,7 +371,7 @@ export function useValidatorFollowup(options?: { sessionId?: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, options?.sessionId]);
 
   return { getNextQuestion, isLoading, error };
 }

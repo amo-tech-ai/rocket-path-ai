@@ -204,7 +204,7 @@ export function useRealtimeChannel({
       setError(errorMsg);
       console.error(`[Realtime] Failed to subscribe to ${topic}:`, errorMsg);
     }
-  }, [topic, isPrivate, self, ack]);
+  }, [topic, isPrivate, self, ack, replay]);
 
   const cleanup = useCallback(() => {
     if (channelRef.current) {

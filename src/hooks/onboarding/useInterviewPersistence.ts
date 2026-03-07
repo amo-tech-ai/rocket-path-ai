@@ -134,7 +134,7 @@ export function useInterviewPersistence({ startupId, sessionId }: UseInterviewPe
     } finally {
       setIsSaving(false);
     }
-  }, [storageKey, sessionId, startupId]);
+  }, [storageKey, sessionId]);
 
   // Clear saved state on completion
   const clearState = useCallback(() => {

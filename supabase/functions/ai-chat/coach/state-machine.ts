@@ -50,7 +50,7 @@ export function detectTransition(
       }
       break;
       
-    case 'assessment':
+    case 'assessment': {
       // Transition when all 7 dimensions are scored
       const completed = state.completedDimensions || [];
       if (completed.length >= 7) {
@@ -65,6 +65,7 @@ export function detectTransition(
         return 'constraint';
       }
       break;
+    }
       
     case 'constraint':
       // Transition when constraint is identified and user is ready
@@ -101,7 +102,7 @@ export function detectTransition(
       }
       break;
       
-    case 'sprint_execution':
+    case 'sprint_execution': {
       // Transition based on sprint completion
       const currentSprint = state.currentSprint || 1;
       if (
@@ -115,6 +116,7 @@ export function detectTransition(
         return 'cycle_review';
       }
       break;
+    }
       
     case 'cycle_review':
       // Transition based on decision
@@ -274,10 +276,11 @@ export function calculateProgress(
       if (state.goal90Day) step = 3;
       break;
     case 'sprint_planning':
-    case 'sprint_execution':
+    case 'sprint_execution': {
       const pdcaOrder = ['plan', 'do', 'check', 'act'];
       step = pdcaOrder.indexOf(state.pdcaStep || 'plan') + 1;
       break;
+    }
     case 'cycle_review':
       step = state.cycleDecision ? 3 : 1;
       break;
@@ -316,7 +319,7 @@ export function getSuggestedActions(
       actions.push('I\'m ready to be assessed');
       break;
       
-    case 'assessment':
+    case 'assessment': {
       const remaining = 7 - (state.completedDimensions?.length || 0);
       if (remaining > 0) {
         actions.push(`Continue (${remaining} left)`);
@@ -325,6 +328,7 @@ export function getSuggestedActions(
         actions.push('Show my constraint');
       }
       break;
+    }
       
     case 'constraint':
       actions.push('Yes, let\'s plan a campaign');

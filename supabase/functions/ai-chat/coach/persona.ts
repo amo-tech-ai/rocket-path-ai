@@ -136,12 +136,12 @@ export function getPhaseInstructions(phase: ValidationPhase, context: Validation
 
 Keep it conversational. 2-3 exchanges max.`;
 
-    case 'assessment':
+    case 'assessment': {
       const completed = state.completedDimensions || [];
       const remaining = ['clarity', 'desirability', 'viability', 'feasibility', 'defensibility', 'timing', 'mission']
         .filter(d => !completed.includes(d));
       const next = remaining[0] || 'mission';
-      
+
       return `You are evaluating the startup across 7 dimensions.
 Progress: ${completed.length} of 7 complete.
 Next: ${next}
@@ -153,8 +153,9 @@ For each dimension:
 4. Explain the score and what it means for their business
 
 Dimensions: clarity, desirability, viability, feasibility, defensibility, timing, mission`;
+    }
 
-    case 'constraint':
+    case 'constraint': {
       const scores = state.dimensionScores || {};
       return `Assessment complete. Scores: ${JSON.stringify(scores)}
 
@@ -165,6 +166,7 @@ Your job:
 4. Ask if they're ready to build a 90-day plan
 
 Constraints: acquisition (no customers), monetization (no revenue), retention (high churn), scalability (can't grow)`;
+    }
 
     case 'campaign_setup':
       return `Constraint: ${state.identifiedConstraint}

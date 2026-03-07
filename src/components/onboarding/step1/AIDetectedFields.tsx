@@ -61,7 +61,10 @@ export function AIDetectedFields({
   const [otherText, setOtherText] = useState('');
   const [showOtherInput, setShowOtherInput] = useState(false);
 
-  const industryArray = Array.isArray(industry) ? industry : (industry ? [industry] : []);
+  const industryArray = useMemo(
+    () => Array.isArray(industry) ? industry : (industry ? [industry] : []),
+    [industry]
+  );
 
   // Get available subcategories based on selected industry
   const availableSubcategories = useMemo(() => {

@@ -58,6 +58,7 @@ const LeanCanvas = () => {
     if (startup?.id && !coverage && !mapProfile.isPending) {
       handleMapProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs only when startup.id changes; including coverage/handleMapProfile would cause re-mapping loops
   }, [startup?.id]);
 
   const isLoading = startupLoading || canvasLoading;

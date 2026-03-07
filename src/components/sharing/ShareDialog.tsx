@@ -56,6 +56,17 @@ function formatExpiry(expiresAt: string): string {
   return `${diffDays} days left`;
 }
 
+const ALL_SECTIONS = [
+  { key: 'hero', label: 'Hero + Score' },
+  { key: 'problem', label: 'Problem' },
+  { key: 'customer', label: 'Customer' },
+  { key: 'market', label: 'Market' },
+  { key: 'competition', label: 'Competition' },
+  { key: 'risks', label: 'Risks' },
+  { key: 'mvp', label: 'MVP' },
+  { key: 'nextsteps', label: 'Next Steps' },
+];
+
 function LinkAnalytics({ linkId }: { linkId: string }) {
   const { totalViews, uniqueViews, viewsByDay, recentViews, loading } = useShareAnalytics(linkId);
 
@@ -127,22 +138,11 @@ export default function ShareDialog({ reportId, startupId }: ShareDialogProps) {
     'hero', 'problem', 'customer', 'market', 'competition', 'risks', 'mvp', 'nextsteps'
   ]);
 
-  const allSections = [
-    { key: 'hero', label: 'Hero + Score' },
-    { key: 'problem', label: 'Problem' },
-    { key: 'customer', label: 'Customer' },
-    { key: 'market', label: 'Market' },
-    { key: 'competition', label: 'Competition' },
-    { key: 'risks', label: 'Risks' },
-    { key: 'mvp', label: 'MVP' },
-    { key: 'nextsteps', label: 'Next Steps' },
-  ];
-
   const embedUrl = useMemo(() => {
     const firstToken = links[0]?.token;
     if (!firstToken) return '';
     const base = `${window.location.origin}/embed/report/${firstToken}`;
-    if (embedSections.length === 0 || embedSections.length === allSections.length) return base;
+    if (embedSections.length === 0 || embedSections.length === ALL_SECTIONS.length) return base;
     return `${base}?sections=${embedSections.join(',')}`;
   }, [links, embedSections]);
 
@@ -337,7 +337,7 @@ export default function ShareDialog({ reportId, startupId }: ShareDialogProps) {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Sections</label>
                   <div className="space-y-2">
-                    {allSections.map((section) => (
+                    {ALL_SECTIONS.map((section) => (
                       <label key={section.key} className="flex items-center gap-2 text-sm">
                         <Checkbox
                           checked={embedSections.includes(section.key)}

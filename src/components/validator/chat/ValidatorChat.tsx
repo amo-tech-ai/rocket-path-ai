@@ -237,7 +237,7 @@ export default function ValidatorChat({
     streamDeliveredForRequestRef.current = activeRequestRef.current;
     followupPhaseRef.current = 'delivered';
     resetStream();
-  }, [streamingState.isStreaming, streamingState.metadata, isStreamingMessage, resetStream, onCoverageUpdate, userMessageCount]);
+  }, [streamingState.isStreaming, streamingState.metadata, streamingState.streamedText, isStreamingMessage, resetStream, onCoverageUpdate, userMessageCount]);
 
   // Ask AI for the next question
   const askFollowup = useCallback(async (currentMessages: ChatMessage[]) => {

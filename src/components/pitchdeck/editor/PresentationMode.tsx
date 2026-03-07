@@ -3,7 +3,7 @@
  * Fullscreen slide presentation with navigation
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   X,
   ChevronLeft,
@@ -33,10 +33,32 @@ export function PresentationMode({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isAutoPlay, setIsAutoPlay] = useState(false);
-  const [autoPlayInterval, setAutoPlayInterval] = useState<number | null>(null);
 
   const currentSlide = slides[currentIndex];
   const progress = ((currentIndex + 1) / slides.length) * 100;
+  const autoPlayIntervalRef = useRef<number | null>(null);
+
+  const nextSlide = useCallback(() => {
+    if (currentIndex < slides.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+    }
+  }, [currentIndex, slides.length]);
+
+  const prevSlide = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+    }
+  }, [currentIndex]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -71,7 +93,7 @@ export function PresentationMode({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, slides.length, onClose]);
+  }, [currentIndex, slides.length, onClose, nextSlide, prevSlide, toggleFullscreen]);
 
   // Auto-play
   useEffect(() => {
@@ -83,15 +105,15 @@ export function PresentationMode({
           setIsAutoPlay(false);
         }
       }, 5000);
-      setAutoPlayInterval(interval);
-    } else if (autoPlayInterval) {
-      clearInterval(autoPlayInterval);
-      setAutoPlayInterval(null);
+      autoPlayIntervalRef.current = interval;
+    } else if (autoPlayIntervalRef.current) {
+      clearInterval(autoPlayIntervalRef.current);
+      autoPlayIntervalRef.current = null;
     }
 
     return () => {
-      if (autoPlayInterval) {
-        clearInterval(autoPlayInterval);
+      if (autoPlayIntervalRef.current) {
+        clearInterval(autoPlayIntervalRef.current);
       }
     };
   }, [isAutoPlay, currentIndex, slides.length]);
@@ -99,7 +121,7 @@ export function PresentationMode({
   // Hide controls after inactivity
   useEffect(() => {
     let timeout: number;
-    
+
     function handleMouseMove() {
       setShowControls(true);
       clearTimeout(timeout);
@@ -115,28 +137,6 @@ export function PresentationMode({
       window.removeEventListener('mousemove', handleMouseMove);
       clearTimeout(timeout);
     };
-  }, []);
-
-  const nextSlide = useCallback(() => {
-    if (currentIndex < slides.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-    }
-  }, [currentIndex, slides.length]);
-
-  const prevSlide = useCallback(() => {
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    }
-  }, [currentIndex]);
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
-    }
   }, []);
 
   const toggleAutoPlay = useCallback(() => {

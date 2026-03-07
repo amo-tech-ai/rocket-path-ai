@@ -402,6 +402,7 @@ describe('BUG-04: topRiskTitles memoization prevents re-render cascade', () => {
       () => {
         renderCount++;
         // This is the exact pattern from Dashboard.tsx:81
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: testing memoization with outer-scope value
         const titles = useMemo(() => risks.map((r) => r.title), [risks]);
         const prevRef = useRef(titles);
 
@@ -433,6 +434,7 @@ describe('BUG-04: topRiskTitles memoization prevents re-render cascade', () => {
     const wrapper = createWrapper();
     const { rerender } = renderHook(
       () => {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: testing memoization with outer-scope value
         const titles = React.useMemo(() => risks.map((r) => r.title), [risks]);
         capturedTitles.push(titles);
         return titles;

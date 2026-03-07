@@ -92,7 +92,7 @@ export function useOnboardingQuestions({
     } finally {
       setIsLoading(false);
     }
-  }, [industryId, stage, maxQuestions, toast]);
+  }, [industryId, stage, maxQuestions]);
 
   return {
     questions,

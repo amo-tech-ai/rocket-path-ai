@@ -180,6 +180,7 @@ export function useWizardSession() {
     console.log('[WizardSession] ensureSession: Starting new session creation');
     createPromiseRef.current = createSessionInternal();
     return createPromiseRef.current;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- createSessionInternal is intentionally excluded; it's a non-memoized function that reads current state via refs, and including it would recreate ensureSession on every render
   }, [session?.id, user?.id]);
 
   // Create new session mutation (for backwards compatibility)

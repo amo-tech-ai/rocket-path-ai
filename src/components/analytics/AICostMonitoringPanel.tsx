@@ -3,7 +3,7 @@
  * Tracks AI API usage, costs, and spending trends
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -70,11 +70,7 @@ export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoadi
   const [totalRequests, setTotalRequests] = useState(0);
   const monthlyBudget = budgetDollars;
 
-  useEffect(() => {
-    fetchAIUsage();
-  }, [startupId, orgId]);
-
-  const fetchAIUsage = async () => {
+  const fetchAIUsage = useCallback(async () => {
     setLoading(true);
     try {
       const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
@@ -139,7 +135,11 @@ export function AICostMonitoringPanel({ startupId, orgId, loading: externalLoadi
     } finally {
       setLoading(false);
     }
-  };
+  }, [startupId]);
+
+  useEffect(() => {
+    fetchAIUsage();
+  }, [startupId, orgId, fetchAIUsage]);
 
   const budgetUsagePercent = (totalCost / monthlyBudget) * 100;
 

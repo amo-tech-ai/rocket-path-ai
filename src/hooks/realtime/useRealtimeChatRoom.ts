@@ -225,6 +225,7 @@ export function useRealtimeChatRoom(options: UseRealtimeChatRoomOptions) {
         channelRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers are defined below and depend on state (e.g. state.isStreaming); adding them would cause resubscription loops
   }, [user, roomId, startupId, username, onPresenceChange]);
 
   // ============ Message Handlers ============
@@ -363,7 +364,7 @@ export function useRealtimeChatRoom(options: UseRealtimeChatRoomOptions) {
     await setTyping(false);
 
     return message;
-  }, [user, username]);
+  }, [user, username, setTyping]);
 
   const setTyping = useCallback(async (isTyping: boolean) => {
     if (!channelRef.current || !user) return;

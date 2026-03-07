@@ -68,7 +68,7 @@ export function useCanvasRealtime(
     }
 
     options.onSaved?.();
-  }, [options]);
+  }, [documentId, queryClient, options]);
 
   const handleCanvasPrefilled = useCallback((payload: CanvasPayload) => {
     if (payload.eventType !== 'canvas_prefilled') return;

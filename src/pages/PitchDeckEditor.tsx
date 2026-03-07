@@ -56,6 +56,7 @@ export default function PitchDeckEditor() {
     if (currentSlide && !isLoadingSuggestions && aiSuggestions.length === 0) {
       fetchAISuggestions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when slide ID changes; including aiSuggestions/isLoadingSuggestions would cause infinite fetch loops
   }, [currentSlide?.id]);
 
   if (isLoading) {

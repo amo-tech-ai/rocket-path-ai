@@ -255,7 +255,7 @@ async function handleAutoSelect(
   const categories = MODULE_CATEGORY_MAP[module] || [module];
 
   // Build query with scoring
-  let query = supabase
+  const query = supabase
     .from("prompt_packs")
     .select(`
       id,title,slug,description,category,stage_tags,industry_tags,

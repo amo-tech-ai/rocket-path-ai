@@ -549,13 +549,14 @@ async function handleApply(
               result = { table: 'lean_canvases', action: 'upsert', count: 1 };
             }
             break;
-          case 'slides':
+          case 'slides': {
             const slides = outputs_json.slides as unknown[];
             if (slides?.length) {
               result = { table: 'pitch_deck_slides', action: 'upsert', count: slides.length };
             }
             break;
-          case 'tasks':
+          }
+          case 'tasks': {
             const tasks = outputs_json.tasks as unknown[];
             const nextSteps = outputs_json.next_steps as unknown[];
             const count = (tasks?.length || 0) + (nextSteps?.length || 0);
@@ -563,6 +564,7 @@ async function handleApply(
               result = { table: 'tasks', action: 'insert', count };
             }
             break;
+          }
           case 'score':
             if (outputs_json.readiness_score || outputs_json.overall_score || outputs_json.verdict) {
               result = { table: 'startups.readiness', action: 'update', count: 1 };

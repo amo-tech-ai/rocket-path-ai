@@ -134,7 +134,7 @@ export function interpolatePrompt(
  */
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   // Sanitize: only allow alphanumeric, underscores, dots, brackets with digits
-  if (!/^[a-zA-Z0-9_]+([.\[][a-zA-Z0-9_\]]*)*$/.test(path)) {
+  if (!/^[a-zA-Z0-9_]+([.[][a-zA-Z0-9_\]]*)*$/.test(path)) {
     return undefined;
   }
 

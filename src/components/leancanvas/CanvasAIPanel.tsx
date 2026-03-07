@@ -98,7 +98,7 @@ export function CanvasAIPanel({
           }
         }
       } else if (currentSection) {
-        const bulletMatch = line.match(/^[\-\*\•]\s*(.+)/);
+        const bulletMatch = line.match(/^[-*•]\s*(.+)/);
         if (bulletMatch && bulletMatch[1].trim()) {
           sections[currentSection].push(bulletMatch[1].trim());
         }

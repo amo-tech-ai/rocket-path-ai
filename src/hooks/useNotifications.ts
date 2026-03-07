@@ -135,7 +135,7 @@ export function useNotifications() {
         variant: 'destructive',
       });
     }
-  }, [user, preferences, toast]);
+  }, [user, preferences, toast, profile?.preferences]);
 
   // Add a notification
   const addNotification = useCallback((
@@ -288,9 +288,10 @@ export function useNotifications() {
 
   // Cleanup all reminders on unmount
   useEffect(() => {
+    const cleanupFns = cleanupFnsRef.current;
     return () => {
-      cleanupFnsRef.current.forEach(cleanup => cleanup());
-      cleanupFnsRef.current.clear();
+      cleanupFns.forEach(cleanup => cleanup());
+      cleanupFns.clear();
     };
   }, []);
 

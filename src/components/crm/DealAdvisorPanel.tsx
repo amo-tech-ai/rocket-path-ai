@@ -85,6 +85,7 @@ export function DealAdvisorPanel({ deal }: DealAdvisorPanelProps) {
     } else {
       setAdvice(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Re-fetch only on deal identity change (deal?.id), not on every deal property mutation. getAdvice is stable from useMutation.
   }, [deal?.id]);
 
   const generateFallbackAdvice = (stage: string): DealAdvice => {
