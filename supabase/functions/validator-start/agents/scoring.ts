@@ -190,6 +190,48 @@ Return JSON with exactly these fields:
   "highest_signal_level": 1
 }`;
 
+  // Agency enhancement: evidence-weighted scoring + RICE priority actions + bias detection
+  // Source: agency/prompts/036-fragment-validator-scoring.md
+  systemPrompt += `
+
+## Evidence-Weighted Scoring
+
+Score each dimension using evidence tiers. Assign a confidence weight to each piece of supporting evidence:
+
+| Evidence Tier | Confidence | Weight |
+|---|---|---|
+| Cited external source (report, study, public data) | High | 1.0x |
+| Founder claim with partial corroboration | Medium | 0.8x |
+| AI inference only (no external validation) | Low | 0.6x |
+
+Rules:
+- If the primary evidence for a dimension is AI inference only, discount the raw score by 20%.
+- When multiple evidence tiers exist for one dimension, use the weighted average.
+- Annotate each dimension with its primary evidence tier so downstream agents can assess reliability.
+- A dimension with zero cited sources should never score above 70.
+
+## RICE-Based Priority Actions
+
+For each scored dimension, generate 1-2 priority actions. Score each action using RICE:
+RICE Score = (Reach x Impact x Confidence) / Effort
+
+After scoring all actions across all dimensions, rank them globally. Return the top 5 as priority_actions. Each action must include:
+- action: What to do (imperative, specific, under 15 words)
+- rice_score: Numeric RICE score
+- timeframe: "1 week" | "2 weeks" | "1 month" | "3 months"
+- effort: "Low" | "Medium" | "High"
+- dimension: Which scored dimension this addresses
+
+## Additional Bias Checks
+
+Before finalizing scores, run these checks:
+1. Confirmation Bias: Does scoring rely heavily on founder-aligned evidence while ignoring contradictions? Flag if >3 dimensions use only founder evidence.
+2. Survivorship Bias: Are comparable companies cited only because they succeeded? Consider failed competitors.
+3. Anchoring Bias: Is TAM/SAM/SOM anchored to the founder's number without bottom-up validation?
+4. Optimism Bias: Are revenue projections above industry medians without justification?
+
+Surface any detected bias in bias_flags — do NOT silently adjust scores.`;
+
   try {
     // P01: thinkingLevel: 'high' enables deeper multi-criteria reasoning
     // R-01 fix: keepSchemaWithThinking ensures scoring output structure is enforced

@@ -8,15 +8,52 @@
 
 export const DISCOVER_INVESTORS_SYSTEM = `You are an expert investor matching AI. Generate realistic but fictional investor profiles that match the startup's profile.`;
 
-export const ANALYZE_INVESTOR_FIT_SYSTEM = `You are an expert at matching startups with investors. Provide honest, actionable assessments.`;
+export const ANALYZE_INVESTOR_FIT_SYSTEM = `You are an expert at matching startups with investors. Provide honest, actionable assessments.
+
+## MEDDPICC Investor Scoring
+
+Score each investor using adapted MEDDPICC (rate each 1-5):
+- Metrics: Does our trajectory match the fund's target ROI/multiple?
+- Economic Buyer: Do we have access to the final decision-maker?
+- Decision Criteria: Do we match their stage, sector, geo, metrics criteria?
+- Decision Process: How many partners approve? Single vs multi-stage IC?
+- Paper Process: Term sheet to close timeline and legal complexity?
+- Pain: What portfolio gap does our startup fill for the fund?
+- Champion: Do we have an internal advocate (associate, advisor, portfolio founder)?
+- Competition: Who else competes for this investor's attention/allocation?
+
+Total: /40. Score 28+ = active outreach. 20-27 = nurture. Below 20 = deprioritize.
+Include the MEDDPICC breakdown so founders see exactly where each investor is strong or weak.`;
 
 export const FIND_WARM_PATHS_SYSTEM = `You are an expert at networking and finding warm introduction paths to investors.`;
 
-export const GENERATE_OUTREACH_SYSTEM = `You are an expert at writing investor outreach emails that get responses. Be concise, specific, and personalized.`;
+export const GENERATE_OUTREACH_SYSTEM = `You are an expert at writing investor outreach emails that get responses. Be concise, specific, and personalized.
+
+## Signal-Based Outreach Timing
+Strong Signals (reach out within 1 week): Fund announced new vehicle, partner published content in your space, fund invested in adjacent company, portfolio company exited.
+Medium Signals (2-4 weeks): Partner engaged with industry content on social, fund updated thesis, related portfolio company pivoted.
+Weak Signals (nurture only): Fund generally active in sector, partner attended relevant conference.
+Always note which signal triggered the timing suggestion.
+
+## Cold Email Framework (under 120 words)
+1. Signal-based opening (1 sentence): Reference the specific buying signal.
+2. Value proposition (1 sentence): Market size, growth rate, or unique wedge — not product features.
+3. Social proof (1 sentence): A metric, comparable outcome, or notable advisor.
+4. Low-friction CTA (1 sentence): Ask for 15 minutes, not a pitch meeting. Never attach a deck unsolicited.
+
+Anti-patterns: "We're disrupting...", attaching pitch decks cold, asking for funding in first email, "I'd love to pick your brain".`;
 
 export const ANALYZE_PIPELINE_SYSTEM = `You are an expert at analyzing fundraising pipelines and providing actionable recommendations.`;
 
-export const SCORE_DEAL_SYSTEM = `You are an expert at scoring fundraising deal quality and predicting close probability.`;
+export const SCORE_DEAL_SYSTEM = `You are an expert at scoring fundraising deal quality and predicting close probability.
+
+Use MEDDPICC composite score (/40) to classify deals:
+- 32-40: STRONG — push to close
+- 24-31: BATTLING — winnable if gaps close in 14 days
+- 16-23: AT RISK — intervene or qualify out
+- Below 16: UNQUALIFIED — stop investing time
+
+Red flags: single-threaded to associate, no compelling event, champion won't introduce GP, fund thesis mismatch, diligence timeline unknown.`;
 
 export const PREPARE_MEETING_SYSTEM = `You are an expert at preparing founders for investor meetings.`;
 

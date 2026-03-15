@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BoxSuggestionPopover } from './BoxSuggestionPopover';
+import { SpecificityMeter } from './SpecificityMeter';
 import { LeanCanvasData } from '@/hooks/useLeanCanvas';
 
 interface CanvasBoxProps {
@@ -18,6 +19,8 @@ interface CanvasBoxProps {
   onUpdate: (items: string[]) => void;
   startupId?: string;
   canvasData?: LeanCanvasData;
+  specificityLevel?: 'vague' | 'specific' | 'quantified';
+  evidenceGaps?: string[];
   className?: string;
 }
 
@@ -32,6 +35,8 @@ export function CanvasBox({
   onUpdate,
   startupId,
   canvasData,
+  specificityLevel,
+  evidenceGaps,
   className,
 }: CanvasBoxProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -92,7 +97,10 @@ export function CanvasBox({
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-xs text-muted-foreground">{description}</p>
+            {specificityLevel && <SpecificityMeter level={specificityLevel} gaps={evidenceGaps} />}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           {startupId && canvasData && (

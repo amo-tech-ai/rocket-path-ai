@@ -582,6 +582,10 @@ try {
       if (scoring.market_factors?.length) enriched.market_factors = scoring.market_factors;
       if (scoring.execution_factors?.length) enriched.execution_factors = scoring.execution_factors;
       if (scoring.scores_matrix) enriched.scores_matrix = scoring.scores_matrix;
+      if (scoring.bias_flags?.length) enriched.bias_flags = scoring.bias_flags;
+      if (scoring.evidence_grades?.length) enriched.evidence_grades = scoring.evidence_grades;
+      if (scoring.highest_signal_level) enriched.highest_signal_level = scoring.highest_signal_level;
+      if (scoring.risk_queue?.length) enriched.risk_queue = scoring.risk_queue;
     }
 
     // R-05 fix: Return inserted report ID directly via .select('id').single()

@@ -36,6 +36,8 @@ import { DimensionSection } from './DimensionSection';
 import { DimensionNavGrid } from './DimensionNavGrid';
 import { ReportLeanCanvas } from './ReportLeanCanvas';
 import { StrategicSummary } from './StrategicSummary';
+import { BiasAlertBanner } from './BiasAlertBanner';
+import { WinThemeLabel } from './WinThemeLabel';
 
 function getSignal(score: number | null): 'go' | 'caution' | 'no-go' | 'unavailable' {
   if (score === null || score === undefined) return 'unavailable';
@@ -238,13 +240,15 @@ interface ReportV2LayoutProps {
   reportId?: string;
   companyName?: string;
   startupMeta?: StartupMeta;
+  /** Startup ID for sprint import and other cross-feature links */
+  startupId?: string;
   /** Externally controlled active section (e.g. from route params). Falls back to ?tab= query param if omitted. */
   activeSection?: string;
   /** Called when user clicks a tab or stepper button. Required when activeSection is provided. */
   onSectionChange?: (section: string) => void;
 }
 
-export function ReportV2Layout({ report, reportId, companyName, startupMeta, activeSection, onSectionChange }: ReportV2LayoutProps) {
+export function ReportV2Layout({ report, reportId, companyName, startupMeta, startupId, activeSection, onSectionChange }: ReportV2LayoutProps) {
   const heroRef = useRef<HTMLDivElement>(null);
   const tabsAnchorRef = useRef<HTMLDivElement>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
@@ -666,6 +670,9 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, act
                 </Reveal>
               </div>
 
+              {/* Agency: Bias warnings + evidence quality */}
+              <BiasAlertBanner biasFlags={d.bias_flags as any} />
+
               {/* BCG-style charts — validation analytics */}
               {dimensions.length > 0 && (
                 <PageCard>
@@ -772,7 +779,7 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, act
               {isDimensionSection(activeTab) && reportId ? (
                 /* Individual dimension page */
                 <PageCard>
-                  <DimensionSection dimensionId={activeTab} reportId={reportId} />
+                  <DimensionSection dimensionId={activeTab} reportId={reportId} startupId={startupId} />
                   <TabStepper currentTab={activeTab} onNavigate={handleTabChange} />
                 </PageCard>
               ) : (
@@ -796,7 +803,7 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, act
 
             <TabsContent value="strategy" className="mt-6">
               <PageCard>
-                <StrategicSummary details={d} />
+                <StrategicSummary details={d} reportId={reportId} startupId={startupId} />
                 <TabStepper currentTab="strategy" onNavigate={handleTabChange} />
               </PageCard>
             </TabsContent>

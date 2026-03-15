@@ -197,7 +197,16 @@ Rules:
 - Name a realistic person (not "John from Company X" but "Sarah Chen, Production Manager at a 30-person fashion label in LA")
 - Context must include: role, company size, industry, and the specific workflow that's broken
 - "Without" scenario: walk through a specific bad day step-by-step
-- "With" scenario: same day with the product — be concrete about what changes`;
+- "With" scenario: same day with the product — be concrete about what changes
+
+## Behavioral Framing for Next Steps
+
+Frame all recommended next steps using behavioral science principles:
+1. Lead with micro-wins: The first recommended action should be completable in under 1 week and produce a visible result.
+2. Momentum language: Use "Start with X to unlock Y" framing instead of passive lists.
+3. Progressive commitment: Order actions from smallest to largest commitment. Do not lead with "raise $2M."
+4. Loss framing for urgency: For time-sensitive actions, frame as opportunity cost.
+5. Specificity over abstraction: "Interview 5 customers in [segment] about [pain point]" not "Do customer discovery."`;
 
   // 031-PCE: Pass problem_structured separately so Composer can use it directly
   const problemStructuredBlock = profile?.problem_structured
@@ -521,7 +530,26 @@ Never use stronger language than the evidence supports.
 - If any risk has severity "fatal": verdict MUST be "Conditional go — [the fatal risk]" or "No-go"
 - If overall_score < 50: verdict MUST be "No-go" unless extraordinary circumstances explained
 - If overall_score 50-65: verdict SHOULD be "Conditional go"
-- These rules are enforced in post-processing — if you output "Go" with signal level 1-2, it will be overridden to "Conditional go"`;
+- These rules are enforced in post-processing — if you output "Go" with signal level 1-2, it will be overridden to "Conditional go"
+
+## Three-Act Report Narrative
+
+Structure summary_verdict using a three-act arc:
+- Act 1 (Market Context): Open with the market reality, not the startup. Use a specific data point within the first two sentences. End with tension — why current solutions fail.
+- Act 2 (Solution Journey): Introduce the startup as a response to Act 1 tension. Focus on mechanism, not features. Include one concrete scenario.
+- Act 3 (Quantified Future): Revenue potential or market capture. Connect to score and verdict. Close with a single decisive sentence.
+
+## Win Theme Integration
+
+Extract 2-3 win themes from scoring data — recurring strengths across multiple dimensions. Each must be buyer-specific, provable (backed by data), and differentiating. Weave throughout the summary.
+
+## Growth Channel Recommendations
+
+Recommend top 3 growth channels using ICE scoring (Impact x Confidence x Ease, each 1-10). Match to stage:
+- Pre-PMF: Content marketing, community, founder-led sales. Avoid paid ads.
+- PMF: Paid acquisition, partnerships, referral programs. Avoid mass media.
+- Scale: Programmatic channels, brand marketing. Avoid founder-led anything.
+Name each channel specifically — not "social media" but "LinkedIn thought leadership targeting [ICP]."`;
 
   // 022-SKI: Include consistency notes to enforce cross-group alignment
   const consistencyBlock = consistencyNotes.length > 0

@@ -31,6 +31,8 @@ import { useKnowledgeSearch } from "@/hooks/useKnowledgeSearch";
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ChatModeSelector, type ChatMode } from '@/components/chat/ChatModeSelector';
+import { useChatModeSessions } from '@/hooks/useChatModeSessions';
 
 // Quick action suggestions
 const quickActions = [
@@ -295,8 +297,13 @@ const AIChat = () => {
   });
   
   const [input, setInput] = useState('');
+  const [chatMode, setChatMode] = useState<ChatMode>('authenticated');
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { sessions, createSession, saveMessages } = useChatModeSessions(
+    chatMode !== 'authenticated' ? chatMode : undefined
+  );
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -305,17 +312,42 @@ const AIChat = () => {
     }
   }, [messages]);
 
+  // Auto-save messages to session when in coaching mode
+  useEffect(() => {
+    if (chatMode === 'authenticated' || !activeSessionId || messages.length === 0) return;
+    // Only save when the last message is from assistant (complete exchange)
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role !== 'assistant') return;
+
+    const title = messages.find(m => m.role === 'user')?.content?.slice(0, 50) || 'Untitled';
+    saveMessages({
+      sessionId: activeSessionId,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      title,
+    });
+  }, [messages, activeSessionId, chatMode, saveMessages]);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading || isStreaming) return;
     
     const message = input;
     setInput('');
     
+    // Auto-create session for coaching modes on first message
+    if (chatMode !== 'authenticated' && !activeSessionId) {
+      try {
+        const session = await createSession({ mode: chatMode, title: message.slice(0, 50) });
+        setActiveSessionId(session.id);
+      } catch {
+        // Continue without persistence — not a blocker
+      }
+    }
+
     await sendMessage(message, 'chat', {
       startup_name: startup?.name,
       industry: startup?.industry,
       stage: startup?.stage,
-    });
+    }, chatMode !== 'authenticated' ? chatMode : undefined);
   };
 
   const handleQuickAction = (action: string) => {
@@ -356,6 +388,9 @@ const AIChat = () => {
             </Button>
           </div>
         </motion.div>
+
+        {/* Mode Selector */}
+        <ChatModeSelector activeMode={chatMode} onModeChange={setChatMode} />
 
         {/* Chat Area */}
         <Card className="flex-1 flex flex-col overflow-hidden">

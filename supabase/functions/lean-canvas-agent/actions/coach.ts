@@ -95,6 +95,8 @@ interface CanvasCoachResponse {
   canvas_score: number;
   reasoning: string;
   citations: string[];
+  specificity_scores?: Record<string, 'vague' | 'specific' | 'quantified'>;
+  evidence_gaps?: Record<string, string[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +156,16 @@ const coachResponseSchema = {
       items: { type: "STRING" },
       description: "Source references cited in reply, e.g. 'Deloitte State of AI 2026'. Empty array if no data was referenced.",
     },
+    specificity_scores: {
+      type: "OBJECT",
+      description: "Per-box specificity rating. Key = box key (problem, solution, etc). Value = 'vague' (no numbers, generic), 'specific' (named segments, tools), or 'quantified' (dollar amounts, percentages, timeframes). Only include boxes that have content.",
+      nullable: true,
+    },
+    evidence_gaps: {
+      type: "OBJECT",
+      description: "Per-box evidence gaps. Key = box key. Value = array of 1-3 specific things missing (e.g. 'No quantified impact', 'No target segment defined'). Only include boxes with gaps.",
+      nullable: true,
+    },
   },
 };
 
@@ -192,7 +204,9 @@ For each box, evaluate:
 - suggestions: 1-3 items with box_key matching a canvas box key exactly. Items should be specific and actionable.
 - next_chips: 2-3 short follow-up prompts relevant to the conversation (max 6 words each).
 - canvas_score: 0-100 based on completeness (40%), specificity (30%), coherence (30%).
-- reasoning: your internal analysis (not shown to user).`;
+- reasoning: your internal analysis (not shown to user).
+- specificity_scores: For each box with content, rate as 'vague' (generic terms like "businesses", "users", no numbers), 'specific' (named segments, specific tools, concrete descriptions), or 'quantified' (dollar amounts, percentages, timeframes, measurable metrics). Empty boxes are excluded.
+- evidence_gaps: For each box with gaps, list 1-3 specific things missing. Examples: "No quantified impact", "No named competitors", "No pricing data". Boxes with no gaps are excluded.`;
 
 // ---------------------------------------------------------------------------
 // Helpers

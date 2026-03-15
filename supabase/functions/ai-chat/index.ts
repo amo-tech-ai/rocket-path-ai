@@ -2,25 +2,25 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { handleCoachMode, getWelcomeMessage } from "./coach/index.ts";
 import { getRAGContext } from "./rag.ts";
+import { generateEmbedding } from "../_shared/openai-embeddings.ts";
 import { corsHeaders, getCorsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '../_shared/rate-limit.ts';
 import { callGeminiChat as sharedCallGeminiChat, type GeminiChatMessage } from '../_shared/gemini.ts';
 
-// OpenAI Embeddings API
-const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
 
 interface ChatRequest {
   messages?: Array<{ role: string; content: string }>;
   message?: string;
   session_id?: string;
   room_id?: string;
-  mode?: 'public' | 'authenticated' | 'coach';
+  mode?: 'public' | 'authenticated' | 'coach' | 'practice_pitch' | 'growth_strategy' | 'deal_review' | 'canvas_coach';
   action?: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance' | 'coach' | 'search_knowledge';
   startupId?: string;
   query?: string;
   matchThreshold?: number;
   matchCount?: number;
   category?: string;
+  industry?: string;
   context?: {
     screen?: string;
     startup_id?: string;
@@ -79,6 +79,94 @@ PRICING INFO (if asked):
 - Enterprise: Custom solutions for accelerators and VCs
 Suggest they visit the pricing page or sign up for details.`;
 
+// Coaching mode system prompts — inlined from agency/chat-modes/*.md
+const COACHING_MODE_PROMPTS = {
+  practice_pitch: `You are an experienced venture investor who has reviewed 1,000+ pitches. Your job is to help this founder practice their investor pitch through Socratic coaching.
+
+SESSION FLOW:
+1. Ask the founder to deliver their 60-second pitch
+2. Score on 5 dimensions (each 1-10): Clarity, Urgency, Differentiation, The Ask, Confidence
+3. Identify the weakest dimension and coach on it specifically
+4. Ask 2-3 tough investor questions that test their weakest area
+5. Have them re-deliver an improved version
+6. Compare before/after scores
+
+RULES:
+- Coach ONE improvement at a time — never overwhelm with a list
+- Reference specific phrases from their pitch ("When you said X, it was vague — try Y instead")
+- Be tough but supportive — real investors are harder than you
+- Use actual startup data when available (don't ask generic questions if you have context)
+- After coaching, always have them re-deliver to build muscle memory`,
+
+  growth_strategy: `You are an expert growth strategist who has scaled multiple startups from 0 to 10,000 users. Help this founder diagnose their growth bottleneck and design experiments.
+
+FRAMEWORK: AARRR Pirate Metrics
+- Acquisition: How do users find you?
+- Activation: Do they have a great first experience?
+- Retention: Do they come back?
+- Revenue: Do they pay?
+- Referral: Do they tell others?
+
+SESSION FLOW:
+1. Ask "What are your current numbers?" for each AARRR stage
+2. Identify the biggest drop-off (the bottleneck)
+3. Recommend 3 experiments ranked by ICE score (Impact x Confidence x Ease, each 1-10)
+4. Design experiment #1 in detail: hypothesis, metric, timeline, success criteria
+
+RULES:
+- Always start with "what are your current numbers?" — no numbers = first experiment is "instrument your funnel"
+- Never recommend paid acquisition before PMF
+- Pick ONE bottleneck at a time
+- If no data available, help them set up measurement first
+- Be specific: "Run 5 LinkedIn ads targeting [ICP] with [offer]" not "try paid channels"`,
+
+  deal_review: `You are a senior deal strategist who has closed 50+ fundraising rounds. Help this founder review their investor pipeline and prioritize deals.
+
+FRAMEWORK: MEDDPICC (adapted for fundraising)
+Score each investor 1-5 on: Metrics fit, Economic Buyer access, Decision Criteria match, Decision Process clarity, Paper Process speed, Identified Pain (portfolio gap), Champion strength, Competition for allocation.
+
+DEAL VERDICTS (total /40):
+- 32-40: STRONG — push to close
+- 24-31: BATTLING — winnable if gaps close in 14 days
+- 16-23: AT RISK — intervene or qualify out
+- Below 16: UNQUALIFIED — stop investing time
+
+RED FLAGS: single-threaded to associate, no compelling event, champion won't introduce GP, fund thesis mismatch, diligence timeline unknown.
+
+RULES:
+- Every assessment must cite specific evidence from the founder's data
+- Force-rank deals by MEDDPICC score
+- For each weak dimension, give a specific action to strengthen it
+- Be honest about dead deals — founders waste months on unqualified investors`,
+
+  canvas_coach: `You are an expert lean startup coach specializing in business model validation. Help this founder improve their Lean Canvas by finding and fixing weak spots.
+
+COACHING METHOD:
+1. Identify the weakest canvas box (by specificity and evidence quality)
+2. Ask 2-3 probing questions about that box
+3. Suggest specific improvements with replacement language
+4. Track improvement and move to the next weakest box
+5. Celebrate progress with metrics
+
+BOX QUALITY CHECKS:
+- Problem: Is pain quantified? Is "who" specific (not "everyone")?
+- Customer Segments: Named persona with job title, company size, budget?
+- Unique Value Proposition: Would a customer choose this over alternatives based on this sentence alone?
+- Solution: Does it address the root cause, not just symptoms?
+- Channels: Named specifically (not "social media" but "LinkedIn targeting CTOs")?
+- Revenue Streams: Pricing validated? Unit economics viable?
+- Cost Structure: All major costs identified? Burn rate realistic?
+- Key Metrics: OMTM defined? Measurable within 2 weeks?
+- Unfair Advantage: Is this truly defensible (not just "AI" or "first mover")?
+
+RULES:
+- Never accept "everyone" as a customer segment
+- Never accept "no competition" — alternatives always exist
+- Ask "how do you know?" for every unsupported claim
+- Provide replacement language, not abstract feedback ("Change X to Y" not "be more specific")
+- Work ONE box at a time — depth over breadth`,
+} as const;
+
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
@@ -132,6 +220,7 @@ Deno.serve(async (req: Request) => {
       matchThreshold,
       matchCount,
       category,
+      industry,
       context, 
       stream = false 
     } = body;
@@ -156,16 +245,18 @@ Deno.serve(async (req: Request) => {
       console.log(`[AI Chat] Knowledge search: "${searchQuery.substring(0, 100)}..."`);
       
       try {
-        // Generate embedding using OpenAI
-        const embedding = await generateOpenAIEmbedding(searchQuery);
-        
-        // Search knowledge chunks using the embedding
-        const { data: results, error: searchError } = await supabase.rpc('search_knowledge', {
-          query_embedding: embedding,
-          match_threshold: matchThreshold || 0.75,
-          match_count: matchCount || 5,
+        // Generate embedding using shared OpenAI module
+        const { embedding } = await generateEmbedding(searchQuery);
+
+        // Hybrid search: semantic + full-text with RRF merge
+        const { data: results, error: searchError } = await supabase.rpc('hybrid_search_knowledge', {
+          query_embedding: `[${embedding.join(",")}]`,
+          query_text: searchQuery,
+          match_threshold: matchThreshold || 0.5,
+          match_count: matchCount || 10,
           filter_category: category || null,
-          filter_industry: null,
+          filter_industry: industry?.trim()?.toLowerCase() || null,
+          rrf_k: 50,
         });
         
         if (searchError) {
@@ -261,7 +352,73 @@ Deno.serve(async (req: Request) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
+
+    // Handle coaching chat modes (practice_pitch, growth_strategy, deal_review, canvas_coach)
+    const COACHING_MODES = ['practice_pitch', 'growth_strategy', 'deal_review', 'canvas_coach'] as const;
+    type CoachingMode = typeof COACHING_MODES[number];
+
+    if (user && COACHING_MODES.includes(mode as CoachingMode)) {
+      const coachingMode = mode as CoachingMode;
+      console.log(`[AI Chat] Coaching mode: ${coachingMode}`);
+
+      if (!userMessage) {
+        return new Response(
+          JSON.stringify({ error: 'Message is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get startup context for personalization
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('org_id, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      let startupContext = '';
+      if (profileData?.org_id) {
+        const { data: startupData } = await supabase
+          .from('startups')
+          .select('name, industry, stage, description')
+          .eq('org_id', profileData.org_id)
+          .limit(1)
+          .maybeSingle();
+        if (startupData) {
+          startupContext = `\n\nFOUNDER CONTEXT:\n- Name: ${profileData.full_name || 'Founder'}\n- Startup: ${startupData.name || 'Unknown'}\n- Industry: ${startupData.industry || 'Unknown'}\n- Stage: ${startupData.stage || 'Unknown'}\n- Description: ${(startupData.description || '').slice(0, 300)}`;
+        }
+      }
+
+      const coachingSystemPrompt = COACHING_MODE_PROMPTS[coachingMode] + startupContext;
+
+      // RAG context for coaching modes
+      const ragBlock = await getRAGContext(supabase, userMessage, null);
+      const finalPrompt = ragBlock
+        ? `${coachingSystemPrompt}\n\nKNOWLEDGE BASE:\n${ragBlock}`
+        : coachingSystemPrompt;
+
+      const chatMessages: GeminiChatMessage[] = (messages || []).map(m => ({
+        role: m.role === 'user' ? 'user' as const : 'model' as const,
+        parts: [{ text: m.content }],
+      }));
+
+      const result = await sharedCallGeminiChat(
+        'gemini-3-flash-preview',
+        finalPrompt,
+        chatMessages,
+        userMessage,
+        { timeoutMs: 30_000 }
+      );
+
+      return new Response(
+        JSON.stringify({
+          message: result.text,
+          mode: coachingMode,
+          model: 'gemini-3-flash-preview',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: 'Message is required' }),
@@ -359,7 +516,7 @@ ${ragBlock}`;
     // RT-2: Broadcast "AI is thinking" before calling the model
     if (!isPublicMode && user && room_id && context?.startup_id) {
       try {
-        const thinkingTopic = `chat:${context.startup_id}:${room_id}:events`;
+        const thinkingTopic = `chat:${context.startup_id}:${room_id}:ai`;
         const thinkingChannel = supabase.channel(thinkingTopic);
         await thinkingChannel.send({
           type: 'broadcast',
@@ -396,7 +553,7 @@ ${ragBlock}`;
       // Broadcast message_complete to room if room_id provided
       if (room_id && context?.startup_id) {
         try {
-          const topic = `chat:${context.startup_id}:${room_id}:events`;
+          const topic = `chat:${context.startup_id}:${room_id}:ai`;
           console.log(`[AI Chat] Broadcasting to ${topic}`);
           
           const broadcastChannel = supabase.channel(topic);
@@ -811,48 +968,3 @@ function extractSuggestedActions(
   return actions.slice(0, 3);
 }
 
-// Generate embedding using OpenAI text-embedding-3-small (1536 dimensions)
-async function generateOpenAIEmbedding(text: string): Promise<number[]> {
-  const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-  
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
-  }
-
-  const cleanedText = text.replace(/\n/g, ' ').trim();
-  
-  if (!cleanedText) {
-    throw new Error('Text cannot be empty');
-  }
-
-  const response = await fetch(OPENAI_EMBEDDINGS_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: cleanedText,
-      encoding_format: 'float',
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[OpenAI Embeddings] API error ${response.status}:`, errorText);
-    
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    if (response.status === 401) {
-      throw new Error('Invalid OpenAI API key');
-    }
-    throw new Error(`OpenAI API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  console.log(`[OpenAI Embeddings] Generated embedding, tokens: ${data.usage?.total_tokens || 'N/A'}`);
-  
-  return data.data[0].embedding;
-}

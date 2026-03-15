@@ -48,6 +48,7 @@ export interface RealtimeAIChatState {
   isThinking: boolean;
   thinkingModel: string | null;
   error: string | null;
+  typingUsers: string[];
 }
 
 export interface UseRealtimeAIChatOptions {
@@ -69,6 +70,7 @@ const initialState: RealtimeAIChatState = {
   isThinking: false,
   thinkingModel: null,
   error: null,
+  typingUsers: [],
 };
 
 // ============ Hook Implementation ============
@@ -127,6 +129,18 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
     channel.on('broadcast', { event: 'ai_thinking' }, ({ payload }) => {
       const p = payload as { model?: string; provider?: string; startedAt?: number };
       setState(prev => ({ ...prev, isThinking: true, thinkingModel: p.model || null }));
+    });
+
+    // Listen for user typing indicators (multi-user)
+    channel.on('broadcast', { event: 'user_typing' }, ({ payload }) => {
+      const p = payload as { userId: string; name: string; isTyping: boolean };
+      setState(prev => {
+        const filtered = prev.typingUsers.filter(n => n !== p.name);
+        return {
+          ...prev,
+          typingUsers: p.isTyping ? [...filtered, p.name] : filtered,
+        };
+      });
     });
 
     // Listen for complete AI messages
@@ -245,7 +259,8 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
   const sendMessage = useCallback(async (
     content: string,
     action: 'chat' | 'prioritize_tasks' | 'generate_tasks' | 'extract_profile' | 'stage_guidance' = 'chat',
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
+    mode?: string
   ) => {
     if (!user || !content.trim()) return null;
 
@@ -278,6 +293,7 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
             content: m.content,
           })),
           action,
+          ...(mode ? { mode } : {}),
           context: {
             screen: 'ai-chat',
             startup_id: startupId,
@@ -358,6 +374,19 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
     streamingMessageIdRef.current = null;
   }, []);
 
+  const broadcastTyping = useCallback((isTyping: boolean) => {
+    if (!channelRef.current || !user) return;
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'user_typing',
+      payload: {
+        userId: user.id,
+        name: username,
+        isTyping,
+      },
+    }).catch(() => { /* fire-and-forget */ });
+  }, [user, username]);
+
   // ============ Return ============
 
   return {
@@ -368,12 +397,14 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
     isStreaming: state.isStreaming,
     isThinking: state.isThinking,
     thinkingModel: state.thinkingModel,
+    typingUsers: state.typingUsers,
     error: state.error,
 
     // Methods
     sendMessage,
     clearMessages,
     stopStreaming,
+    broadcastTyping,
   };
 }
 
