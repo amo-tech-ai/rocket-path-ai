@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import AnimatedCursor from "./AnimatedCursor";
 import ProfileScreen from "./screens/ProfileScreen";
 import AnalysisScreen from "./screens/AnalysisScreen";
+import LeanCanvasScreen from "./screens/LeanCanvasScreen";
 import PitchDeckScreen from "./screens/PitchDeckScreen";
 import ExecutionScreen from "./screens/ExecutionScreen";
 import type { CursorState } from "./useCursorAnimation";
@@ -24,8 +25,10 @@ const AppWindow = ({ activeStep, cursorState, uiState, isMobile = false }: AppWi
       case 2:
         return <AnalysisScreen uiState={uiState} isCompleted={isCompleted} />;
       case 3:
-        return <PitchDeckScreen uiState={uiState} isCompleted={isCompleted} />;
+        return <LeanCanvasScreen uiState={uiState} isCompleted={isCompleted} />;
       case 4:
+        return <PitchDeckScreen uiState={uiState} isCompleted={isCompleted} />;
+      case 5:
         return <ExecutionScreen uiState={uiState} isCompleted={isCompleted} />;
       default:
         return <ProfileScreen uiState={uiState} isCompleted={isCompleted} />;

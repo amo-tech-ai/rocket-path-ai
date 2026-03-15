@@ -9,23 +9,28 @@ interface Step {
 const steps: Step[] = [
   {
     number: 1,
-    title: "Profile",
-    description: "Tell us about your startup once. We do the rest.",
+    title: "Startup Wizard",
+    description: "Answer guided questions about your idea, market, and goals.",
   },
   {
     number: 2,
-    title: "Analysis",
-    description: "AI turns your info into investor readiness insights.",
+    title: "AI Validation",
+    description: "7-agent analysis scores your idea across 5 dimensions.",
   },
   {
     number: 3,
-    title: "Pitch Deck",
-    description: "Investor-ready materials, auto-generated from your data.",
+    title: "Lean Canvas",
+    description: "Auto-generate your 9-block business model from validated data.",
   },
   {
     number: 4,
-    title: "Execution",
-    description: "Track relationships and actions in one intelligent CRM.",
+    title: "Strategy + Pitch Deck",
+    description: "Investor-ready materials built from your validated strategy.",
+  },
+  {
+    number: 5,
+    title: "Execution + CRM",
+    description: "Daily tasks, investor pipeline, and progress tracking.",
   },
 ];
 
