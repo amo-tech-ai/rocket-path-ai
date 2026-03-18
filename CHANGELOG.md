@@ -41,7 +41,19 @@ Major report UX overhaul — replaced confusing diagrams with clear, easy-to-und
 - `src/components/validator/report/RiskHeatmap.tsx` — severity bars + distribution
 - `src/components/validator/report/RevenueModelDash.tsx` — LTV:CAC gauge
 
-Tests: 688/688 | Build: 6.34s | TypeScript: 0 errors | Deploy: validator-start v76 (1.11MB)
+**Plain English language pass (commit 4b4476a):**
+- Market: TAM/SAM/SOM → "Everyone / You can reach / You will get"
+- Revenue: LTV:CAC → "For every $1 you spend, you make $X back"
+- Scorecard: "How strong is this idea?" with 0 weak → 50 okay → 75 strong scale
+- Maturity: "Just a guess / Needs testing / Some proof / Proven"
+- Risks: "DEAL BREAKER / RISKY / KEEP AN EYE" with "What could go wrong?" header
+
+**Empty state + sidebar fixes (commit 634e21b):**
+- Top Strengths/Risks cards now derive from dimension scores when ScoringAgent failed (was showing "No highlights available")
+- Sidebar: "Startup Validator" → "Validate Idea", "Validation Report" → "Reports"
+- All 14 sidebar links verified against App.tsx routes
+
+Tests: 688/688 | Build: 6.23s | TypeScript: 0 errors | Deploy: validator-start v76 (1.11MB)
 
 ## [0.10.48] - 2026-03-18
 
