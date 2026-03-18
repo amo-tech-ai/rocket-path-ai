@@ -38,6 +38,9 @@ import { ReportLeanCanvas } from './ReportLeanCanvas';
 import { StrategicSummary } from './StrategicSummary';
 import { BiasAlertBanner } from './BiasAlertBanner';
 import { WinThemeLabel } from './WinThemeLabel';
+import { NarrativeArcSummary } from './NarrativeArcSummary';
+import { ICEChannelChip, type ICEChannel } from './ICEChannelChip';
+import { EvidenceTierBadge, inferEvidenceTier } from './EvidenceTierBadge';
 
 function getSignal(score: number | null): 'go' | 'caution' | 'no-go' | 'unavailable' {
   if (score === null || score === undefined) return 'unavailable';
@@ -142,13 +145,12 @@ function CompetitorMatrixV2({ competition }: { competition: any }) {
 
 const REPORT_TABS = [
   { value: 'overview', label: 'Overview' },
-  { value: 'problem-customer', label: 'Problem & Customer' },
-  { value: 'market-competition', label: 'Market & Competition' },
-  { value: 'business', label: 'Business Model' },
-  { value: 'risks-plan', label: 'Risks & Plan' },
-  { value: 'questions', label: 'Key Questions' },
+  { value: 'problem-customer', label: 'Problem' },
+  { value: 'market-competition', label: 'Market' },
+  { value: 'business', label: 'Business' },
+  { value: 'risks-plan', label: 'Risks' },
+  { value: 'questions', label: 'Questions' },
   { value: 'dimensions', label: 'Deep Dive' },
-  { value: 'lean-canvas', label: 'Lean Canvas' },
   { value: 'strategy', label: 'Strategy' },
 ] as const;
 
@@ -371,13 +373,15 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, sta
     parts.push(`${oneLiner}${oneLiner.endsWith('.') ? '' : '.'}`);
   }
 
-  const verdictLine = score >= 75
-    ? `${score}/100 — strong foundation — ready to move forward.`
-    : score >= 60
-      ? `${score}/100 — promising, but there are gaps to address.`
-      : score >= 45
-        ? `${score}/100 — too many open questions — needs more validation.`
-        : `${score}/100 — significant changes needed before this can work.`;
+  const verdictLine = score === null || score === undefined
+    ? 'Score unavailable — some agents did not complete. Regenerate the report for a full assessment.'
+    : score >= 75
+      ? `${score}/100 — strong foundation — ready to move forward.`
+      : score >= 60
+        ? `${score}/100 — promising, but there are gaps to address.`
+        : score >= 45
+          ? `${score}/100 — too many open questions — needs more validation.`
+          : `${score}/100 — significant changes needed before this can work.`;
   parts.push(verdict ? `${verdictLine} ${verdict}` : verdictLine);
 
   const winParts: string[] = [];
@@ -410,9 +414,10 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, sta
 
   if (mvpWeeks && breakEven) {
     const weekArticle = mvpWeeks === 8 || mvpWeeks === '8' || mvpWeeks === 11 || mvpWeeks === '11' || mvpWeeks === 18 || mvpWeeks === '18' ? 'An' : 'A';
-    if (score >= 75) {
+    const s = score ?? 0;
+    if (s >= 75) {
       parts.push(`You can build a first version in ${mvpWeeks} weeks and become profitable in about ${breakEven} months. Test your main assumption and move quickly.`);
-    } else if (score >= 60) {
+    } else if (s >= 60) {
       parts.push(`${weekArticle} ${mvpWeeks}-week first version can test whether this works, and you could become profitable in about ${breakEven} months. Worth pursuing — but resolve the main risk within 90 days or reconsider.`);
     } else {
       parts.push(`You could build a first version in ${mvpWeeks} weeks, but becoming profitable in ${breakEven} months assumes a lot goes right. Test the riskiest part first, then decide whether to continue.`);
@@ -637,12 +642,12 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, sta
         {/* Tabbed sections — tabs at top, screen only */}
         <div ref={tabsAnchorRef}>
           <Tabs value={tabsValue} onValueChange={handleTabChange} className="report-tabs no-print">
-            <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-muted/50 p-1.5 rounded-lg">
+            <TabsList className="w-full flex h-auto gap-0.5 bg-muted/50 p-1 rounded-lg overflow-x-auto">
               {REPORT_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="flex-1 min-w-[120px] text-xs sm:text-sm"
+                  className="flex-1 text-xs px-2 py-1.5 whitespace-nowrap"
                 >
                   {tab.label}
                 </TabsTrigger>
@@ -672,6 +677,30 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, sta
 
               {/* Agency: Bias warnings + evidence quality */}
               <BiasAlertBanner biasFlags={d.bias_flags as any} />
+
+              {/* Agency: Narrative arc — 3-act summary cards */}
+              <NarrativeArcSummary summaryVerdict={typeof d.summary_verdict === 'string' ? d.summary_verdict : undefined} />
+
+              {/* Agency: Evidence tier + Win themes + Growth channels */}
+              {(d.evidence_grades || d.win_themes || d.growth_channels) && (
+                <PageCard>
+                  <div className="space-y-4">
+                    {d.evidence_grades && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">Evidence Quality:</span>
+                        <EvidenceTierBadge tier={inferEvidenceTier(d.evidence_grades as Array<{ grade?: string }>)} />
+                      </div>
+                    )}
+                    {d.win_themes && (
+                      <div>
+                        <span className="text-xs font-medium text-muted-foreground block mb-1.5">Win Themes</span>
+                        <WinThemeLabel themes={d.win_themes as string[]} />
+                      </div>
+                    )}
+                    <ICEChannelChip channels={d.growth_channels as ICEChannel[] | undefined} />
+                  </div>
+                </PageCard>
+              )}
 
               {/* BCG-style charts — validation analytics */}
               {dimensions.length > 0 && (

@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.10.49] - 2026-03-18
+
+### Session 46: Report Readability + Pipeline Reliability + Skills Wiring
+
+Major report UX overhaul — replaced confusing diagrams with clear, easy-to-understand visualizations. Fixed the root cause of ScoringAgent/MVPAgent failures. Added VERIFIER_FRAGMENT domain knowledge.
+
+**Pipeline reliability fixes:**
+- ScoringAgent timeout: 30s → 50s (thinking: 'high' mode needs 40s+ with cold start — was causing ~40% timeout rate)
+- MVP fallback: MVPAgent now runs with profile-only context when Scoring fails, instead of skipping entirely
+- Cascade failure eliminated: ScoringAgent timeout no longer causes 2-agent failure
+
+**null/100 score fix (`ReportV2Layout.tsx`):**
+- Analysis text now shows "Score unavailable — some agents did not complete" instead of "null/100"
+- Score-dependent paragraphs use `score ?? 0` to prevent NaN comparisons
+
+**Report diagram improvements (5 components rewritten):**
+- `ValidationRadar.tsx` — Radar chart → horizontal bar chart scorecard. Each dimension is a labeled bar with score, color-coded (green ≥80, blue ≥60, amber ≥40, red <40). 75-mark threshold line. Animated bars. Explanation text.
+- `MaturityFunnel.tsx` — 4-column overlapping grid → clean vertical list. Each dimension gets a row with colored stage badge (Hypothesis/Testing/Evidence/Validated) and full name (no truncation). Legend + explanation text.
+- `RiskHeatmap.tsx` — Confusing Impact/Probability text badges → severity distribution bar (stacked) + 3-dot severity level indicator on each card + FlaskConical icon for test actions.
+- `RevenueModelDash.tsx` — Added LTV:CAC visual gauge bar with 3x target marker, color-coded health (green ≥3x, amber 2-3x, red <2x), health label (Excellent/Healthy/Marginal/At Risk).
+- `TeamPlanCards.tsx` — Already had burn gauge + cost proportion bars per hire (auto-updated).
+
+**Tab labels shortened (`ReportV2Layout.tsx`):**
+- "Problem & Customer" → "Problem", "Market & Competition" → "Market", "Business Model" → "Business", "Risks & Plan" → "Risks", "Key Questions" → "Questions" — eliminates horizontal scrollbar overlap.
+
+**VERIFIER_FRAGMENT (`_shared/agency-fragments.ts`):**
+- 9th fragment added: domain-specific validation benchmarks for market sizing by stage, unit economics health ranges, revenue model credibility, competition thresholds, MVP scope calibration, financial projection reality checks.
+- Re-exported via `validator-start/agency-fragments.ts`.
+
+**Modified files:**
+- `supabase/functions/validator-start/config.ts` — scoring timeout 30→50s
+- `supabase/functions/validator-start/agents/mvp.ts` — accept null scoring
+- `supabase/functions/validator-start/pipeline.ts` — run MVP without scoring
+- `supabase/functions/_shared/agency-fragments.ts` — VERIFIER_FRAGMENT (+50 lines)
+- `supabase/functions/validator-start/agency-fragments.ts` — re-export
+- `src/components/validator/report/ReportV2Layout.tsx` — null score fix + tab labels
+- `src/components/validator/report/charts/ValidationRadar.tsx` — radar → bar chart
+- `src/components/validator/report/charts/MaturityFunnel.tsx` — grid → vertical list
+- `src/components/validator/report/RiskHeatmap.tsx` — severity bars + distribution
+- `src/components/validator/report/RevenueModelDash.tsx` — LTV:CAC gauge
+
+Tests: 688/688 | Build: 6.34s | TypeScript: 0 errors | Deploy: validator-start v76 (1.11MB)
+
 ## [0.10.48] - 2026-03-18
 
 ### Session 45d: Pro Plan Upgrade + Revenue Model Topic + Pipeline Fix

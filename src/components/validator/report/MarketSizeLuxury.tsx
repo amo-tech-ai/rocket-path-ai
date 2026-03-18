@@ -69,8 +69,8 @@ function safeValue(val: unknown): string {
   return '—';
 }
 
-// ─── Concentric Rings SVG (70% of original — refined) ──────────────
-function ConcentricRings({
+// ─── Market Funnel — 3 narrowing bars showing TAM → SAM → SOM ──────
+function MarketFunnel({
   tam: rawTam,
   sam: rawSam,
   som: rawSom,
@@ -91,85 +91,56 @@ function ConcentricRings({
 
   if (tam <= 0) return null;
 
-  // Clamp for safe visual rendering
   const safeSam = Math.min(sam, tam);
-  const safeSom = Math.min(som, safeSam);
+  const safeSom = Math.min(som, safeSam || tam);
 
-  // Radii — 70% scale: max 70px outer
-  const maxR = 70;
-  const tamR = maxR;
-  const samR = Math.max(28, (safeSam / tam) * maxR);
-  const somR = Math.max(14, (safeSom / tam) * maxR);
+  // Bar widths as percentage of full width (TAM = 100%)
+  const samPct = tam > 0 ? Math.max(15, (safeSam / tam) * 100) : 50;
+  const somPct = tam > 0 ? Math.max(8, (safeSom / tam) * 100) : 20;
 
-  const size = 190;
-  const cx = size / 2;
-  const cy = size / 2;
-
-  const fadeIn = (delay: number) => ({
-    opacity: mounted ? 1 : 0,
-    transition: `opacity 0.6s ease-out ${delay}s`,
-  });
+  const bars = [
+    { label: 'TAM', sublabel: 'Total market', value: safeValue(rawTam), pct: 100, color: 'bg-primary/10 border-primary/20', textColor: 'text-foreground', delay: 0 },
+    { label: 'SAM', sublabel: 'Your segment', value: safeValue(rawSam), pct: samPct, color: 'bg-primary/20 border-primary/30', textColor: 'text-foreground', delay: 150 },
+    { label: 'SOM', sublabel: 'You can capture', value: safeValue(rawSom), pct: somPct, color: 'bg-primary border-primary', textColor: 'text-primary-foreground', delay: 300 },
+  ];
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      aria-label={`Market size: TAM ${safeValue(rawTam)}, SAM ${safeValue(rawSam)}, SOM ${safeValue(rawSom)}`}
+    <div
+      className="space-y-2"
+      aria-label={`Market funnel: TAM ${safeValue(rawTam)}, SAM ${safeValue(rawSam)}, SOM ${safeValue(rawSom)}`}
       role="img"
-      className="mx-auto"
     >
-      {/* TAM — outer ring */}
-      <circle cx={cx} cy={cy} r={tamR} fill="hsl(var(--primary) / 0.04)" stroke="none" style={fadeIn(0.1)} />
-      <circle cx={cx} cy={cy} r={tamR} fill="none" strokeWidth={1} className="stroke-border/50" style={fadeIn(0.1)} />
-
-      {/* SAM — middle ring */}
-      <circle cx={cx} cy={cy} r={samR} fill="hsl(var(--primary) / 0.08)" stroke="none" style={fadeIn(0.3)} />
-      <circle cx={cx} cy={cy} r={samR} fill="none" strokeWidth={1} className="stroke-primary/25" style={fadeIn(0.3)} />
-
-      {/* SOM — inner filled */}
-      <circle
-        cx={cx} cy={cy} r={somR}
-        fill="hsl(var(--primary) / 0.80)"
-        stroke="none"
-        style={{
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? 'scale(1)' : 'scale(0)',
-          transformOrigin: `${cx}px ${cy}px`,
-          transition: 'opacity 0.5s ease-out 0.5s, transform 0.5s ease-out 0.5s',
-        }}
-      />
-
-      {/* Labels inside rings */}
-      <text x={cx} y={cy - tamR + 13} textAnchor="middle"
-        style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.12em', fill: 'hsl(var(--muted-foreground))' }}>
-        TAM
-      </text>
-      {samR > 36 && (
-        <text x={cx} y={cy - samR + 13} textAnchor="middle"
-          style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.12em', fill: 'hsl(var(--primary) / 0.5)' }}>
-          SAM
-        </text>
-      )}
-      <text x={cx} y={cy + 4} textAnchor="middle" dominantBaseline="central"
-        style={{
-          fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: '11px', fontWeight: 600,
-          fill: 'hsl(var(--primary-foreground))',
-        }}>
-        SOM
-      </text>
-
-      {/* Dollar values next to rings */}
-      <text x={cx + tamR + 6} y={cy - tamR + 6} textAnchor="start"
-        style={{ fontSize: '10px', fontWeight: 500, fill: 'hsl(var(--muted-foreground))' }}>
-        {safeValue(rawTam)}
-      </text>
-      <text x={cx + samR + 6} y={cy - samR + 6} textAnchor="start"
-        style={{ fontSize: '10px', fontWeight: 500, fill: 'hsl(var(--muted-foreground) / 0.7)' }}>
-        {safeValue(rawSam)}
-      </text>
-    </svg>
+      {bars.map((bar) => (
+        <div key={bar.label} className="flex items-center gap-3">
+          {/* Bar */}
+          <div
+            className={cn(
+              'h-12 rounded-lg border flex items-center px-4 gap-2 transition-all duration-700 ease-out',
+              bar.color,
+            )}
+            style={{ width: mounted ? `${bar.pct}%` : '0%', minWidth: '80px' }}
+          >
+            <span className={cn('text-xs font-bold uppercase tracking-wider shrink-0', bar.textColor)}>
+              {bar.label}
+            </span>
+            <span
+              className={cn('font-semibold shrink-0', bar.textColor)}
+              style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '18px' }}
+            >
+              {bar.value}
+            </span>
+          </div>
+          {/* Description — outside the bar for readability */}
+          <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
+            {bar.sublabel}
+          </span>
+        </div>
+      ))}
+      {/* Arrow annotation */}
+      <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
+        The total market is {safeValue(rawTam)}. Of that, {safeValue(rawSam)} is the segment you can reach. Your realistic capture in year 1–3 is {safeValue(rawSom)}.
+      </p>
+    </div>
   );
 }
 
@@ -244,8 +215,8 @@ function MarketMetricCard({
         {sublabel}
       </p>
 
-      {/* 4. Context — max 2 lines, 13px */}
-      <p className="text-[13px] text-muted-foreground/70 mt-0.5 leading-snug line-clamp-2">
+      {/* 4. Context */}
+      <p className="text-[13px] text-muted-foreground/70 mt-0.5 leading-snug">
         {context}
       </p>
     </div>
@@ -291,45 +262,40 @@ export const MarketSizeLuxury = memo(function MarketSizeLuxury({
         </div>
       )}
 
-      {/* ── Two-column: Rings (left) + Cards (right) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-        {/* Left: Concentric rings visualization */}
-        <div className="flex items-center justify-center">
-          {tamNum > 0 ? (
-            <ConcentricRings tam={tam} sam={sam} som={som} />
-          ) : (
-            <div className="w-[190px] h-[190px] flex items-center justify-center text-sm text-muted-foreground">
-              Market data unavailable
-            </div>
-          )}
+      {/* ── Market funnel (replaces concentric rings) ── */}
+      {tamNum > 0 ? (
+        <MarketFunnel tam={tam} sam={sam} som={som} />
+      ) : (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          Market data unavailable
         </div>
+      )}
 
-        {/* Right: Financial metric cards */}
-        <div className="space-y-4">
+      {/* ── Metric cards — detailed breakdown ── */}
+      <div className="space-y-4">
+        <MarketMetricCard
+          label="TAM"
+          sublabel="Total Addressable Market"
+          value={tam}
+          context="Everyone who could buy this type of product, worldwide"
+          delay={200}
+        />
+        <div className="grid grid-cols-2 gap-4">
           <MarketMetricCard
-            label="TAM"
-            sublabel="Total Addressable Market"
-            value={tam}
-            context="The total global demand for this product category"
-            delay={200}
+            label="SAM"
+            sublabel="Serviceable Market"
+            value={sam}
+            context="The slice of the market you can actually reach with your sales and marketing"
+            delay={350}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <MarketMetricCard
-              label="SAM"
-              sublabel="Serviceable Market"
-              value={sam}
-              context="The segment you can reach with your go-to-market"
-              delay={350}
-            />
-            <MarketMetricCard
-              label="SOM"
-              sublabel="Obtainable Market"
-              value={som}
-              context={somContext}
-              highlight
-              delay={500}
-            />
-          </div>
+          <MarketMetricCard
+            label="SOM"
+            sublabel="Obtainable Market"
+            value={som}
+            context={somContext}
+            highlight
+            delay={500}
+          />
         </div>
       </div>
 

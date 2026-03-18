@@ -397,7 +397,11 @@ try {
   await startAgentRun(supabaseAdmin, sessionId, 'MVPAgent');
   const mvpStartMs = Date.now();
   try {
-    if (profile && scoring) {
+    if (profile) {
+      // MVP now runs with or without scoring — scoring is optional enrichment
+      if (!scoring) {
+        console.warn('[pipeline] Running MVPAgent without scoring data (ScoringAgent failed)');
+      }
       mvpPlan = await runMVP(supabaseAdmin, sessionId, profile, scoring);
       const mvpDuration = Date.now() - mvpStartMs;
       if (!mvpPlan) {
@@ -414,15 +418,6 @@ try {
         });
         await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'completed', mvpDuration);
       }
-    } else if (profile && !scoring) {
-      // B2 fix: Skip MVP when Scoring failed (MVP depends on scoring data)
-      await completeRun(supabaseAdmin, sessionId, 'MVPAgent', 'skipped', null, [], 'Skipped: ScoringAgent failed');
-      await completeAgentRun(supabaseAdmin, sessionId, 'MVPAgent', 'skipped', undefined, 'Skipped: ScoringAgent failed');
-      failedAgents.push('MVPAgent');
-      await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_failed', {
-        agent: 'MVPAgent', step: AGENT_STEPS.MVPAgent, totalSteps: TOTAL_STEPS,
-        error: 'Skipped: ScoringAgent failed',
-      });
     }
   } catch (e) {
     console.error('[MVPAgent] Failed:', e);

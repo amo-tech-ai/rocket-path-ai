@@ -487,7 +487,61 @@ Include as gtm_motion with recommended, rationale, key_metric.`;
 // ---------------------------------------------------------------------------
 // Fragment registry — for diagnostics and validation
 // ---------------------------------------------------------------------------
-export const FRAGMENT_NAMES = ['scoring', 'composer', 'sprint', 'pitch_deck', 'crm_investor', 'research', 'competitors', 'mvp'] as const;
+// ---------------------------------------------------------------------------
+// Verifier Agent Fragment
+// Enhances: domain-specific validation benchmarks for report quality checks
+// ---------------------------------------------------------------------------
+export const VERIFIER_FRAGMENT = `
+## Domain-Specific Validation Benchmarks
+
+### Market Sizing Benchmarks (by stage)
+| Stage | Realistic SOM % of SAM | TAM Threshold for Venture |
+|---|---|---|
+| Pre-seed | 0.1–0.5% | >$500M TAM recommended |
+| Seed | 0.5–2% | >$1B TAM preferred |
+| Series A | 2–5% | >$5B TAM expected |
+→ Flag SOM > 5% of SAM at pre-seed as overly optimistic
+
+### Unit Economics Health Ranges
+| Metric | Healthy | Warning | Critical |
+|---|---|---|---|
+| LTV:CAC | >3x | 2–3x | <2x |
+| Payback months | <12 | 12–24 | >24 |
+| Gross margin | >70% (SaaS) | 50–70% | <50% |
+| Monthly churn | <3% (B2B) | 3–7% | >7% |
+→ Flag LTV:CAC below 2x as unsustainable for venture
+→ Flag payback >18 months at pre-seed as cash-flow risk
+
+### Revenue Model Credibility Checks
+- Subscription model + "per-transaction" next steps = misalignment
+- Enterprise ACV below $5K/yr rarely sustains direct sales motion
+- Marketplace take rate below 10% struggles without massive volume
+- Freemium conversion below 2% is common but often underestimated
+→ Cross-check revenue model against pricing in next steps
+
+### Competition Scoring Thresholds
+- 0 competitors found = incomplete research (every market has alternatives including status quo)
+- >5 high-threat competitors with competition score >60 = overrated defensibility
+- Winner-take-all markets (social, marketplace) score differently than fragmented markets
+→ Verify that competitive advantage score accounts for market structure
+
+### MVP Scope Calibration
+| Team Size | Max MVP Features | Timeline |
+|---|---|---|
+| Solo founder | 2–3 | 4–8 weeks |
+| 2-person team | 3–5 | 6–12 weeks |
+| 3–5 team | 5–8 | 8–16 weeks |
+→ Flag >5 build features for solo founder as overscoped
+→ Phase 1 should be validation experiment, not product build
+
+### Financial Projection Reality Checks
+- Y3 revenue >50x Y1 = rarely achievable (venture average is 8–15x)
+- Break-even in <6 months at seed = likely underestimating costs
+- Burn rate >$80K/mo at pre-seed without >$500K raised = cash crunch risk
+→ Flag growth projections that exceed stage-appropriate benchmarks
+`;
+
+export const FRAGMENT_NAMES = ['scoring', 'composer', 'sprint', 'pitch_deck', 'crm_investor', 'research', 'competitors', 'mvp', 'verifier'] as const;
 export type FragmentName = (typeof FRAGMENT_NAMES)[number];
 
 export function getFragment(name: FragmentName): string {
@@ -500,5 +554,6 @@ export function getFragment(name: FragmentName): string {
     case 'research': return RESEARCH_FRAGMENT;
     case 'competitors': return COMPETITORS_FRAGMENT;
     case 'mvp': return MVP_FRAGMENT;
+    case 'verifier': return VERIFIER_FRAGMENT;
   }
 }

@@ -14,7 +14,7 @@ export async function runMVP(
   supabase: SupabaseClient,
   sessionId: string,
   profile: StartupProfile,
-  scoring: ScoringResult
+  scoring: ScoringResult | null
 ): Promise<MVPPlan | null> {
   const agentName = 'MVPAgent';
   await updateRunStatus(supabase, sessionId, agentName, 'running');
@@ -163,13 +163,21 @@ ${MVP_FRAGMENT}`;
 
   try {
     // 022-SKI: Include weakest dimensions to focus de-risking
-    const weakDims = scoring.dimension_scores
+    const weakDims = scoring?.dimension_scores
       ? Object.entries(scoring.dimension_scores)
           .filter(([, v]) => typeof v === 'number' && v < 60)
           .sort(([, a], [, b]) => (a as number) - (b as number))
           .map(([k, v]) => `${k}: ${v}/100`)
           .join(', ')
       : '';
+
+    // Build user prompt — works with or without scoring data
+    const riskLine = scoring?.red_flags?.length
+      ? `Key risks: ${scoring.red_flags.join(', ')}`
+      : `Key risks: Unknown (scoring unavailable — focus on de-risking the core assumption)`;
+    const assumptionLine = scoring?.risks_assumptions?.length
+      ? `Key assumptions: ${scoring.risks_assumptions.join(', ')}`
+      : `Key assumptions: Derive from the idea description — what must be true for this to work?`;
 
     const { text } = await callGemini(
       AGENTS.mvp.model,
@@ -178,8 +186,8 @@ ${MVP_FRAGMENT}`;
 Idea: ${profile.idea}
 Solution: ${profile.solution}
 Customer: ${profile.customer}
-Key risks: ${scoring.red_flags.join(', ')}
-Key assumptions: ${scoring.risks_assumptions.join(', ')}${weakDims ? `\nWeakest dimensions (prioritize de-risking these): ${weakDims}` : ''}`,
+${riskLine}
+${assumptionLine}${weakDims ? `\nWeakest dimensions (prioritize de-risking these): ${weakDims}` : ''}`,
       { responseJsonSchema: AGENT_SCHEMAS.mvp, timeoutMs: AGENT_TIMEOUTS.mvp }
     );
 

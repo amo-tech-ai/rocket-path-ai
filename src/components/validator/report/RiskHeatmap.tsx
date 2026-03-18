@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { AlertTriangle, Eye, Skull, FlaskConical } from 'lucide-react';
 
 interface RiskItem {
   assumption: string;
@@ -14,37 +15,43 @@ interface RiskHeatmapProps {
   risks: RiskItem[];
 }
 
-const dotColor = {
-  fatal: 'bg-destructive',
-  risky: 'bg-warm-foreground',
-  watch: 'bg-muted-foreground',
+const severityConfig = {
+  fatal: {
+    icon: Skull,
+    color: 'text-red-600',
+    bg: 'bg-red-50 border-red-200',
+    pill: 'bg-red-100 text-red-700',
+    barColor: 'bg-red-500',
+    barWidth: 'w-full',
+    label: 'FATAL',
+    desc: 'Must address before launch',
+    level: 3,
+  },
+  risky: {
+    icon: AlertTriangle,
+    color: 'text-amber-600',
+    bg: 'bg-amber-50 border-amber-200',
+    pill: 'bg-amber-100 text-amber-700',
+    barColor: 'bg-amber-500',
+    barWidth: 'w-2/3',
+    label: 'RISKY',
+    desc: 'Needs validation soon',
+    level: 2,
+  },
+  watch: {
+    icon: Eye,
+    color: 'text-slate-500',
+    bg: 'bg-slate-50 border-slate-200',
+    pill: 'bg-slate-100 text-slate-600',
+    barColor: 'bg-slate-400',
+    barWidth: 'w-1/3',
+    label: 'WATCH',
+    desc: 'Monitor over time',
+    level: 1,
+  },
 } as const;
 
-const cardStyle = {
-  fatal: 'border-l-4 border-l-destructive bg-destructive/5',
-  risky: 'border-l-4 border-l-warm-foreground bg-warm',
-  watch: 'border-l-4 border-l-muted-foreground bg-background',
-} as const;
-
-const labelStyle = {
-  fatal: 'text-destructive',
-  risky: 'text-warm-foreground',
-  watch: 'text-muted-foreground',
-} as const;
-
-const labelText = { fatal: 'FATAL', risky: 'RISKY', watch: 'WATCH' } as const;
 const severityOrder = { fatal: 0, risky: 1, watch: 2 } as const;
-
-type Quadrant = 'hh' | 'hl' | 'lh' | 'll';
-const quadrantKey = (i: 'high' | 'low', p: 'high' | 'low'): Quadrant =>
-  `${i[0]}${p[0]}` as Quadrant;
-
-const quadrantPos: Record<Quadrant, string> = {
-  hh: 'top-[12%] right-[12%]',
-  hl: 'top-[12%] left-[12%]',
-  lh: 'bottom-[12%] right-[12%]',
-  ll: 'bottom-[12%] left-[12%]',
-};
 
 export const RiskHeatmap = memo(function RiskHeatmap({ risks }: RiskHeatmapProps) {
   const sorted = useMemo(
@@ -52,62 +59,119 @@ export const RiskHeatmap = memo(function RiskHeatmap({ risks }: RiskHeatmapProps
     [risks],
   );
 
-  const quadrants = useMemo(() => {
-    const map: Record<Quadrant, RiskItem[]> = { hh: [], hl: [], lh: [], ll: [] };
-    risks.forEach((r) => map[quadrantKey(r.impact, r.probability)].push(r));
-    return map;
+  const counts = useMemo(() => {
+    const c = { fatal: 0, risky: 0, watch: 0 };
+    risks.forEach((r) => c[r.severity]++);
+    return c;
   }, [risks]);
 
-  return (
-    <div>
-      {/* 2x2 Heatmap grid */}
-      <div className="relative bg-background rounded-lg p-6 border border-border aspect-square max-w-sm mx-auto">
-        {/* Axis labels */}
-        <span className="absolute -left-1 top-1/2 -translate-y-1/2 -rotate-90 text-xs uppercase tracking-wider text-muted-foreground">
-          Impact
-        </span>
-        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-xs uppercase tracking-wider text-muted-foreground">
-          Probability
-        </span>
+  const total = risks.length;
 
-        <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-1 rounded overflow-hidden">
-          {/* High impact / Low prob */}
-          <div className="relative bg-warm/50 rounded-tl-md" />
-          {/* High impact / High prob */}
-          <div className="relative bg-destructive/5 rounded-tr-md" />
-          {/* Low impact / Low prob */}
-          <div className="relative bg-sage-light/30 rounded-bl-md" />
-          {/* Low impact / High prob */}
-          <div className="relative bg-warm/30 rounded-br-md" />
+  return (
+    <div className="space-y-6">
+      {/* Risk severity distribution — stacked horizontal bar */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Risk Distribution
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {total} assumption{total !== 1 ? 's' : ''} to validate
+          </span>
         </div>
 
-        {/* Dots */}
-        {(Object.entries(quadrants) as [Quadrant, RiskItem[]][]).map(([q, items]) =>
-          items.map((r, i) => (
-            <span
-              key={`${q}-${i}`}
-              className={cn('absolute w-2.5 h-2.5 rounded-full', dotColor[r.severity], quadrantPos[q])}
-              style={{ transform: `translate(${i * 10}px, ${i * 10}px)` }}
-              aria-label={`${r.severity}: ${r.assumption}`}
+        {/* Stacked severity bar */}
+        <div className="h-3 rounded-full bg-muted/30 overflow-hidden flex">
+          {counts.fatal > 0 && (
+            <div
+              className="bg-red-500 h-full transition-all duration-500"
+              style={{ width: `${(counts.fatal / total) * 100}%` }}
             />
-          )),
-        )}
+          )}
+          {counts.risky > 0 && (
+            <div
+              className="bg-amber-500 h-full transition-all duration-500"
+              style={{ width: `${(counts.risky / total) * 100}%` }}
+            />
+          )}
+          {counts.watch > 0 && (
+            <div
+              className="bg-slate-400 h-full transition-all duration-500"
+              style={{ width: `${(counts.watch / total) * 100}%` }}
+            />
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {(['fatal', 'risky', 'watch'] as const).map((level) => {
+            const config = severityConfig[level];
+            return counts[level] > 0 ? (
+              <div key={level} className="flex items-center gap-1.5">
+                <span className={cn('w-2.5 h-2.5 rounded-sm', config.barColor)} />
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{counts[level]}</span> {config.label.toLowerCase()}
+                </span>
+              </div>
+            ) : null;
+          })}
+        </div>
       </div>
 
-      {/* Severity cards */}
-      <div className="flex flex-col gap-3 mt-6">
-        {sorted.map((r, i) => (
-          <div key={i} className={cn('rounded-lg p-4', cardStyle[r.severity])}>
-            <span className={cn('text-xs uppercase tracking-wider font-medium', labelStyle[r.severity])}>
-              {labelText[r.severity]}
-            </span>
-            <p className="text-base font-medium text-foreground mt-1.5">{r.assumption}</p>
-            <p className="text-sm text-muted-foreground mt-1">{r.ifWrong}</p>
-            <p className="text-xs text-muted-foreground italic mt-1.5">
-              <span className="font-medium not-italic">TEST:</span> {r.howToTest}
-            </p>
-          </div>
-        ))}
+      {/* Risk cards with severity bar */}
+      <div className="flex flex-col gap-4">
+        {sorted.map((r, i) => {
+          const config = severityConfig[r.severity];
+          const Icon = config.icon;
+          return (
+            <div
+              key={i}
+              className={cn('rounded-xl border p-5 space-y-3', config.bg)}
+            >
+              {/* Header: icon + severity pill + level indicator */}
+              <div className="flex items-center gap-3">
+                <Icon className={cn('w-4 h-4 shrink-0', config.color)} />
+                <span className={cn(
+                  'text-[10px] font-semibold uppercase tracking-wider rounded-full px-2.5 py-0.5',
+                  config.pill,
+                )}>
+                  {config.label}
+                </span>
+                {/* Severity level dots */}
+                <div className="flex items-center gap-1 ml-auto">
+                  {[1, 2, 3].map((dot) => (
+                    <span
+                      key={dot}
+                      className={cn(
+                        'w-2 h-2 rounded-full',
+                        dot <= config.level ? config.barColor : 'bg-border',
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Assumption text */}
+              <p className="text-sm font-semibold text-foreground leading-snug">
+                {r.assumption}
+              </p>
+
+              {/* What happens if wrong */}
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {r.ifWrong}
+              </p>
+
+              {/* How to test — action box */}
+              <div className="rounded-lg bg-white/60 dark:bg-background/60 border border-border/30 px-4 py-3 flex items-start gap-2.5">
+                <FlaskConical className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-semibold text-foreground">TEST: </span>
+                  {r.howToTest}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

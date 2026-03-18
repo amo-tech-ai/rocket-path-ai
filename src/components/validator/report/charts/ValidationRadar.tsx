@@ -1,20 +1,10 @@
 /**
- * BCG-style Radar/Spider Chart — shows validation profile across all dimensions.
- * Reveals balance vs lopsidedness at a glance. Per BCG doc: "A lopsided radar
- * (strong solution, weak market) tells a clear story."
- *
- * Rule: Only render with 5+ dimensions (below 5 it looks like a triangle).
+ * Validation Scorecard — horizontal bar chart showing each dimension's score.
+ * Replaces the radar/spider chart which was hard to interpret.
+ * Each dimension is a labeled bar with score, color-coded by performance level.
  */
-import { memo } from 'react';
-import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
+import { memo, useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 interface Dimension {
   name: string;
@@ -26,69 +16,112 @@ interface ValidationRadarProps {
   dimensions: Dimension[];
 }
 
-/** Truncate long dimension names for axis labels */
-function shortLabel(name: string): string {
-  if (name.length <= 14) return name;
-  return name.slice(0, 12) + '...';
+function barColor(score: number): string {
+  if (score >= 80) return 'bg-emerald-500';
+  if (score >= 60) return 'bg-primary';
+  if (score >= 40) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
+function levelLabel(score: number): { text: string; color: string } {
+  if (score >= 80) return { text: 'Strong', color: 'text-emerald-600' };
+  if (score >= 60) return { text: 'Good', color: 'text-primary' };
+  if (score >= 40) return { text: 'Needs Work', color: 'text-amber-600' };
+  return { text: 'Critical', color: 'text-red-600' };
 }
 
 export const ValidationRadar = memo(function ValidationRadar({
   dimensions,
 }: ValidationRadarProps) {
-  // BCG rule: below 5 dimensions, radar looks like a triangle — skip
-  if (dimensions.length < 5) return null;
+  const [animate, setAnimate] = useState(false);
 
-  const data = dimensions.map((d) => ({
-    dimension: shortLabel(d.name),
-    fullName: d.name,
-    score: d.score,
-    fullMark: 100,
-  }));
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  if (dimensions.length < 2) return null;
+
+  const sorted = [...dimensions].sort((a, b) => b.score - a.score);
+  const avgScore = Math.round(
+    dimensions.reduce((sum, d) => sum + d.score, 0) / dimensions.length,
+  );
+  const avgLevel = levelLabel(avgScore);
 
   return (
-    <div className="w-full">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-        Validation Profile
-      </h3>
-      <div className="h-[320px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart cx="50%" cy="50%" outerRadius="72%" data={data}>
-            <PolarGrid
-              stroke="hsl(var(--border))"
-              strokeDasharray="3 3"
-            />
-            <PolarAngleAxis
-              dataKey="dimension"
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-            />
-            <PolarRadiusAxis
-              angle={90}
-              domain={[0, 100]}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              tickCount={5}
-            />
-            <Radar
-              name="Score"
-              dataKey="score"
-              stroke="hsl(var(--primary))"
-              fill="hsl(var(--primary))"
-              fillOpacity={0.2}
-              strokeWidth={2}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                fontSize: '13px',
-              }}
-              formatter={(value: number, _name: string, props: any) => [
-                `${value}/100`,
-                props.payload?.fullName || 'Score',
-              ]}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
+    <div className="w-full space-y-5">
+      {/* Header */}
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Validation Scorecard
+        </h3>
+        <div className="flex items-baseline gap-2">
+          <span className={cn('text-xs font-semibold', avgLevel.color)}>
+            {avgLevel.text}
+          </span>
+          <span className="text-sm font-semibold text-foreground tabular-nums">
+            {avgScore}/100
+          </span>
+        </div>
+      </div>
+
+      {/* Fundable threshold line explanation */}
+      <p className="text-[11px] text-muted-foreground leading-snug">
+        Each dimension is scored 0–100. Scores above 75 are investor-ready. Below 40 needs immediate attention.
+      </p>
+
+      {/* Dimension bars */}
+      <div className="space-y-3">
+        {sorted.map((dim) => {
+          const level = levelLabel(dim.score);
+          return (
+            <div key={dim.name} className="space-y-1">
+              {/* Label row */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm text-foreground font-medium truncate">
+                  {dim.name}
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={cn('text-[10px] font-semibold uppercase', level.color)}>
+                    {level.text}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-foreground w-8 text-right">
+                    {dim.score}
+                  </span>
+                </div>
+              </div>
+              {/* Bar */}
+              <div className="relative h-3 rounded-full bg-muted/30 overflow-hidden">
+                {/* 75 threshold marker */}
+                <div
+                  className="absolute top-0 bottom-0 w-px bg-border/60 z-10"
+                  style={{ left: '75%' }}
+                />
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-700 ease-out',
+                    barColor(dim.score),
+                  )}
+                  style={{ width: animate ? `${Math.min(dim.score, 100)}%` : '0%' }}
+                />
+              </div>
+              {dim.weight && (
+                <span className="text-[10px] text-muted-foreground">
+                  Weight: {dim.weight}%
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Scale */}
+      <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
+        <span>0</span>
+        <span>25</span>
+        <span>50</span>
+        <span className="font-medium text-foreground">75 fundable</span>
+        <span>100</span>
       </div>
     </div>
   );
