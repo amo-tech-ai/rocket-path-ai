@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { MobileAISheet } from "@/components/mobile/MobileAISheet";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { NotificationCenter } from "@/components/notifications";
+import { RealtimeStatusBadge } from "@/components/ui/realtime-status-badge";
 import { AIPanel } from "@/components/ai/AIPanel";
 import { useAIPanel } from "@/hooks/useAIPanel";
 
@@ -46,8 +47,8 @@ const navGroups: NavGroup[] = [
     label: "Primary",
     items: [
       { label: "Command Centre", path: "/dashboard", icon: LayoutDashboard },
-      { label: "Startup Validator", path: "/validate", icon: SearchCheck },
-      { label: "Validation Report", path: "/validator", icon: FileBarChart },
+      { label: "Validate Idea", path: "/validate", icon: SearchCheck },
+      { label: "Reports", path: "/validator", icon: FileBarChart },
       { label: "Lean Canvas", path: "/lean-canvas", icon: LayoutGrid },
     ],
   },
@@ -249,14 +250,17 @@ const DashboardLayout = ({ children, aiPanel, hideBottomNav = false }: Dashboard
 
         {/* Settings */}
         <div className="p-4 border-t border-sidebar-border">
-          <Link
-            to="/settings"
-            onClick={() => setSidebarOpen(false)}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors touch-manipulation"
-          >
-            <Settings className="w-5 h-5" />
-            Settings
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link
+              to="/settings"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors touch-manipulation flex-1"
+            >
+              <Settings className="w-5 h-5" />
+              Settings
+            </Link>
+            <RealtimeStatusBadge />
+          </div>
         </div>
       </aside>
 

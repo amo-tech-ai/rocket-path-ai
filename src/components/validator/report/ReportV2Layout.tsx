@@ -356,8 +356,21 @@ export function ReportV2Layout({ report, reportId, companyName, startupMeta, sta
   const worst = sorted[sorted.length - 1];
   const topComp = competitors[0];
   const fatalItem = risks.find((r: any) => r.severity === 'fatal');
-  const highlights: string[] = d.highlights || [];
-  const redFlags: string[] = d.red_flags || [];
+  // Derive highlights/red_flags — fall back to dimension data when ScoringAgent failed
+  const highlights: string[] = d.highlights?.length ? d.highlights : (() => {
+    const derived: string[] = [];
+    if (best && best.score >= 70) derived.push(`${best.name} is your strongest area (${best.score}/100)`);
+    if (sorted[1] && sorted[1].score >= 70) derived.push(`${sorted[1].name} also scores well (${sorted[1].score}/100)`);
+    if (d.revenue_model?.recommended_model) derived.push(`Revenue model: ${d.revenue_model.recommended_model}`);
+    return derived;
+  })();
+  const redFlags: string[] = d.red_flags?.length ? d.red_flags : (() => {
+    const derived: string[] = [];
+    if (worst && worst.score < 60) derived.push(`${worst.name} needs the most work (${worst.score}/100)`);
+    if (sorted[sorted.length - 2] && sorted[sorted.length - 2].score < 60) derived.push(`${sorted[sorted.length - 2].name} is also weak (${sorted[sorted.length - 2].score}/100)`);
+    if (topComp) derived.push(`Top competitor: ${topComp.name} (${topComp.threat_level || 'unknown'} threat)`);
+    return derived;
+  })();
   const rawVerdict = d.summary_verdict || report.summary || '';
   const verdict = rawVerdict.replace(/^\d+\/100[.\s]*(?:This is a go\.|This is a no-go\.)?\s*/i, '').trim();
 
