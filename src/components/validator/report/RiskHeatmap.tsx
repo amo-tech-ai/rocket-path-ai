@@ -23,8 +23,8 @@ const severityConfig = {
     pill: 'bg-red-100 text-red-700',
     barColor: 'bg-red-500',
     barWidth: 'w-full',
-    label: 'FATAL',
-    desc: 'Must address before launch',
+    label: 'DEAL BREAKER',
+    desc: 'Fix this or the idea won\'t work',
     level: 3,
   },
   risky: {
@@ -35,7 +35,7 @@ const severityConfig = {
     barColor: 'bg-amber-500',
     barWidth: 'w-2/3',
     label: 'RISKY',
-    desc: 'Needs validation soon',
+    desc: 'Test this soon — could hurt you',
     level: 2,
   },
   watch: {
@@ -45,8 +45,8 @@ const severityConfig = {
     pill: 'bg-slate-100 text-slate-600',
     barColor: 'bg-slate-400',
     barWidth: 'w-1/3',
-    label: 'WATCH',
-    desc: 'Monitor over time',
+    label: 'KEEP AN EYE',
+    desc: 'Not urgent, but track it',
     level: 1,
   },
 } as const;
@@ -73,10 +73,10 @@ export const RiskHeatmap = memo(function RiskHeatmap({ risks }: RiskHeatmapProps
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Risk Distribution
+            What could go wrong?
           </span>
           <span className="text-xs text-muted-foreground">
-            {total} assumption{total !== 1 ? 's' : ''} to validate
+            {total} thing{total !== 1 ? 's' : ''} to check
           </span>
         </div>
 

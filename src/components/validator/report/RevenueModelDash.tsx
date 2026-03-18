@@ -58,18 +58,18 @@ export const RevenueModelDash = memo(function RevenueModelDash({
         </p>
       </div>
 
-      {/* LTV:CAC visual gauge */}
+      {/* Customer value gauge — plain English */}
       {ltvCac !== null && (
         <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Unit Economics Health
+              Is each customer worth it?
             </span>
             <span className={cn(
               'text-xs font-semibold',
               ltvCac >= 5 ? 'text-emerald-600' : ltvCac >= 3 ? 'text-emerald-500' : ltvCac >= 2 ? 'text-amber-500' : 'text-red-500',
             )}>
-              {ltvCac >= 5 ? 'Excellent' : ltvCac >= 3 ? 'Healthy' : ltvCac >= 2 ? 'Marginal' : 'At Risk'}
+              {ltvCac >= 5 ? 'Very profitable' : ltvCac >= 3 ? 'Profitable' : ltvCac >= 2 ? 'Barely profitable' : 'Losing money'}
             </span>
           </div>
           <div className="relative h-4 rounded-full bg-muted/30 overflow-hidden">
@@ -83,12 +83,12 @@ export const RevenueModelDash = memo(function RevenueModelDash({
             />
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>0x</span>
-            <span style={{ position: 'absolute', left: '30%' }} className="relative font-medium text-foreground">3x target</span>
+            <span>Break even</span>
+            <span style={{ position: 'absolute', left: '30%' }} className="relative font-medium text-foreground">3x = good</span>
             <span>10x+</span>
           </div>
-          <p className="text-xl font-semibold text-foreground" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-            {ltvCac.toFixed(1)}x <span className="text-sm font-normal text-muted-foreground">LTV:CAC</span>
+          <p className="text-sm text-muted-foreground mt-1 leading-snug">
+            For every <span className="font-semibold text-foreground">$1</span> you spend getting a customer, you make <span className="font-semibold text-foreground">${ltvCac.toFixed(1)}0</span> back over their lifetime. {ltvCac >= 3 ? "That's a healthy return." : ltvCac >= 2 ? 'Aim for at least 3x to build a sustainable business.' : 'You need to either reduce acquisition costs or increase customer value.'}
           </p>
         </div>
       )}

@@ -17,10 +17,10 @@ interface MaturityFunnelProps {
 }
 
 const STAGES = [
-  { key: 'hypothesis', label: 'Hypothesis', min: 0, max: 25, pill: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500' },
-  { key: 'testing', label: 'Testing', min: 25, max: 50, pill: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-  { key: 'evidence', label: 'Evidence', min: 50, max: 75, pill: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
-  { key: 'validated', label: 'Validated', min: 75, max: 101, pill: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  { key: 'hypothesis', label: 'Just a guess', min: 0, max: 25, pill: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500' },
+  { key: 'testing', label: 'Needs testing', min: 25, max: 50, pill: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  { key: 'evidence', label: 'Some proof', min: 50, max: 75, pill: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
+  { key: 'validated', label: 'Proven', min: 75, max: 101, pill: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
 ] as const;
 
 function getStage(score: number) {
@@ -39,10 +39,10 @@ export const MaturityFunnel = memo(function MaturityFunnel({
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Validation Maturity
+          How proven is each area?
         </h3>
         <span className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{validatedCount}/{dimensions.length}</span> validated
+          <span className="font-semibold text-foreground">{validatedCount}/{dimensions.length}</span> proven
         </span>
       </div>
 
@@ -92,7 +92,7 @@ export const MaturityFunnel = memo(function MaturityFunnel({
 
       {/* What this means */}
       <p className="text-[11px] text-muted-foreground leading-snug">
-        Dimensions scoring 75+ are considered validated. Below 50 means more testing is needed before committing resources.
+        Green means you have real evidence this works. Red means it's still just a guess — you need to test it before investing time or money.
       </p>
     </div>
   );

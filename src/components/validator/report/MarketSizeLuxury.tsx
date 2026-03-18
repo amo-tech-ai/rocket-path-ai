@@ -99,9 +99,9 @@ function MarketFunnel({
   const somPct = tam > 0 ? Math.max(8, (safeSom / tam) * 100) : 20;
 
   const bars = [
-    { label: 'TAM', sublabel: 'Total market', value: safeValue(rawTam), pct: 100, color: 'bg-primary/10 border-primary/20', textColor: 'text-foreground', delay: 0 },
-    { label: 'SAM', sublabel: 'Your segment', value: safeValue(rawSam), pct: samPct, color: 'bg-primary/20 border-primary/30', textColor: 'text-foreground', delay: 150 },
-    { label: 'SOM', sublabel: 'You can capture', value: safeValue(rawSom), pct: somPct, color: 'bg-primary border-primary', textColor: 'text-primary-foreground', delay: 300 },
+    { label: 'Everyone', sublabel: 'Total people who could buy this', value: safeValue(rawTam), pct: 100, color: 'bg-primary/10 border-primary/20', textColor: 'text-foreground', delay: 0 },
+    { label: 'You can reach', sublabel: 'People your marketing can find', value: safeValue(rawSam), pct: samPct, color: 'bg-primary/20 border-primary/30', textColor: 'text-foreground', delay: 150 },
+    { label: 'You will get', sublabel: 'Realistic customers in year 1–3', value: safeValue(rawSom), pct: somPct, color: 'bg-primary border-primary', textColor: 'text-primary-foreground', delay: 300 },
   ];
 
   return (
@@ -136,9 +136,9 @@ function MarketFunnel({
           </span>
         </div>
       ))}
-      {/* Arrow annotation */}
+      {/* Plain English explanation */}
       <p className="text-[11px] text-muted-foreground mt-2 leading-snug">
-        The total market is {safeValue(rawTam)}. Of that, {safeValue(rawSam)} is the segment you can reach. Your realistic capture in year 1–3 is {safeValue(rawSom)}.
+        Think of it like a funnel: {safeValue(rawTam)} is everyone who could ever buy this. {safeValue(rawSam)} is the slice you can actually reach with your sales and marketing. {safeValue(rawSom)} is what you can realistically win in the first few years.
       </p>
     </div>
   );
@@ -274,25 +274,25 @@ export const MarketSizeLuxury = memo(function MarketSizeLuxury({
       {/* ── Metric cards — detailed breakdown ── */}
       <div className="space-y-4">
         <MarketMetricCard
-          label="TAM"
-          sublabel="Total Addressable Market"
+          label="Total Market"
+          sublabel="How big is the whole pie?"
           value={tam}
-          context="Everyone who could buy this type of product, worldwide"
+          context="The total spending on this type of product across all buyers worldwide"
           delay={200}
         />
         <div className="grid grid-cols-2 gap-4">
           <MarketMetricCard
-            label="SAM"
-            sublabel="Serviceable Market"
+            label="Your Reach"
+            sublabel="How much can you go after?"
             value={sam}
-            context="The slice of the market you can actually reach with your sales and marketing"
+            context="The portion of buyers you can actually find and sell to with your team and budget"
             delay={350}
           />
           <MarketMetricCard
-            label="SOM"
-            sublabel="Obtainable Market"
+            label="Your Target"
+            sublabel="How much will you win?"
             value={som}
-            context={somContext}
+            context={somContext || 'The revenue you can realistically earn in the first 1–3 years'}
             highlight
             delay={500}
           />

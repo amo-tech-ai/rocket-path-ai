@@ -53,7 +53,7 @@ export const ValidationRadar = memo(function ValidationRadar({
       {/* Header */}
       <div className="flex items-baseline justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Validation Scorecard
+          How strong is this idea?
         </h3>
         <div className="flex items-baseline gap-2">
           <span className={cn('text-xs font-semibold', avgLevel.color)}>
@@ -65,9 +65,9 @@ export const ValidationRadar = memo(function ValidationRadar({
         </div>
       </div>
 
-      {/* Fundable threshold line explanation */}
+      {/* Plain English explanation */}
       <p className="text-[11px] text-muted-foreground leading-snug">
-        Each dimension is scored 0–100. Scores above 75 are investor-ready. Below 40 needs immediate attention.
+        We scored your idea on {dimensions.length} key areas. Green (75+) means strong. Red (below 40) means you need to fix this before moving forward.
       </p>
 
       {/* Dimension bars */}
@@ -117,10 +117,10 @@ export const ValidationRadar = memo(function ValidationRadar({
 
       {/* Scale */}
       <div className="flex justify-between text-[10px] text-muted-foreground pt-1">
-        <span>0</span>
+        <span>0 weak</span>
         <span>25</span>
-        <span>50</span>
-        <span className="font-medium text-foreground">75 fundable</span>
+        <span>50 okay</span>
+        <span className="font-medium text-foreground">75 strong</span>
         <span>100</span>
       </div>
     </div>
