@@ -28,14 +28,16 @@ export type AgentName = keyof typeof AGENTS;
 // MVP increased from 15s to 30s — was timing out on cold starts. Typical ~11s, worst ~20s.
 // P07: Extractor increased from 30s to 60s — 30s was hitting hard timeout on complex inputs with
 // interview context (002-EFN refine mode). Gemini cold start + schema validation + body streaming = 30-50s.
+// Pro plan critical path: Extractor(60s) → parallel(Research(60s) + Competitors(55s) + Scoring(30s)) → MVP(30s) → Composer(90s) → Verifier(5s)
+// Total worst case: 60 + 60 + 30 + 90 + 5 = 245s (within 300s budget). Upgraded to Pro 2026-03-18.
 export const AGENT_TIMEOUTS: Record<string, number> = {
-  extractor: 60_000,    // Flash model, extraction (~6s typical, up to 50s with cold start + interview context + schema)
-  research: 40_000,     // Flash model + Google Search + URL Context (parallel, bumped from 30s — URL Context is slow)
-  competitors: 55_000,  // 036-CUC: Background promise. ~15-20s search-only, ~30-40s with URL Context (when founder URLs present)
-  scoring: 30_000,      // Flash model + thinking: high (~13s typical, up to 20s under load). Bumped from 15s — only 2s headroom caused timeouts
+  extractor: 60_000,    // Flash model (~6-11s typical, up to 50s with cold start + interview context)
+  research: 60_000,     // Flash + Google Search + URL Context + RAG + RESEARCH_FRAGMENT. Search grounding 30-50s
+  competitors: 55_000,  // Background promise. ~15-20s search-only, ~30-40s with URL Context
+  scoring: 30_000,      // Flash + thinking: high (~13s typical, up to 25s)
   mvp: 30_000,          // Flash model (~10s typical, up to 20s on cold starts)
-  composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s). maxOutputTokens: 8192 (set in composer.ts)
-  verifier: 5_000,      // P03: Pure JS validation (no Gemini call), 5s safety net
+  composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s)
+  verifier: 5_000,      // Pure JS validation (no Gemini call)
 };
 
 // 021-CSP: Composer group timeouts

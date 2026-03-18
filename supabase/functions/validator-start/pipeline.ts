@@ -30,10 +30,10 @@ import { completeRun, startAgentRun, completeAgentRun } from "./db.ts";
 import { broadcastPipelineEvent, AGENT_STEPS, TOTAL_STEPS } from "./broadcast.ts";
 
 // P03: Global pipeline wall-clock budget.
-// Supabase free plan: 150s wall-clock. Pro plan: 400s.
-// Budget: 140s for agents + DB writes, 10s reserve for HTTP overhead before pipeline starts.
-// IMPORTANT: Change to 300_000 when upgrading to Supabase Pro plan.
-const PIPELINE_TIMEOUT_MS = 140_000;
+// Supabase Pro plan: 400s wall-clock.
+// Budget: 300s for agents + DB writes, 100s reserve for HTTP overhead.
+// Upgraded to Pro plan 2026-03-18. Free plan was 140s and caused "Isolate killed" errors.
+const PIPELINE_TIMEOUT_MS = 300_000;
 
 /**
  * Auto-create org + startup from extracted profile when user has none.
@@ -476,8 +476,8 @@ try {
 
   // FIX: Deadline check before Composer — most critical check.
   // Composer is the most expensive agent. Cap its timeout to remaining budget minus 10s for DB writes.
-  // P06: Increased cap from 30s to 90s — paid plan allows 400s, pipeline deadline is 300s.
-  // With 8192 maxOutputTokens, Composer needs ~30-50s typical, up to 90s worst case.
+  // Free plan: Composer gets whatever remains from 140s budget, capped at 50s.
+  // Skip Group E (dimension details) if < 20s remain — not enough time on free plan.
   const COMPOSER_MAX_BUDGET_MS = 90_000;
   const composerBudget = Math.min(remainingMs() - 10_000, COMPOSER_MAX_BUDGET_MS);
   await broadcastPipelineEvent(supabaseAdmin, sessionId, 'agent_started', {

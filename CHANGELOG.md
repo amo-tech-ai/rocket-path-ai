@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.48] - 2026-03-18
+
+### Session 45d: Pro Plan Upgrade + Revenue Model Topic + Pipeline Fix
+
+**Supabase Pro plan upgrade:**
+- Pipeline deadline: 140s → 300s (400s wall-clock)
+- All agent timeouts restored to comfortable levels (Research 60s, Scoring 30s, MVP 30s, Composer 90s)
+- Fixes "Isolate killed by Deno Deploy" errors that occurred on free plan
+
+**Revenue model coverage topic added to validator followup:**
+- New core topic #9: `revenue_model` — "How will you make money? Pricing model, price point, who pays?"
+- Coverage topics: 13 → 14 core + 4 deep dive = 18 total
+- Added to schema: coverage, extracted, confidence interfaces + Gemini JSON schema
+- Followup now asks about monetization before generating the report
+
+**Schema fix:** Removed duplicate `revenue_model` entry in extracted properties (depthEnum vs string type conflict)
+
+**Modified:** `validator-start/pipeline.ts` (deadline), `validator-start/config.ts` (timeouts), `validator-followup/prompt.ts` (topic), `validator-followup/schema.ts` (fields)
+**Deploy:** validator-start v75, validator-followup v31 | Tests: 688/688 | Build: 6.33s
+
 ## [0.10.47] - 2026-03-18
 
 ### Session 45c: Phase 3 — Screen Overlays + Public Rate Limiting + CORS Fix

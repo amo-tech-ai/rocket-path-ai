@@ -27,6 +27,7 @@ export interface FollowupResponse {
     websites: CoverageDepth;
     industry: CoverageDepth;
     business_model: CoverageDepth;
+    revenue_model: CoverageDepth;
     stage: CoverageDepth;
     // Deep dive topics (optional, enhance V3 dimension quality)
     ai_strategy: CoverageDepth;
@@ -43,6 +44,7 @@ export interface FollowupResponse {
     demand: string;
     competitors: string;
     business_model: string;
+    revenue_model: string;
     websites: string;
     industry_categories: string;
     stage: string;
@@ -62,6 +64,7 @@ export interface FollowupResponse {
     demand: ConfidenceLevel;
     competitors: ConfidenceLevel;
     business_model: ConfidenceLevel;
+    revenue_model: ConfidenceLevel;
     websites: ConfidenceLevel;
     industry_categories: ConfidenceLevel;
     stage: ConfidenceLevel;
@@ -116,7 +119,7 @@ export const followupResponseSchema = {
     },
     coverage: {
       type: "object",
-      required: ["company_name", "customer", "problem", "solution", "competitors", "innovation", "demand", "research", "uniqueness", "websites", "industry", "business_model", "stage", "ai_strategy", "risk_awareness", "execution_plan", "investor_readiness"],
+      required: ["company_name", "customer", "problem", "solution", "competitors", "innovation", "demand", "research", "uniqueness", "websites", "industry", "business_model", "revenue_model", "stage", "ai_strategy", "risk_awareness", "execution_plan", "investor_readiness"],
       properties: {
         company_name: { ...depthEnum, description: "Company or product name depth." },
         customer: { ...depthEnum, description: "Target customer segment depth." },
@@ -130,6 +133,7 @@ export const followupResponseSchema = {
         websites: { ...depthEnum, description: "Reference URLs or links depth." },
         industry: { ...depthEnum, description: "Industry category depth." },
         business_model: { ...depthEnum, description: "Business model type (B2B/B2C/Marketplace etc) depth." },
+        revenue_model: { ...depthEnum, description: "Revenue/pricing model (subscription, usage-based, freemium, marketplace take rate) depth." },
         stage: { ...depthEnum, description: "Company stage (Idea/Pre-seed/Seed/Series A/B+) depth." },
         ai_strategy: { ...depthEnum, description: "AI/technology advantage and data moat depth." },
         risk_awareness: { ...depthEnum, description: "Key risks, failure modes, and mitigation depth." },
@@ -149,6 +153,7 @@ export const followupResponseSchema = {
         demand: { type: "string", description: "Extracted demand evidence. Empty string if not discussed." },
         competitors: { type: "string", description: "Extracted competitors mentioned. Empty string if not discussed." },
         business_model: { type: "string", description: "Business model type: B2B, B2C, B2B2C, Marketplace, Platform, or Services. Empty string if not discussed." },
+        revenue_model: { type: "string", description: "Revenue model: subscription, usage-based, freemium, marketplace take rate. Include price point if mentioned. Empty string if not discussed." },
         websites: { type: "string", description: "Extracted URLs or links. Empty string if not discussed." },
         industry_categories: { type: "string", description: "Industry categories (comma-separated): SaaS, AI, FinTech, E-commerce, Healthcare, Education, Media, Enterprise, Consumer, Logistics, Real Estate, Gaming, Other. Empty string if not discussed." },
         stage: { type: "string", description: "Company stage: Idea, Pre-seed, Seed, Series A, Series B+. Empty string if not discussed." },
@@ -171,6 +176,7 @@ export const followupResponseSchema = {
         demand: { ...confidenceEnum, description: "Confidence in extracted demand evidence." },
         competitors: { ...confidenceEnum, description: "Confidence in extracted competitors." },
         business_model: { ...confidenceEnum, description: "Confidence in extracted business model type." },
+        revenue_model: { ...confidenceEnum, description: "Confidence in extracted revenue/pricing model." },
         websites: { ...confidenceEnum, description: "Confidence in extracted URLs." },
         industry_categories: { ...confidenceEnum, description: "Confidence in extracted industry categories." },
         stage: { ...confidenceEnum, description: "Confidence in extracted company stage." },
