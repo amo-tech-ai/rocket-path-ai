@@ -10,6 +10,7 @@ import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 import { getCuratedLinks, formatLinksForPrompt } from "../curated-links.ts";
 import { searchKnowledge, formatKnowledgeForPrompt } from "../knowledge-search.ts";
+import { COMPETITORS_FRAGMENT } from "../agency-fragments.ts";
 
 export async function runCompetitors(
   supabase: SupabaseClient,
@@ -177,7 +178,9 @@ Return JSON with exactly these fields:
   "white_space": "Single sentence describing the unaddressed positioning gap"
 }
 
-Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they contributed.`;
+Find 3-5 direct competitors and 2-3 indirect. Cite preferred sources when they contributed.
+
+${COMPETITORS_FRAGMENT}`;
 
   const industryLine = matchedIndustry
     ? `Industry: ${profile.industry} (category: ${matchedIndustry})`

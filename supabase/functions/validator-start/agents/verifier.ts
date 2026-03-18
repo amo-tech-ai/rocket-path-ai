@@ -331,6 +331,88 @@ export async function runVerifier(
     }
   }
 
+  // === Phase 2a: Cross-section consistency checks v2 ===
+
+  // V2-R1: TAM-score mismatch
+  if (report.market_sizing && report.scores_matrix?.dimensions) {
+    const msObj = report.market_sizing as Record<string, unknown>;
+    const tamVal = msObj.tam as number;
+    const marketDim = report.scores_matrix.dimensions.find((d: Record<string, unknown>) =>
+      typeof d.name === 'string' && d.name.toLowerCase().includes('market')
+    );
+    if (typeof tamVal === 'number' && tamVal > 0 && tamVal < 100_000_000 && marketDim && typeof marketDim.score === 'number' && marketDim.score > 70) {
+      warnings.push(`Consistency: TAM $${(tamVal / 1e6).toFixed(0)}M is below $100M but market score is ${marketDim.score}/100 — small TAM typically scores below 70 for venture`);
+    }
+  }
+
+  // V2-R2: Revenue model vs next steps alignment
+  if (report.revenue_model && Array.isArray(report.next_steps) && report.next_steps.length > 0) {
+    const revText = JSON.stringify(report.revenue_model).toLowerCase();
+    const stepsText = JSON.stringify(report.next_steps).toLowerCase();
+    if (revText.includes('subscription') && (stepsText.includes('per-transaction') || stepsText.includes('commission-based'))) {
+      warnings.push('Consistency: revenue model is subscription but next steps reference per-transaction/commission pricing');
+    }
+  }
+
+  // V2-R3: Financial projection growth (tighter 50x threshold)
+  if (report.financial_projections?.scenarios) {
+    for (const scenario of report.financial_projections.scenarios) {
+      if (scenario.y3_revenue && scenario.y1_revenue &&
+          scenario.y1_revenue > 0 &&
+          scenario.y3_revenue > scenario.y1_revenue * 50 &&
+          scenario.y3_revenue <= scenario.y1_revenue * 100) {
+        warnings.push(`Projection: ${scenario.name || 'Scenario'} Y3 is ${Math.round(scenario.y3_revenue / scenario.y1_revenue)}x Y1 — growth above 50x in 3 years is rarely achievable`);
+      }
+    }
+  }
+
+  // V2-R4: Low score without pivot language in next steps
+  if (report.scores_matrix?.overall_weighted !== undefined &&
+      typeof report.scores_matrix.overall_weighted === 'number' &&
+      report.scores_matrix.overall_weighted < 50 &&
+      Array.isArray(report.next_steps) && report.next_steps.length > 0) {
+    const nsText = JSON.stringify(report.next_steps).toLowerCase();
+    if (!nsText.includes('pivot') && !nsText.includes('reconsider') && !nsText.includes('alternative') && !nsText.includes('rethink')) {
+      warnings.push(`Consistency: overall score ${report.scores_matrix.overall_weighted} suggests NO-GO but next steps lack pivot language`);
+    }
+  }
+
+  // V2-R5: Crowded market with high competition score
+  if (report.competition && report.scores_matrix?.dimensions) {
+    const compObj = report.competition as Record<string, unknown>;
+    const allComps = [...((compObj.direct_competitors || compObj.competitors) as Array<Record<string, unknown>> || [])];
+    const highThreats = allComps.filter(c => c.threat_level === 'high');
+    const compDimV2 = report.scores_matrix.dimensions.find((d: Record<string, unknown>) =>
+      typeof d.name === 'string' && d.name.toLowerCase().includes('compet')
+    );
+    if (highThreats.length >= 5 && compDimV2 && typeof compDimV2.score === 'number' && compDimV2.score > 60) {
+      warnings.push(`Consistency: ${highThreats.length} high-threat competitors but competition score is ${compDimV2.score}/100 — may be overrating defensibility`);
+    }
+  }
+
+  // V2-R6: MVP overscoped for solo founder
+  if (report.mvp_scope && typeof report.mvp_scope === 'object') {
+    const mvpObj = report.mvp_scope as Record<string, unknown>;
+    const buildItems = mvpObj.build as unknown[];
+    const featureCount = buildItems?.length || 0;
+    const teamRoles = report.team_hiring?.mvp_roles?.length || 0;
+    if (featureCount > 5 && teamRoles <= 1) {
+      warnings.push(`Consistency: MVP lists ${featureCount} build features but team is solo founder — scope should be 2-3 features max`);
+    }
+  }
+
+  // V2-R7: Unsourced large TAM
+  if (report.market_sizing) {
+    const msCheck = report.market_sizing as Record<string, unknown>;
+    const tamCheck = msCheck.tam as number;
+    const srcList = msCheck.sources as unknown[];
+    const citeList = msCheck.citations as unknown[];
+    const srcCount = (srcList?.length || 0) + (citeList?.length || 0);
+    if (typeof tamCheck === 'number' && tamCheck > 1_000_000_000 && srcCount === 0) {
+      warnings.push(`Consistency: $${(tamCheck / 1e9).toFixed(1)}B TAM cited with zero sources — large market claims require credible citations`);
+    }
+  }
+
   // === Classify warnings into detailed format ===
   const detailedWarnings: DetailedWarning[] = warnings.map(w => {
     let severity: 'info' | 'warn' | 'error' = 'warn';

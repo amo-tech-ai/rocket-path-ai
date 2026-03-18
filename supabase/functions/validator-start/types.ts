@@ -75,6 +75,30 @@ export interface MarketResearch {
   }>;
   corrections_applied?: string[];
   confidence?: number;
+  // Phase 1a: Porter's Five Forces
+  market_forces?: {
+    competitive_rivalry: 'high' | 'medium' | 'low';
+    threat_new_entrants: 'high' | 'medium' | 'low';
+    supplier_power: 'high' | 'medium' | 'low';
+    buyer_power: 'high' | 'medium' | 'low';
+    threat_substitutes: 'high' | 'medium' | 'low';
+    overall_attractiveness: 'very_attractive' | 'moderate' | 'challenging';
+  };
+  // Phase 1a: Market accessibility scoring
+  market_accessibility?: {
+    buyer_reachability: number;
+    sales_cycle_complexity: number;
+    regulatory_burden: number;
+    distribution_existing: number;
+    composite: number;
+  };
+  // Phase 1a: Founder optimism detection
+  optimism_flags?: Array<{
+    claim: string;
+    founder_value: string;
+    research_value: string;
+    divergence_factor: number;
+  }>;
 }
 
 export interface Competitor {
@@ -84,6 +108,9 @@ export interface Competitor {
   weaknesses: string[];
   threat_level: 'high' | 'medium' | 'low';
   source_url?: string;
+  // Phase 1b: Competitive velocity and zombie detection
+  velocity_rating?: 'fast' | 'moderate' | 'slow';
+  status?: 'active' | 'zombie' | 'unknown';
 }
 
 export interface CompetitorAnalysis {
@@ -108,6 +135,19 @@ export interface CompetitorAnalysis {
     moat_durability: string;
   };
   white_space?: string;
+  // Phase 1b: Pricing landscape and win/loss patterns
+  pricing_landscape?: Array<{
+    competitor_name: string;
+    model: string;
+    entry_price: string;
+    enterprise_price: string;
+  }>;
+  price_gap?: string;
+  win_loss_patterns?: {
+    win_when: string[];
+    lose_when: string[];
+    switching_triggers: string[];
+  };
 }
 
 export interface RiskScore {
@@ -153,6 +193,15 @@ export interface ScoringResult {
     signal_level: number;
   }>;
   highest_signal_level?: number;
+  // Phase 2b: Evidence quality (computed from evidence_grades)
+  evidence_quality?: {
+    grade_a_count: number;
+    grade_b_count: number;
+    grade_c_count: number;
+    grade_d_count: number;
+    overall_quality: 'strong' | 'moderate' | 'weak';
+    confidence_note: string;
+  };
 }
 
 export interface MVPPlan {
@@ -173,6 +222,28 @@ export interface MVPPlan {
   }>;
   founder_stage?: string;
   recommended_methods?: string[];
+  // Phase 1c: Build/Buy/Skip, resource plan, pivot, GTM
+  feature_classifications?: Array<{
+    feature: string;
+    classification: 'build' | 'buy' | 'skip';
+    rationale: string;
+  }>;
+  resource_plan?: {
+    team_size: string;
+    max_features: number;
+    timeline_weeks: number;
+    sprint_cadence: string;
+  };
+  pivot_assessment?: {
+    recommended_decision: 'persevere' | 'pivot' | 'kill' | 'too_early_to_tell';
+    evidence_summary: string;
+    pivot_signals: string[];
+  };
+  gtm_motion?: {
+    recommended: 'plg' | 'hybrid' | 'sales_led';
+    rationale: string;
+    key_metric: string;
+  };
 }
 
 // V2 structured fields (Composer outputs these for v2 reports)

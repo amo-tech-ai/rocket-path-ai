@@ -5,7 +5,9 @@ import { getRAGContext } from "./rag.ts";
 import { generateEmbedding } from "../_shared/openai-embeddings.ts";
 import { corsHeaders, getCorsHeaders, handleCors } from '../_shared/cors.ts';
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '../_shared/rate-limit.ts';
-import { callGeminiChat as sharedCallGeminiChat, type GeminiChatMessage } from '../_shared/gemini.ts';
+import { callGeminiChat as sharedCallGeminiChat, callGeminiChatStream, type GeminiChatMessage } from '../_shared/gemini.ts';
+import { CHAT_MODE_PROMPTS } from '../_shared/agency-chat-modes.ts';
+import { buildExpertPrompt } from '../_shared/startup-expert.ts';
 
 
 interface ChatRequest {
@@ -79,93 +81,9 @@ PRICING INFO (if asked):
 - Enterprise: Custom solutions for accelerators and VCs
 Suggest they visit the pricing page or sign up for details.`;
 
-// Coaching mode system prompts — inlined from agency/chat-modes/*.md
-const COACHING_MODE_PROMPTS = {
-  practice_pitch: `You are an experienced venture investor who has reviewed 1,000+ pitches. Your job is to help this founder practice their investor pitch through Socratic coaching.
-
-SESSION FLOW:
-1. Ask the founder to deliver their 60-second pitch
-2. Score on 5 dimensions (each 1-10): Clarity, Urgency, Differentiation, The Ask, Confidence
-3. Identify the weakest dimension and coach on it specifically
-4. Ask 2-3 tough investor questions that test their weakest area
-5. Have them re-deliver an improved version
-6. Compare before/after scores
-
-RULES:
-- Coach ONE improvement at a time — never overwhelm with a list
-- Reference specific phrases from their pitch ("When you said X, it was vague — try Y instead")
-- Be tough but supportive — real investors are harder than you
-- Use actual startup data when available (don't ask generic questions if you have context)
-- After coaching, always have them re-deliver to build muscle memory`,
-
-  growth_strategy: `You are an expert growth strategist who has scaled multiple startups from 0 to 10,000 users. Help this founder diagnose their growth bottleneck and design experiments.
-
-FRAMEWORK: AARRR Pirate Metrics
-- Acquisition: How do users find you?
-- Activation: Do they have a great first experience?
-- Retention: Do they come back?
-- Revenue: Do they pay?
-- Referral: Do they tell others?
-
-SESSION FLOW:
-1. Ask "What are your current numbers?" for each AARRR stage
-2. Identify the biggest drop-off (the bottleneck)
-3. Recommend 3 experiments ranked by ICE score (Impact x Confidence x Ease, each 1-10)
-4. Design experiment #1 in detail: hypothesis, metric, timeline, success criteria
-
-RULES:
-- Always start with "what are your current numbers?" — no numbers = first experiment is "instrument your funnel"
-- Never recommend paid acquisition before PMF
-- Pick ONE bottleneck at a time
-- If no data available, help them set up measurement first
-- Be specific: "Run 5 LinkedIn ads targeting [ICP] with [offer]" not "try paid channels"`,
-
-  deal_review: `You are a senior deal strategist who has closed 50+ fundraising rounds. Help this founder review their investor pipeline and prioritize deals.
-
-FRAMEWORK: MEDDPICC (adapted for fundraising)
-Score each investor 1-5 on: Metrics fit, Economic Buyer access, Decision Criteria match, Decision Process clarity, Paper Process speed, Identified Pain (portfolio gap), Champion strength, Competition for allocation.
-
-DEAL VERDICTS (total /40):
-- 32-40: STRONG — push to close
-- 24-31: BATTLING — winnable if gaps close in 14 days
-- 16-23: AT RISK — intervene or qualify out
-- Below 16: UNQUALIFIED — stop investing time
-
-RED FLAGS: single-threaded to associate, no compelling event, champion won't introduce GP, fund thesis mismatch, diligence timeline unknown.
-
-RULES:
-- Every assessment must cite specific evidence from the founder's data
-- Force-rank deals by MEDDPICC score
-- For each weak dimension, give a specific action to strengthen it
-- Be honest about dead deals — founders waste months on unqualified investors`,
-
-  canvas_coach: `You are an expert lean startup coach specializing in business model validation. Help this founder improve their Lean Canvas by finding and fixing weak spots.
-
-COACHING METHOD:
-1. Identify the weakest canvas box (by specificity and evidence quality)
-2. Ask 2-3 probing questions about that box
-3. Suggest specific improvements with replacement language
-4. Track improvement and move to the next weakest box
-5. Celebrate progress with metrics
-
-BOX QUALITY CHECKS:
-- Problem: Is pain quantified? Is "who" specific (not "everyone")?
-- Customer Segments: Named persona with job title, company size, budget?
-- Unique Value Proposition: Would a customer choose this over alternatives based on this sentence alone?
-- Solution: Does it address the root cause, not just symptoms?
-- Channels: Named specifically (not "social media" but "LinkedIn targeting CTOs")?
-- Revenue Streams: Pricing validated? Unit economics viable?
-- Cost Structure: All major costs identified? Burn rate realistic?
-- Key Metrics: OMTM defined? Measurable within 2 weeks?
-- Unfair Advantage: Is this truly defensible (not just "AI" or "first mover")?
-
-RULES:
-- Never accept "everyone" as a customer segment
-- Never accept "no competition" — alternatives always exist
-- Ask "how do you know?" for every unsupported claim
-- Provide replacement language, not abstract feedback ("Change X to Y" not "be more specific")
-- Work ONE box at a time — depth over breadth`,
-} as const;
+// Coaching mode system prompts — imported from _shared/agency-chat-modes.ts
+// Source: agency/chat-modes/*.md (practice-pitch, growth-strategy, deal-review, canvas-coach)
+// Full prompts with frameworks (MEDDPICC, AARRR, ICE), question banks, and coaching methodology
 
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
@@ -190,11 +108,20 @@ Deno.serve(async (req: Request) => {
     // Try to get user - allow unauthenticated for public mode
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Rate limit authenticated users
+    // Rate limit all users — authenticated by user.id, public by IP
     if (user) {
       const rateCheck = checkRateLimit(user.id, 'ai-chat', RATE_LIMITS.standard);
       if (!rateCheck.allowed) {
-        return rateLimitResponse(rateCheck, corsHeaders);
+        return rateLimitResponse(rateCheck, getCorsHeaders(req));
+      }
+    } else {
+      // Public mode: rate limit by IP to prevent abuse/cost overrun
+      const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || req.headers.get('x-real-ip')
+        || 'unknown';
+      const publicRateCheck = checkRateLimit(`public:${clientIp}`, 'ai-chat-public', RATE_LIMITS.light);
+      if (!publicRateCheck.allowed) {
+        return rateLimitResponse(publicRateCheck, getCorsHeaders(req));
       }
     }
 
@@ -204,33 +131,35 @@ Deno.serve(async (req: Request) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid JSON in request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
     const {
-      messages, 
-      message, 
-      session_id, 
-      room_id, 
+      messages,
+      message,
+      session_id,
+      room_id: explicit_room_id,
       mode = user ? 'authenticated' : 'public',
-      action = 'chat', 
+      action = 'chat',
       startupId,
       query,
       matchThreshold,
       matchCount,
       category,
       industry,
-      context, 
-      stream = false 
+      context,
+      stream = false
     } = body;
+    // room_id can come as top-level or inside context (frontend sends it in context)
+    const room_id = explicit_room_id || (context as Record<string, unknown>)?.room_id as string | undefined;
 
     // Handle search_knowledge action
     if (action === 'search_knowledge') {
       if (!user) {
         return new Response(
           JSON.stringify({ error: 'Authentication required for knowledge search' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 401, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
       
@@ -238,7 +167,7 @@ Deno.serve(async (req: Request) => {
       if (!searchQuery) {
         return new Response(
           JSON.stringify({ error: 'Query is required for knowledge search' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
       
@@ -272,7 +201,7 @@ Deno.serve(async (req: Request) => {
             query: searchQuery,
             totalMatches: results?.length || 0,
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       } catch (embeddingError) {
         console.error('[AI Chat] Embedding generation error:', embeddingError);
@@ -281,7 +210,7 @@ Deno.serve(async (req: Request) => {
             error: 'Failed to generate embedding', 
             details: embeddingError instanceof Error ? embeddingError.message : 'Unknown error' 
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -297,7 +226,7 @@ Deno.serve(async (req: Request) => {
       if (!effectiveStartupId) {
         return new Response(
           JSON.stringify({ error: 'startupId is required for coach mode' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
       
@@ -334,7 +263,7 @@ Deno.serve(async (req: Request) => {
             mode: 'coach',
             sessionId: ctx.session?.id || null,
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
       
@@ -349,7 +278,7 @@ Deno.serve(async (req: Request) => {
           ...coachResponse,
           mode: 'coach',
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -364,7 +293,7 @@ Deno.serve(async (req: Request) => {
       if (!userMessage) {
         return new Response(
           JSON.stringify({ error: 'Message is required' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
         );
       }
 
@@ -388,7 +317,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      const coachingSystemPrompt = COACHING_MODE_PROMPTS[coachingMode] + startupContext;
+      const coachingSystemPrompt = CHAT_MODE_PROMPTS[coachingMode] + startupContext;
 
       // RAG context for coaching modes
       const ragBlock = await getRAGContext(supabase, userMessage, null);
@@ -401,6 +330,72 @@ Deno.serve(async (req: Request) => {
         parts: [{ text: m.content }],
       }));
 
+      // Streaming: broadcast token_chunk events via Realtime, return JSON when done
+      const canStream = stream && room_id && context?.startup_id;
+      const messageId = crypto.randomUUID();
+
+      if (canStream) {
+        const streamTopic = `chat:${context!.startup_id}:${room_id}:ai`;
+        console.log(`[AI Chat] Streaming coaching mode: ${coachingMode} → ${streamTopic}`);
+
+        let chunkCount = 0;
+        const streamChannel = supabase.channel(streamTopic);
+
+        const result = await callGeminiChatStream(
+          'gemini-3-flash-preview',
+          finalPrompt,
+          chatMessages,
+          userMessage,
+          (chunk: string) => {
+            chunkCount++;
+            // Broadcast each text chunk — frontend handleTokenChunk accumulates
+            streamChannel.send({
+              type: 'broadcast',
+              event: 'token_chunk',
+              payload: { messageId, token: chunk },
+            }).catch(() => { /* fire-and-forget broadcast */ });
+          },
+          { timeoutMs: 30_000 }
+        );
+
+        // Broadcast completion so frontend marks isStreaming=false
+        try {
+          await streamChannel.send({
+            type: 'broadcast',
+            event: 'message_complete',
+            payload: {
+              id: messageId,
+              content: result.text,
+              role: 'assistant',
+              metadata: {
+                model: 'gemini-3-flash-preview',
+                provider: 'gemini',
+                tokens: result.inputTokens + result.outputTokens,
+                streamComplete: true,
+              },
+              createdAt: new Date().toISOString(),
+            },
+          });
+          await supabase.removeChannel(streamChannel);
+        } catch (e) {
+          console.warn('[AI Chat] Stream complete broadcast failed:', e);
+        }
+
+        console.log(`[AI Chat] Streamed ${chunkCount} chunks (${result.text.length} chars)`);
+
+        return new Response(
+          JSON.stringify({
+            message: result.text,
+            mode: coachingMode,
+            model: 'gemini-3-flash-preview',
+            streamed: true,
+            chunks: chunkCount,
+          }),
+          { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Non-streaming fallback (no room_id or stream=false)
       const result = await sharedCallGeminiChat(
         'gemini-3-flash-preview',
         finalPrompt,
@@ -415,14 +410,14 @@ Deno.serve(async (req: Request) => {
           mode: coachingMode,
           model: 'gemini-3-flash-preview',
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: 'Message is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
     }
 
@@ -457,14 +452,27 @@ Deno.serve(async (req: Request) => {
         startup = startupData;
       }
 
-      systemPrompt = buildSystemPrompt(effectiveAction, {
-        user_name: profile?.full_name || 'User',
-        startup_name: startup?.name,
-        startup_stage: startup?.stage,
-        industry: startup?.industry,
-        is_raising: startup?.is_raising,
-        screen: context?.screen || 'dashboard',
-      });
+      // Use expert prompt for default chat, legacy buildSystemPrompt for specialized actions
+      if (effectiveAction === 'chat') {
+        systemPrompt = buildExpertPrompt({
+          user_name: profile?.full_name || 'User',
+          startup_name: startup?.name,
+          startup_stage: startup?.stage,
+          industry: startup?.industry,
+          is_raising: startup?.is_raising,
+          screen: context?.screen || 'dashboard',
+          description: startup?.description,
+        });
+      } else {
+        systemPrompt = buildSystemPrompt(effectiveAction, {
+          user_name: profile?.full_name || 'User',
+          startup_name: startup?.name,
+          startup_stage: startup?.stage,
+          industry: startup?.industry,
+          is_raising: startup?.is_raising,
+          screen: context?.screen || 'dashboard',
+        });
+      }
 
       // MVP-06: If report dimension context provided, load dimension data and inject into system prompt
       const reportCtx = context?.data?.report_context as { type?: string; report_id?: string; dimension_id?: string; dimension_label?: string } | undefined;
@@ -533,11 +541,57 @@ ${ragBlock}`;
       }
     }
 
+    // Streaming: Gemini chat with token_chunk broadcasts via Realtime
+    const canStreamAuth = stream && !isPublicMode && modelConfig.provider === 'gemini' && room_id && context?.startup_id;
+
     if (modelConfig.provider === 'anthropic') {
       const result = await callAnthropic(modelConfig.model, systemPrompt, messages || [], userMessage, context);
       responseText = result.text;
       inputTokens = result.inputTokens;
       outputTokens = result.outputTokens;
+    } else if (canStreamAuth) {
+      // Stream Gemini response via Realtime broadcasts
+      const streamTopic = `chat:${context!.startup_id}:${room_id}:ai`;
+      const streamChannel = supabase.channel(streamTopic);
+      const streamMsgId = crypto.randomUUID();
+      let chunkCount = 0;
+
+      // Build messages for streaming call
+      const chatMsgs: GeminiChatMessage[] = (messages || []).slice(0, -1).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+        content: m.content,
+      }));
+
+      let currentMsg = userMessage;
+      if (context?.data) {
+        currentMsg += `\n\nContext:\n${JSON.stringify(context.data, null, 2)}`;
+      }
+
+      const result = await callGeminiChatStream(
+        modelConfig.model,
+        systemPrompt,
+        chatMsgs,
+        currentMsg,
+        (chunk: string) => {
+          chunkCount++;
+          streamChannel.send({
+            type: 'broadcast',
+            event: 'token_chunk',
+            payload: { messageId: streamMsgId, token: chunk },
+          }).catch(() => {});
+        },
+        { timeoutMs: 30_000, maxOutputTokens: 2048 }
+      );
+
+      responseText = result.text;
+      inputTokens = result.inputTokens;
+      outputTokens = result.outputTokens;
+
+      // Complete broadcast handled below in the existing message_complete block
+      // (messageId will differ — but the block uses its own messageId; we need to align)
+      // Override messageId for consistency
+      console.log(`[AI Chat] Streamed auth ${chunkCount} chunks (${result.text.length} chars)`);
+      try { await supabase.removeChannel(streamChannel); } catch { /* ignore */ }
     } else {
       const result = await callGemini(modelConfig.model, systemPrompt, messages || [], userMessage, context);
       responseText = result.text;
@@ -630,7 +684,7 @@ ${ragBlock}`;
         mode: isPublicMode ? 'public' : 'authenticated',
         usage: { promptTokens: inputTokens, completionTokens: outputTokens }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -638,7 +692,7 @@ ${ragBlock}`;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -10,6 +10,7 @@ import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 import { getCuratedLinks, formatLinksForPrompt } from "../curated-links.ts";
 import { searchKnowledge, formatKnowledgeForPrompt } from "../knowledge-search.ts";
+import { RESEARCH_FRAGMENT } from "../agency-fragments.ts";
 
 export async function runResearch(
   supabase: SupabaseClient,
@@ -177,7 +178,9 @@ Return JSON with exactly these fields:
   "confidence": 65
 }
 
-Prefer citing the preferred sources when they contain relevant data. Include real URLs.`;
+Prefer citing the preferred sources when they contain relevant data. Include real URLs.
+
+${RESEARCH_FRAGMENT}`;
 
   const industryLine = matchedIndustry
     ? `Industry: ${profile.industry} (category: ${matchedIndustry})`

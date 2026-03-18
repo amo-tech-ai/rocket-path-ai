@@ -8,6 +8,7 @@ import { AGENTS, AGENT_TIMEOUTS } from "../config.ts";
 import { AGENT_SCHEMAS } from "../schemas.ts";
 import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
+import { MVP_FRAGMENT } from "../agency-fragments.ts";
 
 export async function runMVP(
   supabase: SupabaseClient,
@@ -156,7 +157,9 @@ HARD RULES:
 4. Include a pricing_test in experiments for B2B unless evidence_tier is A (revenue/payment data)
 5. Next steps must be ordered by learning speed — cheapest and fastest validation first
 
-Focus on de-risking the biggest unknowns first. The goal is to learn fast, not build everything.`;
+Focus on de-risking the biggest unknowns first. The goal is to learn fast, not build everything.
+
+${MVP_FRAGMENT}`;
 
   try {
     // 022-SKI: Include weakest dimensions to focus de-risking

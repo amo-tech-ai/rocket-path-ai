@@ -1,5 +1,330 @@
 # Changelog
 
+## [0.10.47] - 2026-03-18
+
+### Session 45c: Phase 3 — Screen Overlays + Public Rate Limiting + CORS Fix
+
+**3 new screen overlays:** `/market-research` (bottom-up sizing, Porter's), `/investors` (MEDDPICC, signals), `/experiments` (experiment-risk matching, SMART goals). Total: 8 → 11 screens.
+
+**SCREEN_DOMAINS fixes:** `/lean-canvas` and `/sprint-plan` now load `gtm_strategy`. `/crm` narrowed to customer CRM (investors → `/investors`).
+
+**Public rate limiting:** ai-chat public mode now rate-limited by IP (`RATE_LIMITS.light`, 120/60s). Closes audit red flag.
+
+**CORS fix:** All 15 response locations standardized from static `corsHeaders` to dynamic `getCorsHeaders(req)`.
+
+**New file:** `src/test/validator/startup-expert-phase3.test.ts` (14 tests)
+**Modified:** `_shared/startup-expert.ts`, `ai-chat/index.ts`
+Tests: 688/688 (+14) | Deploy: ai-chat v91
+
+## [0.10.46] - 2026-03-18
+
+### Session 45b: Validator Intelligence Upgrade — 3 Fragments + 7 Verifier Rules + Evidence Quality
+
+Wired 3 new agency prompt fragments into the validator pipeline (Research, Competitors, MVP), added 7 cross-section consistency rules to the Verifier, and added evidence quality scoring computation.
+
+**3 New Fragments (`_shared/agency-fragments.ts`):**
+- `RESEARCH_FRAGMENT` (~55 lines) — Porter's Five Forces quick assessment, market accessibility scoring (4 dimensions, composite threshold), founder optimism detection (TAM/growth/competitor divergence flags)
+- `COMPETITORS_FRAGMENT` (~60 lines) — Competitive velocity assessment (shipping rate, funding, market share, response capability), zombie competitor detection (stale products = threat_level: low), pricing landscape comparison, win/loss pattern prediction
+- `MVP_FRAGMENT` (~55 lines) — Build/Buy/Skip framework (decision tree), resource allocation by team size (solo→2-person→3-5), pivot decision criteria (persevere/pivot/kill), GTM motion selection (ACV-based PLG/hybrid/sales-led)
+
+**Fragment registry:** 5 → 8 fragments. Type-safe `getFragment()` updated. Re-export shim updated.
+
+**Validator agents with fragments:** 2/7 → 5/7 (Scoring, Composer, Research, Competitors, MVP)
+
+**Types extended (all optional, backward compatible):**
+- `MarketResearch`: `market_forces`, `market_accessibility`, `optimism_flags`
+- `Competitor`: `velocity_rating`, `status`
+- `CompetitorAnalysis`: `pricing_landscape`, `price_gap`, `win_loss_patterns`
+- `MVPPlan`: `feature_classifications`, `resource_plan`, `pivot_assessment`, `gtm_motion`
+- `ScoringResult`: `evidence_quality`
+
+**7 Verifier cross-section consistency rules:**
+1. V2-R1: TAM < $100M with market score > 70 → mismatch
+2. V2-R2: Revenue model "subscription" but next steps say "per-transaction" → alignment error
+3. V2-R3: Y3 revenue > 50x Y1 → growth rarely achievable
+4. V2-R4: Score < 50 but no pivot/reconsider in next steps → missing guidance
+5. V2-R5: 5+ high-threat competitors with competition score > 60 → overrated defensibility
+6. V2-R6: MVP lists > 5 features but solo founder → overscoped
+7. V2-R7: TAM > $1B with zero cited sources → unsupported claim
+
+**Scoring evidence_quality (deterministic computation):**
+- Counts evidence grade A/B/C/D from existing `evidence_grades` output
+- Computes overall_quality (strong/moderate/weak) from A+B percentage (>=60%=strong, >=30%=moderate, else weak)
+- Generates confidence_note with percentage breakdown
+
+**New files:**
+- `src/test/validator/agency-fragments-v2.test.ts` (53 tests)
+- `src/test/validator/verifier-consistency-v2.test.ts` (22 tests)
+
+**Modified files:**
+- `supabase/functions/_shared/agency-fragments.ts` — 3 new exports + registry update (+170 lines)
+- `supabase/functions/validator-start/agency-fragments.ts` — re-export 3 new fragments
+- `supabase/functions/validator-start/types.ts` — 12 new optional fields
+- `supabase/functions/validator-start/agents/research.ts` — import + inject RESEARCH_FRAGMENT
+- `supabase/functions/validator-start/agents/competitors.ts` — import + inject COMPETITORS_FRAGMENT
+- `supabase/functions/validator-start/agents/mvp.ts` — import + inject MVP_FRAGMENT
+- `supabase/functions/validator-start/agents/verifier.ts` — 7 new consistency rules
+- `supabase/functions/validator-start/agents/scoring.ts` — evidence_quality computation
+
+Tests: 674/674 (+75) | Build: 5.88s | TypeScript: 0 errors | Deploy: validator-start v72 (1.108MB)
+
+## [0.10.45] - 2026-03-18
+
+### Session 45: Skills Architecture Audit + Startup Expert Prompt
+
+Full audit of 29 startup skills + 7 agency skills, skills-to-edge-function wiring analysis, and upgrade of AI chat from a generic 12-line chatbot to a leading startup expert.
+
+**Skills Architecture Audit:**
+- Audited 29 startup-domain skills across `.agents/skills/startup/` (12) and `.agents/skills/startupai/` (17)
+- Identified: 3 exact duplicates (nested `.agents/skills/` subfolder), 2 deprecated redirect stubs, 2 near-duplicates, 3 MVP skills covering same scope
+- Mapped skill-to-fragment-to-edge-function production wiring: only 7/29 skills reach production via `agency-fragments.ts` (567 lines of domain knowledge)
+- Produced comprehensive plan: `agency/skills/skills-architecture-plan.md` (430 lines, 10 sections)
+- Recommended consolidation: 29 → 22 canonical skills after cleanup
+
+**STARTUP_EXPERT_PROMPT — AI Chat expertise upgrade:**
+- Created `_shared/startup-expert.ts` — 200+ lines of deep startup expertise replacing the 12-line generic "Atlas" prompt
+- 8 core frameworks embedded: Idea Validation (Why Now, Tarpit, Paul Graham), Market Sizing (TAM/SAM/SOM 3-method), Scoring (9 dimensions with thresholds), Unit Economics (LTV:CAC, Burn Multiple, Rule of 40, NRR, Quick Ratio), GTM Strategy (motion selection, PQL, channel sequencing), MVP/Experiments (RICE, Kano, 5 experiment types, PMF signals, kill criteria), Competitive Strategy (tiering, moats, April Dunford positioning), Fundraising Readiness (stage benchmarks, readiness checklist, red flags)
+- 4 stage-specific overlays (idea, pre_seed, seed, series_a) that adapt advice to the founder's actual stage
+- `buildExpertPrompt()` function injects founder context (name, industry, stage, description) + stage overlay
+- Wired into `ai-chat/index.ts` — default `chat` action uses expert prompt; specialized actions (prioritize_tasks, generate_tasks, etc.) preserve legacy prompts
+
+**New files:**
+- `supabase/functions/_shared/startup-expert.ts` — Expert system prompt + stage overlays + builder function
+- `src/test/validator/startup-expert-prompt.test.ts` — 47 tests verifying all frameworks, wiring, and integration
+- `agency/skills/skills-architecture-plan.md` — Full audit and improvement plan
+
+**Modified files:**
+- `supabase/functions/ai-chat/index.ts` — Import `buildExpertPrompt`, use for default chat action
+
+Tests: 586/586 (+47) | Build: 6.34s | TypeScript: 0 errors | Deploy: ai-chat v89 (998.4kB)
+
+## [0.10.44] - 2026-03-17
+
+### Session 44: Agency Arc Close — MEDDPICC + Canvas Specificity + Chat Persistence (12/12)
+
+Completed the final 4 agency archive tasks (007/008/011/012), closing the agency integration arc at 12/12 tasks.
+
+**Task 007/008 — Investor MEDDPICC Schema + Scorecard:**
+- Migration: `meddpicc_elements` JSONB column on `deals` table
+- `scoreDealSchema` updated with 8 MEDDPICC elements (metrics, economic_buyer, decision_criteria, decision_process, paper_process, identify_pain, champion, competition) — each scored 1-5
+- `scoreDeal` handler persists elements to deals table with auto-calculated total score, signal tier (strong/medium/weak), and verdict (pursue/consider/deprioritize)
+- `MEDDPICCScorecard.tsx` — 8-row horizontal bar chart with color-coded scores (red 1-2, amber 3, green 4-5), total /40, verdict badge
+- "Score Deal" button wired into InvestorDetailSheet AI Intelligence tab
+- `DealScore` type extended with `meddpicc_elements` field
+
+**Task 011 — Lean Canvas Specificity Checks:**
+- `specificity_scores` and `evidence_gaps` changed from optional/nullable to required in coach response schema
+- New `check_specificity` action in `lean-canvas-agent` — lightweight specificity-only analysis reusing coach prompt
+- `checkSpecificity()` method added to `useCanvasCoach` hook with `SpecificityResult` type
+- "Check Specificity" button in CanvasAIPanel with results card showing per-box vague/specific/quantified badges + evidence gap pills
+
+**Task 012 — Chat Session Persistence:**
+- Fixed `useAIChatPersistence.ts` — removed references to non-existent columns (`last_tab`, `ended_at`, `started_at` on sessions; `user_id`, `tab`, `suggested_actions` on messages)
+- Aligned insert shapes with actual schema: sessions use `agent_type`/`status`, messages use `session_id`/`role`/`content`/`metadata`
+- Wired into `AIAssistantProvider.tsx` via ref pattern (avoids stale closure): loads history on auth, saves user+assistant messages fire-and-forget, ends session on clear
+
+**Lint fixes:**
+- Replaced `as any` cast with `Record<string, unknown>` in persistence hook
+- Used `useRef` pattern for persistence in provider to eliminate missing-deps warning
+- Net lint change: 351 → 350 (-1)
+
+**New files:**
+- `supabase/migrations/20260317100000_deals_meddpicc_elements.sql`
+- `src/components/investors/MEDDPICCScorecard.tsx`
+- `src/test/components/MEDDPICCScorecard.test.tsx` (7 tests)
+- `src/test/components/CanvasSpecificity.test.tsx` (7 tests)
+- `src/test/hooks/useAIChatPersistence.test.ts` (11 tests)
+
+**Modified files:**
+- `supabase/functions/investor-agent/prompt.ts` — scoreDealSchema + MEDDPICC elements
+- `supabase/functions/investor-agent/index.ts` — persist meddpicc to deals
+- `src/hooks/useInvestorAgent.ts` — DealScore type + MEDDPICCElementScore export
+- `src/components/investors/InvestorDetailSheet.tsx` — Score Deal button + scorecard
+- `supabase/functions/lean-canvas-agent/actions/coach.ts` — required specificity fields
+- `supabase/functions/lean-canvas-agent/index.ts` — check_specificity action
+- `src/hooks/useCanvasCoach.ts` — checkSpecificity + SpecificityResult
+- `src/components/leancanvas/CanvasAIPanel.tsx` — button + results card
+- `src/hooks/useAIChatPersistence.ts` — schema fix
+- `src/providers/AIAssistantProvider.tsx` — persistence wiring
+
+Tests: 539/539 (+25) | Build: 6.36s | TypeScript: 0 errors | Lint: 350 (was 351)
+
+## [0.10.43] - 2026-03-16
+
+### Session 39: Agency Prompt Fragments + Chat Modes — Validator & AI Chat Enhancement
+
+Replaced hardcoded prompt content in 2 edge functions with full agency knowledge from `.md` source files, exported as Deno Deploy-safe TypeScript modules.
+
+**Architecture: `_shared/agency-*.ts` pattern**
+- `Deno.readTextFile()` in `agent-loader.ts` cannot work on Deno Deploy (only statically imported files are bundled)
+- Solution: export prompt content as TypeScript string constants in `_shared/` modules
+- Re-export pattern matches existing `_shared/gemini.ts` → `validator-start/gemini.ts` convention
+
+**Validator Pipeline — Scoring + Composer enrichment:**
+- `_shared/agency-fragments.ts` — exports `SCORING_FRAGMENT` and `COMPOSER_FRAGMENT`
+- `validator-start/agency-fragments.ts` — re-export for clean agent imports
+- `scoring.ts` — replaced 40-line condensed inline with full fragment: RICE component definitions (Reach/Impact/Confidence/Effort scales), evidence tier weighting table, 4 bias detection rules with transparency mandate
+- `composer.ts` Group D — replaced 18-line condensed inline with full fragment: Three-Act narrative (Act 1: market context, Act 2: solution mechanism, Act 3: quantified future), Win Theme criteria (buyer-specific + provable + differentiating with examples), ICE-scored growth channels by stage table, Behavioral Framing (5 principles: micro-wins, momentum language, progressive commitment, loss framing, specificity)
+- Deployed: `validator-start` v70 (1.088MB)
+
+**AI Chat — 4 coaching modes enrichment:**
+- `_shared/agency-chat-modes.ts` — exports `CHAT_MODE_PROMPTS` with 4 full mode prompts
+- `ai-chat/index.ts` — removed 85-line hardcoded `COACHING_MODE_PROMPTS` object, imported from shared module
+- `practice_pitch`: +Socratic methodology (5 principles), investor question bank (15 questions across 4 categories), structured feedback template, experience-adaptive difficulty
+- `growth_strategy`: +AARRR table with healthy benchmarks, channel rationale by stage, experiment design template (hypothesis/baseline/target/timeline/cost/success), unit economics quick check
+- `deal_review`: +MEDDPICC scoring table (5-strong/1-weak anchors per element), 7 pipeline inspection questions, red flags list (7 deal killers), verdict action recommendations
+- `canvas_coach`: +Box quality checklist (4 criteria table), per-box red flags (all 9 boxes), momentum patterns from behavioral-nudge, probing question templates (4 boxes)
+- Deployed: `ai-chat` v87 (983.5KB)
+
+**New files:**
+- `supabase/functions/_shared/agency-fragments.ts` — Scoring + Composer fragments
+- `supabase/functions/_shared/agency-chat-modes.ts` — 4 chat mode prompts
+- `supabase/functions/validator-start/agency-fragments.ts` — re-export
+- `src/test/validator/agency-fragments.test.ts` — 30 tests
+- `src/test/validator/agency-chat-modes.test.ts` — 30 tests
+
+**Modified files:**
+- `supabase/functions/validator-start/agents/scoring.ts` — import + replace inline fragment
+- `supabase/functions/validator-start/agents/composer.ts` — import + replace inline fragment
+- `supabase/functions/ai-chat/index.ts` — import shared module + remove hardcoded prompts
+
+Tests: 453/453 (+64) | Build: 6.39s | TypeScript: 0 errors | Deploy: validator-start v70 + ai-chat v87
+
+### Session 39b: Report Agency Badges — 6 components wired (10/10 complete)
+
+Built 2 new components and wired all 6 agency badge components into the validation report.
+
+**New components:**
+- `ICEChannelChip.tsx` — Growth channel pills ranked by ICE score (Impact/Confidence/Ease), composite score badge with color gradient (red/amber/green), sorted highest-first, time-to-result display
+- `NarrativeArcSummary.tsx` — Three-act narrative cards (Opportunity/Risk/Path Forward), derives from summary_verdict text via paragraph splitting heuristic, responsive grid (3-col lg / stack mobile), color-coded borders (blue/amber/green)
+
+**Wiring (4 integration points):**
+- ReportV2Layout overview tab: NarrativeArcSummary after BiasAlertBanner (derives from summary_verdict)
+- ReportV2Layout overview tab: EvidenceTierBadge + WinThemeLabel + ICEChannelChip in new "agency signals" PageCard (renders when any data present)
+- StrategicSummary Fundability section: WinThemeLabel displaying top 3 strength dimensions as win themes
+
+**Agency badge components (10/10 complete):**
+1. EvidenceTierBadge (cited/founder/AI pills) — wired in overview
+2. BiasAlertBanner (bias detection warnings) — wired in overview
+3. WinThemeLabel (strategic theme pills) — wired in StrategicSummary
+4. ICEChannelChip (growth channel ranking) — wired in overview
+5. NarrativeArcSummary (3-act narrative) — wired in overview
+6-10. Shared infrastructure: SectionShell, StickyScoreBar, InsightCard, AnimatedBar — already wired
+
+**New test file:** `src/test/components/AgencyReportBadges.test.tsx` (21 tests)
+Tests: 474/474 (+21) | Build: 6.36s | TypeScript: 0 errors
+
+### Session 42: Streaming AI Chat (A3) — Token-by-token delivery via Realtime
+
+AI chat responses now stream word-by-word via Supabase Realtime instead of waiting for the full response. Frontend infrastructure was already built (Session 37 RT-AUDIT) — this session wired the backend.
+
+**Backend — `_shared/gemini.ts`:**
+- `callGeminiChatStream()` — new streaming variant using Gemini's `streamGenerateContent?alt=sse` endpoint
+- ReadableStream reader + TextDecoder for SSE line parsing
+- Skips thinking tokens (`part.thought`), extracts text parts only
+- Deadline safety: stops reading if timeout exceeded, returns partial text
+- Same retry/timeout patterns as `callGeminiChat`
+
+**Backend — `ai-chat/index.ts`:**
+- Coaching modes (practice_pitch, growth_strategy, deal_review, canvas_coach): when `stream=true` + `room_id`, uses `callGeminiChatStream` and broadcasts each chunk as `token_chunk` event
+- Authenticated chat (Gemini provider): same streaming pattern for general chat
+- Fallback: `stream=false` or missing `room_id` → existing non-streaming behavior (backward compat)
+- `room_id` resolution: now checks both top-level and `context.room_id` (frontend sends in context)
+- Each stream ends with `message_complete` broadcast so frontend marks `isStreaming=false`
+
+**Frontend — `useRealtimeAIChat.ts`:**
+- Sends `stream: true` in request body (activates backend streaming)
+- `token_chunk` handler was already built in RT-AUDIT — now triggered by backend broadcasts
+- `handleTokenChunk` accumulates chunks in `streamBufferRef`, updates message content incrementally
+- `isStreaming` state controls cursor animation + input disabled state
+
+**How it works end-to-end:**
+```
+User types → EF calls Gemini streamGenerateContent → SSE chunks arrive →
+EF broadcasts token_chunk to Realtime channel → Frontend handleTokenChunk
+accumulates in streamBufferRef → React state updates → message text grows
+word-by-word → message_complete broadcast → isStreaming=false → cursor removed
+```
+
+**New file:** `src/test/validator/streaming-chat.test.ts` (20 tests)
+**Modified:** `_shared/gemini.ts` (+130 lines), `ai-chat/index.ts` (+55 lines), `useRealtimeAIChat.ts` (+1 line)
+Tests: 494/494 (+20) | Build: 6.45s | TypeScript: 0 errors | Deploy: ai-chat v88 ACTIVE
+
+### Session 43: Agency Prompt Fragments — Sprint, Pitch Deck, Investor (5/5 complete)
+
+Wired the final 3 agency prompt fragments into their target edge functions, completing all 5/5 prompt fragments from the agency integration.
+
+**_shared/agency-fragments.ts — 3 new exports:**
+- `SPRINT_FRAGMENT` — RICE scoring (quadrant table: Quick Wins/Big Bets/Fill-Ins/Time Sinks), Kano classification (Must-Have/Performance/Delighter with examples), Momentum Sequencing (5 rules), Capacity Planning (team size table with story point mapping)
+- `PITCH_DECK_FRAGMENT` — Win Theme Architecture (4 application rules with primacy/recency effects), Challenger Narrative (4-step with example phrases), Persuasion Architecture (5 cognitive principles: Primacy, Progressive Disclosure, Loss Aversion, Social Proof Cascade, Recency), Growth Story on Traction Slide (growth rate, unit economics trajectory, viral coefficient, channel diversification, validation velocity framing)
+- `CRM_INVESTOR_FRAGMENT` — MEDDPICC scoring table (8 elements with 5/1 anchor descriptions), Signal-Based Outreach Timing (Strong/Medium/Weak with examples), Cold Email Framework (subject line rules, 4-part body structure under 120 words, anti-patterns)
+
+**Edge function wiring:**
+- `sprint-agent/index.ts` — replaced 40-line inline `SPRINT_FRAGMENT` with import from `_shared/agency-fragments.ts`
+- `pitch-deck-agent/actions/generation.ts` — replaced 18-line inline Win Theme/Challenger/Persuasion content with `PITCH_DECK_FRAGMENT` import
+- `investor-agent/prompt.ts` — replaced condensed MEDDPICC/outreach in 3 prompts (ANALYZE_INVESTOR_FIT, GENERATE_OUTREACH, SCORE_DEAL) with `CRM_INVESTOR_FRAGMENT` import
+
+**Agency prompt fragments status: 5/5 complete**
+| Fragment | EF Target | Session |
+|---|---|---|
+| Scoring (evidence tiers, RICE, bias) | validator-start | 39 |
+| Composer (Three-Act, win themes, ICE) | validator-start | 39 |
+| Sprint (RICE quadrants, Kano, momentum) | sprint-agent | 43 |
+| Pitch Deck (Challenger, persuasion) | pitch-deck-agent | 43 |
+| CRM Investor (MEDDPICC, signals, email) | investor-agent | 43 |
+
+**New file:** `src/test/validator/agency-fragments-extended.test.ts` (20 tests)
+**Modified:** `_shared/agency-fragments.ts` (+3 exports), `sprint-agent/index.ts`, `pitch-deck-agent/actions/generation.ts`, `investor-agent/prompt.ts`
+Tests: 514/514 (+20) | Build: 6.81s | TypeScript: 0 errors | Deploy: sprint-agent v6, pitch-deck-agent v67, investor-agent v45
+
+## [0.10.42] - 2026-03-09
+
+### Session 38: POST-02 — Sprint Board ← Report Priority Actions Import
+
+Report-to-Sprint-Board import: validation report priority actions now flow directly into the Sprint Board as trackable tasks with one-click import from both the Strategy tab (bulk top-5) and individual Dimension pages (per-dimension).
+
+**New files:**
+- `src/hooks/useSprintImport.ts` — Import hook with field mapping, dedup via `source_action_id`, auto-create campaign, toast feedback
+- `supabase/migrations/20260309140000_sprint_tasks_source_action_id.sql` — `source_action_id TEXT` column + unique index for idempotent imports
+
+**Modified files:**
+- `src/components/validator/report/StrategicSummary.tsx` — Added "Start Next Sprint" button to Build Focus section
+- `src/components/validator/report/ReportV2Layout.tsx` — Added `startupId` + `reportId` prop threading
+- `src/components/validator/report/DimensionSection.tsx` — Added `startupId` prop passthrough
+- `src/components/validator/v3/DimensionPage.tsx` — Added "Import to Sprint" button with per-dimension import
+- `src/pages/ValidatorReport.tsx` — Passes `startupId` from report metadata
+
+**Import logic:** Maps `priority_actions` → sprint_tasks (action→title, timeframe→sprint_name, effort→priority). Dedup via `source_action_id` = `report:{id}:dim:{dim}:idx:{i}`. Auto-creates campaign.
+
+Tests: 389/389 | Build: 6.79s | TypeScript: 0 errors
+
+## [0.10.41] - 2026-03-09
+
+### Session 37: RT-AUDIT — Supabase Realtime infrastructure overhaul (10 items)
+
+Comprehensive Realtime audit and improvement across 3 tiers. Fixed AI chat topic mismatch bug, consolidated 7 dashboard channels into 1, added typing indicators, ingest progress, health badge, canvas coach broadcast, and report presence.
+
+**Tier A (Quick Wins):**
+- A-1: Client reconnection with exponential backoff (1s→2s→4s...30s max)
+- A-2: Dashboard channel consolidation (7→1 multiplexed channel)
+- A-3: Reusable `usePollingFallback` hook (adopted in 5 domain hooks)
+
+**Tier B (New Features):**
+- B-1: Sprint board live sync hook (`useSprintRealtime`)
+- B-2: AI Chat typing indicators + topic mismatch bug fix (EF → `:events`, client → `:ai`)
+- B-3: Knowledge ingest progress tracking (per-batch broadcast events)
+
+**Tier C (Advanced):**
+- C-1: Canvas real-time coach broadcast (`coach_suggestions` event)
+- C-2: Multi-user report presence (Supabase Presence API)
+- C-3: Global realtime health badge (green/yellow/red dot with latency tooltip)
+
+**Shared:** `supabase/functions/_shared/broadcast.ts` generic helper
+**Deployed:** ai-chat v85, knowledge-ingest v7, lean-canvas-agent v53
+**Files modified:** 15+ files (hooks, EFs, components, layout)
+
+Tests: 389/389 | Build: 6.82s | Edge functions: 3/3 deployed + verified
+
 ## [0.10.40] - 2026-03-08
 
 ### Session 32: R7 + K4 + POST-03 — Chunk split, dedupe, health scores
