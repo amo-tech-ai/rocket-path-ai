@@ -9,6 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { callGemini, extractJSON } from "../_shared/gemini.ts";
 import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { SPRINT_FRAGMENT } from "../_shared/agency-fragments.ts";
 
 // ---------------------------------------------------------------------------
 // Schema for AI-generated sprint tasks
@@ -47,49 +48,9 @@ Rules:
 - Sprint 6 should include a traction/launch task.
 - Adapt task difficulty to the startup's stage.`;
 
-// Domain knowledge fragment: RICE scoring, Kano classification, momentum sequencing
-// Source: agency/prompts/sprint-agent-fragment.md
-const SPRINT_FRAGMENT = `
-## RICE Scoring for Task Generation
-
-Score every generated task using RICE before assigning it to a sprint:
-
-RICE Score = (Reach x Impact x Confidence) / Effort
-
-- Reach (1-10): How many users, customers, or business dimensions does this task affect?
-- Impact (0.25 / 0.5 / 1 / 2 / 3): Minimal / Low / Medium / High / Massive
-- Confidence (0.5 / 0.8 / 1.0): How certain are we this task will produce the expected outcome?
-- Effort (1-10): Person-days for a solo founder. 1 = a few hours, 10 = two full weeks.
-
-Classify tasks into quadrants based on RICE:
-- Quick Wins (RICE >= 5, Effort <= 3): Do first. Sprint 1 priority.
-- Big Bets (RICE >= 5, Effort > 3): Plan carefully. Break into subtasks. Sprint 2-3.
-- Fill-Ins (RICE < 5, Effort <= 3): Use for slack time between major tasks.
-- Time Sinks (RICE < 5, Effort > 3): Skip unless explicitly requested.
-
-## Kano Classification
-
-Tag each task with a Kano category:
-- Must-Have: Without this, the product/business fails a basic expectation. Must-Haves go in Sprint 1 regardless of RICE score.
-- Performance: More of this = more satisfaction. Linear relationship.
-- Delighter: Unexpected value that creates outsized positive reaction. Save for Sprint 3+ unless effort is very low.
-
-Sprint allocation rule: Sprint 1 = all Must-Haves + top Quick Wins. Sprint 2 = Big Bets + Performance tasks. Sprint 3+ = Performance + Delighters.
-
-## Momentum Sequencing
-
-Order tasks within each sprint to build psychological momentum:
-1. Start every sprint with a Quick Win (completable in 1-2 days).
-2. Place the hardest task in the middle of the sprint, not at the beginning.
-3. End every sprint with a visible deliverable: something the founder can show, demo, or share.
-4. Never sequence two high-effort tasks back-to-back.
-5. Group related tasks adjacently — context-switching costs 20-30% productivity.
-
-## Capacity Planning
-
-Solo founder: max 40 story points per 2-week sprint (20% buffer = 8 points reserved).
-Story point mapping: 1 = trivial (< 2 hours), 2 = small (half day), 3 = medium (1 day), 5 = large (2-3 days), 8 = very large (1 week).
-If total generated tasks exceed capacity, defer lowest-RICE tasks to the next sprint.`;
+// Domain knowledge fragment: RICE scoring, Kano classification, momentum sequencing, capacity planning
+// Source: _shared/agency-fragments.ts (from agency/prompts/038-fragment-sprint-agent.md)
+// Full fragment adds: RICE quadrant table, Kano examples, team size capacity table, story point mapping
 
 const ENHANCED_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${SPRINT_FRAGMENT}`;
 
@@ -179,13 +140,36 @@ Deno.serve(async (req) => {
       startup.tagline ? `Tagline: ${startup.tagline}` : null,
     ].filter(Boolean).join('\n');
 
+    // Task #4: Load industry playbook for stage-specific task generation
+    let playbookBlock = '';
+    if (startup.industry) {
+      try {
+        const { data: playbook } = await sb
+          .from('industry_playbooks')
+          .select('stage_checklists, gtm_patterns, warning_signs')
+          .eq('industry_id', startup.industry.trim().toLowerCase())
+          .eq('is_active', true)
+          .maybeSingle();
+        if (playbook?.stage_checklists) {
+          const stageAdvice = startup.stage ? playbook.stage_checklists[startup.stage] : null;
+          playbookBlock = `\n\n## INDUSTRY PLAYBOOK (${startup.industry}) [INDUSTRY BENCHMARK]`;
+          if (stageAdvice) playbookBlock += `\nStage advice (${startup.stage}): ${stageAdvice}`;
+          if (playbook.gtm_patterns) playbookBlock += `\nGTM patterns: ${JSON.stringify(playbook.gtm_patterns)}`;
+          if (playbook.warning_signs) playbookBlock += `\nWarning signs: ${JSON.stringify(playbook.warning_signs)}`;
+          console.log(`[sprint-agent] Playbook loaded for ${startup.industry}`);
+        }
+      } catch (e) {
+        console.warn('[sprint-agent] Playbook load failed:', e instanceof Error ? e.message : e);
+      }
+    }
+
     const userPrompt = `Generate a 90-day validation plan (24 tasks across 6 sprints) for this startup:\n\n${context}`;
 
     console.log(`[sprint-agent] Generating tasks for startup: ${startup.name} (${startup_id})`);
 
     const result = await callGemini(
       'gemini-3-flash-preview',
-      ENHANCED_SYSTEM_PROMPT,
+      ENHANCED_SYSTEM_PROMPT + playbookBlock,
       userPrompt,
       {
         responseJsonSchema: TASK_SCHEMA,

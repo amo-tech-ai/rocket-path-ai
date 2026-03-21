@@ -33,14 +33,17 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Investor, INVESTOR_STATUSES, INVESTOR_TYPES, INVESTOR_PRIORITIES, useDeleteInvestor } from '@/hooks/useInvestors';
-import { 
-  useAnalyzeInvestorFit, 
-  usePrepareMeeting, 
+import {
+  useAnalyzeInvestorFit,
+  usePrepareMeeting,
   useGenerateOutreach,
+  useScoreDeal,
   type FitAnalysis,
   type MeetingPrep,
-  type OutreachResult
+  type OutreachResult,
+  type DealScore,
 } from '@/hooks/useInvestorAgent';
+import { MEDDPICCScorecard, type MEDDPICCElements } from './MEDDPICCScorecard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,11 +88,13 @@ export function InvestorDetailSheet({ investor, open, onOpenChange, onEdit, star
   const analyzeInvestorFit = useAnalyzeInvestorFit();
   const prepareMeeting = usePrepareMeeting();
   const generateOutreach = useGenerateOutreach();
-  
+  const scoreDeal = useScoreDeal();
+
   // AI Results State
   const [fitAnalysis, setFitAnalysis] = useState<FitAnalysis | null>(null);
   const [meetingPrep, setMeetingPrep] = useState<MeetingPrep | null>(null);
   const [outreach, setOutreach] = useState<OutreachResult | null>(null);
+  const [dealScore, setDealScore] = useState<DealScore | null>(null);
 
   if (!investor) return null;
 
@@ -136,7 +141,14 @@ export function InvestorDetailSheet({ investor, open, onOpenChange, onEdit, star
     }
   };
 
-  const isLoading = analyzeInvestorFit.isPending || prepareMeeting.isPending || generateOutreach.isPending;
+  const handleScoreDeal = async () => {
+    const result = await scoreDeal.mutateAsync({ investorId: investor.id });
+    if (result.success) {
+      setDealScore(result);
+    }
+  };
+
+  const isLoading = analyzeInvestorFit.isPending || prepareMeeting.isPending || generateOutreach.isPending || scoreDeal.isPending;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -421,8 +433,8 @@ export function InvestorDetailSheet({ investor, open, onOpenChange, onEdit, star
                       )}
                       Meeting Prep
                     </Button>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => handleGenerateOutreach('cold')}
                       disabled={isLoading || !startupId}
@@ -433,6 +445,19 @@ export function InvestorDetailSheet({ investor, open, onOpenChange, onEdit, star
                         <MessageSquare className="w-4 h-4 mr-2" />
                       )}
                       Draft Outreach
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleScoreDeal}
+                      disabled={isLoading}
+                    >
+                      {scoreDeal.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <TrendingUp className="w-4 h-4 mr-2" />
+                      )}
+                      Score Deal
                     </Button>
                   </div>
                 </CardContent>
@@ -581,8 +606,13 @@ export function InvestorDetailSheet({ investor, open, onOpenChange, onEdit, star
                 </Card>
               )}
 
+              {/* MEDDPICC Scorecard */}
+              {dealScore?.success && dealScore.meddpicc_elements && (
+                <MEDDPICCScorecard elements={dealScore.meddpicc_elements as MEDDPICCElements} />
+              )}
+
               {/* Empty State */}
-              {!fitAnalysis && !meetingPrep && !outreach && (
+              {!fitAnalysis && !meetingPrep && !outreach && !dealScore && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Brain className="w-12 h-12 mx-auto mb-3 opacity-20" />
                   <p className="text-sm">Click an action above to get AI insights</p>

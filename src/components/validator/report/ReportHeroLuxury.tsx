@@ -265,6 +265,9 @@ export const ReportHeroLuxury = memo(function ReportHeroLuxury({
             >
               Strategic Dimensions
             </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              How your idea performs across the key areas investors and customers care about most.
+            </p>
             <div className="border-b border-border/30 mt-2" />
           </div>
 

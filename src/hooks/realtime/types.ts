@@ -220,11 +220,19 @@ export interface InvestorsRealtimeState {
   readinessUpdates: ReadinessScorePayload[];
 }
 
+export interface CanvasCoachSuggestion {
+  box: string;
+  suggestion: string;
+}
+
 export interface CanvasRealtimeState {
   validationScores: Record<string, { status: 'complete' | 'needs_work' | 'missing' }>;
   overallScore: number | null;
   lastSaved: string | null;
   activeEditors: string[];
+  coachSuggestions: CanvasCoachSuggestion[];
+  weakSections: string[];
+  canvasScore: number | null;
 }
 
 export interface DocumentsRealtimeState {

@@ -28,8 +28,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   realtime: {
     params: {
-      // Enable detailed logging in development, minimal in production
       log_level: import.meta.env.DEV ? 'info' : 'warn',
     },
+    // Exponential backoff: 1s, 2s, 4s, 8s... max 30s
+    reconnectAfterMs: (tries: number) =>
+      Math.min(1000 * Math.pow(2, tries), 30_000),
   },
 });

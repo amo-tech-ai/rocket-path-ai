@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "ai-news-collector": {
+      "source": "yugasun/skills",
+      "sourceType": "github",
+      "computedHash": "11a89fe179f0cac9db427cccb60d0542320ad1d22530d77497df0ef8275e6eed"
+    },
+    "ai-startup-strategist": {
+      "source": "junhua/forth-ai-homepage",
+      "sourceType": "github",
+      "computedHash": "65ad316e1c22111c24cba2be10b484296d13bb5158743ebd0e91af43072602ff"
+    },
     "canvas-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -36,6 +46,11 @@
       "sourceType": "github",
       "computedHash": "f0d51f45c0075be383a0891d239865223cab6cad63d88fde8f859e70c161ed34"
     },
+    "idea-validator": {
+      "source": "shipshitdev/library",
+      "sourceType": "github",
+      "computedHash": "943df829e884f29f521edb911a95fb02026de0b37c26426d570389d298403e02"
+    },
     "illustrated-slides-with-nano-banana": {
       "source": "fluxa-agent-payment/skills",
       "sourceType": "github",
@@ -70,6 +85,11 @@
       "source": "feiskyer/codex-settings",
       "sourceType": "github",
       "computedHash": "bbb0209ee68343959a8cf43b90437b8e08618d4e2b94c5d329a428da5c96db04"
+    },
+    "openai-docs": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "computedHash": "7c0cb31b80f601a4394449bf27bc865a9ff31cd0daaa1088a017fdb57b7ae306"
     },
     "pgvector": {
       "source": "genius-cai/finance-ai",
@@ -111,6 +131,11 @@
       "sourceType": "github",
       "computedHash": "9b03bb78ec5c81c4e0546dbb78cfc970368c72dcae5482e8c59690175abbc8e7"
     },
+    "startup-analyst": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "960d95ce5c142d5b4d9eabe21c43d3b43fae4c4513b14810112b0e4aa168e034"
+    },
     "supabase-auth": {
       "source": "nice-wolf-studio/claude-code-supabase-skills",
       "sourceType": "github",
@@ -120,6 +145,11 @@
       "source": "iskysun96/aptos-agent-skills",
       "sourceType": "github",
       "computedHash": "166390e3937d29dd5fc46dc9f0076630e44abe225cff667e29e431c92a60fe5a"
+    },
+    "validating-startup-ideas": {
+      "source": "nweii/agent-stuff",
+      "sourceType": "github",
+      "computedHash": "f7305f85402b54c8243279cf1146130bbaebbf3d1bfc64d5651f1bafa02ad646"
     }
   }
 }

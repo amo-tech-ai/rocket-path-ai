@@ -10,6 +10,7 @@ import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
 import { computeScore, type DimensionScoresInput, type FactorInput } from "../scoring-math.ts";
 import { SCORING_FRAGMENT } from "../agency-fragments.ts";
+import { getRAGContext, buildRAGBlock } from "../../_shared/rag-context.ts";
 
 export async function runScoring(
   supabase: SupabaseClient,
@@ -196,6 +197,39 @@ Return JSON with exactly these fields:
   systemPrompt += SCORING_FRAGMENT;
 
   try {
+    // V03/Task #3: RAG — inject industry benchmarks from knowledge base
+    const ragQuery = [
+      profile.industry,
+      'startup benchmarks scoring metrics',
+      profile.idea?.slice(0, 80),
+    ].filter(Boolean).join(' ');
+    const rag = await getRAGContext(supabase, {
+      query: ragQuery,
+      industry: profile.industry?.trim()?.toLowerCase() || null,
+      matchCount: 5,
+      matchThreshold: 0.6,
+    });
+    if (rag.chunkCount > 0) {
+      systemPrompt += buildRAGBlock(rag);
+      console.log(`[ScoringAgent] RAG injected: ${rag.chunkCount} chunks, ${rag.citations.length} citations`);
+    }
+
+    // Task #4: Load industry playbook for benchmark calibration
+    const { data: playbook } = await supabase
+      .from('industry_playbooks')
+      .select('benchmarks, investor_expectations, warning_signs, stage_checklists')
+      .eq('industry_id', profile.industry?.trim()?.toLowerCase() || 'general')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (playbook?.benchmarks) {
+      systemPrompt += `\n\n## INDUSTRY BENCHMARKS [INDUSTRY BENCHMARK]\nUse these benchmarks to calibrate dimension scores for ${profile.industry}:\n${JSON.stringify(playbook.benchmarks, null, 2)}`;
+      if (playbook.warning_signs) {
+        systemPrompt += `\n\nWARNING SIGNS for ${profile.industry}:\n${JSON.stringify(playbook.warning_signs)}`;
+      }
+      console.log(`[ScoringAgent] Playbook loaded for ${profile.industry}`);
+    }
+
     // P01: thinkingLevel: 'high' enables deeper multi-criteria reasoning
     // R-01 fix: keepSchemaWithThinking ensures scoring output structure is enforced
     // 022-SKI: Build compact context pack instead of raw JSON.stringify

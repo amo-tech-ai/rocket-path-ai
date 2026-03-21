@@ -3,6 +3,7 @@ name: ai-agent-dev
 description: AI integration specialist for Gemini and Claude APIs. Use for AI features, prompt engineering, and agent development.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: opus
+memory: project
 ---
 
 You are an AI integration specialist for StartupAI.

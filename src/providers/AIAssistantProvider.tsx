@@ -13,6 +13,7 @@ import type { AIMode, QuickAction } from '@/lib/ai-capabilities';
 import { getQuickActions, checkGatedAction, getAuthenticatedSystemPrompt, PUBLIC_SYSTEM_PROMPT } from '@/lib/ai-capabilities';
 import { supabase } from '@/integrations/supabase/client';
 import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
+import { useChatPersistence } from '@/hooks/useAIChatPersistence';
 
 // ============ Types ============
 
@@ -95,17 +96,19 @@ type AIAssistantAction =
 
 interface AIAssistantContextValue {
   state: AIAssistantState;
-  
+
   // UI Actions
   open: () => void;
   close: () => void;
   toggle: () => void;
   toggleExpanded: () => void;
-  
+
   // Chat Actions
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   setDashboardContext: (ctx: DashboardContextData | null) => void;
+  /** Inject an ephemeral assistant message (not persisted to DB) */
+  injectMessage: (content: string) => void;
 
   // Helpers
   quickActions: QuickAction[];
@@ -191,6 +194,14 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
   const { data: startup } = useStartup();
   const streamBufferRef = useRef<string>('');
 
+  // Chat persistence — saves messages to chat_sessions/chat_messages
+  const persistence = useChatPersistence({
+    startupId: startup?.id,
+    autoLoadHistory: false, // we load manually after auth
+  });
+  const persistenceRef = useRef(persistence);
+  persistenceRef.current = persistence;
+
   // Update mode based on auth state
   useEffect(() => {
     dispatch({ type: 'SET_MODE', payload: user ? 'authenticated' : 'public' });
@@ -250,13 +261,31 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     }
   }, [startup]);
 
-  // Initialize anonymous session for public mode
+  // Initialize session — load persisted history for authenticated users
   useEffect(() => {
+    if (user && startup?.id) {
+      persistenceRef.current.loadHistory().then(() => {
+        if (persistenceRef.current.messages.length > 0) {
+          // Hydrate reducer with persisted messages
+          for (const msg of persistenceRef.current.messages) {
+            dispatch({
+              type: 'ADD_MESSAGE',
+              payload: {
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                timestamp: msg.createdAt,
+              },
+            });
+          }
+        }
+      });
+    }
     if (!state.sessionId) {
       const sessionId = `session_${crypto.randomUUID()}`;
       dispatch({ type: 'SET_SESSION', payload: sessionId });
     }
-  }, [state.sessionId]);
+  }, [user, startup?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ============ Actions ============
 
@@ -264,11 +293,28 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
   const close = useCallback(() => dispatch({ type: 'CLOSE' }), []);
   const toggle = useCallback(() => dispatch({ type: 'TOGGLE' }), []);
   const toggleExpanded = useCallback(() => dispatch({ type: 'TOGGLE_EXPANDED' }), []);
-  const clearMessages = useCallback(() => dispatch({ type: 'CLEAR_MESSAGES' }), []);
+  const clearMessages = useCallback(() => {
+    dispatch({ type: 'CLEAR_MESSAGES' });
+    // End current chat session so next message creates a fresh one
+    if (user) {
+      persistenceRef.current.endSession().catch(() => {});
+    }
+  }, [user]);
   const setDashboardContext = useCallback(
     (ctx: DashboardContextData | null) => dispatch({ type: 'SET_DASHBOARD_CONTEXT', payload: ctx }),
     [],
   );
+
+  const injectMessage = useCallback((content: string) => {
+    const msg: AIMessage = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content,
+      timestamp: new Date().toISOString(),
+    };
+    dispatch({ type: 'ADD_MESSAGE', payload: msg });
+    // Not persisted — ephemeral greeting
+  }, []);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -284,6 +330,11 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       timestamp: new Date().toISOString(),
     };
     dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+
+    // Persist user message (fire-and-forget)
+    if (user) {
+      persistenceRef.current.saveMessage('user', content.trim()).catch(() => {});
+    }
 
     // If gated, respond with gated message
     if (!gateCheck.allowed) {
@@ -353,14 +404,20 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
       }
 
       // Add assistant response
+      const responseContent = data.response || data.message;
       const assistantMessage: AIMessage = {
         id: data.id || crypto.randomUUID(),
         role: 'assistant',
-        content: data.response || data.message,
+        content: responseContent,
         timestamp: new Date().toISOString(),
         suggestedActions: data.suggested_actions,
       };
       dispatch({ type: 'ADD_MESSAGE', payload: assistantMessage });
+
+      // Persist assistant message (fire-and-forget)
+      if (user) {
+        persistenceRef.current.saveMessage('assistant', responseContent).catch(() => {});
+      }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get AI response';
@@ -405,6 +462,7 @@ export function AIAssistantProvider({ children }: { children: React.ReactNode })
     sendMessage,
     clearMessages,
     setDashboardContext,
+    injectMessage,
     quickActions,
     modeLabel,
     contextLabel,

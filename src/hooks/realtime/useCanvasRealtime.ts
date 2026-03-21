@@ -13,13 +13,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { CanvasRealtimeState, CanvasPayload } from './types';
+import { CanvasRealtimeState, CanvasPayload, CanvasCoachSuggestion } from './types';
+import { usePollingFallback } from './usePollingFallback';
 import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseCanvasRealtimeOptions {
   onValidated?: (boxes: Record<string, { status: 'complete' | 'needs_work' | 'missing' }>) => void;
   onSaved?: () => void;
+  onCoachSuggestions?: (suggestions: CanvasCoachSuggestion[]) => void;
   showToasts?: boolean;
 }
 
@@ -28,6 +30,9 @@ const initialState: CanvasRealtimeState = {
   overallScore: null,
   lastSaved: null,
   activeEditors: [],
+  coachSuggestions: [],
+  weakSections: [],
+  canvasScore: null,
 };
 
 export function useCanvasRealtime(
@@ -35,10 +40,12 @@ export function useCanvasRealtime(
   options: UseCanvasRealtimeOptions = { showToasts: true }
 ) {
   const [state, setState] = useState<CanvasRealtimeState>(initialState);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleCanvasValidated = useCallback((payload: CanvasPayload) => {
+    setEventCount(c => c + 1);
     if (payload.eventType !== 'canvas_validated') return;
 
     setState(prev => ({
@@ -112,6 +119,23 @@ export function useCanvasRealtime(
       })
       .on('broadcast', { event: 'canvas_prefilled' }, ({ payload }) => {
         handleCanvasPrefilled(payload as CanvasPayload);
+      })
+      .on('broadcast', { event: 'coach_suggestions' }, ({ payload }) => {
+        setEventCount(c => c + 1);
+        const p = payload as {
+          suggestions?: CanvasCoachSuggestion[];
+          weakSections?: string[];
+          canvasScore?: number;
+        };
+        setState(prev => ({
+          ...prev,
+          coachSuggestions: p.suggestions || [],
+          weakSections: p.weakSections || [],
+          canvasScore: p.canvasScore ?? prev.canvasScore,
+        }));
+        if (p.suggestions?.length) {
+          options.onCoachSuggestions?.(p.suggestions);
+        }
       });
 
     channelRef.current = channel;
@@ -135,6 +159,14 @@ export function useCanvasRealtime(
       }
     };
   }, [documentId, handleCanvasValidated, handleCanvasSaved, handleCanvasPrefilled, queryClient]);
+
+  usePollingFallback({
+    enabled: !!documentId,
+    eventCount,
+    pollFn: async () => {
+      queryClient.invalidateQueries({ queryKey: ['lean-canvas', documentId] });
+    },
+  });
 
   return {
     ...state,

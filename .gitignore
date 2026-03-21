@@ -47,6 +47,9 @@ plan/
 *.sln
 *.sw?
 
+# Claude Code worktrees (parallel sessions)
+.claude/worktrees/
+
 # Excluded directories — local only
 .auto-claude/
 .agent/
@@ -63,3 +66,7 @@ website/
 lean/
 screenshots/
 .vercel
+
+# Agency agents fork (reference only, not part of project)
+agency-agents-fork/
+.env*.local

@@ -22,9 +22,17 @@ description: |
 
 Semantic search finds content by meaning rather than exact keywords. An embedding model converts text into high-dimensional vectors, where similar meanings map to nearby points. pgvector stores these vectors in PostgreSQL and uses approximate nearest neighbor (ANN) indexes to find the closest matches quickly—scaling to millions of rows without leaving the database. Store your text alongside its embedding, then query by converting your search text to a vector and returning the rows with the smallest distance.
 
-This guide covers pgvector setup and tuning—not embedding model selection or text chunking, which significantly affect search quality. Requires pgvector 0.8.0+ for all features (`halfvec`, `binary_quantize`, iterative scan).
+This guide covers pgvector tuning—not setup (see `pgvector-setup` for schema, ingestion, and RAG wiring). Requires pgvector 0.8.0+ for all features (`halfvec`, `binary_quantize`, iterative scan).
 
-**This project:** We use `vector(1536)` and OpenAI text-embedding-3-small. The "Golden Path" below uses `halfvec`; our schema uses `vector`—both work with cosine and HNSW. Use this skill for tuning (ef_search, filtered search, iterative_scan); migrating to halfvec is optional for ~50% storage savings.
+**This project (audited 2026-03-19):** pgvector 0.8.0, `vector(1536)` in `knowledge_chunks`, HNSW (m=16, ef_construction=64), 3,973 chunks. The "Golden Path" below uses `halfvec`; our schema uses `vector`—both work with cosine and HNSW. Use this skill for tuning (ef_search, filtered search, iterative_scan); migrating to halfvec is an optional future optimization for ~50% storage savings.
+
+**Supabase-specific notes (from https://supabase.com/docs/guides/ai):**
+- Enable extension: `CREATE EXTENSION vector WITH SCHEMA extensions;`
+- Set `search_path = public, extensions` in RPC functions that use vector types
+- Call search via `supabase.rpc()` from Edge Functions (respects RLS)
+- Use `pg_prewarm('knowledge_chunks_embedding_idx')` after deploy for cache warmup
+- Supabase Pro plan recommended for >100K vectors (Micro handles our 3,973 fine)
+- HNSW preferred over IVFFlat per Supabase docs (superior speed-recall, no training step)
 
 ## Golden Path (Default Setup)
 

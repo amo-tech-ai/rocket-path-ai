@@ -12,19 +12,22 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
 import type { QuickAction } from '@/lib/ai-capabilities';
+import { REPORT_QUICK_ACTIONS } from '@/hooks/useReportProactiveMessage';
 
 const DIMENSION_IDS = new Set<string>(Object.keys(DIMENSION_CONFIG));
 
 export interface ReportAIContext {
   /** True when on any /validator/report/:id route */
   isOnReportPage: boolean;
+  /** True when on report overview (not a dimension sub-page) */
+  isOnReportOverview: boolean;
   /** True when the section is a valid dimension ID */
   isOnDimensionPage: boolean;
   reportId: string | null;
   dimensionId: DimensionId | null;
   dimensionLabel: string | null;
   dimensionColor: string | null;
-  /** 4 dimension-specific quick action chips (empty when not on a dimension page) */
+  /** Dimension-specific or report-overview quick action chips */
   quickActions: QuickAction[];
 }
 
@@ -40,6 +43,7 @@ export function useReportAIContext(): ReportAIContext {
     if (!match) {
       return {
         isOnReportPage: false,
+        isOnReportOverview: false,
         isOnDimensionPage: false,
         reportId: null,
         dimensionId: null,
@@ -82,10 +86,13 @@ export function useReportAIContext(): ReportAIContext {
               prompt: `Break down each sub-score in ${config.label} and explain what's driving the numbers.`,
             },
           ]
-        : [];
+        : REPORT_QUICK_ACTIONS; // Overview: report-level actions
+
+    const isOverview = !dimensionId;
 
     return {
       isOnReportPage: true,
+      isOnReportOverview: isOverview,
       isOnDimensionPage: !!dimensionId,
       reportId,
       dimensionId,

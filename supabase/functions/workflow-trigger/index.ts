@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 /**
  * Workflow Trigger System (Score-to-Task Automation)
@@ -326,6 +327,12 @@ Deno.serve(async (req) => {
       userId = user.id;
     }
 
+    // Rate limiting (standard tier — 30 requests per 60s)
+    if (!isServiceRole) {
+      const rateResult = checkRateLimit(userId, 'workflow-trigger', RATE_LIMITS.standard);
+      if (!rateResult.allowed) return rateLimitResponse(rateResult, corsHeaders);
+    }
+
     let body: Record<string, unknown> = {};
     try {
       body = (await req.json()) as Record<string, unknown> ?? {};
@@ -569,7 +576,7 @@ async function processValidationReport(
 
   // Fetch the validation run
   const { data: run, error: runError } = await supabase
-    .from('validation_runs')
+    .from('validator_sessions')
     .select('startup_id, org_id, status')
     .eq('id', validationRunId)
     .single();

@@ -37,12 +37,14 @@ async function searchCoachingContext(
   try {
     const { embedding } = await generateEmbedding(query);
 
-    const { data: chunks, error } = await supabase.rpc('search_knowledge', {
-      query_embedding: embedding,
-      match_threshold: 0.6,
+    const { data: chunks, error } = await supabase.rpc('hybrid_search_knowledge', {
+      query_embedding: `[${embedding.join(',')}]`,
+      query_text: query,
+      match_threshold: 0.5,
       match_count: 5,
       filter_category: null,
       filter_industry: industry?.toLowerCase() || null,
+      rrf_k: 50,
     });
 
     if (error || !chunks?.length) {
@@ -95,8 +97,8 @@ interface CanvasCoachResponse {
   canvas_score: number;
   reasoning: string;
   citations: string[];
-  specificity_scores?: Record<string, 'vague' | 'specific' | 'quantified'>;
-  evidence_gaps?: Record<string, string[]>;
+  specificity_scores: Record<string, 'vague' | 'specific' | 'quantified'>;
+  evidence_gaps: Record<string, string[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +107,7 @@ interface CanvasCoachResponse {
 
 const coachResponseSchema = {
   type: "OBJECT",
-  required: ["reply", "weak_sections", "suggestions", "next_chips", "canvas_score", "reasoning", "citations"],
+  required: ["reply", "weak_sections", "suggestions", "next_chips", "canvas_score", "reasoning", "citations", "specificity_scores", "evidence_gaps"],
   properties: {
     reply: {
       type: "STRING",
@@ -158,13 +160,11 @@ const coachResponseSchema = {
     },
     specificity_scores: {
       type: "OBJECT",
-      description: "Per-box specificity rating. Key = box key (problem, solution, etc). Value = 'vague' (no numbers, generic), 'specific' (named segments, tools), or 'quantified' (dollar amounts, percentages, timeframes). Only include boxes that have content.",
-      nullable: true,
+      description: "REQUIRED. Per-box specificity rating. Key = box key (problem, solution, etc). Value = 'vague' (no numbers, generic), 'specific' (named segments, tools), or 'quantified' (dollar amounts, percentages, timeframes). Include all boxes that have content. Empty object if canvas is empty.",
     },
     evidence_gaps: {
       type: "OBJECT",
-      description: "Per-box evidence gaps. Key = box key. Value = array of 1-3 specific things missing (e.g. 'No quantified impact', 'No target segment defined'). Only include boxes with gaps.",
-      nullable: true,
+      description: "REQUIRED. Per-box evidence gaps. Key = box key. Value = array of 1-3 specific things missing (e.g. 'No quantified impact', 'No target segment defined'). Include all boxes with gaps. Empty object if no gaps.",
     },
   },
 };
@@ -315,7 +315,31 @@ export async function coach(
     ragSources = ragResult.sources;
   }
 
-  const systemPromptWithRAG = SYSTEM_PROMPT + ragContext;
+  // V07: Load industry playbook for benchmark-calibrated coaching
+  let playbookBlock = '';
+  if (serviceUrl && serviceKey && startup_context?.industry) {
+    try {
+      const { createClient } = await import("npm:@supabase/supabase-js@2");
+      const pbClient = createClient(serviceUrl, serviceKey);
+      const { data: playbook } = await pbClient
+        .from('industry_playbooks')
+        .select('benchmarks, warning_signs, gtm_patterns, stage_checklists')
+        .eq('industry_id', startup_context.industry.trim().toLowerCase())
+        .eq('is_active', true)
+        .maybeSingle();
+      if (playbook?.benchmarks) {
+        playbookBlock = `\n\n## INDUSTRY BENCHMARKS for ${startup_context.industry} [INDUSTRY BENCHMARK]\n${JSON.stringify(playbook.benchmarks, null, 2)}`;
+        if (playbook.warning_signs) {
+          playbookBlock += `\n\nWARNING SIGNS:\n${JSON.stringify(playbook.warning_signs)}`;
+        }
+        console.log(`[coach] Playbook loaded for ${startup_context.industry}`);
+      }
+    } catch (e) {
+      console.warn('[coach] Playbook load failed (continuing):', e instanceof Error ? e.message : e);
+    }
+  }
+
+  const systemPromptWithRAG = SYSTEM_PROMPT + ragContext + playbookBlock;
 
   const userPrompt = `${startupInfo}Current Canvas State:\n${canvasStr}\n${focusNote}\nConversation:\n${conversationText}`;
 

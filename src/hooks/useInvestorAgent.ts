@@ -73,12 +73,18 @@ export interface PipelineAnalysis {
   forecast: Record<string, unknown>;
 }
 
-interface DealScore {
+export interface MEDDPICCElementScore {
+  score: number;
+  evidence: string;
+}
+
+export interface DealScore {
   success: boolean;
   investor_name: string;
   deal_score: number;
   probability: number;
   factors: Record<string, { score: number; evidence: string }>;
+  meddpicc_elements?: Record<string, MEDDPICCElementScore>;
   risk_factors: string[];
   accelerators: string[];
   recommended_next_action: string;

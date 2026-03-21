@@ -57,9 +57,12 @@ export const BenchmarkBlocks = memo(function BenchmarkBlocks({
 
   return (
     <div className="w-full">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
         Benchmark Comparison
       </h3>
+      <p className="text-[11px] text-muted-foreground leading-snug mb-4">
+        How you compare to the top 25% of validated startups. Gaps show where you need to improve to compete with the strongest ideas at your stage.
+      </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {blocks.map((block) => {
           const vsTop = BENCHMARK.topQuartile - block.score;

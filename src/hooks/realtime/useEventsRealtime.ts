@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { EventsRealtimeState } from './types';
+import { usePollingFallback } from './usePollingFallback';
 import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -38,10 +39,12 @@ export function useEventsRealtime(
   options: UseEventsRealtimeOptions = { showToasts: true }
 ) {
   const [state, setState] = useState<EventsRealtimeState>(initialState);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleEventEnriched = useCallback((payload: EventEnrichedPayload) => {
+    setEventCount(c => c + 1);
     setState(prev => {
       const newRecommendations = [...prev.recommendations];
       const existingIndex = newRecommendations.findIndex(r => r.eventId === payload.eventId);
@@ -136,6 +139,14 @@ export function useEventsRealtime(
       }
     };
   }, [startupId, handleEventEnriched, queryClient]);
+
+  usePollingFallback({
+    enabled: !!startupId,
+    eventCount,
+    pollFn: async () => {
+      queryClient.invalidateQueries({ queryKey: ['events', startupId] });
+    },
+  });
 
   return {
     ...state,

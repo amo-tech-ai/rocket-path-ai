@@ -14,12 +14,13 @@ import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 /**
- * Dashboard-specific real-time hook that uses broadcast pattern
- * Subscribes to broadcast topics for tasks, deals, events, investors, projects, documents, contacts
+ * Dashboard-specific real-time hook that uses a single multiplexed broadcast channel.
+ * One channel handles all table events: tasks, deals, events, investors, projects, documents, contacts.
+ * Events are named `{table}_changed` (e.g. `tasks_changed`, `deals_changed`).
  */
 export function useDashboardRealtime(startupId: string | undefined) {
   const queryClient = useQueryClient();
-  const channelsRef = useRef<RealtimeChannel[]>([]);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const invalidateMetrics = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
@@ -30,270 +31,99 @@ export function useDashboardRealtime(startupId: string | undefined) {
   useEffect(() => {
     if (!startupId) return;
 
-    // Cleanup existing channels
-    channelsRef.current.forEach(ch => supabase.removeChannel(ch));
-    channelsRef.current = [];
-
-    console.log('[Dashboard Realtime] Setting up broadcast subscriptions for startup:', startupId);
-
-    // Helper to create a broadcast channel
-    const createBroadcastChannel = (
-      table: string,
-      queryKeys: string[][],
-      options?: {
-        onInsert?: (payload: unknown) => void;
-        onUpdate?: (payload: unknown) => void;
-        onDelete?: (payload: unknown) => void;
+    // Prevent duplicate subscriptions
+    if (channelRef.current) {
+      const state = channelRef.current.state;
+      if (state === 'joined' || state === 'joining') {
+        return;
       }
-    ) => {
-      const topic = `${table}:${startupId}:changes`;
-      
-      const channel = supabase
-        .channel(topic, {
-          config: {
-            broadcast: { self: true, ack: true },
-            private: true,
-          },
-        })
-        .on('broadcast', { event: 'INSERT' }, ({ payload }) => {
-          console.log(`[Realtime] ${table} INSERT:`, payload);
-          queryKeys.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
-          invalidateMetrics();
-          options?.onInsert?.(payload);
-        })
-        .on('broadcast', { event: 'UPDATE' }, ({ payload }) => {
-          console.log(`[Realtime] ${table} UPDATE:`, payload);
-          queryKeys.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
-          invalidateMetrics();
-          options?.onUpdate?.(payload);
-        })
-        .on('broadcast', { event: 'DELETE' }, ({ payload }) => {
-          console.log(`[Realtime] ${table} DELETE:`, payload);
-          queryKeys.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
-          invalidateMetrics();
-          options?.onDelete?.(payload);
-        });
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
 
-      return { channel, topic };
+    const topic = `dashboard:${startupId}:changes`;
+    console.log(`[Dashboard Realtime] Subscribing to ${topic}`);
+
+    // Table → query key mapping for invalidation
+    const tableQueryKeys: Record<string, string[][]> = {
+      tasks: [['tasks', startupId], ['all-tasks', startupId]],
+      deals: [['deals', startupId]],
+      events: [['events', startupId], ['upcoming-events']],
+      investors: [['investors', startupId]],
+      projects: [['projects', startupId]],
+      documents: [['documents', startupId]],
+      contacts: [['contacts', startupId]],
     };
 
-    // Create channels for each table
-    const tableConfigs = [
-      {
-        table: 'tasks',
-        queryKeys: [['tasks', startupId], ['all-tasks', startupId]],
-        options: {
-          onInsert: (payload: unknown) => {
-            const task = (payload as { new?: { title?: string } })?.new;
-            if (task?.title) {
-              toast.info(`New task created: ${task.title}`);
-            }
-          },
-          onUpdate: (payload: unknown) => {
-            const task = (payload as { new?: { status?: string; title?: string } })?.new;
-            if (task?.status === 'completed' && task?.title) {
-              toast.success(`Task completed: ${task.title}`);
-            }
-          },
-        },
-      },
-      {
-        table: 'deals',
-        queryKeys: [['deals', startupId]],
-        options: {
-          onUpdate: (payload: unknown) => {
-            const data = payload as { old?: { stage?: string }; new?: { stage?: string; name?: string } };
-            if (data.old?.stage !== data.new?.stage && data.new?.name) {
-              toast.success(`Deal "${data.new.name}" moved to ${data.new.stage}`);
-            }
-          },
-        },
-      },
-      {
-        table: 'events',
-        queryKeys: [['events', startupId], ['upcoming-events']],
-      },
-      {
-        table: 'investors',
-        queryKeys: [['investors', startupId]],
-      },
-      {
-        table: 'projects',
-        queryKeys: [['projects', startupId]],
-      },
-      {
-        table: 'documents',
-        queryKeys: [['documents', startupId]],
-      },
-      {
-        table: 'contacts',
-        queryKeys: [['contacts', startupId]],
-      },
-    ];
+    const invalidateTable = (table: string) => {
+      const keys = tableQueryKeys[table];
+      if (keys) {
+        keys.forEach(key => queryClient.invalidateQueries({ queryKey: key }));
+      }
+      invalidateMetrics();
+    };
 
-    const channels: RealtimeChannel[] = [];
+    const channel = supabase
+      .channel(topic, {
+        config: {
+          broadcast: { self: true, ack: true },
+          private: true,
+        },
+      })
+      .on('broadcast', { event: 'tasks_changed' }, ({ payload }) => {
+        console.log('[Dashboard Realtime] tasks_changed:', payload);
+        invalidateTable('tasks');
+        const p = payload as { action?: string; title?: string; status?: string };
+        if (p.action === 'INSERT' && p.title) {
+          toast.info(`New task created: ${p.title}`);
+        } else if (p.action === 'UPDATE' && p.status === 'completed' && p.title) {
+          toast.success(`Task completed: ${p.title}`);
+        }
+      })
+      .on('broadcast', { event: 'deals_changed' }, ({ payload }) => {
+        console.log('[Dashboard Realtime] deals_changed:', payload);
+        invalidateTable('deals');
+        const p = payload as { action?: string; oldStage?: string; newStage?: string; name?: string };
+        if (p.oldStage !== p.newStage && p.name) {
+          toast.success(`Deal "${p.name}" moved to ${p.newStage}`);
+        }
+      })
+      .on('broadcast', { event: 'events_changed' }, () => {
+        invalidateTable('events');
+      })
+      .on('broadcast', { event: 'investors_changed' }, () => {
+        invalidateTable('investors');
+      })
+      .on('broadcast', { event: 'projects_changed' }, () => {
+        invalidateTable('projects');
+      })
+      .on('broadcast', { event: 'documents_changed' }, () => {
+        invalidateTable('documents');
+      })
+      .on('broadcast', { event: 'contacts_changed' }, () => {
+        invalidateTable('contacts');
+      });
 
-    // Set auth once before subscribing to all channels
+    channelRef.current = channel;
+
     supabase.realtime.setAuth().then(() => {
-      tableConfigs.forEach(config => {
-        const { channel, topic } = createBroadcastChannel(
-          config.table,
-          config.queryKeys,
-          config.options
-        );
-
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log(`[Dashboard Realtime] ✓ Subscribed to ${topic}`);
-          } else if (status === 'CHANNEL_ERROR') {
-            // Broadcast channels may fail on private mode if Realtime is not
-            // configured for the table. Downgrade to warn — not actionable.
-            console.warn(`[Dashboard Realtime] Channel unavailable: ${topic}`);
-          }
-        });
-
-        channels.push(channel);
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Dashboard Realtime] ✓ Subscribed to ${topic}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn(`[Dashboard Realtime] Channel unavailable: ${topic}`);
+        }
       });
     });
 
-    channelsRef.current = channels;
-
     return () => {
-      console.log('[Dashboard Realtime] Cleaning up subscriptions');
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
-      });
-      channelsRef.current = [];
+      if (channelRef.current) {
+        console.log('[Dashboard Realtime] Cleaning up subscription');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [startupId, queryClient, invalidateMetrics]);
-}
-
-/**
- * Hook for real-time task updates - uses the shared dashboard subscription
- * This is kept for backwards compatibility but now uses broadcast
- */
-export function useTasksRealtime(startupId: string | undefined) {
-  const queryClient = useQueryClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
-
-  useEffect(() => {
-    if (!startupId) return;
-
-    // Prevent duplicate subscriptions
-    if (channelRef.current) {
-      const state = channelRef.current.state;
-      if (state === 'joined' || state === 'joining') {
-        return;
-      }
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-
-    const topic = `tasks:${startupId}:changes`;
-    console.log(`[Tasks Realtime] Subscribing to ${topic}`);
-
-    const channel = supabase
-      .channel(topic, {
-        config: {
-          broadcast: { self: true, ack: true },
-          private: true,
-        },
-      })
-      .on('broadcast', { event: 'INSERT' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['all-tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      })
-      .on('broadcast', { event: 'UPDATE' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['all-tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      })
-      .on('broadcast', { event: 'DELETE' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['all-tasks', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      });
-
-    channelRef.current = channel;
-
-    supabase.realtime.setAuth().then(() => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`[Tasks Realtime] ✓ Subscribed to ${topic}`);
-        }
-      });
-    });
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [startupId, queryClient]);
-}
-
-/**
- * Hook for real-time deal updates with broadcast
- */
-export function useDealsRealtime(startupId: string | undefined) {
-  const queryClient = useQueryClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
-
-  useEffect(() => {
-    if (!startupId) return;
-
-    // Prevent duplicate subscriptions
-    if (channelRef.current) {
-      const state = channelRef.current.state;
-      if (state === 'joined' || state === 'joining') {
-        return;
-      }
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-
-    const topic = `deals:${startupId}:changes`;
-    console.log(`[Deals Realtime] Subscribing to ${topic}`);
-
-    const channel = supabase
-      .channel(topic, {
-        config: {
-          broadcast: { self: true, ack: true },
-          private: true,
-        },
-      })
-      .on('broadcast', { event: 'INSERT' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['deals', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      })
-      .on('broadcast', { event: 'UPDATE' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['deals', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      })
-      .on('broadcast', { event: 'DELETE' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['deals', startupId] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics', startupId] });
-      });
-
-    channelRef.current = channel;
-
-    supabase.realtime.setAuth().then(() => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`[Deals Realtime] ✓ Subscribed to ${topic}`);
-        }
-      });
-    });
-
-    return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [startupId, queryClient]);
 }
 
 /**

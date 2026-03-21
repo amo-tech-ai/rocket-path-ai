@@ -15,11 +15,22 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const DIRS = [
+  // Already ingested (will skip duplicates via content_hash)
   { dir: 'research/AI/markdown/reports', industry: 'ai_ml' },
-  { dir: 'research/retail', industry: 'retail' },
-  { dir: 'research/fintech', industry: 'fintech' },
+  { dir: 'research/AI/topics', industry: 'ai_ml' },
+  { dir: 'research/AI/reports', industry: 'ai_ml' },
+  { dir: 'research/AI/startups', industry: 'ai_ml' },
+  { dir: 'research/AI/retail', industry: 'retail' },
+  { dir: 'research/fashion/markdown', industry: 'fashion' },
+  // research/retail does not exist (retail files are in AI/retail)
+  // research/fintech does not exist (fintech files are in AI/fintech)
   { dir: 'research/sports/reports', industry: 'sports' },
-  { dir: 'research/startups', industry: 'startups' },
+  // research/startups does not exist (startup files are in AI/startups)
+  // NEW: 11 industry guides (fills 16 empty industries)
+  { dir: 'research/AI/services', industry: 'general' },
+  // NEW: fintech + demographics
+  { dir: 'research/AI/fintech', industry: 'fintech' },
+  { dir: 'research/AI/demographics', industry: 'fashion' },
 ];
 
 function run(dir, industry) {

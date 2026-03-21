@@ -1,12 +1,16 @@
 /**
  * AI Utilities for Lean Canvas Agent
- * Uses direct Gemini API via npm:@google/genai
+ * V08: Consolidated to use _shared/gemini.ts (single Gemini client).
+ * Removed Google GenAI SDK dependency. Kept logAIRun + computeProfileHash (not Gemini).
  */
 
-import { GoogleGenAI, Type } from "npm:@google/genai@^1.0.0";
+import { callGemini as sharedCallGemini, extractJSON as sharedExtractJSON } from "../_shared/gemini.ts";
+
+// Re-export shared functions under same names for backward compatibility
+export { sharedExtractJSON as extractJSON };
 
 // =============================================================================
-// Types
+// Types (kept for backward compatibility with action files)
 // =============================================================================
 
 export interface AIResponse {
@@ -25,165 +29,115 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 };
 
 // =============================================================================
-// Gemini Client
+// callGemini — Wraps _shared/gemini.ts callGemini with AIResponse interface
 // =============================================================================
 
-/**
- * Call Gemini API directly with structured output support
- */
-export async function callGemini(
-  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview',
-  systemPrompt: string,
-  userPrompt: string,
-  options?: {
-    jsonMode?: boolean;
-    maxTokens?: number;
-    temperature?: number;
-  }
-): Promise<AIResponse> {
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
-
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
-
-  const startTime = Date.now();
-  const TIMEOUT_MS = 30_000;
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  const config: Record<string, unknown> = {
-    maxOutputTokens: options?.maxTokens || 2048,
-    temperature: options?.temperature ?? 1.0, // Gemini 3 requires 1.0
-  };
-
-  if (options?.jsonMode) {
-    config.responseMimeType = 'application/json';
-  }
-
-  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model,
-      contents: userPrompt,
-      systemInstruction: systemPrompt,
-      config,
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-    ),
-  ]);
-
-  const latencyMs = Date.now() - startTime;
-
-  // Extract usage metadata
-  const usage = response.usageMetadata || {};
-
-  return {
-    text: response.text || '',
-    inputTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
-    model,
-    latencyMs,
-  };
+interface CallGeminiOptions {
+  responseJsonSchema?: Record<string, unknown>;
+  maxOutputTokens?: number;
+  timeoutMs?: number;
 }
 
 /**
- * Call Gemini with structured JSON schema output
+ * Call Gemini via _shared/gemini.ts REST client.
+ * Returns AIResponse for backward compatibility with logAIRun.
  */
-export async function callGeminiStructured<T>(
-  model: 'gemini-3-flash-preview' | 'gemini-3.1-pro-preview',
+export async function callGemini(
+  model: string,
   systemPrompt: string,
   userPrompt: string,
-  schema: Record<string, unknown>
-): Promise<{ data: T | null; response: AIResponse }> {
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  options?: CallGeminiOptions,
+): Promise<AIResponse> {
+  const start = Date.now();
 
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY not configured');
-  }
+  const result = await sharedCallGemini(model, systemPrompt, userPrompt, {
+    responseJsonSchema: options?.responseJsonSchema,
+    maxOutputTokens: options?.maxOutputTokens,
+    timeoutMs: options?.timeoutMs ?? 30_000,
+  });
 
-  const startTime = Date.now();
-  const TIMEOUT_MS = 30_000;
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  // Promise.race: hard timeout backup for Deno Deploy body streaming hangs
-  const response = await Promise.race([
-    ai.models.generateContent({
-      model,
-      contents: userPrompt,
-      systemInstruction: systemPrompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        temperature: 1.0,
-        maxOutputTokens: 2048,
-      },
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Gemini API hard timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
-    ),
-  ]);
-
-  const latencyMs = Date.now() - startTime;
-  const usage = response.usageMetadata || {};
-
-  const aiResponse: AIResponse = {
-    text: response.text || '',
-    inputTokens: usage.promptTokenCount || 0,
-    outputTokens: usage.candidatesTokenCount || 0,
+  return {
+    text: result.text,
+    inputTokens: result.inputTokens ?? 0,
+    outputTokens: result.outputTokens ?? 0,
     model,
-    latencyMs,
+    latencyMs: Date.now() - start,
   };
+}
 
-  // Parse the JSON response
+// =============================================================================
+// callGeminiStructured — Wraps callGemini with schema + typed parse
+// =============================================================================
+
+/**
+ * Call Gemini with JSON schema enforcement.
+ * Returns { data: T | null, response: AIResponse }.
+ */
+export async function callGeminiStructured<T>(
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  // deno-lint-ignore no-explicit-any
+  schema: any,
+): Promise<{ data: T | null; response: AIResponse }> {
+  // Convert SDK-style schema (Type.OBJECT) to REST-style ("object") if needed
+  const restSchema = convertSchema(schema);
+
+  const response = await callGemini(model, systemPrompt, userPrompt, {
+    responseJsonSchema: restSchema,
+    timeoutMs: 30_000,
+  });
+
   let data: T | null = null;
   try {
     if (response.text) {
       data = JSON.parse(response.text) as T;
     }
   } catch {
-    console.error('[callGeminiStructured] Failed to parse JSON response');
+    // Fallback to extractJSON if direct parse fails
+    data = sharedExtractJSON<T>(response.text);
   }
 
-  return { data, response: aiResponse };
+  return { data, response };
 }
 
-// =============================================================================
-// JSON Extraction (Fallback)
-// =============================================================================
-
 /**
- * Extract JSON from AI response text (fallback for non-structured output)
+ * Convert SDK-style schema types to REST-style.
+ * SDK uses "OBJECT", "STRING", "ARRAY", "INTEGER", "NUMBER", "BOOLEAN"
+ * REST uses "object", "string", "array", "integer", "number", "boolean"
  */
-export function extractJSON<T>(text: string | undefined): T | null {
-  if (!text) return null;
+// deno-lint-ignore no-explicit-any
+function convertSchema(schema: any): any {
+  if (!schema || typeof schema !== 'object') return schema;
 
-  try {
-    // Try to find JSON in the response
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) ||
-                      text.match(/```\s*([\s\S]*?)\s*```/) ||
-                      text.match(/\{[\s\S]*\}/);
+  const typeMap: Record<string, string> = {
+    'OBJECT': 'object', 'STRING': 'string', 'ARRAY': 'array',
+    'INTEGER': 'integer', 'NUMBER': 'number', 'BOOLEAN': 'boolean',
+  };
 
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] || jsonMatch[0];
-      return JSON.parse(jsonStr.trim());
-    }
-    return null;
-  } catch {
-    console.error('[extractJSON] Failed to parse JSON from response');
-    return null;
+  // deno-lint-ignore no-explicit-any
+  const converted: any = { ...schema };
+  if (converted.type && typeMap[converted.type]) {
+    converted.type = typeMap[converted.type];
   }
+  if (converted.properties) {
+    // deno-lint-ignore no-explicit-any
+    const newProps: any = {};
+    for (const [key, val] of Object.entries(converted.properties)) {
+      newProps[key] = convertSchema(val);
+    }
+    converted.properties = newProps;
+  }
+  if (converted.items) {
+    converted.items = convertSchema(converted.items);
+  }
+  return converted;
 }
 
 // =============================================================================
 // Cost Calculation
 // =============================================================================
 
-/**
- * Calculate cost for an AI call
- */
 export function calculateCost(response: AIResponse): number {
   const rates = MODEL_PRICING[response.model] || MODEL_PRICING['default'];
   const inputCost = (response.inputTokens / 1000) * rates.input;
@@ -195,17 +149,14 @@ export function calculateCost(response: AIResponse): number {
 // AI Run Logging
 // =============================================================================
 
-/**
- * Log AI run for cost tracking and analytics
- */
 export async function logAIRun(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   supabase: any,
   userId: string,
   orgId: string | null,
   startupId: string | null,
   action: string,
-  response: AIResponse
+  response: AIResponse,
 ): Promise<void> {
   try {
     await supabase.from('ai_runs').insert({
@@ -231,22 +182,16 @@ export async function logAIRun(
 // Profile Hash (for sync detection)
 // =============================================================================
 
-/**
- * Compute a simple hash for profile comparison
- */
 export function computeProfileHash(profile: Record<string, unknown>): string {
   const relevantFields = [
     'description', 'tagline', 'industry', 'target_market',
-    'traction_data', 'business_model', 'competitors', 'stage'
+    'traction_data', 'business_model', 'competitors', 'stage',
   ];
-
   const values = relevantFields.map(field => {
     const value = profile[field];
     if (Array.isArray(value)) return value.join(',');
     if (typeof value === 'object' && value !== null) return JSON.stringify(value);
     return String(value || '');
   });
-
-  // Simple hash using string concatenation
   return btoa(values.join('|')).slice(0, 32);
 }

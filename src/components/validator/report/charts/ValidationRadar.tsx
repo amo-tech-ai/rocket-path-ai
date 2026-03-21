@@ -67,7 +67,13 @@ export const ValidationRadar = memo(function ValidationRadar({
 
       {/* Plain English explanation */}
       <p className="text-[11px] text-muted-foreground leading-snug">
-        We scored your idea on {dimensions.length} key areas. Green (75+) means strong. Red (below 40) means you need to fix this before moving forward.
+        Your idea was scored across {dimensions.length} areas that matter most to investors and customers.
+        {avgScore >= 75
+          ? ' Overall this is strong — focus on maintaining your lead in the top areas.'
+          : avgScore >= 60
+            ? ' Promising overall, but the weaker areas need attention before you scale.'
+            : ' Several areas need work — prioritize the red and amber items first.'}
+        {' '}Green (75+) = strong. Amber (40–74) = needs work. Red ({'<'}40) = fix before moving forward.
       </p>
 
       {/* Dimension bars */}

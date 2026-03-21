@@ -4,12 +4,13 @@
  * Centralizes ALL state management — individual pages provide only the diagram.
  */
 import { memo, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, RefreshCw, Download, Loader2, Check } from 'lucide-react';
 import { DIMENSION_CONFIG, type DimensionId } from '@/config/dimensions';
 import { useDimensionPage } from '@/hooks/useDimensionPage';
+import { useSprintImport } from '@/hooks/useSprintImport';
 import { CompositeScoreCard } from './CompositeScoreCard';
 import { PriorityActionList } from './PriorityActionList';
 import { RiskSignalCard } from './RiskSignalCard';
@@ -17,6 +18,8 @@ import { RiskSignalCard } from './RiskSignalCard';
 interface DimensionPageProps {
   dimensionId: DimensionId;
   reportId: string;
+  /** Startup ID for sprint import (POST-02) */
+  startupId?: string;
   /** Diagram component — receives dimensionData as render prop */
   children?: (data: { diagram: unknown; dimensionId: DimensionId }) => ReactNode;
 }
@@ -88,10 +91,12 @@ function DimensionV2Fallback() {
 export const DimensionPage = memo(function DimensionPage({
   dimensionId,
   reportId,
+  startupId,
   children,
 }: DimensionPageProps) {
   const { state, data, error } = useDimensionPage(reportId, dimensionId);
   const config = DIMENSION_CONFIG[dimensionId];
+  const { importDimensionActions, isImporting, importDone, countImported } = useSprintImport(startupId, reportId);
 
   // Loading
   if (state === 'loading') return <DimensionSkeleton />;
@@ -149,9 +154,28 @@ export const DimensionPage = memo(function DimensionPage({
       {data.actions.length > 0 && (
         <Card>
           <CardContent className="pt-6">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
-              Priority Actions
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Priority Actions
+              </h3>
+              {startupId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => importDimensionActions(dimensionId, data.actions)}
+                  disabled={isImporting || (countImported(dimensionId, data.actions) === data.actions.length)}
+                >
+                  {isImporting ? (
+                    <><Loader2 className="w-3 h-3 animate-spin" /> Importing...</>
+                  ) : countImported(dimensionId, data.actions) === data.actions.length ? (
+                    <><Check className="w-3 h-3" /> In Sprint Board</>
+                  ) : (
+                    <><Download className="w-3 h-3" /> Import to Sprint Board</>
+                  )}
+                </Button>
+              )}
+            </div>
             <PriorityActionList actions={data.actions} />
           </CardContent>
         </Card>

@@ -11,7 +11,7 @@
  *   - Day1PlanCard — guided mode only
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { HeroStatus } from '@/components/dashboard/HeroStatus';
@@ -30,6 +30,7 @@ import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { StartupStage } from '@/hooks/useStageGuidance';
 import { useJourneyStage } from '@/hooks/useJourneyStage';
 import { useAIAssistant } from '@/providers/AIAssistantProvider';
+import { useDashboardProactiveMessage } from '@/hooks/useDashboardProactiveMessage';
 import { AnimatePresence } from 'framer-motion';
 
 const Dashboard = () => {
@@ -87,7 +88,7 @@ const Dashboard = () => {
   const topRiskTitles = useMemo(() => topRisks.map((r) => r.title), [topRisks]);
 
   // Dispatch dashboard context to AI assistant for contextual prompts
-  const { setDashboardContext } = useAIAssistant();
+  const { setDashboardContext, injectMessage } = useAIAssistant();
   useEffect(() => {
     setDashboardContext({
       healthScore: effectiveScore,
@@ -105,6 +106,29 @@ const Dashboard = () => {
     journey.percentComplete,
     setDashboardContext,
   ]);
+
+  // Proactive AI panel greeting
+  const dashboardCtxForGreeting = useMemo(() => {
+    if (effectiveScore == null && topRiskTitles.length === 0) return null;
+    return {
+      healthScore: effectiveScore,
+      healthTrend: healthScore?.trend ?? null,
+      topRisks: topRiskTitles,
+      currentStage: startup?.stage ?? null,
+      journeyPercent: journey.percentComplete,
+    };
+  }, [effectiveScore, healthScore?.trend, topRiskTitles, startup?.stage, journey.percentComplete]);
+
+  const { proactiveMessage: dashboardGreeting } = useDashboardProactiveMessage(
+    dashboardCtxForGreeting,
+    startup?.name ?? undefined,
+  );
+  const dashboardInjectedRef = useRef(false);
+  useEffect(() => {
+    if (!dashboardGreeting || dashboardInjectedRef.current) return;
+    dashboardInjectedRef.current = true;
+    injectMessage(dashboardGreeting);
+  }, [dashboardGreeting, injectMessage]);
 
   // Computed values
   const startupName = startup?.name || 'Your Startup';

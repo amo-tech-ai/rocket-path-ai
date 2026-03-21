@@ -1,243 +1,363 @@
 ---
 name: pgvector-setup
-description: Configure pgvector extension for vector search in Supabase - includes embedding storage, HNSW/IVFFlat indexes, hybrid search setup, and AI-optimized query patterns. Use when setting up vector search, building RAG systems, configuring semantic search, creating embedding storage, or when user mentions pgvector, vector database, embeddings, semantic search, or hybrid search. This project uses OpenAI for embeddings (text-embedding-3-small, 1536 dims); embeddings are generated in Edge Functions (knowledge-ingest, openai-embeddings).
+description: |
+  Supabase pgvector setup, RAG pipeline, and vector search for StartupAI. Covers knowledge_chunks schema,
+  HNSW/IVFFlat indexes, search_knowledge + hybrid_search_knowledge RPCs, embedding generation via OpenAI,
+  Edge Function integration, and Gemini web search grounding.
+
+  **Trigger when user asks to:**
+  - Set up or modify vector search, embeddings, or knowledge base
+  - Ingest documents into knowledge_chunks
+  - Debug search quality or missing results
+  - Tune HNSW parameters or search performance
+  - Wire RAG into edge functions or AI chat
+  - Use Google Search grounding or URL Context with Gemini
+
+  **This project:** OpenAI text-embedding-3-small (1536 dims), stored in knowledge_chunks, HNSW index,
+  search via search_knowledge() and hybrid_search_knowledge() RPCs.
 allowed-tools: Bash, Read, Write, Edit
 ---
 
-# pgvector-setup
+# pgvector for StartupAI
 
-## Instructions
+## Our Setup (Live DB — audited 2026-03-19)
 
-This skill provides complete pgvector setup for Supabase databases, enabling vector search capabilities for AI applications, RAG systems, and semantic search.
+| Component | Value |
+|-----------|-------|
+| Extension | pgvector 0.8.0 |
+| Embedding model | OpenAI text-embedding-3-small |
+| Dimensions | 1536 |
+| Table | `knowledge_chunks` |
+| Index | HNSW (m=16, ef_construction=64, vector_cosine_ops) |
+| FTS | GIN index on `fts` tsvector column |
+| Total chunks | 3,973 (3,865 with embeddings) |
+| Documents | 89 (all with content_hash dedup) |
+| Search RPCs | `search_knowledge` + `hybrid_search_knowledge` |
+| RLS | Authenticated SELECT; service_role writes |
 
-**This project:** We use **OpenAI text-embedding-3-small** (1536 dimensions). Embeddings are generated in Supabase Edge Functions (`knowledge-ingest`, `_shared/openai-embeddings.ts`) and stored in `knowledge_chunks`. Search via `search_knowledge()` RPC and `knowledge-search` Edge Function. See `tasks/vector/summary.md` for end-to-end flow.
+### Industry Distribution (problem: 78% AI/ML)
 
-### Phase 1: Enable pgvector Extension
+| Industry | Chunks | With Embedding |
+|----------|-------:|:-:|
+| ai_ml | 3,106 | 3,102 |
+| fashion | 508 | 508 |
+| retail | 219 | 219 |
+| GTM | 22 | 22 |
+| saas | 36 | 0 |
+| 7 others | 1-2 each | 0 |
 
-1. Run the setup script to enable pgvector:
-   ```bash
-   bash scripts/setup-pgvector.sh [SUPABASE_DB_URL]
-   ```
-   This creates the pgvector extension and sets up basic embedding tables.
+**Gap:** 16 of 19 industries have <3 chunks. healthtech, fintech, ecommerce, education, legal, manufacturing, etc. are essentially empty.
 
-2. Choose your embedding dimensions based on your model:
-   - **OpenAI text-embedding-3-small: 1536 dimensions** ← we use this (see `_shared/openai-embeddings.ts`, `knowledge_chunks.embedding`)
-   - OpenAI text-embedding-3-large: 3072 dimensions
-   - Cohere embed-english-v3.0: 1024 dimensions
-   - Custom models: Check model documentation
+### Empty Tables
 
-### Phase 2: Create Embedding Tables
-
-1. Use the embedding table template:
-   ```bash
-   # Copy template and customize for your use case
-   cat templates/embedding-table-schema.sql
-   ```
-
-2. Customize the schema:
-   - Adjust vector dimensions to match your model
-   - Add metadata columns (tags, timestamps, user_id, etc.)
-   - Configure RLS policies for security
-
-3. Apply the schema:
-   ```bash
-   psql $SUPABASE_DB_URL < templates/embedding-table-schema.sql
-   ```
-
-### Phase 3: Create Vector Indexes
-
-**Choose index type based on your data size:**
-
-**HNSW (Recommended for most cases):**
-- Best for: Most workloads up to millions of vectors, high recall requirements
-- Pros: Fast queries, excellent recall, no training step, works on empty tables
-- Cons: Slower inserts, higher memory usage
-- Run: `bash scripts/create-indexes.sh hnsw [TABLE_NAME] [DIMENSION]`
-
-**IVFFlat:**
-- Best for: Write-heavy workloads, memory-constrained environments
-- Pros: Faster inserts, lower memory
-- Cons: Requires training, lower recall
-- Run: `bash scripts/create-indexes.sh ivfflat [TABLE_NAME] [DIMENSION]`
-
-**Performance Tuning:**
-- HNSW m parameter (default 16): Higher = better recall, more memory
-- HNSW ef_construction (default 64): Higher = better quality, slower builds
-- IVFFlat lists (default sqrt(rows)): More lists = faster queries, lower recall
-
-### Phase 4: Implement Semantic Search
-
-1. Create the match function:
-   ```sql
-   -- See templates/match-function.sql for complete example
-   create or replace function match_documents(
-     query_embedding vector(1536),
-     match_threshold float,
-     match_count int
-   ) returns setof documents ...
-   ```
-
-2. Query from application:
-   ```javascript
-   const { data } = await supabase.rpc('match_documents', {
-     query_embedding: embedding,
-     match_threshold: 0.78,
-     match_count: 10,
-   });
-   ```
-
-### Phase 5: Setup Hybrid Search (Optional)
-
-For combining keyword and semantic search:
-
-1. Run hybrid search setup:
-   ```bash
-   bash scripts/setup-hybrid-search.sh [TABLE_NAME]
-   ```
-
-2. This configures:
-   - Full-text search with tsvector and GIN indexes
-   - Vector search with HNSW indexes
-   - RRF (Reciprocal Rank Fusion) for combining results
-   - Weighted scoring for tuning keyword vs semantic importance
-
-3. Use the hybrid search function:
-   ```sql
-   select * from hybrid_search(
-     'search query text',
-     query_embedding,
-     match_count := 10,
-     full_text_weight := 1.0,
-     semantic_weight := 1.0
-   );
-   ```
-
-### Phase 6: Test and Validate
-
-1. Run validation tests:
-   ```bash
-   bash scripts/test-vector-search.sh [TABLE_NAME]
-   ```
-
-2. This verifies:
-   - pgvector extension is enabled
-   - Tables have correct vector dimensions
-   - Indexes are created and being used
-   - Query performance is acceptable
-   - Similarity functions return correct results
-
-## Key Decisions
-
-**Distance Metric Selection:**
-- Cosine distance (`<=>`): Safe default, handles varying vector magnitudes
-- Inner product (`<#>`): Faster for normalized vectors (OpenAI embeddings)
-- Euclidean distance (`<->`): Use when absolute distances matter
-
-**Index Choice:**
-- Start with HNSW for most applications
-- Switch to IVFFlat only if:
-  - You have > 1M vectors
-  - Insert performance is critical
-  - You can tolerate lower recall
-
-**Dimension Size:**
-- Higher dimensions = better semantic understanding
-- Lower dimensions = faster queries, less storage
-- Match your embedding model exactly (never truncate)
-
-## Common Patterns
-
-**Pattern 1: Document Search**
-- Store document chunks with metadata
-- Use HNSW index for semantic search
-- Add full-text for hybrid search
-- See: examples/document-search-pattern.md
-
-**Pattern 2: User Preference Matching**
-- Store user profile embeddings
-- Use cosine similarity for matching
-- Update embeddings as preferences change
-- See: examples/preference-matching-pattern.md
-
-**Pattern 3: Product Recommendations**
-- Store product feature embeddings
-- Use hybrid search (keywords + semantic)
-- Weight by popularity or ratings
-- See: examples/product-recommendations-pattern.md
-
-## Troubleshooting
-
-**Slow queries (> 100ms):**
-- Check if index is being used: `EXPLAIN ANALYZE`
-- Increase HNSW ef_search parameter
-- Consider reducing result limit
-- Add WHERE clauses to reduce search space
-
-**Poor recall (missing relevant results):**
-- Increase match_count
-- Lower match_threshold
-- For HNSW: increase m and ef_construction
-- For IVFFlat: increase lists parameter
-
-**High memory usage:**
-- HNSW uses ~10KB per vector
-- Reduce m parameter (quality tradeoff)
-- Consider IVFFlat for large datasets
-- Use partial indexes if possible
-
-**Insert performance issues:**
-- HNSW is slow for bulk inserts
-- Disable index during bulk load, rebuild after
-- Use IVFFlat for write-heavy workloads
-- Batch inserts when possible
-
-## Security Considerations
-
-**Row Level Security (RLS):**
-- Enable RLS on all embedding tables
-- Filter by user_id or organization_id
-- Prevent embedding leakage between users
-- See templates for RLS policy examples
-
-**API Key Protection:**
-- Never expose embedding API keys
-- Use Supabase Edge Functions for embedding generation
-- Store keys in Supabase secrets
-- Rate limit embedding requests
-
-## Files Reference
-
-**Scripts:**
-- `scripts/setup-pgvector.sh` - Enable extension and create base tables
-- `scripts/create-indexes.sh` - Create HNSW or IVFFlat indexes
-- `scripts/setup-hybrid-search.sh` - Configure hybrid search
-- `scripts/test-vector-search.sh` - Validate setup
-
-**Templates:**
-- `templates/embedding-table-schema.sql` - Table structure with metadata
-- `templates/hnsw-index-config.sql` - HNSW index with tuning
-- `templates/ivfflat-index-config.sql` - IVFFlat index configuration
-- `templates/hybrid-search-function.sql` - Hybrid search with RRF
-- `templates/match-function.sql` - Basic semantic search function
-
-**Examples:**
-- `examples/embedding-strategies.md` - Index selection guide
-- `examples/vector-search-examples.md` - Common search patterns
-- `examples/document-search-pattern.md` - Full document search implementation
-- `examples/preference-matching-pattern.md` - User matching system
-- `examples/product-recommendations-pattern.md` - Recommendation engine
+- `industry_playbooks` — 0 rows (edge functions query this and get nothing)
+- `prompt_packs` — 0 rows (prompt-pack edge function queries this)
 
 ---
 
-## Project reference (this codebase)
+## Schema
 
-- **Table:** `knowledge_chunks` — `embedding vector(1536)`, HNSW index `vector_cosine_ops`, m=16, ef_construction=64
-- **Search:** `search_knowledge(query_embedding, match_threshold, match_count, filter_category, filter_industry)` — returns chunks + similarity (1 - cosine distance)
-- **Ingest:** Edge Function `knowledge-ingest` (X-Internal-Token); script `scripts/ingest-markdown-knowledge.mjs`
-- **Embeddings:** `_shared/openai-embeddings.ts` — OpenAI text-embedding-3-small, 1536 dims
+```sql
+-- knowledge_chunks (main vector table)
+CREATE TABLE knowledge_chunks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content TEXT NOT NULL CHECK (length(content) >= 20),
+  embedding vector(1536),
+  source TEXT,
+  source_type TEXT,
+  year INT,
+  confidence TEXT,           -- high/medium/low
+  category TEXT,
+  industry TEXT,
+  document_id UUID REFERENCES knowledge_documents(id),
+  page_start INT,
+  page_end INT,
+  section_title TEXT,
+  chunk_kind TEXT,           -- text/table
+  chunk_index INT,
+  source_path TEXT,
+  tags TEXT[],
+  fts TSVECTOR,              -- auto-maintained via trigger
+  fetch_count INT DEFAULT 0,
+  last_fetched_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- knowledge_documents (source tracking)
+CREATE TABLE knowledge_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  source_type TEXT,
+  year INT,
+  llama_parse_id TEXT,       -- LlamaCloud job ID for PDFs
+  content_hash TEXT NOT NULL, -- SHA-256 dedup
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Indexes (12 total)
+
+```sql
+-- Vector search (HNSW)
+CREATE INDEX knowledge_chunks_embedding_idx
+  ON knowledge_chunks USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- Full-text search
+CREATE INDEX idx_knowledge_chunks_fts ON knowledge_chunks USING gin (fts);
+
+-- Dedup (prevents re-embedding same content)
+CREATE UNIQUE INDEX idx_knowledge_chunks_doc_content_hash
+  ON knowledge_chunks (document_id, md5(content))
+  WHERE document_id IS NOT NULL;
+
+-- Filter indexes
+CREATE INDEX idx_knowledge_chunks_category ON knowledge_chunks (category);
+CREATE INDEX idx_knowledge_chunks_industry ON knowledge_chunks (industry) WHERE industry IS NOT NULL;
+CREATE INDEX idx_knowledge_chunks_source_type ON knowledge_chunks (source_type);
+CREATE INDEX idx_knowledge_chunks_year ON knowledge_chunks (year DESC);
+CREATE INDEX idx_knowledge_chunks_category_year ON knowledge_chunks (category, year DESC);
+CREATE INDEX idx_knowledge_chunks_tags ON knowledge_chunks USING gin (tags);
+CREATE INDEX idx_knowledge_chunks_document_id ON knowledge_chunks (document_id) WHERE document_id IS NOT NULL;
+```
 
 ---
 
-**Plugin**: supabase
-**Version**: 1.0.0
-**Last Updated**: 2025-10-26
+## Search Functions
+
+### search_knowledge (semantic only)
+
+```sql
+search_knowledge(
+  query_embedding vector,
+  match_threshold float DEFAULT 0.75,
+  match_count int DEFAULT 5,
+  filter_category text DEFAULT NULL,
+  filter_industry text DEFAULT NULL
+) RETURNS TABLE(id, content, source, source_type, year, confidence, category, tags, similarity)
+```
+
+### hybrid_search_knowledge (semantic + keyword with RRF)
+
+```sql
+hybrid_search_knowledge(
+  query_embedding vector,
+  query_text text,
+  match_threshold float DEFAULT 0.75,
+  match_count int DEFAULT 10,
+  filter_category text DEFAULT NULL,
+  filter_industry text DEFAULT NULL,
+  rrf_k int DEFAULT 50
+) RETURNS TABLE(id, content, source, source_type, year, confidence, category, tags, similarity,
+                document_id, document_title, section_title, page_start, page_end)
+```
+
+**How RRF works:** Runs vector search (top 20) and FTS search (top 20) independently, then combines ranks using `1/(k+rank)` formula. Captures both semantic meaning and exact keyword matches.
+
+### Calling from Edge Functions
+
+```typescript
+// Via service-role client (bypasses RLS for pipeline callers)
+const { data } = await supabaseAdmin.rpc('hybrid_search_knowledge', {
+  query_embedding: embedding,
+  query_text: userQuery,
+  match_threshold: 0.5,
+  match_count: 10,
+  filter_industry: 'healthcare',
+});
+```
+
+---
+
+## Embedding Generation
+
+**File:** `supabase/functions/_shared/openai-embeddings.ts`
+
+```typescript
+// Single embedding
+const result = await generateEmbedding(text);
+// result.embedding = number[1536]
+
+// Batch (20 at a time, 500ms throttle)
+const results = await generateEmbeddings(texts);
+```
+
+**Known issue:** No `Promise.race` timeout — OpenAI calls can hang. Add 15s timeout wrapper.
+
+---
+
+## RAG Integration Points
+
+### Where RAG is wired today
+
+| Feature | File | How |
+|---------|------|-----|
+| AI Chat (coaching modes) | `ai-chat/rag.ts` | `getRAGContext()` → injects top-5 chunks into Gemini system prompt |
+| Canvas Coach | `lean-canvas-agent/actions/coach.ts` | `searchCoachingContext()` → service-role RPC → citations as badges |
+
+### Where RAG should be wired (not yet done)
+
+| Feature | Integration point | Expected impact |
+|---------|------------------|----------------|
+| Validator Composer | `validator-start/agents/composer.ts` Group D | Cite benchmarks in executive summary |
+| Sprint Agent | `sprint-agent/index.ts` | Industry-specific task prioritization |
+| Pitch Deck Generation | `pitch-deck-agent/actions/generation.ts` | Market data in slides |
+| Investor Agent | `investor-agent/index.ts` | Stage-specific fundraising benchmarks |
+
+### RAG failure pattern (graceful degradation)
+
+```typescript
+try {
+  const context = await getRAGContext(supabase, query, filterIndustry);
+  // Inject into system prompt if non-empty
+} catch (e) {
+  console.warn("[RAG] Failed:", e);
+  return ""; // Fail open — chat continues without RAG
+}
+```
+
+---
+
+## Web Search (Not pgvector — Gemini API features)
+
+For live web data, use Gemini's built-in search instead of vectorizing URLs.
+
+### Google Search Grounding
+
+```typescript
+const result = await callGeminiChat(model, systemPrompt, messages, {
+  useSearch: true, // Gemini searches Google in real-time
+  timeoutMs: 45_000,
+});
+// Citations in result.citations (extracted from groundingMetadata)
+```
+
+**Where used:** Validator Research Agent, Competitors Agent, AI Chat research mode.
+
+### URL Context (read a specific webpage)
+
+```typescript
+const result = await callGemini(model, systemPrompt, userPrompt, {
+  useUrlContext: true, // Gemini fetches and reads the URL
+});
+```
+
+**Where used:** profile-import, Research Agent (reads competitor URLs).
+
+### When to use which
+
+| Content Type | Method | Why |
+|-------------|--------|-----|
+| Our curated benchmarks/playbooks | **pgvector** | Static, authoritative, fast |
+| Market trends, news, competitor data | **Google Search** | Always fresh |
+| Specific website content | **URL Context** | Reads actual page |
+| PDF reports we've ingested | **pgvector** | Already chunked + embedded |
+| External research links (research/links/) | **Google Search / URL Context** | Live reads get latest data |
+
+---
+
+## Ingestion Pipeline
+
+### Scripts
+
+```bash
+# Batch ingest all markdown docs
+node scripts/ingest-industry-docs-batch.mjs
+
+# Single directory ingest
+node scripts/ingest-markdown-knowledge.mjs --dir=research/<path> --industry=<tag>
+
+# Verify vectors after ingest
+node scripts/verify-vector-rag.mjs
+```
+
+### Edge Function: knowledge-ingest
+
+**Auth:** X-Internal-Token header (not JWT — used by scripts)
+**Actions:** `ingest`, `ingest_from_llamacloud`, `generate_embeddings`, `status`, `test_search`
+
+**Chunking strategy:**
+- Heading-based segmentation (## and ### level)
+- Table extraction (entire tables as single chunks, 3600-char max)
+- Narrative text: 3600-char chunks, 200-char overlap
+- SHA-256 content-hash dedup (unique index prevents re-embedding)
+
+---
+
+## HNSW Tuning Guide
+
+### Parameters
+
+| Parameter | Our Value | Range | Effect |
+|-----------|----------|-------|--------|
+| `m` | 16 | 12-48 | Higher = better recall, more memory |
+| `ef_construction` | 64 | 64-256 | Higher = better graph quality, slower builds |
+| `ef_search` | 40 (default) | 40-400 | Higher = better recall, slower queries |
+
+### When to change
+
+- **Poor recall (missing relevant results):** Increase `ef_search` first (cheapest). Then increase `m` + `ef_construction` (requires reindex).
+- **High latency:** Decrease `ef_search`. Check if index fits in memory (`pg_size_pretty`).
+- **Filtered search returns too few results:** Enable iterative scan:
+  ```sql
+  SET hnsw.iterative_scan = relaxed_order;
+  SET hnsw.max_scan_tuples = 50000;
+  ```
+
+### Performance at our scale (3,973 chunks, 1536-dim)
+
+At this data volume, HNSW is massive overkill — queries are <50ms. Tuning only matters at 100K+ vectors. Current config is fine.
+
+### Monitoring
+
+```sql
+-- Index size
+SELECT pg_size_pretty(pg_relation_size('knowledge_chunks_embedding_idx'));
+
+-- Query plan (verify index is used)
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, content FROM knowledge_chunks
+ORDER BY embedding <=> $1::vector(1536) LIMIT 10;
+
+-- Check for chunks without embeddings
+SELECT count(*) FROM knowledge_chunks WHERE embedding IS NULL;
+```
+
+---
+
+## Common Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Search returns AI/ML data for non-AI founders | 78% of chunks are ai_ml | Ingest more industry-specific content |
+| `industry_playbooks` queries return empty | 0 rows in table | Seed 19 industry playbooks |
+| `prompt_packs` queries return empty | 0 rows in table | Seed prompt pack definitions |
+| 108 chunks missing embeddings | saas + null-industry chunks | Run `generate_embeddings` action |
+| Hybrid search not finding keyword matches | FTS query syntax edge cases | Use `websearch_to_tsquery` (handles phrases, AND/OR) |
+| Search quality low for non-English content | text-embedding-3-small optimized for English | Consider multilingual model if needed |
+
+---
+
+## Priority Improvements
+
+**P0 — Fill empty industries:**
+- Ingest `research/services/02-12*.md` (11 industry guides)
+- Ingest `research/sports/reports/*.md` (5 synthesis reports)
+- Seed `industry_playbooks` table (19 rows)
+
+**P1 — Wire RAG into more features:**
+- Add `getRAGContext()` to Validator Composer (Group D)
+- Add `getRAGContext()` to Sprint Agent
+- Add `Promise.race(15s)` to `openai-embeddings.ts`
+
+**P2 — Expand knowledge base:**
+- Ingest remaining PDFs via LlamaCloud
+- Generate embeddings for 108 missing chunks
+- Seed `prompt_packs` table
+
+---
+
+**Docs:** https://supabase.com/docs/guides/ai
+**Version:** 2.0.0
+**Last Updated:** 2026-03-19

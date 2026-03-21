@@ -143,6 +143,25 @@ async function analyzeInvestorFit(
 
   const focusAreas = Array.isArray(investor.focus_areas) ? investor.focus_areas.join(", ") : "Not specified";
 
+  // Task #4: Load industry playbook for investor expectations calibration
+  let playbookContext = '';
+  if (startup?.industry) {
+    try {
+      const { data: playbook } = await supabase
+        .from('industry_playbooks')
+        .select('investor_expectations, benchmarks')
+        .eq('industry_id', startup.industry.trim().toLowerCase())
+        .eq('is_active', true)
+        .maybeSingle();
+      if (playbook?.investor_expectations) {
+        playbookContext = `\n\nINDUSTRY BENCHMARKS [INDUSTRY BENCHMARK]:\n${JSON.stringify(playbook.investor_expectations, null, 2)}`;
+        if (playbook.benchmarks) playbookContext += `\nKey metrics: ${JSON.stringify(playbook.benchmarks)}`;
+      }
+    } catch (e) {
+      console.warn('[investor-agent] Playbook load failed:', e instanceof Error ? e.message : e);
+    }
+  }
+
   const userPrompt = `Analyze the fit between this startup and investor:
 
 STARTUP:
@@ -159,7 +178,7 @@ INVESTOR:
 - Thesis: ${investor.thesis_summary}
 - Focus Areas: ${focusAreas}
 - Check Size: ${investor.check_size_min} - ${investor.check_size_max}
-
+${playbookContext}
 Provide a detailed fit analysis.`;
 
   const result = await callGemini(MODEL, ANALYZE_INVESTOR_FIT_SYSTEM, userPrompt, {
@@ -465,6 +484,7 @@ Provide deal scoring.`;
     deal_score: number;
     probability: number;
     factors: Record<string, { score: number; evidence: string }>;
+    meddpicc_elements?: Record<string, { score: number; evidence: string }>;
     risk_factors: string[];
     accelerators: string[];
     recommended_next_action: string;
@@ -472,6 +492,42 @@ Provide deal scoring.`;
 
   if (!parsed) {
     throw new Error("Failed to parse deal score");
+  }
+
+  // Persist MEDDPICC elements to deals table if available
+  if (parsed.meddpicc_elements) {
+    const elements = parsed.meddpicc_elements;
+    const totalScore = Object.values(elements).reduce((sum, el) => sum + (el.score || 0), 0);
+
+    // Find deal linked to this investor's startup and update
+    // Deals reference contacts (not investors), so look up by startup_id
+    const { data: investorForDeal } = await supabase
+      .from("investors")
+      .select("startup_id")
+      .eq("id", investorId)
+      .single();
+
+    const { data: deal } = investorForDeal?.startup_id
+      ? await supabase
+          .from("deals")
+          .select("id")
+          .eq("startup_id", investorForDeal.startup_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+
+    if (deal) {
+      await supabase
+        .from("deals")
+        .update({
+          meddpicc_elements: elements,
+          meddpicc_score: totalScore,
+          signal_tier: totalScore >= 28 ? "strong" : totalScore >= 20 ? "medium" : "weak",
+          deal_verdict: totalScore >= 28 ? "pursue" : totalScore >= 20 ? "consider" : "deprioritize",
+        })
+        .eq("id", deal.id);
+    }
   }
 
   return { success: true, investor_name: investor.name, ...parsed };
@@ -790,7 +846,14 @@ Deno.serve(async (req) => {
       return rateLimitResponse(rateResult, corsHeaders);
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { action, startup_id, ...params } = body;
 
     console.log(`[investor-agent] Action: ${action}, User: ${user.id}`);

@@ -1,8 +1,8 @@
-import { Mic, TrendingUp, Users, LayoutGrid } from 'lucide-react';
+import { Mic, TrendingUp, Users, LayoutGrid, Globe, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export type ChatMode = 'authenticated' | 'practice_pitch' | 'growth_strategy' | 'deal_review' | 'canvas_coach';
+export type ChatMode = 'authenticated' | 'practice_pitch' | 'growth_strategy' | 'deal_review' | 'canvas_coach' | 'research' | 'planning';
 
 interface ChatModeSelectorProps {
   activeMode: ChatMode;
@@ -11,6 +11,8 @@ interface ChatModeSelectorProps {
 
 const MODES = [
   { id: 'authenticated' as const, label: 'General', icon: null, description: 'Ask anything' },
+  { id: 'research' as const, label: 'Research', icon: Globe, description: 'Web + RAG search' },
+  { id: 'planning' as const, label: 'Planning', icon: Map, description: 'RICE action plans' },
   { id: 'practice_pitch' as const, label: 'Practice Pitch', icon: Mic, description: 'AI plays investor' },
   { id: 'growth_strategy' as const, label: 'Growth', icon: TrendingUp, description: 'AARRR funnel' },
   { id: 'deal_review' as const, label: 'Deal Review', icon: Users, description: 'Score investors' },

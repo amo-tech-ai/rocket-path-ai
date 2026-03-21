@@ -443,6 +443,7 @@ export interface InterviewContext {
   version: number;
   extracted: Record<string, string>;
   coverage: Record<string, string>;
+  confidence?: Record<string, string>;
   // F-03 fix: Type matches extractor's access pattern (competitors/urls/marketData)
   discoveredEntities?: { competitors?: string[]; urls?: string[]; marketData?: string[] };
 }

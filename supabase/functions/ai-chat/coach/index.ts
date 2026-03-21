@@ -8,15 +8,15 @@ import { buildCoachPersona, buildContextSummary, getPhaseInstructions } from "./
 import { loadValidationContext, createSession, updateSession, saveConversation } from "./context-loader.ts";
 import { detectTransition, extractStateUpdates, calculateProgress, getSuggestedActions, canTransition } from "./state-machine.ts";
 import { getRAGContext } from "../rag.ts";
+import { callGeminiChat } from "../../_shared/gemini.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
 
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-3.1-pro-preview";
-const FALLBACK_MODEL = "google/gemini-3-flash-preview";
+const DEFAULT_MODEL = "gemini-3.1-pro-preview";
+const FALLBACK_MODEL = "gemini-3-flash-preview";
 const AI_TIMEOUT = 30000; // 30 seconds
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 
 interface CoachRequest {
   message: string;
@@ -173,88 +173,59 @@ Remember:
 }
 
 /**
- * Call AI with exponential backoff retry
+ * Call Gemini via _shared/gemini.ts with model fallback retry.
+ * V08: Replaced Lovable AI Gateway with direct Gemini REST client.
  */
 async function callAIWithRetry(
   systemPrompt: string,
   messages: Array<{ role: string; content: string }>
 ): Promise<{ text: string; tokens: number; model: string }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  if (!LOVABLE_API_KEY) {
-    throw new Error("LOVABLE_API_KEY not configured");
-  }
-  
   let lastError: Error | null = null;
   let model = DEFAULT_MODEL;
-  
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT);
-      
-      const response = await fetch(LOVABLE_AI_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
+      // Convert messages to the format callGeminiChat expects
+      // callGeminiChat takes the full conversation including the latest user message
+      const chatMessages = messages.map(m => ({
+        role: m.role as 'user' | 'model',
+        content: m.content,
+      }));
+
+      const result = await callGeminiChat(
+        model,
+        systemPrompt,
+        chatMessages,
+        {
+          timeoutMs: AI_TIMEOUT,
+          maxOutputTokens: 1024,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-          ],
-          max_tokens: 1024,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Coach] AI API error (attempt ${attempt + 1}): ${response.status} - ${errorText}`);
-        
-        // On rate limit or server error, try fallback model
-        if ((response.status === 429 || response.status >= 500) && model === DEFAULT_MODEL) {
-          console.log('[Coach] Switching to fallback model');
-          model = FALLBACK_MODEL;
-          continue;
-        }
-        
-        throw new Error(`AI API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const text = data.choices?.[0]?.message?.content || '';
-      const tokens = (data.usage?.prompt_tokens || 0) + (data.usage?.completion_tokens || 0);
-      
-      return { text, tokens, model };
-      
+      );
+
+      return {
+        text: result.text,
+        tokens: (result.inputTokens ?? 0) + (result.outputTokens ?? 0),
+        model,
+      };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(`[Coach] Attempt ${attempt + 1} failed:`, lastError.message);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[Coach] Request timed out');
+
+      // Try fallback model on retry
+      if (model === DEFAULT_MODEL) {
+        console.log('[Coach] Switching to fallback model');
+        model = FALLBACK_MODEL;
       }
-      
-      // Exponential backoff: 1s, 2s, 4s
+
+      // Exponential backoff: 1s, 2s
       if (attempt < MAX_RETRIES - 1) {
         const delay = Math.pow(2, attempt) * 1000;
         console.log(`[Coach] Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Try fallback model on retry
-        if (model === DEFAULT_MODEL) {
-          model = FALLBACK_MODEL;
-        }
       }
     }
   }
-  
+
   throw lastError || new Error('AI call failed after retries');
 }
 

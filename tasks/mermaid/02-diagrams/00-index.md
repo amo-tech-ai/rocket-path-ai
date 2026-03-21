@@ -6,7 +6,7 @@
 
 ## Audit Summary
 
-Full E2E QA test revealed **3 critical**, **3 high**, and **2 medium** issues in the chat-to-validate-to-dashboard flow. **All 8 issues fixed** across two sessions (2026-03-07 and 2026-03-08). Vector storage audit added (diagram 09).
+Full E2E QA test revealed **3 critical**, **3 high**, and **2 medium** issues in the chat-to-validate-to-dashboard flow. **All 8 issues fixed** across two sessions (2026-03-07 and 2026-03-08). Vector storage audit added (diagram 09). K6 validator RAG fix verified with 5 production proof tests (diagram 10).
 
 ## Diagrams
 
@@ -22,6 +22,8 @@ Full E2E QA test revealed **3 critical**, **3 high**, and **2 medium** issues in
 | 07 | `07-dashboard-handoff.md` | Flowchart | Report completion → dashboard data flow (with fallback path) |
 | 08 | `08-audit-report.md` | Report | Full audit findings, red flags, fixes applied, improvements |
 | 09 | `09-vector-storage-flow.md` | Flowchart | Vector storage (pgvector) usage: chat UI, chat EF, validator, canvas coach |
+| 10 | `10-vector-rag-verification.md` | Report | K6 verification: 5 proof tests, before/after flow, failure points, deploy proof |
+| 11 | `11-vector-system-comprehensive.md` | Architecture | Full vector system: all 10 consumers, auth matrix, search algorithms, improvements |
 
 ## Issues Found (E2E Test 2026-03-07)
 

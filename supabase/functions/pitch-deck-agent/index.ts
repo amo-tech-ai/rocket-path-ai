@@ -93,7 +93,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body: RequestBody = await req.json();
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { action } = body;
 
     console.log(`[pitch-deck-agent] Action: ${action}, User: ${user.id}`);

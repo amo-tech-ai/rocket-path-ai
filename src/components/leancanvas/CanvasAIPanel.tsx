@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Sparkles, Wand2, CheckCircle, Loader2, RotateCcw } from 'lucide-react';
+import { Sparkles, Wand2, CheckCircle, Loader2, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { LeanCanvasData, usePreFillCanvas, useValidateCanvas, CANVAS_BOX_CONFIG, EMPTY_CANVAS } from '@/hooks/useLeanCanvas';
+import { useCanvasCoach, type SpecificityResult } from '@/hooks/useCanvasCoach';
 import { CanvasCoachChat } from './CanvasCoachChat';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 interface CanvasAIPanelProps {
   startupId: string;
@@ -28,9 +30,11 @@ export function CanvasAIPanel({
 }: CanvasAIPanelProps) {
   const [preFillSuggestions, setPreFillSuggestions] = useState<Partial<LeanCanvasData> | null>(null);
   const [validationResults, setValidationResults] = useState<string | null>(null);
-  
+  const [specificityResult, setSpecificityResult] = useState<SpecificityResult | null>(null);
+
   const preFill = usePreFillCanvas();
   const validate = useValidateCanvas();
+  const { checkSpecificity, isLoading: isCheckingSpecificity } = useCanvasCoach();
 
   // Calculate completion
   const filledBoxes = Object.values(canvasData).filter(box => box.items?.length > 0).length;
@@ -122,6 +126,20 @@ export function CanvasAIPanel({
     }
   };
 
+  const handleCheckSpecificity = async () => {
+    if (!startup) return;
+    try {
+      const result = await checkSpecificity(canvasData, startup);
+      if (result) {
+        setSpecificityResult(result);
+        toast.success('Specificity check complete');
+      }
+    } catch (err) {
+      console.error('Specificity check error:', err);
+      toast.error('Failed to check specificity');
+    }
+  };
+
   const handleValidate = async () => {
     try {
       const result = await validate.mutateAsync({ startupId, canvasData });
@@ -191,6 +209,21 @@ export function CanvasAIPanel({
               <CheckCircle className="w-4 h-4 mr-2" />
             )}
             Validate Hypotheses
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={handleCheckSpecificity}
+            disabled={isCheckingSpecificity || completionPercent < 20}
+          >
+            {isCheckingSpecificity ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4 mr-2" />
+            )}
+            Check Specificity
           </Button>
         </CardContent>
       </Card>
@@ -262,6 +295,65 @@ export function CanvasAIPanel({
                 <p className="text-xs text-muted-foreground whitespace-pre-wrap line-clamp-10">
                   {validationResults}
                 </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Specificity Results */}
+      <AnimatePresence>
+        {specificityResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-primary" />
+                    Specificity Check
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {specificityResult.canvas_score}/100
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {Object.entries(specificityResult.specificity_scores).map(([key, level]) => {
+                  const boxConfig = CANVAS_BOX_CONFIG.find(b => b.key === key);
+                  const gaps = specificityResult.evidence_gaps[key] || [];
+                  return (
+                    <div key={key} className="space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {boxConfig?.title || key}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={cn('text-[10px]', {
+                            'text-red-600 border-red-200 bg-red-50': level === 'vague',
+                            'text-amber-600 border-amber-200 bg-amber-50': level === 'specific',
+                            'text-emerald-600 border-emerald-200 bg-emerald-50': level === 'quantified',
+                          })}
+                        >
+                          {level}
+                        </Badge>
+                      </div>
+                      {gaps.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {gaps.map((gap, i) => (
+                            <span key={i} className="text-[10px] text-muted-foreground/70 bg-muted px-1.5 py-0.5 rounded">
+                              {gap}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           </motion.div>

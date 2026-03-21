@@ -293,6 +293,7 @@ export function useRealtimeAIChat(options: UseRealtimeAIChatOptions = {}) {
             content: m.content,
           })),
           action,
+          stream: true,  // Enable streaming via Realtime token_chunk broadcasts
           ...(mode ? { mode } : {}),
           context: {
             screen: 'ai-chat',

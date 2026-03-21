@@ -4,7 +4,7 @@
  * Uses ReportV2Layout for all rendering (handles both v1 prose and v2 structured JSON)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ReportV2Layout } from '@/components/validator/report/ReportV2Layout';
@@ -35,6 +35,8 @@ import { toast } from 'sonner';
 import ShareDialog from '@/components/sharing/ShareDialog';
 import { useValidatorRegenerate } from '@/hooks/useValidatorRegenerate';
 import { useGenerateCanvasFromReport, useLeanCanvas } from '@/hooks/useLeanCanvas';
+import { useReportProactiveMessage } from '@/hooks/useReportProactiveMessage';
+import { useAIAssistant } from '@/providers/AIAssistantProvider';
 import {
   ChevronLeft,
   Download,
@@ -54,8 +56,6 @@ export interface StartupMeta {
   industry?: string;
   stage?: string;
   tagline?: string;
-  subIndustry?: string;
-  businessModel?: string[];
 }
 
 interface ReportData {
@@ -101,6 +101,18 @@ export default function ValidatorReport() {
   const { regenerate, isRegenerating } = useValidatorRegenerate();
   const generateCanvas = useGenerateCanvasFromReport();
   const { data: existingCanvas } = useLeanCanvas(startupId ?? undefined);
+
+  // Proactive AI panel message
+  const { proactiveMessage } = useReportProactiveMessage(report, startupMeta);
+  const { injectMessage } = useAIAssistant();
+  const injectedForReportRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!proactiveMessage || !reportId) return;
+    if (injectedForReportRef.current === reportId) return;
+    injectedForReportRef.current = reportId;
+    injectMessage(proactiveMessage);
+  }, [proactiveMessage, reportId, injectMessage]);
 
   const handleExport = useCallback(async () => {
     if (!report) return;
@@ -155,15 +167,23 @@ export default function ValidatorReport() {
 
         // FIX: Gemini occasionally wraps JSON in an array [{}] — unwrap to object
         const rawDetails = reportData.details;
-        const safeDetails = (Array.isArray(rawDetails) ? rawDetails[0] : rawDetails) || {};
+        const safeDetails = ((Array.isArray(rawDetails) ? rawDetails[0] : rawDetails) || {}) as Record<string, any>;
+        // Fallback: derive score from scores_matrix when ScoringAgent failed to write to score column
+        const scoringMatrix = safeDetails?.scores_matrix;
+        const fallbackScore = reportData.score
+          ?? scoringMatrix?.overall_weighted
+          ?? (scoringMatrix?.dimensions?.length > 0
+            ? Math.round(scoringMatrix.dimensions.reduce((s: number, d: any) => s + (d.score || 0), 0) / scoringMatrix.dimensions.length)
+            : null);
+
         setReport({
           id: reportData.id,
           session_id: reportData.session_id,
-          score: reportData.score ?? null,
+          score: fallbackScore,
           summary: reportData.summary || safeDetails.summary_verdict || '',
           verified: reportData.verified || false,
           verification_json: reportData.verification_json as ReportData['verification_json'],
-          details: safeDetails as ReportData['details'],
+          details: safeDetails as unknown as ReportData['details'],
           created_at: reportData.created_at,
         });
 
@@ -172,7 +192,7 @@ export default function ValidatorReport() {
         if (reportData.startup_id) {
           const { data: startup } = await supabase
             .from('startups')
-            .select('name, industry, stage, tagline, sub_industry, business_model')
+            .select('name, industry, stage, tagline')
             .eq('id', reportData.startup_id)
             .single();
           if (startup?.name) {
@@ -182,8 +202,6 @@ export default function ValidatorReport() {
               industry: startup.industry ?? undefined,
               stage: startup.stage ?? undefined,
               tagline: startup.tagline ?? undefined,
-              subIndustry: startup.sub_industry ?? undefined,
-              businessModel: startup.business_model ?? undefined,
             });
           }
         }
@@ -394,6 +412,7 @@ export default function ValidatorReport() {
         reportId={reportId}
         companyName={companyName}
         startupMeta={startupMeta}
+        startupId={startupId ?? undefined}
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
       />

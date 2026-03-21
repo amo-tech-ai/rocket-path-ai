@@ -6,6 +6,150 @@
 
 ---
 
+## [2026-03-20] - Session 50 Arc: Edge Function Audit + Vector Intelligence + Knowledge Expansion
+
+**3 sub-sessions spanning 2 days. Biggest infrastructure upgrade since the validator pipeline.**
+
+### Session 50 (Mar 19): Audit + Plan + First Expansion
+- Audited all 30 edge functions — architecture 72/100, production readiness 65/100
+- Created 15-section Vector Intelligence Plan (3-layer model: Knowledge + Reasoning + Live Data)
+- Expanded knowledge base: 3,973 → 4,858 chunks (+885), 8 new industries
+- Consolidated pgvector skills (3 → 2), updated research indexes with vector status dots
+- New: `tasks/ideas/03-edge-audit.md` (850 lines, 5 Mermaid diagrams), `tasks/vector/10-vectordb-plan.md`
+
+### Session 50b (Mar 20): Playbooks + RAG Wiring + Bug Fixes
+- Seeded 19 industry playbooks (was 0 rows — 6 EFs queried empty table)
+- Created `_shared/rag-context.ts` — shared RAG helper (190 lines)
+- Wired RAG into Composer Group D — reports now cite knowledge base
+- Ingested sports notes + investors + glossary (+228 chunks)
+- Fixed 5 production bugs: MEDDPICC column, 3 table names, 2 routes
+- Added `req.json()` try/catch to 6 functions
+- Deployed 9 edge functions
+
+### Session 50c (Mar 20): RAG in Scoring + Playbooks in 4 EFs
+- Wired RAG into Scoring Agent — industry benchmarks calibrate dimension scores
+- Wired playbook loading into ai-chat, sprint-agent, investor-agent
+- Deployed validator-start v79, ai-chat v93, sprint-agent v7, investor-agent v47
+- Archived 37 completed prompts to `tasks/archive/prompts-completed/`
+- Created 4 new task prompts (V07-V10) for remaining work
+
+**Cumulative stats:** 5,083 chunks | 19 playbooks | 144 docs | 783/783 tests | 0 TS errors | 13 EF deploys
+
+---
+
+## [2026-03-17] - Session 44: Agency Arc Close (12/12) — MEDDPICC + Specificity + Persistence
+
+Agency integration complete. 4 final tasks shipped: Investor MEDDPICC schema + 8-element scorecard (007/008), Canvas specificity checks with required scoring + check_specificity action (011), Chat session persistence with schema fixes + AIAssistantProvider wiring (012). MEDDPICCScorecard component built. scoreDealSchema expanded with 8 MEDDPICC elements. Specificity scores now required (not optional) in coach responses. Persistence hook aligned with actual chat_sessions/chat_messages schema. Tests: 539/539 (+25). Build: 6.36s. Lint: 350 (-1). Agency: 12/12 complete.
+
+---
+
+## [2026-03-09] - POST-02: Sprint Board ← Report Priority Actions Import
+
+**What we did:** Built the Sprint Board Import feature — validation report priority actions now flow directly into the Sprint Board as trackable tasks. One-click import from both the Strategy tab (bulk top-5) and individual Dimension pages (per-dimension).
+
+### New Files
+| File | What |
+|------|------|
+| `src/hooks/useSprintImport.ts` | Import hook: field mapping, dedup via `source_action_id`, auto-create campaign, toast feedback |
+| `supabase/migrations/20260309140000_sprint_tasks_source_action_id.sql` | `source_action_id TEXT` column + unique index for idempotent imports |
+
+### Modified Files
+| File | What Changed |
+|------|-------------|
+| `src/components/validator/report/StrategicSummary.tsx` | Added "Start Next Sprint" button to Build Focus section with import handler |
+| `src/components/validator/report/ReportV2Layout.tsx` | Added `startupId` + `reportId` prop threading to StrategicSummary and DimensionSection |
+| `src/components/validator/report/DimensionSection.tsx` | Added `startupId` prop passthrough to DimensionPage |
+| `src/components/validator/v3/DimensionPage.tsx` | Added "Import to Sprint" button with per-dimension action import |
+| `src/pages/ValidatorReport.tsx` | Passes `startupId` from report metadata to ReportV2Layout |
+
+### Import Logic
+- Maps report `priority_actions` → sprint_tasks: action→title, timeframe→sprint_name, effort→priority, dimension→description
+- Dedup: `source_action_id` = `report:{reportId}:dim:{dimension}:idx:{index}` — re-importing skips existing
+- Auto-creates sprint campaign named "Report Actions — {date}" if none exists
+- Bulk import (Strategy tab) imports top 5 actions across all dimensions
+- Per-dimension import (Dimension page) imports actions from that specific dimension
+
+### Proof
+- Build: 6.79s PASS | Tests: 389/389 PASS | TypeScript: 0 errors
+
+---
+
+## [2026-03-09] - RT-AUDIT: Supabase Realtime infrastructure overhaul (10 items)
+
+**What we did:** Comprehensive Realtime audit and improvement — 10 items across 3 tiers (Quick Wins, New Features, Advanced). Fixed AI chat topic mismatch bug, consolidated dashboard channels, added typing indicators, ingest progress, health badge, canvas coach broadcast, and report presence.
+
+### Tier A: Quick Wins
+| Item | What | Files |
+|------|------|-------|
+| A-1 | Client reconnection with exponential backoff (1s→2s→4s...30s max) | `src/integrations/supabase/client.ts` |
+| A-2 | Dashboard channel consolidation (7→1 multiplexed channel) | `src/hooks/useRealtimeSubscription.ts`, `src/hooks/realtime/index.ts` |
+| A-3 | Reusable `usePollingFallback` hook (adopted in 5 hooks) | `src/hooks/realtime/usePollingFallback.ts`, 5 domain hooks |
+
+### Tier B: New Features
+| Item | What | Files |
+|------|------|-------|
+| B-1 | Sprint board live sync hook | `src/hooks/realtime/useSprintRealtime.ts` |
+| B-2 | AI Chat typing indicators + **topic mismatch bug fix** (EF broadcast `:events` but client listened `:ai`) | `supabase/functions/ai-chat/index.ts`, `src/hooks/realtime/useRealtimeAIChat.ts` |
+| B-3 | Knowledge ingest progress tracking (per-batch broadcast) | `supabase/functions/knowledge-ingest/index.ts`, `src/hooks/realtime/useKnowledgeIngestRealtime.ts` |
+
+### Tier C: Advanced
+| Item | What | Files |
+|------|------|-------|
+| C-1 | Canvas real-time coach broadcast (`coach_suggestions` event) | `supabase/functions/lean-canvas-agent/index.ts`, `src/hooks/realtime/useCanvasRealtime.ts`, `types.ts` |
+| C-2 | Multi-user report presence (Supabase Presence API) | `src/hooks/realtime/useReportPresence.ts` |
+| C-3 | Global realtime health badge (green/yellow/red dot, latency) | `src/hooks/realtime/useRealtimeHealth.ts`, `src/components/ui/realtime-status-badge.tsx`, `DashboardLayout.tsx` |
+
+### Shared Infrastructure
+- `supabase/functions/_shared/broadcast.ts` — generic fire-and-forget broadcast helper
+
+### Deployed Edge Functions
+- `ai-chat` v85, `knowledge-ingest` v7, `lean-canvas-agent` v53 — all ACTIVE, verified with curl
+
+### Proof
+- Build: 6.82s PASS | Tests: 389/389 PASS | CORS: 3/3 HTTP 200 | Auth guards: 2/2 HTTP 401
+
+---
+
+## [2026-03-09] - K7: ai-chat hybrid search upgrade
+
+**What we did:** Switched ai-chat edge function from semantic-only `search_knowledge` to hybrid `hybrid_search_knowledge` (semantic + full-text + RRF merge). Both RAG injection path (rag.ts) and search action use hybrid now. Removed duplicate embedding function, using shared `_shared/openai-embeddings.ts`.
+
+### Changes
+- `ai-chat/rag.ts`: `search_knowledge` → `hybrid_search_knowledge` + `query_text` + `rrf_k: 50` + stringified embedding
+- `ai-chat/index.ts`: search action → `hybrid_search_knowledge`, added `industry` param, removed duplicate `generateOpenAIEmbedding()` (45 lines), uses shared `generateEmbedding`
+- **Deployed:** `ai-chat` edge function (967KB) to production
+- **Proof:** ai-chat returns 975-char RAG-enriched response about fashion TAM; knowledge-search hybrid returns 10 results; verify-vector-rag.mjs 3/3 PASS; build 6.94s PASS
+
+---
+
+## [2026-03-09] - K6 verification: deploy, proof tests, comprehensive vector architecture diagrams
+
+**What we did:** Deployed K6 fix to production, ran 5 proof tests confirming validator RAG was silently off, created comprehensive vector system architecture diagrams.
+
+### Deploy & Verify
+- **Deployed:** `validator-start` edge function (1.081MB bundle) to production
+- **Proof:** 5/5 tests pass — OPENAI_API_KEY set, hybrid_search_knowledge RPC exists (7 params), RPC returns 5 results with citation fields, 3,748 chunks in DB, confirmed 0/3 recent Research runs had RAG data (bug was silently eating knowledge)
+
+### Mermaid Diagrams
+- **Diagram 10:** `10-vector-rag-verification.md` — Before/after flow, 5 proof tests, failure points, deploy proof
+- **Diagram 11:** `11-vector-system-comprehensive.md` — Full architecture: 10 consumers, auth matrix, search algorithms, data flow, failure mitigations, improvements, real-world examples
+
+### Full Audit: 10 Vector Consumers Identified
+| Consumer | Search Type | Auth | Status |
+|----------|------------|------|--------|
+| Chat UI (useKnowledgeSearch) | Hybrid | User JWT | Working |
+| AI Chat Page | Hybrid (via hook) | User JWT | Working |
+| knowledge-search EF | Dual | User JWT | Working |
+| ai-chat search action | Semantic-only | User JWT | Working |
+| ai-chat/rag.ts | Semantic-only | Service role | Working |
+| Validator Research | Hybrid | Admin client | **Fixed (K6)** |
+| Validator Competitors | Hybrid | Admin client | **Fixed (K6)** |
+| Canvas Coach | Semantic-only | Service role | Working |
+| Pitch Deck Research | Google Search (no RAG) | N/A | Working |
+| Knowledge Ingest | Embed only | Service role + token | Working |
+
+---
+
 ## [2026-03-08] - Vector storage audit: validator direct RPC, hybrid chat search, citation fields
 
 **What we did:** Fixed validator RAG 401 (critical), enabled hybrid search in chat UI, added citation fields to knowledge types.

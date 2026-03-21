@@ -3,6 +3,7 @@ name: frontend-designer
 description: Frontend specialist for React components, Tailwind styling, and shadcn/ui. Use for any UI work.
 tools: Read, Edit, Write, Grep, Glob
 model: opus
+memory: project
 ---
 
 You are a frontend designer for StartupAI using React 18 + TypeScript + Tailwind + shadcn/ui.

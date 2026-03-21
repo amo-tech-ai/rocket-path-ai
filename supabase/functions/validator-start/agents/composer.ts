@@ -23,6 +23,8 @@ import { AGENTS, AGENT_TIMEOUTS, COMPOSER_GROUP_TIMEOUTS } from "../config.ts";
 import { COMPOSER_GROUP_SCHEMAS, DIMENSION_SCHEMAS, DIMENSION_SUB_SCORES } from "../schemas.ts";
 import { callGemini, extractJSON } from "../gemini.ts";
 import { updateRunStatus, completeRun } from "../db.ts";
+import { COMPOSER_FRAGMENT } from "../agency-fragments.ts";
+import { getRAGContext, buildRAGBlock } from "../../_shared/rag-context.ts";
 
 // Shared tone instructions — injected into every group prompt
 const TONE = `You are a sharp startup advisor writing a validation report.
@@ -33,6 +35,60 @@ Write like a smart friend who knows startups inside out.
 - Every risk gets a plain consequence.
 - Be honest, not polite.
 Use real data from agent outputs. Be specific to THIS startup.`;
+
+// ---------------------------------------------------------------------------
+// Interview context builder — injects founder's own words into composer prompts
+// Task 22: Interview data was collected but barely used by Composer
+// ---------------------------------------------------------------------------
+
+/** Relevant field sets per group — only inject what the group needs */
+const INTERVIEW_FIELDS_BY_GROUP: Record<string, string[]> = {
+  A: ['problem', 'customer', 'solution', 'differentiation', 'demand'],
+  B: ['competitors', 'industry_categories', 'business_model', 'risk_awareness'],
+  C: ['revenue_model', 'execution_plan', 'business_model', 'ai_strategy'],
+  D: ['problem', 'customer', 'solution', 'investor_readiness', 'risk_awareness', 'execution_plan'],
+};
+
+/**
+ * Build a compact interview context block for injection into a Composer group prompt.
+ * Returns empty string if no interview data is available.
+ */
+function buildInterviewBlock(
+  interviewContext: InterviewContext | undefined,
+  group: 'A' | 'B' | 'C' | 'D',
+): string {
+  if (!interviewContext?.extracted) return '';
+
+  const relevantFields = INTERVIEW_FIELDS_BY_GROUP[group] || [];
+  const lines: string[] = [];
+
+  for (const field of relevantFields) {
+    const value = interviewContext.extracted[field];
+    if (!value || value.trim().length < 5) continue;
+
+    const depth = interviewContext.coverage?.[field] || 'none';
+    const conf = interviewContext.confidence?.[field] || 'unknown';
+
+    // Truncate to 300 chars to keep prompt compact
+    const trimmed = value.length > 300 ? value.slice(0, 297) + '...' : value;
+    lines.push(`- ${field} [${depth}/${conf}]: ${trimmed}`);
+  }
+
+  if (lines.length === 0) return '';
+
+  // Add discovered entities if relevant to this group
+  let entitiesBlock = '';
+  if (group === 'B' && interviewContext.discoveredEntities) {
+    const ents = interviewContext.discoveredEntities;
+    if (ents.competitors?.length) entitiesBlock += `\n- Named competitors: ${ents.competitors.join(', ')}`;
+    if (ents.marketData?.length) entitiesBlock += `\n- Market data cited: ${ents.marketData.join('; ')}`;
+  }
+
+  return `\n\nFOUNDER INTERVIEW DATA (use for authenticity — quote or reference their words):
+${lines.join('\n')}${entitiesBlock}
+COVERAGE KEY: deep = founder gave detailed answer, shallow = brief mention, none = not discussed
+CONFIDENCE KEY: high = cited source/data, medium = reasonable claim, low = hedging/guessing — calibrate language accordingly`;
+}
 
 // ---------------------------------------------------------------------------
 // Input trimming helpers (carried from original composer)
@@ -142,12 +198,9 @@ async function composeGroupA(
   interviewContext: InterviewContext | undefined,
   timeoutMs: number,
 ): Promise<ComposerGroupA | null> {
-  const contextNote = interviewContext?.extracted
-    ? `\nInterview context available — leverage founder's own words for authenticity.`
-    : '';
+  const interviewBlock = buildInterviewBlock(interviewContext, 'A');
 
   const systemPrompt = `${TONE}
-${contextNote}
 
 ## Your task: Problem & Customer analysis
 
@@ -221,7 +274,7 @@ Frame all recommended next steps using behavioral science principles:
   const userPrompt = `Generate Problem & Customer analysis from agent outputs:
 
 PROFILE: ${JSON.stringify(profile || {})}${problemStructuredBlock}${customerStructuredBlock}
-SCORING: ${JSON.stringify(scoring || {})}`;
+SCORING: ${JSON.stringify(scoring || {})}${interviewBlock}`;
 
   return callGroupGemini<ComposerGroupA>('GroupA', systemPrompt, userPrompt, COMPOSER_GROUP_SCHEMAS.groupA as Record<string, unknown>, timeoutMs, 2048);
 }
@@ -234,6 +287,7 @@ async function composeGroupB(
   market: MarketResearch | null,
   competitors: CompetitorAnalysis | null,
   scoring: ScoringResult | null,
+  interviewContext: InterviewContext | undefined,
   timeoutMs: number,
 ): Promise<ComposerGroupB | null> {
   const systemPrompt = `${TONE}
@@ -311,7 +365,7 @@ Status quo (doing nothing) is ALWAYS a competitor — include it.
 PROFILE: ${JSON.stringify(profile || {})}
 MARKET: ${JSON.stringify(trimMarket(market))}
 COMPETITORS: ${JSON.stringify(trimCompetitors(competitors))}
-SCORING: ${JSON.stringify(scoring || {})}`;
+SCORING: ${JSON.stringify(scoring || {})}${buildInterviewBlock(interviewContext, 'B')}`;
 
   return callGroupGemini<ComposerGroupB>('GroupB', systemPrompt, userPrompt, COMPOSER_GROUP_SCHEMAS.groupB as Record<string, unknown>, timeoutMs, 3072);
 }
@@ -323,6 +377,7 @@ async function composeGroupC(
   profile: StartupProfile | null,
   scoring: ScoringResult | null,
   mvp: MVPPlan | null,
+  interviewContext: InterviewContext | undefined,
   timeoutMs: number,
 ): Promise<ComposerGroupC | null> {
   const systemPrompt = `${TONE}
@@ -410,7 +465,7 @@ Match the recommended next_steps to the appropriate GTM motion.
 
 PROFILE: ${JSON.stringify(profile || {})}
 SCORING: ${JSON.stringify(scoring || {})}
-MVP: ${JSON.stringify(mvp || {})}`;
+MVP: ${JSON.stringify(mvp || {})}${buildInterviewBlock(interviewContext, 'C')}`;
 
   // 035-GCF: Increased from 3072 to 4096 — Group C has 7 sections (vs 3 for A, 5 for B)
   // and was hitting MAX_TOKENS truncation, causing extractJSON to fail
@@ -421,6 +476,7 @@ MVP: ${JSON.stringify(mvp || {})}`;
 // Group D — Executive Synthesis (1 section, runs AFTER A+B+C)
 // ---------------------------------------------------------------------------
 async function composeGroupD(
+  supabase: SupabaseClient,
   groupA: ComposerGroupA | null,
   groupB: ComposerGroupB | null,
   groupC: ComposerGroupC | null,
@@ -430,12 +486,25 @@ async function composeGroupD(
   timeoutMs: number,
   consistencyNotes: string[] = [],
 ): Promise<ComposerGroupD | null> {
-  const contextNote = interviewContext?.extracted
-    ? `The founder went through a discovery interview — weight their direct input.`
-    : '';
+  const interviewBlock = buildInterviewBlock(interviewContext, 'D');
+
+  // V04: RAG — inject industry benchmarks from knowledge base
+  const ragQuery = [
+    profile?.industry,
+    'startup benchmarks metrics executive summary',
+    profile?.idea?.slice(0, 100),
+  ].filter(Boolean).join(' ');
+  const rag = await getRAGContext(supabase, {
+    query: ragQuery,
+    industry: profile?.industry,
+    matchCount: 5,
+  });
+  const ragBlock = buildRAGBlock(rag);
+  if (rag.chunkCount > 0) {
+    console.log(`[Composer:GroupD] RAG injected: ${rag.chunkCount} chunks, ${rag.citations.length} citations`);
+  }
 
   const systemPrompt = `${TONE}
-${contextNote}
 
 ## Your task: Executive Summary synthesis
 
@@ -532,24 +601,7 @@ Never use stronger language than the evidence supports.
 - If overall_score 50-65: verdict SHOULD be "Conditional go"
 - These rules are enforced in post-processing — if you output "Go" with signal level 1-2, it will be overridden to "Conditional go"
 
-## Three-Act Report Narrative
-
-Structure summary_verdict using a three-act arc:
-- Act 1 (Market Context): Open with the market reality, not the startup. Use a specific data point within the first two sentences. End with tension — why current solutions fail.
-- Act 2 (Solution Journey): Introduce the startup as a response to Act 1 tension. Focus on mechanism, not features. Include one concrete scenario.
-- Act 3 (Quantified Future): Revenue potential or market capture. Connect to score and verdict. Close with a single decisive sentence.
-
-## Win Theme Integration
-
-Extract 2-3 win themes from scoring data — recurring strengths across multiple dimensions. Each must be buyer-specific, provable (backed by data), and differentiating. Weave throughout the summary.
-
-## Growth Channel Recommendations
-
-Recommend top 3 growth channels using ICE scoring (Impact x Confidence x Ease, each 1-10). Match to stage:
-- Pre-PMF: Content marketing, community, founder-led sales. Avoid paid ads.
-- PMF: Paid acquisition, partnerships, referral programs. Avoid mass media.
-- Scale: Programmatic channels, brand marketing. Avoid founder-led anything.
-Name each channel specifically — not "social media" but "LinkedIn thought leadership targeting [ICP]."`;
+${COMPOSER_FRAGMENT}${ragBlock}`;
 
   // 022-SKI: Include consistency notes to enforce cross-group alignment
   const consistencyBlock = consistencyNotes.length > 0
@@ -610,7 +662,7 @@ BUSINESS: ${JSON.stringify(businessContext)}
 PROBLEM & CUSTOMER: ${JSON.stringify(compactA)}
 MARKET & RISK: ${JSON.stringify(compactB)}
 EXECUTION & ECONOMICS: ${JSON.stringify(compactC)}
-SCORING: ${JSON.stringify(compactScoring)}${consistencyBlock}`;
+SCORING: ${JSON.stringify(compactScoring)}${consistencyBlock}${interviewBlock}`;
 
   return callGroupGemini<ComposerGroupD>('GroupD', systemPrompt, userPrompt, COMPOSER_GROUP_SCHEMAS.groupD as Record<string, unknown>, timeoutMs, 2048);
 }
@@ -987,9 +1039,9 @@ export async function runComposer(
     const [groupA, groupB, groupC] = await Promise.all([
       composeGroupA(profile, scoring, interviewContext, parallelTimeout)
         .catch(e => { console.error('[Composer:GroupA] Failed:', e instanceof Error ? e.message : e); return null; }),
-      composeGroupB(profile, market, competitors, scoring, parallelTimeout)
+      composeGroupB(profile, market, competitors, scoring, interviewContext, parallelTimeout)
         .catch(e => { console.error('[Composer:GroupB] Failed:', e instanceof Error ? e.message : e); return null; }),
-      composeGroupC(profile, scoring, mvp, parallelTimeout)
+      composeGroupC(profile, scoring, mvp, interviewContext, parallelTimeout)
         .catch(e => { console.error('[Composer:GroupC] Failed:', e instanceof Error ? e.message : e); return null; }),
     ]);
     const parallelMs = Date.now() - startParallel;
@@ -1042,7 +1094,7 @@ export async function runComposer(
 
     // Phase 2: Run Group D (synthesis) sequentially — needs A+B+C outputs
     const startSynthesis = Date.now();
-    const groupD = await composeGroupD(groupA, groupB, groupC, scoring, profile, interviewContext, synthesisTimeout, consistencyNotes)
+    const groupD = await composeGroupD(supabase, groupA, groupB, groupC, scoring, profile, interviewContext, synthesisTimeout, consistencyNotes)
       .catch(e => { console.error('[Composer:GroupD] Failed:', e instanceof Error ? e.message : e); return null; });
     const synthesisMs = Date.now() - startSynthesis;
     console.log(`[Composer] Synthesis phase done in ${synthesisMs}ms — ${groupD ? 'D:ok' : 'D:FAIL'}`);

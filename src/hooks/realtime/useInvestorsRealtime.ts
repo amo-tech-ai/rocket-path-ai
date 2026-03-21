@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { InvestorsRealtimeState, InvestorScoredPayload, ReadinessScorePayload } from './types';
+import { usePollingFallback } from './usePollingFallback';
 import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -33,10 +34,12 @@ export function useInvestorsRealtime(
   options: UseInvestorsRealtimeOptions = { showToasts: true }
 ) {
   const [state, setState] = useState<InvestorsRealtimeState>(initialState);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleInvestorScored = useCallback((payload: InvestorScoredPayload) => {
+    setEventCount(c => c + 1);
     setState(prev => {
       const newScores = new Map(prev.fitScores);
       newScores.set(payload.investorId, payload);
@@ -56,6 +59,7 @@ export function useInvestorsRealtime(
   }, [queryClient, startupId, options]);
 
   const handleReadinessUpdate = useCallback((payload: ReadinessScorePayload) => {
+    setEventCount(c => c + 1);
     setState(prev => ({
       ...prev,
       readinessUpdates: [...prev.readinessUpdates, payload].slice(-5),
@@ -128,6 +132,14 @@ export function useInvestorsRealtime(
       }
     };
   }, [startupId, handleInvestorScored, handleReadinessUpdate, queryClient]);
+
+  usePollingFallback({
+    enabled: !!startupId,
+    eventCount,
+    pollFn: async () => {
+      queryClient.invalidateQueries({ queryKey: ['investors', startupId] });
+    },
+  });
 
   return {
     ...state,

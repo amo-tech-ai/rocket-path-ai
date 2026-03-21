@@ -1,17 +1,19 @@
 /**
  * Realtime Hooks - Central Export
- * 
- * 10 specialized hooks for real-time UI updates:
- * - useDashboardRealtime (existing, enhanced)
+ *
+ * 12 specialized hooks for real-time UI updates:
+ * - useDashboardRealtime (consolidated single channel)
  * - useOnboardingRealtime
  * - useCRMRealtime
  * - usePitchDeckRealtime
- * - useTasksRealtime (existing, enhanced)
  * - useInvestorsRealtime
  * - useCanvasRealtime
  * - useDocumentsRealtime
  * - useChatRealtime
  * - useEventsRealtime
+ * - useValidatorRealtime
+ * - useRealtimeChatRoom
+ * - useRealtimeAIChat
  */
 
 // Shared realtime channel hook (new production pattern)
@@ -30,6 +32,9 @@ export * from './types';
 // Animation utilities
 export * from './animations';
 
+// Polling fallback
+export { usePollingFallback, type UsePollingFallbackOptions } from './usePollingFallback';
+
 // Module-specific hooks
 export { useOnboardingRealtime } from './useOnboardingRealtime';
 export { useCRMRealtime } from './useCRMRealtime';
@@ -42,11 +47,12 @@ export { useEventsRealtime } from './useEventsRealtime';
 export { useRealtimeChatRoom, type UseRealtimeChatRoomOptions, type UseRealtimeChatRoomReturn } from './useRealtimeChatRoom';
 export { useRealtimeAIChat, type UseRealtimeAIChatReturn, type RealtimeAIMessage } from './useRealtimeAIChat';
 export { useValidatorRealtime, type UseValidatorRealtimeOptions, type UseValidatorRealtimeReturn, type ValidatorFollowupPayload } from './useValidatorRealtime';
+export { useKnowledgeIngestRealtime, type IngestProgress } from './useKnowledgeIngestRealtime';
+export { useRealtimeHealth, type RealtimeHealthStatus, type RealtimeHealthState } from './useRealtimeHealth';
+export { useReportPresence, type ReportViewer } from './useReportPresence';
 
-// Re-export enhanced versions from main subscription hook
-export { 
+// Re-export from main subscription hook
+export {
   useRealtimeSubscription,
   useDashboardRealtime,
-  useTasksRealtime,
-  useDealsRealtime,
 } from '../useRealtimeSubscription';

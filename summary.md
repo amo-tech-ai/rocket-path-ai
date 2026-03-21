@@ -1,216 +1,249 @@
-# StartupAI Summary
+# StartupAI — Product Summary
 
-> **Updated:** 2026-02-14 | **Tables:** 89 | **Edge Functions:** 45 | **Pages:** 47 | **Tests:** 284/284
-
-StartupAI is an AI-powered operating system that takes founders from raw idea to fundable startup. You describe your idea in a chat conversation — no forms — and a pipeline of 7 specialized AI agents researches your market, scores your assumptions against Tier A benchmarks (Deloitte, BCG, McKinsey), and delivers a decision-first validation report in under 60 seconds. From there, the system builds your Lean Canvas, creates investor-ready pitch decks, manages your CRM and experiments, and runs structured 90-day validation sprints — all connected through a single context that remembers everything about your startup. Behind the scenes: 21 industry playbooks, 200+ verified statistics in a vector database, and a multi-model AI stack (Gemini 3 for speed, Claude for reasoning) power every answer with cited sources, confidence levels, and concrete next actions. The goal is simple — give every founder the same quality guidance that funded startups get from $500/hour consultants, available 24/7 in seconds.
+**Last updated:** 2026-03-21 | **Build:** PASS | **Tests:** 783/783 | **TypeScript:** 0 errors | **Deploy:** Production
 
 ---
 
-### Recent Changes (Wave 2 — 2026-02-07)
+## Current State — Where We Are Right Now
 
-**Completed all 5 Wave 2 tasks — 4 new screens + PDF verification:**
+StartupAI is **~93% complete**. The core product works end-to-end: a founder types an idea, 7 AI agents validate it, and they get a professional report in 2 minutes. All major features are built and deployed.
 
-1. **PDF Export Verified (F-108 → 100%)** — Build confirmed with 0 errors. jsPDF code-split chunk (413KB) and validationReportPdf chunk (18.5KB) present in build output.
+### What's Working
 
-2. **Experiments Lab (L-100 → 90%)** — Full CRUD page for designing and tracking experiments. Experiments.tsx page with search + status/type filters, ExperimentCard (type badge, status progress bar), CreateExperimentDialog with AI generate button, experiment-agent edge func (Gemini Flash designs experiments from assumptions), useExperiments hook. 5 new files + 2 modified.
+- **Validator Pipeline** — 7 AI agents, 76+ validation runs, reports scoring 62-78/100
+- **AI Chat** — 6 modes (general, research, planning, pitch practice, growth, deal review) with streaming
+- **Knowledge Base** — 5,083 industry data chunks + 19 playbooks powering all AI responses
+- **Lean Canvas** — Auto-generates from report, AI coaching with RAG citations
+- **CRM + Investor Pipeline** — Contact tracking, deal scoring (MEDDPICC /40), 12 AI actions
+- **Pitch Deck** — AI-generated investor decks with image generation and PDF export
+- **Dashboard** — Health score, risks, daily priorities with proactive AI greeting
+- **Onboarding** — 4-step wizard with URL extraction and AI enrichment
+- **783 tests passing**, 0 TypeScript errors, all 32 edge functions deployed
 
-3. **90-Day Sprint Plan (L-005 → 85%)** — Sprint management with PDCA phase tracking. SprintPlan.tsx page with campaign selector, SprintCard with PDCA step indicator (Plan/Do/Check/Act), PDCAEditor with 4 collapsible sections and save-per-section, SprintTimeline horizontal bar, useSprints hook. 5 new files + 2 modified.
+### What's NOT Done Yet (Gaps Before Launch)
 
-4. **Market Research Hub (L-101 → 90%)** — AI-generated market research. MarketResearch.tsx page, market-research edge func (Gemini Pro), MarketSizingCards (TAM/SAM/SOM with formatted $values and methodology tooltip), TrendList (impact badges: high=red, medium=amber, low=green), CompetitorGrid (leaders vs emerging players), useMarketResearch hook, market_research DB table + RLS + indexes. 7 new files + 1 migration + 3 modified.
+| # | Gap | Risk Level | Effort | Plain English |
+|---|-----|:----------:|:------:|---------------|
+| 1 | **No browser tests** | HIGH | 3 days | We test individual pieces but never test the full user journey in a real browser. If something breaks between sign-in and report, we won't know until a user hits it. |
+| 2 | **Security: cross-tenant data** | HIGH | 1 hour | 5 edge functions don't check if the user owns the startup they're asking about. Any logged-in user could potentially read another user's AI data. |
+| 3 | **PDF only works in Chrome** | MEDIUM | 1 day | Report export hasn't been tested in Safari, Firefox, or mobile browsers. Could break in a demo. |
+| 4 | **No error monitoring** | MEDIUM | — | If something breaks in production, nobody gets alerted. We find out when users complain. |
+| 5 | **No CI/CD pipeline** | MEDIUM | — | Every deploy is manual. No automated checks on merge. |
+| 6 | **340 lint warnings** | LOW | — | Code quality warnings. None cause runtime bugs, but signal technical debt. |
+| 7 | **GDPR data export** | LOW | 2 days | No way for users to download or delete their data. Required before EU launch. |
 
-5. **Opportunity Canvas (L-102 → 90%)** — AI-scored opportunity assessment. OpportunityCanvas.tsx page, opportunity-canvas edge func (Gemini Pro, fetches startup + market research + validation context), ScoreCard (radial SVG progress, 0-100, color-coded), RecommendationBadge (pursue/explore/defer/reject verdict card), 5 dimension scores (market readiness, tech feasibility, competitive advantage, execution, timing) with weighted average, barriers (red-tinted), enablers (green-tinted), strategic fit, opportunity_canvas DB table + RLS + indexes. 6 new files + 1 migration + 3 modified.
+### Next Steps (Recommended Order)
 
-**Wave 2 totals:** 23 new files, 2 migrations applied, 3 edge functions, 4 new routes, 4 new nav items. Build: 0 errors.
-
----
-
-### Previous Changes (Wave 1 — 2026-02-07)
-
-**Completed 3 of 5 Wave 1 tasks:**
-
-1. **Report Sections (V-02 → 100%)** — Expanded the validator report from 8 to 15 sections. Added Competition Deep Dive (SWOT grid, feature comparison table, positioning scatter plot), Financial Projections (3 scenarios table, monthly Y1 bar chart, break-even analysis), and top-level highlights/red_flags. Updated composer agent prompt, JSON schema, and TypeScript types.
-
-2. **Chat Intake 3-Panel (L-001 → 95%)** — Enhanced the validation chat page with clickable suggestion chips that prefill the chat input, confidence badges ("Captured"/"Needed") on the context panel, and mobile Sheet triggers for accessing side panels on small screens.
-
-3. **Validator Report Polish (L-003 → 95%)** — Added 3-column summary card (Strengths/Concerns/Next Steps), sticky section nav sidebar with anchor links, collapsible report sections with chevron toggle animation, and widened layout to 1300px.
-
----
-
-**What is StartupAI?** An AI-powered operating system that helps founders go from raw idea to fundable company. You chat with an AI Coach that gives expert advice backed by real numbers from Deloitte, BCG, and McKinsey—not generic tips. The system builds your Lean Canvas, validates your assumptions, creates investor-ready pitch decks, and manages your CRM. Behind the scenes, 24 specialized AI agents work together, pulling from 21 industry playbooks and 200+ verified statistics. The goal: help you make better decisions faster. In 30 seconds, know if your idea is worth pursuing, what your biggest risk is, and what to do next.
-
----
-
-## System Strategy
-
-**How it works:** You start by chatting with the **Coach**—ask any startup question and get an expert answer with real numbers and sources. During onboarding, **Prompt Packs** guide you through a step-by-step flow that builds your **Canvas** (your business model). The Canvas feeds into the **Validator**, which tells you if your idea is worth pursuing and what to fix. Behind the scenes, **Chat** routes your questions to specialized **Agents** (24 experts for canvas, pitch, CRM, etc.) who pull industry-specific advice from **Playbooks** and research stats from the **Vector DB**. Every 90 days, the **Lean System** cycles you through validation sprints so you keep improving. It all connects: you talk → AI understands your context → gives you decisions, not just data.
-
----
-
-## Dashboards & Wizards
-
-When you log in, the **Dashboard** is your home base. It shows you what to focus on today, your startup's health score, and recent activity. Instead of overwhelming you with numbers, the AI tells you "Here's your top priority right now" so you know exactly where to start.
-
-The **Onboarding Wizard** is a 5-step conversation that builds your business model. You answer questions about your idea, and the AI extracts key insights to create your Lean Canvas automatically. It takes about 10 minutes and you walk away with a complete business model.
-
-Your **Lean Canvas** is the heart of everything. It's your 9-block business model that the AI generated from onboarding. You can edit any block, and the AI will help you improve it. Every change here flows through to your validation reports and pitch deck—one source of truth.
-
-The **Pitch Deck** screen lets you create investor-ready slides. The AI pulls content from your Canvas and writes slides for problem, solution, market size, traction, team, and your ask. You can edit, rearrange, and export to PDF.
-
-**CRM** manages your relationships—investors, customers, partners. Track deals through your pipeline, log conversations, and see who to follow up with. The AI can score leads and suggest who's most likely to convert.
-
-**Tasks** shows action items that come from the Coach and Validator. When the AI says "Run a pricing test," it becomes a task here. Everything is prioritized by impact so you work on what matters most.
-
-**Analytics** displays your metrics—MRR, churn, CAC, LTV—with industry benchmarks overlaid. You don't just see "5% churn," you see "5% churn vs 7% industry median (you're ahead)."
-
-**The key idea:** Every screen should give you an insight, not just data. Wizards feel like conversations with a coach, not forms to fill out. And everything connects back to your Canvas—change it once, and it updates everywhere.
+| Step | What To Do | Time | Why This Order |
+|:----:|-----------|:----:|----------------|
+| **1** | Run a manual validation test | 15 min | Confirm the RAG + playbook upgrades from last week actually show up in reports. Quick smoke test. |
+| **2** | Fix startup access check (5 EFs) | 1 hr | Close the security hole where users can read other users' data. Small fix, high impact. |
+| **3** | Fix `errors.ts` static CORS | 30 min | Error responses send the wrong domain header. Quick fix. |
+| **4** | Set up Playwright E2E tests | 3 days | Add browser-level tests for the 5 critical user journeys. This is the biggest gap before any public demo. |
+| **5** | Test PDF export cross-browser | 1 day | Try Safari, Firefox, mobile. Fix layout issues before showing to anyone. |
+| **6** | Set up error monitoring | 1-2 days | Add Sentry or similar so you know when things break before users tell you. |
 
 ---
 
-## What is StartupAI?
+## What We're Building
 
-StartupAI is your AI-powered co-pilot for building a startup from scratch. Think of it as having a team of expert advisors available 24/7—without the $500/hour consulting fees. Whether you're validating an idea, building your business model, or preparing for investors, StartupAI guides you every step of the way.
+StartupAI is an **AI-powered operating system for startup founders**. A founder types their startup idea, and within 2 minutes, 7 AI agents research the market, score the idea, and deliver a clear GO or NO-GO report. From there, the platform auto-generates a lean canvas, pitch deck, CRM, and sprint board — all from one conversation.
 
-The system is built for non-technical founders who want real answers, not generic advice. Every response comes with actual numbers from trusted sources like Deloitte, BCG, and McKinsey. You'll know exactly where the data comes from and how confident we are in it.
+### What Shipped Recently (Sessions 47-50e)
 
-Instead of overwhelming you with forms and dashboards, StartupAI works like a conversation. Ask questions, get expert answers, and take action. The AI remembers your context—your canvas, your metrics, your industry—so you never have to repeat yourself.
+| Feature | What It Does | Why It Matters |
+|---------|-------------|----------------|
+| **AI client consolidation (3→1)** | All AI calls now go through one shared Gemini client with retry + timeout | Removed Lovable Gateway and Google SDK dependencies — simpler, more reliable |
+| **RAG in 6 edge functions** | Reports and chat now cite real benchmarks from Deloitte, BCG, PwC | AI answers backed by actual industry data, not just guesses |
+| **19 industry playbooks** | SaaS, fintech, healthcare, etc. — each with benchmarks, risks, investor expectations | Every industry gets calibrated scoring thresholds |
+| **Proactive AI panel** | Report page: AI greets with score + strengths + actions. Dashboard: health + risks + focus | AI panel was idle — now it's the main tool for next steps |
+| **Interview → Report pipeline** | Your interview answers flow into all 4 report writing groups | Report reflects what the founder actually said |
+| **Research + Planning chat modes** | Research: web search + citations. Planning: RICE-scored action plans | Chat actively researches and plans, not just answers questions |
+| **5 production bug fixes** | MEDDPICC saves, correct routes, correct table names | Data was silently not saving in several places |
 
-Our goal is simple: help you make better decisions faster. In 30 seconds, you should know if your idea is worth pursuing, what your biggest risk is, and what to do next.
+### What's After the Next Steps
 
-## How We Become the Leading Expert
-
-StartupAI isn't just another chatbot—we're building the most knowledgeable startup advisor in the world. Here's how we do it.
-
-First, we only use **Tier A research sources**. Every stat in our system comes from Deloitte, BCG, McKinsey, PwC, Gartner, and CB Insights—the same sources that $500/hour consultants use. When the Coach tells you "AI SaaS received $226B in funding," that number comes from BCG's 2026 AI Radar report, not a random blog post.
-
-Second, we built **21 industry playbooks** with deep expertise in each vertical. Healthcare, FinTech, SaaS, Legal, Retail, Manufacturing—each playbook contains benchmarks, risks, GTM patterns, and investor expectations specific to that industry. When you say you're building a HealthTech startup, the AI knows that 85% of healthcare leaders are adopting GenAI, typical ROI is 200-400% over 3-5 years, and your biggest risk is AI governance compliance.
-
-Third, we use a **Vector Database** to store and search 200+ validated statistics. When you ask a question, the AI doesn't guess—it searches our knowledge base, finds relevant research, and cites the source. This is called RAG (Retrieval-Augmented Generation), and it means answers are grounded in real data, not hallucinated.
-
-Fourth, every answer includes a **confidence level**. High confidence means multiple Tier A sources agree. Medium means we found supporting data but it's limited. Low means we're extrapolating. You always know how much to trust the answer.
-
-The result: StartupAI gives you the same quality advice that funded startups get from expensive consultants and advisors—but available 24/7, in seconds, for a fraction of the cost. We're not trying to replace human mentors; we're making expert-level guidance accessible to every founder.
-
----
-
-## What's Built
-
-| System | Status |
-|--------|:------:|
-| Database (82 tables + RLS) | DONE |
-| Edge Functions (27 agents) | DONE |
-| Onboarding Wizard | DONE |
-| Lean Canvas + AI | DONE |
-| Pitch Deck + AI | DONE |
-| CRM (contacts, deals) | DONE |
-| Research (200+ Tier A stats) | DONE |
-| Playbooks (21 industries) | DONE |
-| Experiments Lab + AI | DONE |
-| 90-Day Sprint Plan (PDCA) | DONE |
-| Market Research (TAM/SAM/SOM) | DONE |
-| Opportunity Canvas (5-dim AI scoring) | DONE |
-| PDF Export (code-split) | DONE |
+| Phase | What | When |
+|-------|------|------|
+| **Polish** | Report hover states, citation popovers, data viz consistency | After E2E tests |
+| **Sharing** | Shareable report links with expiry + PDF cross-browser | Before any public demo |
+| **Advanced** | Financial agent, chat-driven canvas editing, RAG planning agent | After launch |
+| **Production** | Mobile polish, GDPR compliance, performance optimization | Before scaling |
 
 ---
 
-## How It Thinks: Plan-Then-Execute
+## How It Works (User Flow)
 
-Every part of StartupAI—Coach, Validator, Onboarding, Lean Canvas, Pitch Deck, Chat—follows the same philosophy: **understand deeply first, then recommend confidently**.
+```
+Homepage → Type idea → Sign up (Google/LinkedIn)
+  → AI asks 8-14 follow-up questions (problem, customer, revenue, competitors...)
+  → 7 AI agents research your market (60-120 seconds)
+  → 14-section report with GO/CAUTION/NO-GO verdict (score 0-100)
+  → AI panel greets you: "Your report is ready! Score: 72/100 — GO"
+  → Quick actions: Generate Canvas, Create Pitch Deck, Plan Sprint
+  → Dashboard shows health score, risks, daily priorities
+```
 
-When you arrive with a vague idea like "I want to help small businesses with AI," the system doesn't immediately start building slides or filling out forms. Instead, it explores: What kind of small businesses? What problem specifically? Who's the buyer? It researches your industry, pulls benchmarks, and builds a complete picture of your startup context. Only then does it transform your vague requirements into a detailed plan—your Canvas blocks, your validation tasks, your pitch narrative.
-
-This mirrors how the best advisors work. A great mentor doesn't give generic advice; they ask smart questions, understand your unique situation, then give recommendations tailored to you. StartupAI does this at scale by combining multiple AI models: fast models for extraction and search, reasoning models for strategy and analysis. Each agent knows your full context—your canvas, your metrics, your industry—so advice builds on itself instead of starting from scratch every time.
-
-The result is a system that manages your entire journey: Onboarding captures your idea → Coach clarifies and advises → Canvas structures your model → Validator tests your assumptions → Lean System runs 90-day sprints → Pitch Deck tells your story to investors. Each step flows into the next, with the AI remembering everything and guiding you to the next most important action.
-
-### The 90-Day Cycle
-
-Every 90 days, you run a structured validation sprint with a clear goal and constraint. The cycle has 7 phases: **BMD** (Business Model Design) → **90DC** (Cycle Planning) → **S1–S5** (Five 2-week sprints) → **Review** (Pivot or Persevere). Each cycle focuses on one goal like "First 10 paying customers" and one constraint like "Validate willingness to pay." The AI suggests **Campaigns**—proven playbooks like the "Mafia Offer Campaign"—and tracks your progress through each sprint. At the end of 90 days, you review what you learned and decide: pivot to a new approach, or persevere with what's working. This keeps you accountable, focused, and always moving forward.
-
----
-
-## Core Systems
-
-### Coach
-AI startup mentor. Expert, friendly, intelligent, logical. Every answer includes:
-- **Number** — "$226B in AI funding"
-- **Source** — "BCG 2026"
-- **Confidence** — High/Medium/Low
-
-The Coach doesn't just answer questions—it guides you through a logical thinking process. When you come with a vague idea like "I want to build something for restaurants," the Coach asks clarifying questions one at a time: "What specific problem do restaurants face that frustrates you?" Then based on your answer, it asks the next logical question: "Who in the restaurant would use this—the owner, manager, or staff?" Each question builds on the last, narrowing down until you have a clear problem, customer, and solution. It's like having a senior advisor who knows exactly what to ask next to move you forward. The Coach never overwhelms you with ten questions at once—it picks the single most important thing to clarify, waits for your answer, and then guides you to the next step. This structured approach helps founders go from "I have an idea" to "I have a validated business model" without getting stuck or going in circles.
-
-When you're ready to raise money, the Coach becomes your fundraising strategist. Funding-related issues are the #1 reason startups fail (CB Insights), so the Coach helps you navigate this critical phase. It knows the five main funding types—grants, bootstrapping, debt, convertible loans, and equity—and helps you choose the right one for your stage. When you ask "Should I raise from angels or VCs?", the Coach explains that angels invest €10K–€1M with a 1–3 month process and take 10–20% equity, while VCs invest €500K–€50M+ over 4–9 months and take 15–30%. It knows what VCs evaluate: team, product, market size, traction, value proposition, defensibility, and business model. The Coach advises you to maintain 12–18 months of runway, do your homework on each VC's investment mandate before reaching out, and remember that VCs target around 30% returns—so they need to believe your startup can be a big winner. This isn't generic advice; it's the same strategic thinking that $500/hour consultants provide, sourced from PwC's Fundraising for Startups guide.
-
-### Canvas
-Lean Canvas (9 blocks). AI generates from onboarding. Versioned for pivot tracking. Feeds into Validator and Pitch Deck.
-
-Your Canvas isn't just a static document—it's the central brain that connects everything. When you update your problem statement, the AI automatically considers how that affects your solution, your customer segments, and your pitch. When the Validator finds a weak assumption, it suggests specific edits to your Canvas. When you're ready to fundraise, the Pitch Deck pulls directly from your Canvas blocks. Every version is saved, so when you pivot, you can see exactly what changed and why. It's your single source of truth that evolves as your startup evolves.
-
-### Validator
-Decision-first validation reports:
-1. **Verdict** — "Worth pursuing" or "High risk" (shows first)
-2. **Benchmarks** — "Your $20K vs $15K median"
-3. **Actions** — "Run pricing test with 200 users"
-
-The Validator follows the same "understand first, then recommend" approach as the Coach. Before giving you a score, it researches your industry, pulls relevant benchmarks from Tier A sources, and compares your assumptions against real market data. It doesn't just say "your idea is risky"—it tells you exactly why, shows you the numbers, and gives you a clear action plan to reduce that risk. Think of it as getting a detailed audit from a consulting firm, but in 30 seconds instead of 3 weeks.
-
-**New Chat-to-Validator Flow:** You don't fill out forms—you just describe your idea in chat. The AI Coach asks 1-2 clarifying questions, then triggers a 4-phase animation (Analyzing → Researching → Scoring → Complete). You land on `/startup-validator-v3` with everything pre-filled: overall score, verdict badge, 7-dimension breakdown, TAM/SAM/SOM, competitors, risks, and next actions. From there you can edit sections, generate a pitch deck, export PDF, or share a link with co-founders.
-
-### Agents
-24 edge functions: lean-canvas, pitch-deck, investor, crm, task, etc. Uses Gemini 3 (fast) + Claude (reasoning).
-
-Behind every conversation is a team of specialized AI agents working together. When you ask "How should I price my SaaS?", the system routes your question to the right experts: the pricing agent pulls industry benchmarks, the Canvas agent checks your cost structure, and the Coach synthesizes it into clear advice. Fast models handle extraction and search; reasoning models handle strategy and nuance. You don't need to know which agent is working—you just ask your question and get an expert answer. It's like having 24 consultants on call, each with deep expertise in their domain, collaborating to give you the best possible guidance.
-
-### Playbooks
-21 industry guides with benchmarks, risks, and GTM patterns.
-
-### Vector DB
-RAG knowledge base. 200+ Tier A stats as embeddings. Coach searches and cites relevant research.
+**One sentence:** Idea to validated strategy in 30 minutes, not 30 days.
 
 ---
 
-## Going Forward
+## Codebase Stats
 
-### Wave 3 — Intelligence Layer (Next 2 Weeks)
-
-| # | Task | Source | What |
-|---|------|--------|------|
-| 11 | Knowledge Integration + RAG | V-04 + F-105/200 | Foundation for smart features |
-| 12 | Lean Canvas from Validation | V-10 | Auto-populate canvas from report |
-| 13 | Agent Intelligence | V-05 | Smarter extraction, adaptive questions |
-| 14 | Business Readiness Check | L-103 | Traffic light verdict, high value |
-| 15 | Outcomes Dashboard | L-104 | ROI tracking, false progress detection |
-
-### Wave 4 — Polish & Advanced (3 weeks)
-UX enhancements (streaming, chips, accessibility), Idea Wall, Story Map, Knowledge Map, Capability Strategy.
-
-### Wave 5 — Production & Niche (2 weeks)
-Decision Guardrails, Plan Mode, reliability/security hardening, monitoring, performance optimization, Agent POC Canvas, Trend Intelligence.
+| Metric | Count |
+|--------|-------|
+| Pages | 47 |
+| Components | 460+ |
+| Hooks | 115 |
+| Edge Functions | 32 (deployed) |
+| Database Tables | 94 |
+| Tests | 783 (48 files) |
+| Chat Modes | 7 (General, Research, Planning, Practice Pitch, Growth, Deal Review, Canvas Coach) |
+| Validator Runs | 76+ sessions, 39+ reports |
+| Knowledge Chunks | 5,083 (19 industry playbooks) |
+| Agency Fragments | 9 (wired into 5 validator agents + 3 edge functions) |
+| AI Clients | 1 (consolidated from 3 — Lovable Gateway + Google SDK removed) |
 
 ---
 
-## Our Advantage
+## Features — What Each One Does
 
-| vs Competitors | StartupAI |
-|----------------|-----------|
-| Generic AI | **Tier A sources** (Deloitte, BCG, McKinsey) |
-| No citations | **Every stat has a source** |
-| No confidence | **High/Medium/Low confidence** |
-| Generic benchmarks | **Industry-specific** (21 playbooks) |
+### 1. Validator Pipeline (95%) — The Core Product
+
+7 AI agents validate your startup idea end-to-end.
+
+| Agent | Job | Time |
+|-------|-----|------|
+| Extractor | Pulls structured data from your pitch text + interview answers | ~10s |
+| Research | Market sizing with Google Search + RAG knowledge base | ~30s |
+| Competitors | Finds and analyzes competitors with web search | ~25s |
+| Scoring | Scores across 7 dimensions (problem, market, team, etc.) | ~50s |
+| MVP | Creates practical build plan from weak spots | ~15s |
+| Composer | Writes 14-section report using founder's interview data | ~90s |
+| Verifier | Checks report completeness + cross-section consistency | <1s |
+
+**Output:** 14-section report with score (0-100), GO/CAUTION/NO-GO verdict, risk heatmap, competitor matrix, revenue projections, and next steps timeline.
+
+**Interview data now flows to all 4 Composer groups (Task 22):**
+- Group A (Problem & Customer): founder's problem, customer, solution, differentiation
+- Group B (Market & Risk): competitors, industry, business model, risk awareness + discovered entities
+- Group C (Execution & Economics): revenue model, execution plan, AI strategy
+- Group D (Executive Summary): investor readiness, risk awareness, calibrated language
+
+### 2. Onboarding Wizard (100%)
+
+4-step guided setup: URL extraction → AI analysis → Smart interview → Readiness score.
+
+### 3. Lean Canvas (100%)
+
+Interactive 9-box canvas with AI coaching, RAG-backed suggestions, specificity checker, auto-prefill from report.
+
+### 4. CRM & Investor Pipeline (95%)
+
+Contact management, deal pipeline, MEDDPICC scoring (/40), 12-action investor agent, CSV import.
+
+### 5. Pitch Deck (95%)
+
+AI generates investor decks with Challenger Narrative framework, image generation, PDF/PPTX export.
+
+### 6. Dashboard (85%)
+
+Health score, journey stepper, top risks, daily focus. **Now with proactive AI greeting.**
+
+### 7. AI Chat (85%) — 6 Modes
+
+| Mode | What It Does |
+|------|-------------|
+| **General** | Context-aware startup advisor with expert knowledge |
+| **Research** | Web search + RAG + numbered citations (NEW) |
+| **Planning** | RICE-scored action plans with kill criteria (NEW) |
+| **Practice Pitch** | AI plays investor, scores your pitch 5 dimensions |
+| **Growth Strategy** | AARRR funnel analysis, ICE-scored experiments |
+| **Deal Review** | MEDDPICC pipeline inspection, red flag detection |
+| **Canvas Coach** | Box-by-box quality coaching with evidence gaps |
+
+### 8. Tasks & Sprint Planning (90% / 60%)
+
+Kanban board, AI-generated tasks, report → sprint import, RICE prioritization.
+
+### 9. Proactive AI Panel (NEW)
+
+| Page | What the AI Panel Shows |
+|------|------------------------|
+| **Report overview** | Score + verdict + strengths + weak areas + 5 quick actions |
+| **Report dimension** | Dimension-specific: explain score, how to improve, benchmarks |
+| **Dashboard** | Health score + trend + top risks + daily focus |
+| **Other pages** | General quick actions: startup status, prioritize tasks, next steps |
+
+Quick actions with `route` field navigate directly (Canvas, Pitch Deck, Sprint) instead of sending chat.
+
+### 10-12. Documents (90%), Events (85%), Streaming/Realtime (complete)
+
+Document AI, event management, token-by-token streaming, presence, live updates.
 
 ---
 
-## Success Metric
+## Architecture
 
-> Founders copy StartupAI answers directly into their pitch decks.
+```
+Browser (React 18 + Vite 5 + TypeScript + Tailwind + shadcn/ui)
+  → Supabase Client (auth, queries, realtime)
+  → 32 Edge Functions (Deno)
+    → _shared/gemini.ts (single AI client with retry + timeout + JSON fallback)
+    → Gemini 3 (fast: extraction, chat, validation, research w/ Google Search)
+    → Claude 4.6 (reasoning: CRM, investors, strategy)
+    → OpenAI Embeddings (RAG vector search)
+  → PostgreSQL (94 tables, RLS on all)
+  → pgvector (5,083 chunks, HNSW index, hybrid search)
+  → 19 Industry Playbooks (benchmarks, risks, GTM, investor expectations)
+  → Supabase Realtime (streaming, presence, typing indicators)
+```
+
+**Key rule:** AI proposes → Human approves → System executes. AI never writes to DB without user confirmation.
 
 ---
 
-## Key Files
+## Test Health
 
-| File | Purpose |
-|------|---------|
-| `tasks/changelog` | Full change history |
-| `tasks/prompts/106-1-prompt-validatorL.md` | Validator chat flow design spec (NEW) |
-| `tasks/docs/data/03-supabase-audit.md` | Security audit + ERD |
-| `tasks/plan/31-validator-plan.md` | Validator implementation |
-| `tasks/plan/32-validator-ideaproof-comparison.md` | Gap analysis |
+```
+48 test files | 783 tests | 0 failures
+TypeScript: 0 errors | Build: ~7s | Lint: 340 warnings
+```
+
+Last 5 validator E2E runs: Restaurant (72), InboxPilot (68), Travel AI (62), ipix (78), FashionOS (78)
+
+**Gap:** All 783 tests are unit/integration tests. Zero browser-level (Playwright) tests exist. This means we verify individual functions work, but never verify the full user journey (sign in → validate → see report → generate canvas) works in a real browser.
+
+---
+
+## Recent Session History (39-50e)
+
+| Session | What Shipped | Tests |
+|:-------:|-------------|:-----:|
+| 39 | Agency fragments (scoring + composer) + 4 chat modes + 6 report badges + streaming chat | +125 |
+| 43 | Sprint + Pitch + Investor fragments (5/5 complete) | +20 |
+| 44 | MEDDPICC scorecard + Canvas specificity + Chat persistence (agency 12/12) | +25 |
+| 45 | Skills audit + Expert prompt + Validator intelligence (3 fragments + 7 verifier rules) | +149 |
+| 46 | Report readability overhaul + Pipeline reliability (ScoringAgent timeout fix) | — |
+| 47 | Proactive AI panel on report page (greeting + quick actions) | +32 |
+| 48 | Interview context → all 4 Composer groups + Research & Planning chat modes | +43 |
+| 49 | AI panel action navigation + Dashboard greeting + Google Search grounding | +20 |
+| 50 | Edge function audit (30 EFs) + Vector DB intelligence plan + Knowledge expansion (3,973→4,858 chunks) | — |
+| 50b | 19 playbooks seeded + RAG in Composer + 5 production bug fixes + 1,110 chunks ingested | — |
+| 50c | RAG in Scoring Agent + Playbooks in ai-chat, sprint-agent, investor-agent, lean-canvas-agent | — |
+| 50d | Scoring timeout fix (50→65s) + Canvas playbook + Dead code cleanup (521 lines) + Rate limiting | — |
+| 50e | **AI client consolidation 3→1** — Lovable Gateway removed, Google GenAI SDK removed | — |
+
+---
+
+## Quick Start
+
+```bash
+npm install          # Install dependencies
+npm run dev          # Start dev server (port 8080)
+npm run build        # Production build
+npm test             # Run all 783 tests
+```
+
+**Auth:** Google OAuth, LinkedIn OIDC
+**Edge function deploy:** `npx supabase functions deploy <name> --project-ref yvyesmiczbjqwbqtlidy --no-verify-jwt`

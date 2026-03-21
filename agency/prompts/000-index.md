@@ -1,11 +1,11 @@
 # StartupAI Enhancement Prompts — Master Index
 
-> **Updated:** 2026-03-15 | **Version:** 3.0
+> **Updated:** 2026-03-17 | **Version:** 3.1
 > **Template:** `agency/TASK-TEMPLATE.md` v4.0
 > **Total:** 40 files — 24 tasks (001-024) + 11 reference docs (025-035) + 5 fragments (036-040)
 > **Naming:** `XXX-name.md` (sequential, no gaps)
 > **Skills:** Each task references skills from `.agents/skills/`
-> **Status:** Tasks 001-012 complete (except 013-014). 7 EFs deployed. 4 chat modes + persistence. Schema deployed. 393/393 tests.
+> **Status:** Tasks 001-012 complete ✅ (archived). Task 020 partially done (MEDDPICCScorecard built). 7 EFs deployed. 4 chat modes + persistence. 539/539 tests.
 
 ---
 
@@ -67,7 +67,7 @@
 | 017 | `017-quality-tracking.md` | Track fragment usage + quality impact in ai_runs | 015 | 0.5d | `data/supabase-postgres-best-practices` | 🔴 | 0% |
 | 018 | `018-fragment-caching.md` | Build-time fragment embedding (not runtime loading) | 001 | 0.5d | `devops/edge-functions` | 🔴 | 0% |
 | 019 | `019-remaining-right-panels.md` | Deal Review + Canvas Coach right panels | 005 | 0.5d | `deal-strategist`, `design/frontend-design` | 🔴 | 0% |
-| 020 | `020-meddpicc-detail-sheet.md` | Investor detail sheet with 8-dimension breakdown | 008 | 0.5d | `deal-strategist`, `design/frontend-design` | 🔴 | 0% |
+| 020 | `020-meddpicc-detail-sheet.md` | Investor detail sheet with 8-dimension breakdown | 008 | 0.5d | `deal-strategist`, `design/frontend-design` | 🟡 | 70% |
 
 ### PRODUCTION — Hardening + Deploy (021-024)
 

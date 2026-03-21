@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DocumentsRealtimeState, DocumentAnalyzedPayload } from './types';
+import { usePollingFallback } from './usePollingFallback';
 import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -31,10 +32,12 @@ export function useDocumentsRealtime(
   options: UseDocumentsRealtimeOptions = { showToasts: true }
 ) {
   const [state, setState] = useState<DocumentsRealtimeState>(initialState);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleDocumentAnalyzed = useCallback((payload: DocumentAnalyzedPayload) => {
+    setEventCount(c => c + 1);
     setState(prev => {
       const newResults = new Map(prev.analysisResults);
       newResults.set(payload.documentId, payload);
@@ -117,6 +120,14 @@ export function useDocumentsRealtime(
       }
     };
   }, [startupId, handleDocumentAnalyzed, queryClient, options]);
+
+  usePollingFallback({
+    enabled: !!startupId,
+    eventCount,
+    pollFn: async () => {
+      queryClient.invalidateQueries({ queryKey: ['documents', startupId] });
+    },
+  });
 
   return {
     ...state,

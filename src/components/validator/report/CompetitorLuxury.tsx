@@ -55,8 +55,8 @@ function PositioningMatrix({
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const size = 320;
-  const pad = 40;
+  const size = 380;
+  const pad = 50;
   const innerSize = size - pad * 2;
   const cx = size / 2;
   const cy = size / 2;
@@ -65,34 +65,51 @@ function PositioningMatrix({
   const toSvgX = (x: number) => pad + (x / 100) * innerSize;
   const toSvgY = (y: number) => size - pad - (y / 100) * innerSize;
 
+  // Quadrant labels
+  const quadrants = [
+    { x: pad + innerSize * 0.75, y: pad + innerSize * 0.15, label: 'Leader' },
+    { x: pad + innerSize * 0.25, y: pad + innerSize * 0.15, label: 'Niche' },
+    { x: pad + innerSize * 0.25, y: pad + innerSize * 0.85, label: 'Laggard' },
+    { x: pad + innerSize * 0.75, y: pad + innerSize * 0.85, label: 'Contender' },
+  ];
+
   return (
     <svg
-      width={size}
+      width="100%"
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       role="img"
       aria-label={`Competitive positioning: ${positioning.xAxis} vs ${positioning.yAxis}`}
-      className="mx-auto max-w-full"
+      className="mx-auto max-w-[400px]"
+      preserveAspectRatio="xMidYMid meet"
     >
       {/* Quadrant backgrounds */}
-      <rect x={cx} y={pad} width={innerSize / 2} height={innerSize / 2} fill="hsl(var(--primary) / 0.03)" />
-      <rect x={pad} y={cx} width={innerSize / 2} height={innerSize / 2} fill="hsl(var(--primary) / 0.03)" />
+      <rect x={cx} y={pad} width={innerSize / 2} height={innerSize / 2} fill="hsl(var(--primary) / 0.04)" rx={2} />
+      <rect x={pad} y={cx} width={innerSize / 2} height={innerSize / 2} fill="hsl(var(--primary) / 0.04)" rx={2} />
 
       {/* Grid lines */}
       <line x1={pad} y1={cy} x2={size - pad} y2={cy} stroke="hsl(var(--border))" strokeWidth={1} strokeDasharray="4 4" />
       <line x1={cx} y1={pad} x2={cx} y2={size - pad} stroke="hsl(var(--border))" strokeWidth={1} strokeDasharray="4 4" />
 
       {/* Border */}
-      <rect x={pad} y={pad} width={innerSize} height={innerSize} fill="none" stroke="hsl(var(--border) / 0.5)" strokeWidth={1} rx={4} />
+      <rect x={pad} y={pad} width={innerSize} height={innerSize} fill="none" stroke="hsl(var(--border) / 0.5)" strokeWidth={1} rx={6} />
+
+      {/* Quadrant labels */}
+      {quadrants.map((q) => (
+        <text key={q.label} x={q.x} y={q.y} textAnchor="middle"
+          style={{ fontSize: '9px', fontWeight: 400, letterSpacing: '0.08em', fill: 'hsl(var(--muted-foreground) / 0.4)', textTransform: 'uppercase' as const }}>
+          {q.label}
+        </text>
+      ))}
 
       {/* Axis labels */}
-      <text x={cx} y={size - 8} textAnchor="middle"
-        style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.1em', fill: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' as const }}>
+      <text x={cx} y={size - 12} textAnchor="middle"
+        style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.08em', fill: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' as const }}>
         {positioning.xAxis}
       </text>
-      <text x={12} y={cy} textAnchor="middle" dominantBaseline="central"
-        transform={`rotate(-90, 12, ${cy})`}
-        style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.1em', fill: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' as const }}>
+      <text x={16} y={cy} textAnchor="middle" dominantBaseline="central"
+        transform={`rotate(-90, 16, ${cy})`}
+        style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.08em', fill: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' as const }}>
         {positioning.yAxis}
       </text>
 
@@ -101,38 +118,43 @@ function PositioningMatrix({
         const pos = c.position || { x: 30 + Math.random() * 40, y: 30 + Math.random() * 40 };
         const sx = toSvgX(pos.x);
         const sy = toSvgY(pos.y);
-        const threat = threatConfig[c.threatLevel];
+        const dotColor = c.threatLevel === 'high' ? 'hsl(0 84% 60%)' : c.threatLevel === 'medium' ? 'hsl(38 92% 50%)' : 'hsl(var(--muted-foreground))';
         return (
           <g key={c.name} style={{
             opacity: mounted ? 1 : 0,
             transition: `opacity 0.5s ease-out ${0.2 + i * 0.1}s`,
           }}>
-            <circle cx={sx} cy={sy} r={5}
-              fill={c.threatLevel === 'high' ? 'hsl(0 84% 60%)' : c.threatLevel === 'medium' ? 'hsl(38 92% 50%)' : 'hsl(var(--muted-foreground))'}
-              opacity={0.7}
-            />
-            <text x={sx} y={sy - 10} textAnchor="middle"
-              style={{ fontSize: '9px', fontWeight: 500, fill: 'hsl(var(--muted-foreground))' }}>
+            {/* Halo */}
+            <circle cx={sx} cy={sy} r={12} fill={dotColor} opacity={0.08} />
+            {/* Dot */}
+            <circle cx={sx} cy={sy} r={6} fill={dotColor} opacity={0.85} />
+            {/* Label with background */}
+            <rect x={sx - c.name.length * 3.2} y={sy - 24} width={c.name.length * 6.4} height={14} rx={3}
+              fill="hsl(var(--card))" opacity={0.85} />
+            <text x={sx} y={sy - 14} textAnchor="middle"
+              style={{ fontSize: '10px', fontWeight: 600, fill: 'hsl(var(--foreground))' }}>
               {c.name}
             </text>
           </g>
         );
       })}
 
-      {/* Your position — larger, animated */}
+      {/* Your position — larger, animated, prominent */}
       <g style={{
         opacity: mounted ? 1 : 0,
         transform: mounted ? 'scale(1)' : 'scale(0)',
         transformOrigin: `${toSvgX(yourPos.x)}px ${toSvgY(yourPos.y)}px`,
         transition: 'opacity 0.6s ease-out 0.5s, transform 0.6s ease-out 0.5s',
       }}>
-        <circle cx={toSvgX(yourPos.x)} cy={toSvgY(yourPos.y)} r={16}
+        <circle cx={toSvgX(yourPos.x)} cy={toSvgY(yourPos.y)} r={20}
           fill="hsl(var(--primary) / 0.08)" stroke="none" />
-        <circle cx={toSvgX(yourPos.x)} cy={toSvgY(yourPos.y)} r={7}
-          fill="hsl(var(--primary))" stroke="white" strokeWidth={2} />
-        <text x={toSvgX(yourPos.x)} y={toSvgY(yourPos.y) - 14} textAnchor="middle"
-          style={{ fontSize: '10px', fontWeight: 600, fill: 'hsl(var(--primary))' }}>
-          You
+        <circle cx={toSvgX(yourPos.x)} cy={toSvgY(yourPos.y)} r={8}
+          fill="hsl(var(--primary))" stroke="white" strokeWidth={2.5} />
+        <rect x={toSvgX(yourPos.x) - 14} y={toSvgY(yourPos.y) - 28} width={28} height={14} rx={3}
+          fill="hsl(var(--primary))" />
+        <text x={toSvgX(yourPos.x)} y={toSvgY(yourPos.y) - 18} textAnchor="middle"
+          style={{ fontSize: '10px', fontWeight: 700, fill: 'white', letterSpacing: '0.05em' }}>
+          YOU
         </text>
       </g>
     </svg>
@@ -292,7 +314,7 @@ export const CompetitorLuxury = memo(function CompetitorLuxury({
 
       {/* Zone 2: Positioning Matrix */}
       {positioning && (
-        <div className="flex justify-center">
+        <div className="flex justify-center py-2">
           <PositioningMatrix competitors={competitors} positioning={positioning} />
         </div>
       )}

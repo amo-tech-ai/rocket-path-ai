@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The State of Fashion 2026 — Visual Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+--em:#0D5F4E;--emDk:#0E3E1B;--sage:#6B9D89;--sageL:#8FB894;--sageBg:#D4E6D0;--sageVL:#E8EFE8;
+--cream:#FAF9F7;--beige:#F5F3EF;--warmB:#F5EFE3;--offW:#F7F9F2;--sageBe:#EEF3E4;
+--dk3:#0A211F;--dk4:#0E1A17;--dk5:#162D26;--dk6:#1E3D33;--dk7:#2A5245;
+--gray:#7C7D79;--mg:#191918;--w:#FFF;
+--coral:#D4614E;--gold:#C9A54A;--sky:#5B8FD4;--violet:#8B7AC8;--rose:#C4A08E;--amber:#D4944E;
+--f1:'Cormorant Garamond',Georgia,serif;--f2:'Outfit',sans-serif;--f3:'JetBrains Mono',monospace;
+--e:cubic-bezier(.16,1,.3,1);--eS:cubic-bezier(.22,1,.36,1);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--f2);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased;background:var(--dk3);color:var(--cream)}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:99999;opacity:.011;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+#prog{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--em),var(--sage),var(--sageL));width:0%;z-index:9999;transition:width .1s}
+.cx{max-width:1140px;margin:0 auto;padding:0 56px;position:relative;z-index:1}
+@media(max-width:768px){.cx{padding:0 24px}}
+.rv{opacity:0;transform:translateY(32px);transition:opacity 1s var(--eS),transform 1s var(--eS)}.rv.vis{opacity:1;transform:translateY(0)}
+.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.32s}.d4{transition-delay:.44s}.d5{transition-delay:.56s}
+.tag-l{display:inline-flex;align-items:center;gap:8px;margin-bottom:16px}
+.tag-l .dot{width:5px;height:5px;border-radius:50%}
+.tag-l .tx{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:4px}
+.sh{font-family:var(--f1);font-weight:300;letter-spacing:-.5px;line-height:1.25;margin-bottom:10px}
+.sd{font-size:14.5px;margin-bottom:44px;max-width:580px;line-height:1.9}
+.src-b{margin-top:48px;padding:14px 22px;border-radius:14px;font-size:10px;line-height:2.2}
+.src-b.dk{background:rgba(14,26,23,.4);border:1px solid var(--dk6);color:var(--dk7)}.src-b.lt{background:var(--sageBe);border:1px solid var(--sageBg);color:var(--gray)}
+.src-b b{font-weight:600;text-transform:uppercase;letter-spacing:2px;font-size:8.5px;display:block;margin-bottom:3px}.src-b.dk b{color:var(--dk7)}.src-b.lt b{color:var(--em)}
+#hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative;overflow:hidden;background:var(--dk3)}
+.hgeo{position:absolute;border-radius:50%;border:1px solid rgba(107,157,137,.07);pointer-events:none}
+.hgeo.g1{width:650px;height:650px;top:50%;left:50%;transform:translate(-50%,-50%);animation:sp 55s linear infinite}
+.hgeo.g2{width:460px;height:460px;top:50%;left:50%;transform:translate(-50%,-50%);border-style:dashed;border-color:rgba(107,157,137,.04);animation:spR 40s linear infinite}
+.hgeo.g3{width:280px;height:280px;top:50%;left:50%;transform:translate(-50%,-50%);animation:sp 28s linear infinite}
+@keyframes sp{to{transform:translate(-50%,-50%) rotate(360deg)}}@keyframes spR{to{transform:translate(-50%,-50%) rotate(-360deg)}}
+.hglow{position:absolute;width:min(700px,90vw);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(13,95,78,.08) 0%,rgba(107,157,137,.03) 42%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);animation:gP 10s ease-in-out infinite alternate}
+@keyframes gP{0%{opacity:.3;transform:translate(-50%,-50%) scale(.88)}100%{opacity:.7;transform:translate(-50%,-50%) scale(1.14)}}
+.nav{position:fixed;top:0;left:0;right:0;padding:24px 56px;display:flex;justify-content:space-between;align-items:center;z-index:99;background:rgba(10,33,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(42,82,69,.15)}
+.nav span{font-size:9px;font-weight:600;letter-spacing:4.5px;text-transform:uppercase;color:var(--dk7)}
+.hc{position:relative;z-index:2;max-width:720px}
+.hc .htag{font-size:9px;font-weight:600;letter-spacing:6px;text-transform:uppercase;color:var(--sage);margin-bottom:28px;opacity:0;animation:aU .7s var(--e) .3s forwards}
+.hc h1{font-family:var(--f1);font-weight:300;font-size:clamp(40px,8vw,78px);color:var(--cream);line-height:.98;letter-spacing:-2.5px;opacity:0;animation:aU 1s var(--e) .5s forwards}
+.hc h1 em{font-style:italic;color:var(--sage)}
+.hc .hsep{width:56px;height:1px;background:var(--dk6);margin:32px auto;opacity:0;animation:aF .5s var(--e) 1s forwards}
+.hc .hdesc{font-size:15.5px;color:var(--gray);line-height:1.9;opacity:0;animation:aU .7s var(--e) 1.2s forwards;max-width:500px;margin:0 auto}
+.hc .hdesc strong{color:var(--sageBg);font-weight:500}
+.h-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:44px}
+@media(max-width:600px){.h-kpis{grid-template-columns:1fr 1fr}}
+.h-kpi{background:rgba(22,45,38,.6);border:1px solid var(--dk6);border-radius:16px;padding:18px 14px;text-align:center;opacity:0;transform:translateY(14px)}
+.h-kpi:nth-child(1){animation:aU .6s var(--e) 1.6s forwards}.h-kpi:nth-child(2){animation:aU .6s var(--e) 1.75s forwards}.h-kpi:nth-child(3){animation:aU .6s var(--e) 1.9s forwards}.h-kpi:nth-child(4){animation:aU .6s var(--e) 2.05s forwards}
+.h-kpi .kv{font-family:var(--f1);font-weight:300;font-size:clamp(24px,4vw,40px);letter-spacing:-1.5px;line-height:1}
+.h-kpi .kl{font-size:9px;color:var(--dk7);margin-top:5px;line-height:1.3}
+.scroll-cue{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;animation:aF 1s var(--e) 3s forwards}
+.scroll-cue span{font-size:7px;letter-spacing:4px;text-transform:uppercase;color:var(--dk7)}
+.scroll-cue i{width:1px;height:28px;background:linear-gradient(to bottom,var(--dk7),transparent);animation:pu 2.5s ease-in-out infinite}
+@keyframes aU{to{opacity:1;transform:translateY(0)}}@keyframes aF{to{opacity:1}}@keyframes pu{0%,100%{opacity:.15;transform:scaleY(1)}50%{opacity:.5;transform:scaleY(1.18)}}
+.g2c{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.g3c{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.g4c{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ga{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px}
+.gb{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:6px}
+.gc{display:grid;grid-template-columns:2fr 3fr;gap:6px}
+@media(max-width:800px){.g2c,.g3c,.g4c,.ga,.gb,.gc{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.g2c,.g3c,.g4c,.ga,.gb,.gc{grid-template-columns:1fr}}
+.bc{border-radius:20px;padding:30px 26px;position:relative;overflow:hidden;transition:transform .4s var(--e),box-shadow .4s var(--e)}
+.bc:hover{transform:translateY(-3px)}
+.bc .bt{font-size:8.5px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.bc .bh{font-family:var(--f1);font-weight:400;line-height:1.2;letter-spacing:-.5px;margin-bottom:6px}
+.bc .bn{font-family:var(--f1);font-weight:300;line-height:.82;letter-spacing:-2px}
+.bc .bd{font-size:12.5px;margin-top:8px;line-height:1.7}
+.bc .be{font-size:10.5px;margin-top:12px;padding:10px 14px;border-radius:10px;line-height:1.65}
+.bc .bb{height:3px;border-radius:2px;margin-top:14px;overflow:hidden}.bc .bf{height:100%;border-radius:2px;width:0%;transition:width 1.4s var(--e)}
+.hbar{margin-bottom:12px;display:grid;grid-template-columns:130px 1fr 44px;gap:10px;align-items:center}
+@media(max-width:520px){.hbar{grid-template-columns:90px 1fr 36px}}
+.hbar-l{font-size:11.5px;text-align:right;display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.hbar-t{height:26px;border-radius:7px;overflow:hidden;position:relative}
+.hbar-f{height:100%;border-radius:7px;width:0%;transition:width 1.2s var(--e)}
+.hbar-v{font-family:var(--f3);font-size:11px;font-weight:600}
+.tower{display:flex;flex-direction:column;gap:5px}
+.tw{display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:center;padding:18px 18px;border-radius:16px;transition:transform .3s var(--e);position:relative;overflow:hidden}
+.tw:hover{transform:translateX(5px)}
+.tw .tn{font-family:var(--f1);font-size:30px;font-weight:300;text-align:center}
+.tw .tt{font-size:13px;font-weight:600;margin-bottom:2px}
+.tw .td{font-size:11px;line-height:1.55;opacity:.55}
+.ring-wrap{display:flex;justify-content:center;padding:16px 0}
+.qt{border-radius:18px;padding:26px 28px;position:relative;overflow:hidden}
+.qt .qx{font-family:var(--f1);font-size:clamp(14px,1.6vw,18px);font-weight:400;line-height:1.7;font-style:italic}
+.qt .qa{font-size:9px;margin-top:8px;font-style:normal;opacity:.35}
+.funnel{display:flex;flex-direction:column;align-items:center;gap:3px}
+.funnel-step{border-radius:12px;padding:14px 20px;text-align:center;transition:transform .3s var(--e)}
+.funnel-step:hover{transform:scale(1.01)}
+.funnel-step .fs-v{font-family:var(--f1);font-size:24px;font-weight:300;letter-spacing:-1px}
+.funnel-step .fs-l{font-size:10px;margin-top:2px}
+#cl{padding:120px 0 80px;text-align:center}
+.cl-h{font-family:var(--f1);font-weight:300;font-size:clamp(24px,5vw,44px);line-height:1.15;max-width:640px;margin:0 auto;letter-spacing:-1px}
+.cl-h em{font-style:italic}
+.cl-body{font-size:14px;line-height:1.95;max-width:540px;margin:24px auto 0;text-align:left}
+.cl-body strong{font-weight:600}
+.footer{font-size:9px;margin-top:32px;opacity:.25}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div class="nav"><span>BoF × McKinsey</span><span style="font-family:var(--f3)">STATE OF FASHION 2026</span></div>
+
+<!-- ═══════════════════════════════════
+     HERO
+     ═══════════════════════════════════ -->
+<section id="hero">
+  <div class="hgeo g1"></div><div class="hgeo g2"></div><div class="hgeo g3"></div><div class="hglow"></div>
+  <div class="hc">
+    <div class="htag">The Business of Fashion × McKinsey & Company</div>
+    <h1>When the<br><em>Rules Change</em></h1>
+    <div class="hsep"></div>
+    <div class="hdesc">Tariffs have redrawn trade maps. AI is rewiring how consumers shop. In a flat market, <strong>only brands that capture hearts and minds will grow.</strong></div>
+    <div class="h-kpis">
+      <div class="h-kpi"><div class="kv" style="color:var(--coral)" id="c1">0%</div><div class="kl">expect conditions<br>to worsen in 2026</div></div>
+      <div class="h-kpi"><div class="kv" style="color:var(--gold)" id="c2">0%</div><div class="kl">cite consumer confidence<br>as #1 growth risk</div></div>
+      <div class="h-kpi"><div class="kv" style="color:var(--sage)" id="c3">0%</div><div class="kl">say tariffs will shape<br>the industry</div></div>
+      <div class="h-kpi"><div class="kv" style="color:var(--sageL)" id="c4">0%</div><div class="kl">growth in AI<br>shopping searches</div></div>
+    </div>
+  </div>
+  <div class="scroll-cue"><span>Scroll to explore</span><i></i></div>
+</section>
+
+<!-- ═══════════════════════════════════
+     §1 — TARIFF TURBULENCE (DARK)
+     ═══════════════════════════════════ -->
+<section style="padding:100px 0 110px;background:var(--dk3)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--coral)"></div><span class="tx" style="color:var(--coral)">§1 · Tariff Turbulence</span></div>
+  <div class="sh" style="font-size:clamp(20px,3.2vw,32px);color:var(--cream);max-width:640px">US tariffs spiked from <em style="color:var(--coral)">13% to 54%</em> in three months — reshaping global fashion supply chains overnight.</div>
+  <div class="sd" style="color:var(--gray)">The weighted average tariff on apparel and footwear imports settled at 36% by October — still nearly triple January levels. 89% of US apparel is imported, making fashion among the most exposed sectors.</div></div>
+
+  <!-- TARIFF ESCALATION ARC -->
+  <div class="rv d1" style="background:var(--dk5);border:1px solid var(--dk6);border-radius:22px;padding:36px 24px">
+    <div style="text-align:center;font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--coral);margin-bottom:20px">Tariff Escalation Arc — Weighted Average on US Apparel Imports</div>
+    <div style="display:flex;justify-content:center">
+      <svg viewBox="0 0 800 220" style="width:100%;max-width:800px">
+        <path d="M 60 180 Q 200 180 300 140 Q 400 80 450 40 Q 480 20 500 40 Q 550 80 600 100 Q 700 140 740 130" fill="none" stroke="rgba(42,82,69,.15)" stroke-width="3"/>
+        <path d="M 60 180 Q 200 180 300 140 Q 400 80 450 40 Q 480 20 500 40 Q 550 80 600 100 Q 700 140 740 130" fill="none" stroke="var(--coral)" stroke-width="3" stroke-dasharray="900" stroke-dashoffset="900" class="arc-draw"/>
+        <circle cx="60" cy="180" r="8" fill="var(--dk5)" stroke="var(--sage)" stroke-width="2"/>
+        <text x="60" y="168" text-anchor="middle" font-family="var(--f1)" font-size="22" font-weight="300" fill="var(--cream)">13%</text>
+        <text x="60" y="205" text-anchor="middle" font-family="var(--f3)" font-size="9" fill="var(--dk7)">Jan '25</text>
+        <circle cx="450" cy="40" r="10" fill="var(--coral)" stroke="var(--dk5)" stroke-width="2"/>
+        <text x="450" y="28" text-anchor="middle" font-family="var(--f3)" font-size="9" fill="var(--coral)">Apr '25 PEAK</text>
+        <text x="450" y="65" text-anchor="middle" font-family="var(--f1)" font-size="26" font-weight="300" fill="var(--coral)">54%</text>
+        <circle cx="740" cy="130" r="8" fill="var(--amber)" stroke="var(--dk5)" stroke-width="2"/>
+        <text x="740" y="118" text-anchor="middle" font-family="var(--f1)" font-size="22" font-weight="300" fill="var(--amber)">36%</text>
+        <text x="740" y="155" text-anchor="middle" font-family="var(--f3)" font-size="9" fill="var(--dk7)">Oct '25</text>
+        <text x="255" y="28" font-family="var(--f2)" font-size="8" fill="var(--dk7)" letter-spacing="2">+4.2× INCREASE IN 3 MONTHS</text>
+        <line x1="255" y1="33" x2="440" y2="33" stroke="var(--coral)" stroke-width="1" stroke-dasharray="4 3" opacity=".3"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- TARIFF BARS BY COUNTRY -->
+  <div class="rv d2" style="background:var(--dk5);border:1px solid var(--dk6);border-radius:22px;padding:32px 26px;margin-top:6px">
+    <div style="font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--coral);margin-bottom:16px">Tariff Rates by Source Country (Aug 2025)</div>
+    <div style="font-size:10.5px;color:var(--gray);margin-bottom:16px">Key fashion sourcing hubs face <strong style="color:var(--cream)">3–5× tariff increases</strong>. Mexico remains the only major hub at 0%.</div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--cream)">China</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="76" style="background:var(--coral)"></div></div><div class="hbar-v" style="color:var(--coral)">76%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--gray)">India</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="61" style="background:var(--amber)"></div></div><div class="hbar-v" style="color:var(--amber)">61%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--gray)">Vietnam</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="58" style="background:var(--amber)"></div></div><div class="hbar-v" style="color:var(--amber)">58%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--gray)">Cambodia</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="58" style="background:var(--gold)"></div></div><div class="hbar-v" style="color:var(--gold)">58%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--gray)">Indonesia</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="47" style="background:var(--sage)"></div></div><div class="hbar-v" style="color:var(--sage)">47%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--gray)">EU</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="33" style="background:var(--sky)"></div></div><div class="hbar-v" style="color:var(--sky)">33%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--sageL)">Mexico</div><div class="hbar-t" style="background:rgba(42,82,69,.15)"><div class="hbar-f" data-w="1" style="background:var(--sageL)"></div></div><div class="hbar-v" style="color:var(--sageL)">0%</div></div>
+  </div>
+  <div class="src-b dk rv d3"><b>Sources</b> MGI Global Trade Dispute Database · World Bank · BoF-McKinsey State of Fashion Executive Survey 2026</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §2 — WORKFORCE REWIRED (LIGHT)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--cream);color:var(--mg)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--violet)"></div><span class="tx" style="color:var(--violet)">§2 · Workforce Rewired</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--mg);max-width:600px">By 2030, <em style="color:var(--violet)">one-third of employee time</em> across industries could be automated by generative AI.</div>
+  <div class="sd" style="color:var(--gray)">AI is shifting from competitive edge to business necessity. 35%+ of executives already use gen AI in customer service, image creation, copywriting and product discovery.</div></div>
+
+  <!-- AI AUTOMATION RING -->
+  <div class="rv d1" style="background:var(--w);border:1px solid var(--sageBe);border-radius:22px;padding:36px 24px;margin-bottom:6px">
+    <div style="text-align:center;font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--violet);margin-bottom:20px">Generative AI Automation Potential in Fashion</div>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 300 300" width="260" height="260">
+        <circle cx="150" cy="150" r="130" fill="none" stroke="rgba(107,157,137,.08)" stroke-width="20"/>
+        <circle cx="150" cy="150" r="130" fill="none" stroke="var(--violet)" stroke-width="20" stroke-dasharray="816.8" stroke-dashoffset="816.8" stroke-linecap="round" transform="rotate(-90 150 150)" class="ring-anim" data-target="272"/>
+        <circle cx="150" cy="150" r="100" fill="none" stroke="rgba(107,157,137,.04)" stroke-width="14"/>
+        <text x="150" y="142" text-anchor="middle" fill="var(--mg)" font-family="Cormorant Garamond,serif" font-size="44" font-weight="300">33%</text>
+        <text x="150" y="166" text-anchor="middle" fill="var(--gray)" font-family="Outfit,sans-serif" font-size="10" font-weight="500">of employee time</text>
+        <text x="150" y="182" text-anchor="middle" fill="var(--gray)" font-family="Outfit,sans-serif" font-size="9">automatable by 2030</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- BENTO: Case Studies -->
+  <div class="g3c rv d2">
+    <div class="bc" style="background:var(--sageBg)">
+      <div class="bt" style="color:var(--em)">Zalando</div>
+      <div class="bn" style="font-size:48px;color:var(--em)">70%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Editorial content AI-generated in Q4 2024</div>
+      <div class="bd" style="color:rgba(10,33,31,.45)">Production time cut from 6–8 weeks to 3–4 days. Demonstrates the speed advantage of AI-augmented creative workflows.</div>
+      <div class="bb" style="background:rgba(13,95,78,.1)"><div class="bf" data-w="70" style="background:var(--em)"></div></div>
+    </div>
+    <div class="bc" style="background:#F0ECF8">
+      <div class="bt" style="color:var(--violet)">Employee Demand</div>
+      <div class="bn" style="font-size:48px;color:var(--violet)">47%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Want formal AI training from employer</div>
+      <div class="bd" style="color:rgba(80,60,120,.45)">The biggest barrier isn't the technology — it's the skills gap. Employees are asking for training that most companies haven't built yet.</div>
+    </div>
+    <div class="bc" style="background:var(--warmB)">
+      <div class="bt" style="color:rgba(90,65,30,.5)">Marketing Impact</div>
+      <div class="bn" style="font-size:48px;color:var(--mg)">22%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Of marketing tasks automatable today</div>
+      <div class="bd" style="color:rgba(90,65,30,.45)">From copywriting to campaign personalisation to visual asset creation. Pandora partnered with o9 Solutions for AI-driven planning. Zegna launched AI clienteling with Microsoft.</div>
+    </div>
+  </div>
+  <div class="src-b lt rv d3"><b>Sources</b> McKinsey Global Institute · McKinsey US Employee Survey Oct–Nov 2024 · Company Reports</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §3 — THE AI SHOPPER (DARK)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--dk4)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--sky)"></div><span class="tx" style="color:var(--sky)">§3 · The AI Shopper</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--cream);max-width:640px">Shopping-related AI searches grew <em style="color:var(--sky)">4,700%</em> in one year. AI visibility is the new SEO.</div>
+  <div class="sd" style="color:var(--gray)">Consumers are turning to LLMs to discover, compare and buy fashion. ChatGPT now drives 16% of Zara's referral traffic. Generative Engine Optimisation is becoming as critical as traditional SEO.</div></div>
+
+  <div class="g4c rv d1">
+    <div class="bc" style="background:#E0E8F6"><div class="bt" style="color:var(--sky)">Discovery</div><div class="bn" style="font-size:42px;color:var(--sky)">23%</div><div class="bh" style="font-size:14px;color:var(--mg)">Use gen AI as primary product discovery</div></div>
+    <div class="bc" style="background:#E0E8F6"><div class="bt" style="color:var(--sky)">Shopping</div><div class="bn" style="font-size:42px;color:var(--sky)">53%</div><div class="bh" style="font-size:14px;color:var(--mg)">Of AI searchers also use it to shop</div></div>
+    <div class="bc" style="background:#E0E8F6"><div class="bt" style="color:var(--sky)">Trust</div><div class="bn" style="font-size:42px;color:var(--sky)">41%</div><div class="bh" style="font-size:14px;color:var(--mg)">Trust AI results more than paid ads</div></div>
+    <div class="bc" style="background:#E0E8F6"><div class="bt" style="color:var(--sky)">Satisfaction</div><div class="bn" style="font-size:42px;color:var(--sky)">85%</div><div class="bh" style="font-size:14px;color:var(--mg)">Report better AI shopping experience</div></div>
+  </div>
+
+  <!-- SEARCH SHIFT FUNNEL -->
+  <div class="rv d2" style="background:var(--dk5);border:1px solid var(--dk6);border-radius:22px;padding:36px 26px;margin-top:6px">
+    <div style="text-align:center;font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--sky);margin-bottom:22px">Search Volume Shift — Traditional to AI Discovery</div>
+    <div style="display:flex;gap:40px;justify-content:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px">
+        <div style="font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dk7);margin-bottom:14px;text-align:center">2024</div>
+        <div class="funnel">
+          <div class="funnel-step" style="background:rgba(91,143,212,.08);border:1px solid rgba(91,143,212,.15);width:95%;max-width:340px"><div class="fs-v" style="color:var(--sky)">91–93%</div><div class="fs-l" style="color:var(--dk7)">Traditional search engines</div></div>
+          <div class="funnel-step" style="background:rgba(139,122,200,.08);border:1px solid rgba(139,122,200,.15);width:60%;max-width:220px"><div class="fs-v" style="color:var(--violet)">6–8%</div><div class="fs-l" style="color:var(--dk7)">AI summaries in search</div></div>
+          <div class="funnel-step" style="background:rgba(107,157,137,.08);border:1px solid rgba(107,157,137,.15);width:30%;max-width:120px"><div class="fs-v" style="color:var(--sage);font-size:18px">1–3%</div><div class="fs-l" style="color:var(--dk7)">Gen AI platforms</div></div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <div style="font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dk7);margin-bottom:14px;text-align:center">H1 2025</div>
+        <div class="funnel">
+          <div class="funnel-step" style="background:rgba(91,143,212,.08);border:1px solid rgba(91,143,212,.15);width:85%;max-width:300px"><div class="fs-v" style="color:var(--sky)">74–79%</div><div class="fs-l" style="color:var(--dk7)">Traditional search engines</div></div>
+          <div class="funnel-step" style="background:rgba(139,122,200,.12);border:1px solid rgba(139,122,200,.2);width:70%;max-width:260px"><div class="fs-v" style="color:var(--violet)">16–23%</div><div class="fs-l" style="color:var(--dk7)">AI summaries in search</div></div>
+          <div class="funnel-step" style="background:rgba(107,157,137,.12);border:2px solid var(--sage);width:35%;max-width:140px"><div class="fs-v" style="color:var(--sageL);font-size:18px">2–4%</div><div class="fs-l" style="color:var(--dk7)">Gen AI platforms</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="src-b dk rv d3"><b>Sources</b> SearchEngineLand · SimilarWeb · Salesforce Commerce Cloud · BoF-McKinsey Consumer Survey 2026</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §4 — NEW GROWTH FRONTIERS (LIGHT)
+     Jewellery + Smart Frames
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--offW);color:var(--mg)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--gold)"></div><span class="tx" style="color:var(--gold)">§4 · New Growth Frontiers</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--mg);max-width:640px">Jewellery grows <em style="color:var(--gold)">4× faster</em> than clothing. Smart glasses sell out on day one. New categories are reshaping fashion.</div>
+  <div class="sd" style="color:var(--gray)">A $395B jewellery market growing to $460B by 2028. Wearables growing 9% annually. Self-expression overtakes gifting as the primary purchase driver.</div></div>
+
+  <div class="g3c rv d1">
+    <div class="bc" style="background:var(--warmB)">
+      <div class="bt" style="color:rgba(90,65,30,.5)">Jewellery · Self-Expression</div>
+      <div class="bn" style="font-size:52px;color:var(--mg)">71%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Say jewellery expresses their personality</div>
+      <div class="bd" style="color:rgba(90,65,30,.45)">42% of women and 35% of men buying more for themselves. Women's self-purchase up 58% vs 2021. Men's jewellery growing 7–8% p.a. vs 4–5% women's.</div>
+      <div class="bb" style="background:rgba(201,165,74,.1)"><div class="bf" data-w="71" style="background:var(--gold)"></div></div>
+    </div>
+    <div class="bc" style="background:var(--sageBg)">
+      <div class="bt" style="color:var(--em)">Smart Glasses · Breakthrough</div>
+      <div class="bn" style="font-size:52px;color:var(--em)">2M+</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Ray-Ban Meta pairs sold since 2023</div>
+      <div class="bd" style="color:rgba(10,33,31,.45)">Sales grew 200%+ YoY. 60% of Oakley wearable buyers are new customers. Meta bought $3.5B stake in EssilorLuxottica. Production scaling to 20M+ units.</div>
+    </div>
+    <div class="bc" style="background:#E0E8F6">
+      <div class="bt" style="color:rgba(30,50,90,.5)">Market Growth</div>
+      <div class="bn" style="font-size:52px;color:var(--mg)">$460B</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Global jewellery market by 2028</div>
+      <div class="bd" style="color:rgba(30,50,90,.45)">Asia Pacific drives 70–75% of growth. Lab-grown diamonds at 20% of sales, could reach 50% by 2030. Wearables growing 9% annually through 2028.</div>
+      <div class="be" style="background:rgba(30,50,90,.06);color:rgba(30,50,90,.45)"><strong style="color:var(--mg)">Swarovski:</strong> Lab-grown sales doubled in 2024. Ariana Grande capsule was best-selling in brand history.</div>
+    </div>
+  </div>
+
+  <div class="qt rv d2" style="margin-top:6px;background:var(--sageVL);border:1px solid var(--sageBg)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--em);border-radius:0 2px 2px 0"></div><div class="qx" style="color:var(--mg)">"Venture into wearables when you're ready. But I think it's important. Wearables are only going to increase and evolve."</div><div class="qa" style="color:var(--gray)">— Rocco Basilico, Chief Wearables Officer, EssilorLuxottica</div></div>
+  <div class="src-b lt rv d3"><b>Sources</b> Euromonitor · BoF-McKinsey Consumer Survey 2026 · De Beers · Company Reports</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §5 — THE WELLBEING ERA (DARK)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--dk3)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--sage)"></div><span class="tx" style="color:var(--sage)">§5 · The Wellbeing Era</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--cream);max-width:640px">Wellness is fashion's new luxury. <em style="color:var(--sage)">84% of US consumers</em> say it's a top life priority — 94% in China.</div>
+  <div class="sd" style="color:var(--gray)">Consumers are shifting discretionary spend from goods to wellbeing. 51% would maintain wellness spending even if income dropped. Brands responding with "third spaces" and holistic identity integration.</div></div>
+
+  <!-- WELLBEING MATURITY TOWER -->
+  <div class="rv d1" style="background:var(--dk5);border:1px solid var(--dk6);border-radius:22px;padding:32px 26px;margin-bottom:6px">
+    <div style="font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--sage);margin-bottom:18px">Wellbeing Integration Maturity — From Light Touch to Core DNA</div>
+    <div class="tower">
+      <div class="tw" style="background:rgba(13,95,78,.08);border:1px solid rgba(13,95,78,.12)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--em);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--em)">3</div><div><div class="tt" style="color:var(--cream)">Transform — Embed in Brand DNA</div><div class="td" style="color:var(--dk7)">Rethink assortment, design codes and channel strategy around wellbeing. Sporty & Rich built entire identity on "wellness-inspired apparel."</div></div></div>
+      <div class="tw" style="background:rgba(107,157,137,.06);border:1px solid rgba(107,157,137,.1)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sage);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--sage)">2</div><div><div class="tt" style="color:var(--cream)">Extend — Wellbeing-Adjacent Offerings</div><div class="td" style="color:var(--dk7)">Product extensions and long-term collaborations. Celine Pilates clothes, Dior branded spas, Lululemon yoga hubs.</div></div></div>
+      <div class="tw" style="background:rgba(42,82,69,.06);border:1px solid rgba(42,82,69,.1)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dk7);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--dk7)">1</div><div><div class="tt" style="color:var(--cream)">Inspire — Storytelling & Activations</div><div class="td" style="color:var(--dk7)">Wellbeing-focused marketing, ambassador partnerships, pop-up events. Galeries Lafayette Wellness Galerie.</div></div></div>
+    </div>
+  </div>
+
+  <div class="g3c rv d2">
+    <div class="bc" style="background:var(--dk5);border:1px solid var(--dk6)"><div class="bt" style="color:var(--dk7)">Consumer Priority</div><div class="bn" style="font-size:52px;color:var(--cream)">94%</div><div class="bh" style="font-size:14px;color:var(--sage)">China: wellness is top priority</div><div class="bd" style="color:var(--dk7)">43% higher reach for 60+ second videos on TikTok — longer-form content gaining traction as dopamine culture loses grip.</div></div>
+    <div class="bc" style="background:var(--dk5);border:1px solid var(--dk6)"><div class="bt" style="color:var(--dk7)">Brand Connection</div><div class="bn" style="font-size:52px;color:var(--cream)">89%</div><div class="bh" style="font-size:14px;color:var(--sage)">Say brand community > influencers</div><div class="bd" style="color:var(--dk7)">62% have emotional connection to brands they buy most. Kith Ivy members club, Alo Wellness Club leading community-first models.</div></div>
+    <div class="bc" style="background:var(--dk5);border:1px solid var(--dk6)"><div class="bt" style="color:var(--dk7)">Market Scale</div><div class="bn" style="font-size:52px;color:var(--cream)">$2.5T</div><div class="bh" style="font-size:14px;color:var(--sage)">Projected wellness market by 2030</div><div class="bd" style="color:var(--dk7)">5–6% CAGR. From $2T today. 51% would maintain spending even if income decreased.</div></div>
+  </div>
+  <div class="src-b dk rv d3"><b>Sources</b> McKinsey Future of Wellness 2025 · Global Wellness Institute · BoF-McKinsey Consumer Survey 2026</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §6 — EFFICIENCY UNLOCKED (LIGHT)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--cream);color:var(--mg)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--amber)"></div><span class="tx" style="color:var(--amber)">§6 · Efficiency Unlocked</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--mg);max-width:640px">Inventory days up <em style="color:var(--amber)">14%</em>, margins compressing — old advantages are no longer enough.</div>
+  <div class="sd" style="color:var(--gray)">Scale and low-cost sourcing can't sustain healthy economics alone. Technology-driven productivity is the new competitive moat. 74% plan to raise prices in 2026.</div></div>
+
+  <div class="ga rv d1">
+    <div class="bc" style="background:#FEF6EE">
+      <div class="bt" style="color:var(--amber)">Inventory Bloat</div>
+      <div class="bn" style="font-size:52px;color:var(--amber)">168</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Days inventory outstanding (2024)</div>
+      <div class="bd" style="color:rgba(130,80,30,.45)">Up from 147 days average in 2016–2019. +14% increase signals structural inefficiency across the industry.</div>
+      <div class="bb" style="background:rgba(212,148,78,.1)"><div class="bf" data-w="85" style="background:var(--amber)"></div></div>
+    </div>
+    <div class="bc" style="background:#FDF5F3">
+      <div class="bt" style="color:var(--coral)">Cost Pressure</div>
+      <div class="bn" style="font-size:52px;color:var(--coral)">74%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Expect to raise prices in 2026</div>
+      <div class="bd" style="color:rgba(120,40,30,.45)">+19pp vs 2025. In North America, 45% plan hikes >5%. Nearly 25% of NA executives expect COGS up >9%.</div>
+    </div>
+    <div class="bc" style="background:var(--sageBg)">
+      <div class="bt" style="color:var(--em)">Optimisation Targets</div>
+      <div class="bn" style="font-size:48px;color:var(--em)">50%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Prioritise assortment mix improvement</div>
+      <div class="bd" style="color:rgba(10,33,31,.45)">Followed by inventory management (47%) and pricing/promotions (33%). Operating margins improved +1.5pp post-pandemic — from 7.9% to 9.3%.</div>
+    </div>
+  </div>
+
+  <!-- OPTIMISATION BARS -->
+  <div class="rv d2" style="background:var(--w);border:1px solid var(--sageBe);border-radius:22px;padding:32px 26px;margin-top:6px">
+    <div style="font-size:9px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--em);margin-bottom:16px">Top Efficiency Optimisation Targets — Executive Survey</div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--mg)">Assortment mix</div><div class="hbar-t" style="background:var(--sageBe)"><div class="hbar-f" data-w="50" style="background:var(--em)"></div></div><div class="hbar-v" style="color:var(--em)">50%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--mg)">Inventory mgmt</div><div class="hbar-t" style="background:var(--sageBe)"><div class="hbar-f" data-w="47" style="background:var(--sage)"></div></div><div class="hbar-v" style="color:var(--sage)">47%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--mg)">Pricing & promos</div><div class="hbar-t" style="background:var(--sageBe)"><div class="hbar-f" data-w="33" style="background:var(--sageL)"></div></div><div class="hbar-v" style="color:var(--sageL)">33%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--mg)">Sourcing</div><div class="hbar-t" style="background:var(--sageBe)"><div class="hbar-f" data-w="28" style="background:var(--sky)"></div></div><div class="hbar-v" style="color:var(--sky)">28%</div></div>
+    <div class="hbar"><div class="hbar-l" style="color:var(--mg)">SG&A reduction</div><div class="hbar-t" style="background:var(--sageBe)"><div class="hbar-f" data-w="22" style="background:var(--gold)"></div></div><div class="hbar-v" style="color:var(--gold)">22%</div></div>
+  </div>
+  <div class="src-b lt rv d3"><b>Sources</b> BoF-McKinsey State of Fashion Executive Survey 2026 · McKinsey Global Fashion Index</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §7 — RESALE & ELEVATION (DARK)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--dk4)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--sage)"></div><span class="tx" style="color:var(--sage)">§7 · Resale Sprint & The Elevation Game</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--cream);max-width:640px">Secondhand surges to <em style="color:var(--sage)">$317B by 2027</em> while mid-market becomes fashion's fastest-growing segment.</div>
+  <div class="sd" style="color:var(--gray)">59% of consumers plan to shop resale in 2026 (70%+ in China). Meanwhile, design-led mid-market brands like COS are capturing consumers trading both up and down from luxury.</div></div>
+
+  <div class="g2c rv d1">
+    <!-- RESALE -->
+    <div class="bc" style="background:var(--dk5);border:1px solid var(--dk6)">
+      <div class="bt" style="color:var(--sage)">Resale Market Trajectory</div>
+      <div style="display:flex;align-items:flex-end;gap:14px;margin-top:20px;height:140px;padding:0 6px">
+        <div style="flex:1;text-align:center"><div style="background:rgba(107,157,137,.15);border-radius:10px 10px 0 0;height:62%;margin:0 auto;width:85%;display:flex;align-items:flex-start;justify-content:center;padding-top:12px"><span style="font:300 20px/1 var(--f1);color:var(--sage)">$197B</span></div><div style="font:400 9px/1 var(--f3);color:var(--dk7);margin-top:8px">2023</div></div>
+        <div style="flex:1;text-align:center"><div style="background:rgba(107,157,137,.22);border-radius:10px 10px 0 0;height:81%;margin:0 auto;width:85%;display:flex;align-items:flex-start;justify-content:center;padding-top:12px"><span style="font:300 20px/1 var(--f1);color:var(--sage)">$256B</span></div><div style="font:400 9px/1 var(--f3);color:var(--dk7);margin-top:8px">2025E</div></div>
+        <div style="flex:1;text-align:center"><div style="background:rgba(107,157,137,.32);border-radius:10px 10px 0 0;height:100%;margin:0 auto;width:85%;display:flex;align-items:flex-start;justify-content:center;padding-top:12px"><span style="font:300 20px/1 var(--f1);color:var(--cream)">$317B</span></div><div style="font:400 9px/1 var(--f3);color:var(--dk7);margin-top:8px">2027E</div></div>
+      </div>
+      <div class="bd" style="color:var(--dk7);margin-top:14px">Growing 2–3× faster than firsthand. Vinted net profit grew 330%. Brand-led resale programs grew 300% since 2021 in the US. 88% of US resale spending is online.</div>
+    </div>
+    <!-- ELEVATION -->
+    <div class="bc" style="background:var(--dk5);border:1px solid var(--dk6)">
+      <div class="bt" style="color:var(--sageL)">Mid-Market Elevation</div>
+      <div class="tower" style="margin-top:10px">
+        <div class="tw" style="background:rgba(143,184,148,.06);border:1px solid rgba(143,184,148,.1)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sageL);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--sageL);font-size:22px">15–25%</div><div><div class="tt" style="color:var(--cream);font-size:11px">Reduction in lowest-price SKUs (UK, 2023–25)</div><div class="td" style="color:var(--dk7);font-size:10px">Bershka and H&M cutting bottom-tier products, investing in design.</div></div></div>
+        <div class="tw" style="background:rgba(143,184,148,.06);border:1px solid rgba(143,184,148,.1)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sage);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--sage);font-size:22px">60%+</div><div><div class="tt" style="color:var(--cream);font-size:11px">European consumers plan to trade down Q4 2025</div><div class="td" style="color:var(--dk7);font-size:10px">Value-conscious behaviour persists across income levels.</div></div></div>
+        <div class="tw" style="background:rgba(143,184,148,.06);border:1px solid rgba(143,184,148,.1)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--em);border-radius:0 2px 2px 0"></div><div class="tn" style="color:var(--em);font-size:22px">+1.5pp</div><div><div class="tt" style="color:var(--cream);font-size:11px">Operating margin improvement post-pandemic</div><div class="td" style="color:var(--dk7);font-size:10px">Industry avg from 7.9% to 9.3%. Structurally stronger but growth elusive.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qt rv d2" style="margin-top:6px;background:var(--dk5);border:1px solid var(--dk6)"><div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sage);border-radius:0 2px 2px 0"></div><div class="qx" style="color:var(--cream)">"It's so easy to talk about the ambition of generating elevation, but unless you have a product actually meeting that feeling, everything you do becomes unnecessary in a way."</div><div class="qa" style="color:var(--dk7)">— Daniel Herrmann, Managing Director, COS</div></div>
+  <div class="src-b dk rv d3"><b>Sources</b> ThredUp · Euromonitor · BoF-McKinsey State of Fashion Executive Survey 2026</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     §8 — LUXURY RECALIBRATED (LIGHT)
+     ═══════════════════════════════════ -->
+<section style="padding:110px 0;background:var(--cream);color:var(--mg)"><div class="cx">
+  <div class="rv"><div class="tag-l"><div class="dot" style="background:var(--gold)"></div><span class="tx" style="color:var(--gold)">§8 · Luxury Recalibrated</span></div>
+  <div class="sh" style="font-size:clamp(20px,3vw,30px);color:var(--mg);max-width:640px"><em style="color:var(--gold)">80% of luxury growth</em> was price-driven. Now brands must rebuild trust through creativity and craft.</div>
+  <div class="sd" style="color:var(--gray)">Nine of 15 largest luxury houses replaced creative directors in 12 months. 35% of aspirational customers pulled back on spending. The era of relentless price hikes is ending.</div></div>
+
+  <!-- CREATIVE RESET RING -->
+  <div class="rv d1" style="background:var(--w);border:1px solid var(--sageBe);border-radius:22px;padding:36px 24px;margin-bottom:6px">
+    <div style="text-align:center;font-size:9px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:20px">Luxury's Great Creative Reset — 12 Months Through Sep 2025</div>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 300 300" width="260" height="260">
+        <circle cx="150" cy="150" r="130" fill="none" stroke="rgba(107,157,137,.08)" stroke-width="20"/>
+        <circle cx="150" cy="150" r="130" fill="none" stroke="var(--gold)" stroke-width="20" stroke-dasharray="816.8" stroke-dashoffset="816.8" stroke-linecap="round" transform="rotate(-90 150 150)" class="ring-anim" data-target="490"/>
+        <circle cx="150" cy="150" r="100" fill="none" stroke="rgba(107,157,137,.04)" stroke-width="14"/>
+        <text x="150" y="130" text-anchor="middle" fill="var(--mg)" font-family="Cormorant Garamond,serif" font-size="52" font-weight="300">9</text>
+        <text x="150" y="155" text-anchor="middle" fill="var(--gray)" font-family="Outfit,sans-serif" font-size="10" font-weight="500">of 15 top luxury brands</text>
+        <text x="150" y="172" text-anchor="middle" fill="var(--gray)" font-family="Outfit,sans-serif" font-size="9">appointed new creative directors</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="gb rv d2">
+    <div class="bc" style="background:var(--warmB)">
+      <div class="bt" style="color:rgba(90,65,30,.5)">Value Perception</div>
+      <div class="bn" style="font-size:48px;color:var(--mg)">#1</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">"Expertise & Quality" — top luxury attribute for HNW</div>
+      <div class="bd" style="color:rgba(90,65,30,.45)">67% believe luxury brands should operate ethically across the full value chain. Trust is now table stakes, not a differentiator.</div>
+    </div>
+    <div class="bc" style="background:#FDF5F3">
+      <div class="bt" style="color:var(--coral)">Aspirational Retreat</div>
+      <div class="bn" style="font-size:48px;color:var(--coral)">35%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Of aspirational customers pulled back</div>
+      <div class="bd" style="color:rgba(120,40,30,.45)">Those spending €3K–€10K annually. EBITA margin polarisation widened 2.5pp since 2021. The gap between winners and everyone else is accelerating.</div>
+    </div>
+    <div class="bc" style="background:#F0ECF8">
+      <div class="bt" style="color:var(--violet)">Generational Pull</div>
+      <div class="bn" style="font-size:48px;color:var(--violet)">81%</div>
+      <div class="bh" style="font-size:16px;color:var(--mg)">Under-35s cite design as primary driver</div>
+      <div class="bd" style="color:rgba(80,60,120,.45)">Gen Z and Millennials rank exclusivity 11pp above average. Creative energy must translate to commercial impact.</div>
+      <div class="be" style="background:rgba(80,60,120,.06);color:rgba(80,60,120,.45)"><strong style="color:var(--mg)">Anderson at Dior · Blazy at Chanel · McCollough & Hernandez at Loewe</strong></div>
+    </div>
+  </div>
+  <div class="src-b lt rv d3"><b>Sources</b> BoF-McKinsey State of Fashion Executive Survey 2026 · Company Reports · Morgan Stanley</div>
+</div></section>
+
+<!-- ═══════════════════════════════════
+     CLOSE + SCRIPT
+     ═══════════════════════════════════ -->
+<section id="cl" style="background:var(--sageBe)"><div class="cx">
+  <div class="cl-h rv" style="color:var(--em)">In a flat market, only brands that capture <em style="color:var(--sage)">hearts and minds</em> will grow.</div>
+  <div class="cl-body rv d1" style="color:var(--dk6)">Ten themes converge on one reality: fashion must simultaneously navigate <strong style="color:var(--em)">tariff turbulence</strong> (13% → 54% → 36%), <strong style="color:var(--em)">AI transformation</strong> (4,700% shopping search growth, GEO as new SEO), <strong style="color:var(--em)">consumer identity shifts</strong> (wellbeing as the new luxury, self-expression over status), and <strong style="color:var(--em)">a luxury recalibration</strong> (9 of 15 brands reset, 80% growth was price-driven).<br><br>Meanwhile, <strong style="color:var(--em)">mid-market elevation</strong> ($317B resale by 2027, COS bridging mass and luxury) and <strong style="color:var(--em)">new growth frontiers</strong> ($460B jewellery, 2M+ smart glasses) are reshaping where value is created.<br><br><span style="color:var(--em);font-weight:600">"Challenging" has overtaken "uncertainty" as the word executives most frequently use. How you respond determines which side of the disruption you're on.</span></div>
+  <div class="footer rv d2">Visual Intelligence Report · Synthesised from The State of Fashion 2026 by BoF × McKinsey & Company · February 2026</div>
+</div></section>
+
+<script>
+// Hero counters — easeOutQuart
+function ct(el,t,p,s,d){const st=performance.now();(function r(n){const pr=Math.min((n-st)/d,1);const e=1-Math.pow(1-pr,4);el.textContent=p+Math.round(e*t)+s;if(pr<1)requestAnimationFrame(r)})(performance.now())}
+setTimeout(()=>ct(document.getElementById('c1'),46,'','%',1200),600);
+setTimeout(()=>ct(document.getElementById('c2'),78,'','%',1100),800);
+setTimeout(()=>ct(document.getElementById('c3'),76,'','%',1300),1000);
+setTimeout(()=>{const el=document.getElementById('c4');const st=performance.now();(function r(n){const pr=Math.min((n-st)/1400,1);const e=1-Math.pow(1-pr,4);el.textContent=Math.round(e*4700).toLocaleString()+'%';if(pr<1)requestAnimationFrame(r)})(performance.now())},1200);
+
+// Progress bar
+window.addEventListener('scroll',()=>{document.getElementById('prog').style.width=(window.scrollY/(document.documentElement.scrollHeight-window.innerHeight)*100)+'%'});
+
+// Scroll reveal + bar animation
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;
+e.target.classList.add('vis');
+e.target.querySelectorAll('.bf,.hbar-f').forEach((b,i)=>{setTimeout(()=>b.style.width=b.dataset.w+'%',i*60+350)});
+})},{threshold:.1});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+// SVG ring animation
+const ringObs=new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;
+const t=parseInt(e.target.dataset.target)||0;
+e.target.style.transition='stroke-dashoffset 2s cubic-bezier(.16,1,.3,1) .5s';
+e.target.style.strokeDashoffset=816.8-t;
+ringObs.unobserve(e.target);
+})},{threshold:.1});
+document.querySelectorAll('.ring-anim').forEach(el=>ringObs.observe(el));
+
+// SVG arc draw animation
+const arcObs=new IntersectionObserver(es=>{es.forEach(e=>{if(!e.isIntersecting)return;
+e.target.style.transition='stroke-dashoffset 2.5s ease-out .3s';
+e.target.style.strokeDashoffset='0';
+arcObs.unobserve(e.target);
+})},{threshold:.1});
+document.querySelectorAll('.arc-draw').forEach(el=>arcObs.observe(el));
+
+// Hero parallax
+window.addEventListener('scroll',()=>{
+const s=window.scrollY;
+const h=document.querySelector('.hc');
+if(h){h.style.transform='translateY('+s*.12+'px)';h.style.opacity=Math.max(0,1-s/500)}
+document.querySelectorAll('.hgeo').forEach((g,i)=>{g.style.transform='translate(-50%,-50%) rotate('+s*(0.015+i*0.008)+'deg)'});
+},{passive:true});
+</script>
+</body>
+</html>

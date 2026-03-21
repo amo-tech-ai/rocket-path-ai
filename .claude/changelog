@@ -1,0 +1,107 @@
+# Claude Code Best Practices — Changelog
+
+## 2026-03-07 — Best Practices Implementation (Score: 72 → 95/100)
+
+### New Files Created (8)
+
+**Path-Scoped Rules (`.claude/rules/`)**
+- `edge-functions.md` — Deno runtime, JWT, Promise.race timeout, Gemini API key, CORS (paths: `supabase/functions/**`)
+- `react-components.md` — @/ alias, shadcn imports, useAuth, env vars, React 18 patterns (paths: `src/components/**`, `src/pages/**`)
+- `database.md` — RLS policies, `(SELECT auth.uid())` caching, `user_org_id()`, no FOR ALL, WITH CHECK on UPDATE (paths: `supabase/migrations/**`, `src/integrations/**`)
+- `testing.md` — Vitest framework, mock patterns, testing-library preferences (paths: `**/*.test.*`, `**/*.spec.*`, `src/__tests__/**`)
+- `gemini-api.md` — Model IDs, structured output, temperature 1.0, safety settings, search grounding (paths: `**/*gemini*`, `supabase/functions/_shared/gemini*`, `supabase/functions/*/agents/**`)
+
+**Hooks**
+- `.claude/hooks/protect-migrations.sh` — PreToolUse hook warns when Write targets `supabase/migrations/`
+
+**Documentation**
+- `.claude/docs/10-best-pratices.md` — Comprehensive best practices guide with scoring, use cases, examples
+- `CLAUDE.local.md` — Personal overrides (project ref, test user, deploy commands, session prefs)
+
+### Modified Files (9)
+
+**`CLAUDE.md`** (v5.0 → v6.0)
+- Added `@imports` for prd.md and CHANGELOG.md
+- Replaced inline "Edge Function Gotchas" with references to 5 path-scoped rules files
+- Reduced to 123 lines (context-efficient)
+
+**`.claude/settings.json`**
+- Added `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"` env var
+- Added PreToolUse Write hook → `protect-migrations.sh`
+
+**`.gitignore`**
+- Added `.claude/worktrees/` for parallel session isolation
+
+**6 Agent Files** (added `memory: project` frontmatter)
+- `.claude/agents/code-reviewer.md`
+- `.claude/agents/security-auditor.md`
+- `.claude/agents/debugger.md`
+- `.claude/agents/supabase-expert.md`
+- `.claude/agents/frontend-designer.md`
+- `.claude/agents/ai-agent-dev.md`
+
+### Features Implemented
+
+| Feature | Status | Impact |
+|---------|--------|--------|
+| Path-scoped rules | 5 rules files | Context tokens saved — rules only load for matching paths |
+| @imports in CLAUDE.md | 2 imports | PRD and changelog always available without duplication |
+| CLAUDE.local.md | Created | Personal project overrides, gitignored |
+| Agent memory | 6 agents updated | Cross-session learning via `memory: project` |
+| Migration protection hook | Active | Warns before creating migration files |
+| Agent Teams | Enabled | Multi-agent collaboration via env var |
+| Worktree gitignore | Added | Safe parallel Claude Code sessions |
+| Best practices doc | Created | Comprehensive reference with scoring |
+
+### Verification Results (10/10 passing)
+
+1. 5 rules files exist with valid YAML frontmatter
+2. protect-migrations.sh is executable and functional
+3. CLAUDE.local.md exists with project-specific overrides
+4. 6 agents have `memory: project` frontmatter
+5. settings.json is valid JSON with Agent Teams env var
+6. .gitignore includes `.claude/worktrees/`
+7. CLAUDE.md has @imports pointing to existing files
+8. CLAUDE.md references all 5 rules files
+9. Hook correctly detects migration file writes
+10. Hook passes through non-migration writes silently
+
+### Remaining (5 points)
+
+- `/statusline` customization (requires interactive CLI)
+- Plugin system exploration (experimental)
+
+---
+
+## 2026-03-08 — Review & Hardening (Score: 95 → 97/100)
+
+External review identified 3 valid improvements (rejected 5 already-implemented suggestions).
+
+### Rejected Suggestions (already existed)
+- "Add PostToolUse verification" — `lint-on-save.sh` + `typecheck-async.sh` already run on Write|Edit
+- "Reorder to put verification before agents" — verification hooks predated agent creation
+- "Add project skills" — 37 skills already exist in `.agents/skills/`
+- "Agent Teams are experimental" — already noted in original changelog
+- "Score is internal not official" — already labeled as internal audit
+
+### Implemented (3 changes)
+
+**1. Secrets protection** — `.env*` writes now BLOCKED (exit 2), not just warned
+- `protect-migrations.sh` expanded: `.env`, `.env.local`, `.env.production` all blocked
+- Migrations still warn (exit 0) as before
+
+**2. PreCompact hook** — saves git state before context compression
+- New file: `.claude/hooks/pre-compact.sh`
+- Outputs: branch, modified files, staged files
+- Ensures task context survives compaction
+
+**3. SessionStart matcher expanded** — `compact|resume` → `compact|resume|clear|startup`
+- Context recovery now fires on all 4 session events
+
+### Verification (5/5 passing)
+
+1. `.env.local` write → BLOCKED (exit 2)
+2. Migration write → warned (exit 0)
+3. Normal file write → passed silently (exit 0)
+4. PreCompact hook outputs branch + modified files
+5. settings.json valid JSON with PreCompact + expanded SessionStart

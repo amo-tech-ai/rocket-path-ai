@@ -46,6 +46,10 @@ export const MaturityFunnel = memo(function MaturityFunnel({
         </span>
       </div>
 
+      <p className="text-[11px] text-muted-foreground leading-snug">
+        Each area starts as a guess and moves toward proven as you gather real evidence. Areas still in red or amber are your biggest risks — test them first.
+      </p>
+
       {/* Stage legend */}
       <div className="flex flex-wrap gap-2">
         {STAGES.map(stage => {

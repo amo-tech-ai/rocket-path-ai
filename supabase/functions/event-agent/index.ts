@@ -503,7 +503,14 @@ Deno.serve(async (req) => {
       return rateLimitResponse(rateResult, corsHeaders);
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { action, startup_id, event_id, criteria, attendance } = body;
 
     console.log(`[event-agent] Action: ${action}, User: ${user.id}`);

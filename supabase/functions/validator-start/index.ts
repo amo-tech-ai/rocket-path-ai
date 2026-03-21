@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     const { input_text, startup_id, interview_context } = body as {
       input_text?: string;
       startup_id?: string;
-      interview_context?: { version: number; extracted: Record<string, string>; coverage: Record<string, string> };
+      interview_context?: { version: number; extracted: Record<string, string>; coverage: Record<string, string>; confidence?: Record<string, string>; discoveredEntities?: { competitors?: string[]; urls?: string[]; marketData?: string[] } };
     };
 
     // Input sanitization — strip HTML tags, limit length

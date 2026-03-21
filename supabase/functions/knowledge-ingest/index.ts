@@ -18,10 +18,12 @@ import {
   formatEmbeddingForStorage,
 } from "../_shared/openai-embeddings.ts";
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from "../_shared/rate-limit.ts";
+import { broadcastEvent } from "../_shared/broadcast.ts";
 
 const BATCH_SIZE = 20;
-const CHUNK_MAX_CHARS = 600;
-const CHUNK_OVERLAP_CHARS = 80;
+/** Configurable chunk size (2400–4800); balance context vs granularity. */
+const CHUNK_MAX_CHARS = 3600;
+const CHUNK_OVERLAP_CHARS = 200;
 const LLAMACLOUD_MARKDOWN_URL =
   "https://api.cloud.llamaindex.ai/api/v1/parsing/job";
 
@@ -51,6 +53,8 @@ interface IngestRequest {
   source_url?: string;
   tags?: string[];
   document_id?: string;
+  /** Relative source path for provenance (e.g. research/AI/topics/02-report.md) */
+  source_path?: string;
   // ingest_from_llamacloud
   llama_parse_id?: string;
   // generate_embeddings
@@ -75,17 +79,69 @@ async function sha256Hex(text: string): Promise<string> {
     .join("");
 }
 
-/** Chunk markdown by headings (## / ###), then by length with overlap. */
-function chunkMarkdownByHeading(
-  markdown: string
-): {
+export type ChunkKind = "text" | "table";
+
+export interface MarkdownChunk {
   content: string;
   section_title?: string;
   page_start?: number;
   page_end?: number;
-}[] {
+  chunk_kind?: ChunkKind;
+}
+
+/** Split markdown into narrative and table blocks; tables become single chunks, narrative by heading+length. */
+function chunkMarkdownWithTables(markdown: string): MarkdownChunk[] {
+  const lines = markdown.split(/\n/);
+  const segments: { kind: "narrative" | "table"; text: string }[] = [];
+  let i = 0;
+  let currentSection = { kind: "narrative" as const, text: "" };
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const isTableRow = /^\s*\|.+\|\s*$/.test(line) || /^\s*\|-.+\|\s*$/.test(line);
+    if (isTableRow) {
+      if (currentSection.kind === "narrative" && currentSection.text.trim()) {
+        segments.push({ ...currentSection });
+        currentSection = { kind: "narrative", text: "" };
+      }
+      currentSection = { kind: "table", text: currentSection.kind === "table" ? currentSection.text + "\n" + line : line };
+      i++;
+      while (i < lines.length && (/^\s*\|.+\|\s*$/.test(lines[i]) || /^\s*\|-.+\|\s*$/.test(lines[i]))) {
+        currentSection.text += "\n" + lines[i];
+        i++;
+      }
+      segments.push({ ...currentSection });
+      currentSection = { kind: "narrative", text: "" };
+      continue;
+    }
+    if (currentSection.kind === "table") {
+      currentSection = { kind: "narrative", text: "" };
+    }
+    currentSection.text += (currentSection.text ? "\n" : "") + line;
+    i++;
+  }
+  if (currentSection.text.trim()) {
+    segments.push({ ...currentSection });
+  }
+
+  const chunks: MarkdownChunk[] = [];
+  for (const seg of segments) {
+    if (seg.kind === "table") {
+      chunks.push({ content: seg.text.trim(), chunk_kind: "table" });
+      continue;
+    }
+    const byHeading = chunkNarrativeByHeading(seg.text);
+    for (const c of byHeading) {
+      chunks.push({ ...c, chunk_kind: "text" });
+    }
+  }
+  return chunks;
+}
+
+/** Chunk narrative by headings (## / ###), then by length with overlap. */
+function chunkNarrativeByHeading(text: string): MarkdownChunk[] {
   const sections: { title: string; text: string }[] = [];
-  const parts = markdown.split(/\n(#{2,3}\s)/).filter(Boolean);
+  const parts = text.split(/\n(#{2,3}\s)/).filter(Boolean);
   let currentTitle = "Document";
   let currentText = "";
 
@@ -105,12 +161,7 @@ function chunkMarkdownByHeading(
     sections.push({ title: currentTitle, text: currentText.trim() });
   }
 
-  const chunks: {
-    content: string;
-    section_title?: string;
-    page_start?: number;
-    page_end?: number;
-  }[] = [];
+  const chunks: MarkdownChunk[] = [];
   for (const { title, text } of sections) {
     if (text.length <= CHUNK_MAX_CHARS) {
       chunks.push({ content: text, section_title: title });
@@ -130,6 +181,11 @@ function chunkMarkdownByHeading(
     }
   }
   return chunks;
+}
+
+/** Legacy: chunk by heading only (no table extraction). Use chunkMarkdownWithTables for new ingest. */
+function chunkMarkdownByHeading(markdown: string): MarkdownChunk[] {
+  return chunkMarkdownWithTables(markdown);
 }
 
 // ---------------------------------------------------------------------------
@@ -213,8 +269,9 @@ async function handleIngest(body: IngestRequest) {
   const docTags = Array.isArray(body.tags)
     ? body.tags.filter((t): t is string => typeof t === "string")
     : null;
+  const sourcePath = (body.source_path ?? body.source ?? null)?.trim().slice(0, 1024) ?? null;
 
-  const chunks = chunkMarkdownByHeading(rawMarkdown);
+  const chunks = chunkMarkdownWithTables(rawMarkdown);
   if (chunks.length === 0) {
     return new Response(
       JSON.stringify({ error: "No chunks produced from markdown" }),
@@ -275,15 +332,27 @@ async function handleIngest(body: IngestRequest) {
 
   let processed = 0;
   const errors: string[] = [];
+  const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
+  const ingestTopic = `knowledge:${docId}:ingest`;
+
+  // Broadcast ingest_started
+  broadcastEvent(supabase, ingestTopic, "ingest_started", {
+    documentId: docId,
+    title: docTitle,
+    chunksTotal: chunks.length,
+    batchesTotal: totalBatches,
+  });
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     try {
       const results = await generateEmbeddings(batch.map((c) => c.content));
       for (let j = 0; j < batch.length; j++) {
         const chunk = batch[j];
         const embResult = results[j];
         if (!embResult?.embedding) continue;
+        const chunkIndex = i + j;
         const { error: insertError } = await supabase
           .from("knowledge_chunks")
           .insert({
@@ -298,26 +367,48 @@ async function handleIngest(body: IngestRequest) {
             section_title: chunk.section_title ?? null,
             page_start: chunk.page_start ?? null,
             page_end: chunk.page_end ?? null,
+            source_path: sourcePath,
+            chunk_kind: chunk.chunk_kind ?? "text",
+            chunk_index: chunkIndex,
             ...(docIndustry && { industry: docIndustry }),
             ...(docSampleSize != null && { sample_size: docSampleSize }),
             ...(docSourceUrl && { source_url: docSourceUrl }),
             ...(docTags && docTags.length > 0 && { tags: docTags }),
           });
         if (insertError) {
-          errors.push(`Chunk ${i + j}: ${insertError.message}`);
+          errors.push(`Chunk ${chunkIndex}: ${insertError.message}`);
         } else {
           processed++;
         }
       }
     } catch (batchErr) {
       errors.push(
-        `Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batchErr instanceof Error ? batchErr.message : "Unknown"}`
+        `Batch ${batchNum}: ${batchErr instanceof Error ? batchErr.message : "Unknown"}`
       );
     }
+
+    // Broadcast batch progress
+    broadcastEvent(supabase, ingestTopic, "batch_completed", {
+      documentId: docId,
+      batch: batchNum,
+      batchesTotal: totalBatches,
+      chunksProcessed: processed,
+      chunksTotal: chunks.length,
+      percentComplete: Math.round((processed / chunks.length) * 100),
+    });
+
     if (i + BATCH_SIZE < chunks.length) {
       await new Promise((r) => setTimeout(r, 500));
     }
   }
+
+  // Broadcast ingest_complete
+  broadcastEvent(supabase, ingestTopic, "ingest_complete", {
+    documentId: docId,
+    chunksCreated: processed,
+    chunksTotal: chunks.length,
+    errors: errors.length,
+  });
 
   return new Response(
     JSON.stringify({
@@ -402,7 +493,8 @@ async function handleIngestFromLlamacloud(body: IngestRequest) {
     );
   }
 
-  const chunks = chunkMarkdownByHeading(markdown);
+  const sourcePath = (body.source_path ?? body.source ?? null)?.trim().slice(0, 1024) ?? null;
+  const chunks = chunkMarkdownWithTables(markdown);
   if (chunks.length === 0) {
     return new Response(
       JSON.stringify({ error: "No chunks produced from markdown" }),
@@ -448,6 +540,7 @@ async function handleIngestFromLlamacloud(body: IngestRequest) {
         const chunk = batch[j];
         const embResult = results[j];
         if (!embResult?.embedding) continue;
+        const chunkIndex = i + j;
         const { error: insertError } = await supabase
           .from("knowledge_chunks")
           .insert({
@@ -462,9 +555,12 @@ async function handleIngestFromLlamacloud(body: IngestRequest) {
             section_title: chunk.section_title || null,
             page_start: chunk.page_start ?? null,
             page_end: chunk.page_end ?? null,
+            source_path: sourcePath,
+            chunk_kind: chunk.chunk_kind ?? "text",
+            chunk_index: chunkIndex,
           });
         if (insertError) {
-          errors.push(`Chunk ${i + j}: ${insertError.message}`);
+          errors.push(`Chunk ${chunkIndex}: ${insertError.message}`);
         } else {
           processed++;
         }
@@ -667,10 +763,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      const rl = checkRateLimit("knowledge-ingest", "ingest", {
-        maxRequests: 20,
-        windowSeconds: 300,
-      });
+      const ingestKey =
+        req.headers.get("x-internal-token") ||
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        "internal";
+      const rl = checkRateLimit(ingestKey, "knowledge-ingest", RATE_LIMITS.ingest);
       if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
       return await handleIngest(body);

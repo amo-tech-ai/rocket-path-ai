@@ -66,8 +66,12 @@ export function useGlobalAIAssistant(): UseGlobalAIAssistantReturn {
   } = useAIAssistant();
 
   const executeQuickAction = useCallback((action: QuickAction) => {
-    sendMessage(action.prompt);
-  }, [sendMessage]);
+    if (action.route) {
+      navigate(action.route);
+    } else {
+      sendMessage(action.prompt);
+    }
+  }, [sendMessage, navigate]);
 
   const handleSuggestedAction = useCallback((action: { type: string; label: string; payload?: Record<string, unknown> }) => {
     switch (action.type) {

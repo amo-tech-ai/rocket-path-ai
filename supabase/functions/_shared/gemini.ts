@@ -227,6 +227,8 @@ export interface GeminiChatResult {
   text: string;
   inputTokens: number;
   outputTokens: number;
+  /** Web search citations (only present when useSearch is true) */
+  citations?: Array<{ url: string; title: string }>;
 }
 
 /**
@@ -237,9 +239,9 @@ export async function callGeminiChat(
   model: string,
   systemPrompt: string,
   messages: GeminiChatMessage[],
-  options: Pick<GeminiCallOptions, 'timeoutMs' | 'maxOutputTokens' | 'maxRetries'> = {}
+  options: Pick<GeminiCallOptions, 'timeoutMs' | 'maxOutputTokens' | 'maxRetries' | 'useSearch'> = {}
 ): Promise<GeminiChatResult> {
-  const { timeoutMs = 30_000, maxOutputTokens = 2048, maxRetries = 2 } = options;
+  const { timeoutMs = 30_000, maxOutputTokens = 2048, maxRetries = 2, useSearch = false } = options;
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
   if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
 
@@ -248,7 +250,12 @@ export async function callGeminiChat(
     parts: [{ text: m.content }],
   }));
 
-  const body = {
+  // deno-lint-ignore no-explicit-any
+  const chatTools: any[] = [];
+  if (useSearch) chatTools.push({ googleSearch: {} });
+
+  // deno-lint-ignore no-explicit-any
+  const body: Record<string, any> = {
     contents,
     systemInstruction: { parts: [{ text: systemPrompt }] },
     generationConfig: {
@@ -262,6 +269,7 @@ export async function callGeminiChat(
       { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
     ],
   };
+  if (chatTools.length > 0) body.tools = chatTools;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const RETRYABLE_CODES = [429, 500, 502, 503, 504];
@@ -315,10 +323,19 @@ export async function callGeminiChat(
       const parts = data.candidates?.[0]?.content?.parts || [];
       // deno-lint-ignore no-explicit-any
       const outputPart = parts.filter((p: any) => !p.thought).pop();
+
+      // Extract Google Search citations if present
+      const groundingMeta = data.candidates?.[0]?.groundingMetadata;
+      // deno-lint-ignore no-explicit-any
+      const citations: Array<{ url: string; title: string }> = (groundingMeta?.groundingChunks || [])
+        .filter((c: any) => c.web?.uri)
+        .map((c: any) => ({ url: c.web.uri, title: c.web.title || '' }));
+
       return {
         text: outputPart?.text || '',
         inputTokens: data.usageMetadata?.promptTokenCount || 0,
         outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+        ...(citations.length > 0 ? { citations } : {}),
       };
     }
 
@@ -331,6 +348,143 @@ export async function callGeminiChat(
   }
 
   throw lastError || new Error('Gemini chat failed after retries');
+}
+
+// ============================================================================
+// Streaming Chat — uses streamGenerateContent for token-by-token delivery
+// ============================================================================
+
+export interface GeminiStreamOptions {
+  timeoutMs?: number;
+  maxOutputTokens?: number;
+}
+
+/**
+ * Streaming variant of callGeminiChat.
+ * Calls Gemini's streamGenerateContent endpoint and yields text chunks via onChunk callback.
+ * Returns the full accumulated text + token counts when the stream completes.
+ *
+ * Uses server-sent events (SSE) format: each line prefixed with "data: " containing JSON.
+ * The stream ends when Gemini sends a chunk with finishReason.
+ */
+export async function callGeminiChatStream(
+  model: string,
+  systemPrompt: string,
+  messages: GeminiChatMessage[],
+  userMessage: string,
+  onChunk: (chunk: string) => void,
+  options: GeminiStreamOptions = {}
+): Promise<GeminiChatResult> {
+  const { timeoutMs = 30_000, maxOutputTokens = 2048 } = options;
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
+
+  const contents = [
+    ...messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    { role: 'user', parts: [{ text: userMessage }] },
+  ];
+
+  const body = {
+    contents,
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: {
+      temperature: 1.0,
+      maxOutputTokens,
+    },
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ],
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
+
+  const fetchPromise = fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+    body: JSON.stringify(body),
+  });
+
+  const response = await Promise.race([
+    fetchPromise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Gemini stream hard timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini stream API error: ${response.status} — ${errorText.slice(0, 200)}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Gemini stream response has no body');
+  }
+
+  // Read SSE stream
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let buffer = '';
+
+  const deadline = Date.now() + timeoutMs;
+
+  try {
+    while (true) {
+      if (Date.now() > deadline) {
+        console.warn('[callGeminiChatStream] Stream deadline exceeded — returning partial');
+        break;
+      }
+
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE lines: "data: {...}\n\n"
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+        const jsonStr = trimmed.slice(6); // Remove "data: " prefix
+        if (jsonStr === '[DONE]') continue;
+
+        try {
+          const data = JSON.parse(jsonStr);
+          const parts = data.candidates?.[0]?.content?.parts || [];
+          for (const part of parts) {
+            if (part.thought) continue; // Skip thinking tokens
+            if (part.text) {
+              fullText += part.text;
+              onChunk(part.text);
+            }
+          }
+
+          // Extract token counts from the last chunk
+          if (data.usageMetadata) {
+            inputTokens = data.usageMetadata.promptTokenCount || inputTokens;
+            outputTokens = data.usageMetadata.candidatesTokenCount || outputTokens;
+          }
+        } catch {
+          // Non-JSON line or partial — skip
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { text: fullText, inputTokens, outputTokens };
 }
 
 // ============================================================================

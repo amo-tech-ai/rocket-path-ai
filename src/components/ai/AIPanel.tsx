@@ -49,17 +49,20 @@ export function AIPanel({ onClose }: AIPanelProps) {
   // MVP-06: Section-aware context for report dimension pages
   const reportAI = useReportAIContext();
   const isOnDimension = reportAI.isOnDimensionPage && isAuthenticated;
+  const isOnReportOverview = reportAI.isOnReportOverview && isAuthenticated;
 
   // Dashboard-specific quick actions
   const dashboardAI = useDashboardAIContext();
   const isOnDashboard = dashboardAI.isOnDashboard && isAuthenticated;
 
-  // Priority chain: dimension context > dashboard context > default
+  // Priority chain: dimension > report overview > dashboard > default
   const effectiveQuickActions = isOnDimension
     ? reportAI.quickActions
-    : isOnDashboard
-      ? dashboardAI.quickActions
-      : quickActions;
+    : isOnReportOverview
+      ? reportAI.quickActions
+      : isOnDashboard
+        ? dashboardAI.quickActions
+        : quickActions;
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -117,6 +120,13 @@ export function AIPanel({ onClose }: AIPanelProps) {
                   style={{ backgroundColor: reportAI.dimensionColor ?? undefined }}
                 >
                   {reportAI.dimensionLabel}
+                </Badge>
+              ) : isOnReportOverview ? (
+                <Badge
+                  variant="default"
+                  className="text-[10px] h-5 px-1.5 flex-shrink-0"
+                >
+                  Report
                 </Badge>
               ) : (
                 <Badge
@@ -176,20 +186,24 @@ export function AIPanel({ onClose }: AIPanelProps) {
             <h3 className="font-semibold text-sm mb-1">
               {isOnDimension
                 ? `Ask about ${reportAI.dimensionLabel}`
-                : isOnDashboard
-                  ? 'Your startup at a glance'
-                  : isAuthenticated
-                    ? 'How can I help you today?'
-                    : "Hi! I'm Atlas"}
+                : isOnReportOverview
+                  ? 'Your report is ready'
+                  : isOnDashboard
+                    ? 'Your startup at a glance'
+                    : isAuthenticated
+                      ? 'How can I help you today?'
+                      : "Hi! I'm Atlas"}
             </h3>
             <p className="text-xs text-muted-foreground mb-6 max-w-[280px]">
               {isOnDimension
                 ? 'Get insights about this dimension, drill into sub-scores, or learn how to improve.'
-                : isOnDashboard
-                  ? 'Ask about your health score, risks, next steps, or get a weekly digest.'
-                  : isAuthenticated
-                    ? 'Ask about your startup, get recommendations, or explore insights.'
-                    : 'I can answer questions about StartupAI. Sign in to unlock personalized guidance!'}
+                : isOnReportOverview
+                  ? 'Ask about your score, generate a canvas, plan your next sprint, or create a pitch deck.'
+                  : isOnDashboard
+                    ? 'Ask about your health score, risks, next steps, or get a weekly digest.'
+                    : isAuthenticated
+                      ? 'Ask about your startup, get recommendations, or explore insights.'
+                      : 'I can answer questions about StartupAI. Sign in to unlock personalized guidance!'}
             </p>
 
             {/* Quick Actions — dimension-specific when on a dimension page */}
@@ -242,6 +256,18 @@ export function AIPanel({ onClose }: AIPanelProps) {
                 </div>
               </motion.div>
             )}
+
+            {/* Compact quick actions after proactive greeting (≤3 messages) */}
+            {messages.length <= 3 &&
+              messages.length > 0 &&
+              (isOnReportOverview || isOnDimension || isOnDashboard) && (
+                <div className="pt-2">
+                  <AIQuickActions
+                    actions={effectiveQuickActions.slice(0, 4)}
+                    onAction={executeQuickAction}
+                  />
+                </div>
+              )}
           </div>
         )}
       </ScrollArea>

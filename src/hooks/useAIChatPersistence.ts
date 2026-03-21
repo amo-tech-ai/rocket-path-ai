@@ -1,22 +1,23 @@
 /**
  * AI Chat Persistence Hook
- * 
+ *
  * Manages chat session persistence to Supabase:
- * - Creates/retrieves chat sessions
- * - Persists messages to chat_messages table
+ * - Creates/retrieves chat sessions (chat_sessions table)
+ * - Persists messages (chat_messages table)
  * - Loads message history on mount
+ *
+ * Schema-aligned: uses actual column names from chat_sessions and chat_messages.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 export interface ChatSession {
   id: string;
   title: string | null;
-  startupId: string | null;
+  startupId: string;
   messageCount: number;
-  lastTab: string | null;
   createdAt: string;
 }
 
@@ -24,43 +25,42 @@ export interface PersistedMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  tab: string;
   createdAt: string;
   metadata?: Record<string, unknown>;
-  suggestedActions?: Array<{ type: string; label: string; payload?: Record<string, unknown> }>;
 }
 
 interface UseChatPersistenceOptions {
-  tab?: string;
   startupId?: string;
   autoLoadHistory?: boolean;
 }
 
 export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
-  const { tab = 'dashboard', startupId, autoLoadHistory = true } = options;
+  const { startupId, autoLoadHistory = true } = options;
   const { user } = useAuth();
-  
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<PersistedMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const ensureRef = useRef(false);
 
   // Get or create a chat session
   const ensureSession = useCallback(async (): Promise<string | null> => {
     if (!user) return null;
     if (sessionId) return sessionId;
+    if (ensureRef.current) return null; // prevent double-call
+    ensureRef.current = true;
 
     try {
       // Check for recent active session (within last 24 hours)
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      
+
       const { data: existingSession } = await supabase
         .from('chat_sessions')
         .select('id')
         .eq('user_id', user.id)
-        .eq('last_tab', tab)
+        .eq('status', 'active')
         .gte('created_at', oneDayAgo)
-        .is('ended_at', null)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -70,28 +70,31 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
         return existingSession.id;
       }
 
-      // Create new session
+      // Create new session — startup_id is required by schema
+      const sid = startupId || '00000000-0000-0000-0000-000000000000';
       const { data: newSession, error } = await supabase
         .from('chat_sessions')
         .insert({
           user_id: user.id,
-          startup_id: startupId || null,
-          last_tab: tab,
-          started_at: new Date().toISOString(),
+          startup_id: sid,
+          agent_type: 'atlas',
+          status: 'active',
           message_count: 0,
         })
         .select('id')
         .single();
 
       if (error) throw error;
-      
+
       setSessionId(newSession.id);
       return newSession.id;
     } catch (error) {
       console.error('[ChatPersistence] Failed to ensure session:', error);
       return null;
+    } finally {
+      ensureRef.current = false;
     }
-  }, [user, startupId, sessionId, tab]);
+  }, [user, startupId, sessionId]);
 
   // Load message history
   const loadHistory = useCallback(async () => {
@@ -104,9 +107,8 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
 
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('id, role, content, tab, created_at, metadata, suggested_actions')
+        .select('id, role, content, created_at, metadata')
         .eq('session_id', sid)
-        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
         .limit(50);
 
@@ -116,10 +118,8 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
         id: msg.id,
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
-        tab: msg.tab,
         createdAt: msg.created_at || new Date().toISOString(),
         metadata: msg.metadata as Record<string, unknown> | undefined,
-        suggestedActions: msg.suggested_actions as PersistedMessage['suggestedActions'],
       }));
 
       setMessages(formattedMessages);
@@ -135,7 +135,6 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
     role: 'user' | 'assistant',
     content: string,
     metadata?: Record<string, unknown>,
-    suggestedActions?: PersistedMessage['suggestedActions']
   ): Promise<PersistedMessage | null> => {
     if (!user) return null;
 
@@ -144,47 +143,27 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
       const sid = await ensureSession();
       if (!sid) return null;
 
-      const insertData = {
+      const insertPayload: Record<string, unknown> = {
         session_id: sid,
-        user_id: user.id,
         role,
         content,
-        tab,
         metadata: metadata || null,
-        suggested_actions: suggestedActions || null,
       };
 
       const { data, error } = await supabase
         .from('chat_messages')
-        .insert(insertData as any) // Type assertion for Supabase generated types
+        .insert(insertPayload)
         .select('id, created_at')
         .single();
 
       if (error) throw error;
 
-      // Update session message count asynchronously
-      (async () => {
-        try {
-          await supabase
-            .from('chat_sessions')
-            .update({ 
-              message_count: messages.length + 1,
-              last_tab: tab,
-            })
-            .eq('id', sid);
-        } catch (err) {
-          console.warn('[ChatPersistence] Failed to update message count:', err);
-        }
-      })();
-
       const newMessage: PersistedMessage = {
         id: data.id,
         role,
         content,
-        tab,
         createdAt: data.created_at,
         metadata,
-        suggestedActions,
       };
 
       setMessages(prev => [...prev, newMessage]);
@@ -195,7 +174,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
     } finally {
       setIsSaving(false);
     }
-  }, [user, ensureSession, tab, messages.length]);
+  }, [user, ensureSession]);
 
   // End current session
   const endSession = useCallback(async () => {
@@ -204,7 +183,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
     try {
       await supabase
         .from('chat_sessions')
-        .update({ ended_at: new Date().toISOString() })
+        .update({ status: 'ended' })
         .eq('id', sessionId);
 
       setSessionId(null);
@@ -224,7 +203,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions = {}) {
     if (autoLoadHistory && user) {
       loadHistory();
     }
-  }, [autoLoadHistory, user, loadHistory]);
+  }, [autoLoadHistory, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     sessionId,

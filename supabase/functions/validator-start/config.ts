@@ -35,7 +35,7 @@ export const AGENT_TIMEOUTS: Record<string, number> = {
   extractor: 60_000,    // Flash model (~6-11s typical, up to 50s with cold start + interview context)
   research: 60_000,     // Flash + Google Search + URL Context + RAG + RESEARCH_FRAGMENT. Search grounding 30-50s
   competitors: 55_000,  // Background promise. ~15-20s search-only, ~30-40s with URL Context
-  scoring: 50_000,      // Flash + thinking: high (~13s typical, up to 40s with cold start). Was 30s — too tight.
+  scoring: 65_000,      // Flash + thinking: high (~40s) + RAG/playbook overhead (~5-10s). Was 50s — timeout after RAG added in 50c.
   mvp: 30_000,          // Flash model (~10s typical, up to 20s on cold starts)
   composer: 40_000,     // Base timeout (overridden by pipeline.ts dynamic budget, capped at 90s)
   verifier: 5_000,      // Pure JS validation (no Gemini call)

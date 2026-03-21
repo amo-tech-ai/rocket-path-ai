@@ -282,8 +282,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Handle coaching chat modes (practice_pitch, growth_strategy, deal_review, canvas_coach)
-    const COACHING_MODES = ['practice_pitch', 'growth_strategy', 'deal_review', 'canvas_coach'] as const;
+    // Handle coaching chat modes (practice_pitch, growth_strategy, deal_review, canvas_coach, research, planning)
+    const COACHING_MODES = ['practice_pitch', 'growth_strategy', 'deal_review', 'canvas_coach', 'research', 'planning'] as const;
     type CoachingMode = typeof COACHING_MODES[number];
 
     if (user && COACHING_MODES.includes(mode as CoachingMode)) {
@@ -396,12 +396,13 @@ Deno.serve(async (req: Request) => {
       }
 
       // Non-streaming fallback (no room_id or stream=false)
+      const isResearchMode = coachingMode === 'research';
       const result = await sharedCallGeminiChat(
         'gemini-3-flash-preview',
         finalPrompt,
         chatMessages,
         userMessage,
-        { timeoutMs: 30_000 }
+        { timeoutMs: isResearchMode ? 45_000 : 30_000, useSearch: isResearchMode }
       );
 
       return new Response(
@@ -409,6 +410,7 @@ Deno.serve(async (req: Request) => {
           message: result.text,
           mode: coachingMode,
           model: 'gemini-3-flash-preview',
+          ...(result.citations?.length ? { citations: result.citations } : {}),
         }),
         { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       );
@@ -501,6 +503,27 @@ Deno.serve(async (req: Request) => {
           'When the user asks about their status, health, or risks, use the dashboard data above.',
         ].filter(Boolean);
         systemPrompt += `\n\n${dashLines.join('\n')}`;
+      }
+
+      // Task #4: Load industry playbook for calibrated advice
+      if (startup?.industry) {
+        try {
+          const { data: playbook } = await supabase
+            .from('industry_playbooks')
+            .select('benchmarks, investor_expectations, stage_checklists, gtm_patterns')
+            .eq('industry_id', startup.industry.trim().toLowerCase())
+            .eq('is_active', true)
+            .maybeSingle();
+          if (playbook?.benchmarks) {
+            systemPrompt += `\n\n## INDUSTRY BENCHMARKS for ${startup.industry} [INDUSTRY BENCHMARK]\n${JSON.stringify(playbook.benchmarks, null, 2)}`;
+            if (playbook.stage_checklists && startup.stage) {
+              const stageAdvice = playbook.stage_checklists[startup.stage as string];
+              if (stageAdvice) systemPrompt += `\n\nSTAGE ADVICE (${startup.stage}): ${stageAdvice}`;
+            }
+          }
+        } catch (e) {
+          console.warn('[ai-chat] Playbook load failed (continuing):', e instanceof Error ? e.message : e);
+        }
       }
 
       // RAG: Search knowledge base before LLM; inject server-side (no raw chunks to client)

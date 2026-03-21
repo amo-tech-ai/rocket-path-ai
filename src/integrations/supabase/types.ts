@@ -426,6 +426,65 @@ export type Database = {
           },
         ]
       }
+      behavioral_nudges: {
+        Row: {
+          created_at: string
+          cta_route: string | null
+          cta_text: string | null
+          dismissed_at: string | null
+          id: string
+          message: string
+          org_id: string
+          priority: number
+          snoozed_until: string | null
+          title: string
+          trigger_key: string
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cta_route?: string | null
+          cta_text?: string | null
+          dismissed_at?: string | null
+          id?: string
+          message: string
+          org_id: string
+          priority?: number
+          snoozed_until?: string | null
+          title: string
+          trigger_key: string
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cta_route?: string | null
+          cta_text?: string | null
+          dismissed_at?: string | null
+          id?: string
+          message?: string
+          org_id?: string
+          priority?: number
+          snoozed_until?: string | null
+          title?: string
+          trigger_key?: string
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "behavioral_nudges_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -609,14 +668,63 @@ export type Database = {
           },
         ]
       }
+      chat_mode_sessions: {
+        Row: {
+          chat_session_id: string
+          created_at: string
+          feedback: string[] | null
+          id: string
+          mode: string
+          mode_context: Json | null
+          score: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_session_id: string
+          created_at?: string
+          feedback?: string[] | null
+          id?: string
+          mode: string
+          mode_context?: Json | null
+          score?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_session_id?: string
+          created_at?: string
+          feedback?: string[] | null
+          id?: string
+          mode?: string
+          mode_context?: Json | null
+          score?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_mode_sessions_chat_session_id_fkey"
+            columns: ["chat_session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_sessions: {
         Row: {
           agent_type: string
+          chat_mode: string | null
           context: Json | null
           created_at: string
           id: string
           last_message_at: string | null
           message_count: number
+          mode_context: Json | null
           startup_id: string
           status: string
           title: string | null
@@ -625,11 +733,13 @@ export type Database = {
         }
         Insert: {
           agent_type?: string
+          chat_mode?: string | null
           context?: Json | null
           created_at?: string
           id?: string
           last_message_at?: string | null
           message_count?: number
+          mode_context?: Json | null
           startup_id: string
           status?: string
           title?: string | null
@@ -638,11 +748,13 @@ export type Database = {
         }
         Update: {
           agent_type?: string
+          chat_mode?: string | null
           context?: Json | null
           created_at?: string
           id?: string
           last_message_at?: string | null
           message_count?: number
+          mode_context?: Json | null
           startup_id?: string
           status?: string
           title?: string | null
@@ -1082,9 +1194,12 @@ export type Database = {
           amount: number | null
           contact_id: string | null
           created_at: string | null
+          deal_verdict: string | null
           deleted_at: string | null
           id: string
+          meddpicc_score: number | null
           name: string
+          signal_tier: string | null
           stage: string | null
           startup_id: string
           status: string | null
@@ -1094,9 +1209,12 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string | null
+          deal_verdict?: string | null
           deleted_at?: string | null
           id?: string
+          meddpicc_score?: number | null
           name: string
+          signal_tier?: string | null
           stage?: string | null
           startup_id: string
           status?: string | null
@@ -1106,9 +1224,12 @@ export type Database = {
           amount?: number | null
           contact_id?: string | null
           created_at?: string | null
+          deal_verdict?: string | null
           deleted_at?: string | null
           id?: string
+          meddpicc_score?: number | null
           name?: string
+          signal_tier?: string | null
           stage?: string | null
           startup_id?: string
           status?: string | null
@@ -1371,36 +1492,45 @@ export type Database = {
       documents: {
         Row: {
           content: string | null
+          content_json: Json | null
           created_at: string | null
           deleted_at: string | null
           id: string
+          metadata: Json | null
           startup_id: string
           status: string | null
           title: string
           type: string
           updated_at: string | null
+          version: number | null
         }
         Insert: {
           content?: string | null
+          content_json?: Json | null
           created_at?: string | null
           deleted_at?: string | null
           id?: string
+          metadata?: Json | null
           startup_id: string
           status?: string | null
           title: string
           type: string
           updated_at?: string | null
+          version?: number | null
         }
         Update: {
           content?: string | null
+          content_json?: Json | null
           created_at?: string | null
           deleted_at?: string | null
           id?: string
+          metadata?: Json | null
           startup_id?: string
           status?: string | null
           title?: string
           type?: string
           updated_at?: string | null
+          version?: number | null
         }
         Relationships: [
           {
@@ -2603,7 +2733,17 @@ export type Database = {
           id: string
           investment_focus: string[] | null
           last_contact_date: string | null
+          last_signal_at: string | null
           linkedin_url: string | null
+          meddpicc_champion: string | null
+          meddpicc_competition: string | null
+          meddpicc_decision_criteria: Json | null
+          meddpicc_decision_process: string | null
+          meddpicc_economic_buyer: string | null
+          meddpicc_identified_pain: string | null
+          meddpicc_metrics: Json | null
+          meddpicc_paper_process: string | null
+          meddpicc_score: number | null
           meetings_count: number | null
           name: string
           next_follow_up: string | null
@@ -2611,6 +2751,7 @@ export type Database = {
           phone: string | null
           portfolio_companies: string[] | null
           priority: string | null
+          signal_tier: string | null
           stage_focus: string[] | null
           startup_id: string
           status: string | null
@@ -2633,7 +2774,17 @@ export type Database = {
           id?: string
           investment_focus?: string[] | null
           last_contact_date?: string | null
+          last_signal_at?: string | null
           linkedin_url?: string | null
+          meddpicc_champion?: string | null
+          meddpicc_competition?: string | null
+          meddpicc_decision_criteria?: Json | null
+          meddpicc_decision_process?: string | null
+          meddpicc_economic_buyer?: string | null
+          meddpicc_identified_pain?: string | null
+          meddpicc_metrics?: Json | null
+          meddpicc_paper_process?: string | null
+          meddpicc_score?: number | null
           meetings_count?: number | null
           name: string
           next_follow_up?: string | null
@@ -2641,6 +2792,7 @@ export type Database = {
           phone?: string | null
           portfolio_companies?: string[] | null
           priority?: string | null
+          signal_tier?: string | null
           stage_focus?: string[] | null
           startup_id: string
           status?: string | null
@@ -2663,7 +2815,17 @@ export type Database = {
           id?: string
           investment_focus?: string[] | null
           last_contact_date?: string | null
+          last_signal_at?: string | null
           linkedin_url?: string | null
+          meddpicc_champion?: string | null
+          meddpicc_competition?: string | null
+          meddpicc_decision_criteria?: Json | null
+          meddpicc_decision_process?: string | null
+          meddpicc_economic_buyer?: string | null
+          meddpicc_identified_pain?: string | null
+          meddpicc_metrics?: Json | null
+          meddpicc_paper_process?: string | null
+          meddpicc_score?: number | null
           meetings_count?: number | null
           name?: string
           next_follow_up?: string | null
@@ -2671,6 +2833,7 @@ export type Database = {
           phone?: string | null
           portfolio_companies?: string[] | null
           priority?: string | null
+          signal_tier?: string | null
           stage_focus?: string[] | null
           startup_id?: string
           status?: string | null
@@ -2709,12 +2872,15 @@ export type Database = {
       knowledge_chunks: {
         Row: {
           category: string
+          chunk_index: number | null
+          chunk_kind: string | null
           confidence: string
           content: string
           created_at: string
           document_id: string | null
           embedding: string | null
           fetch_count: number
+          fts: unknown
           id: string
           industry: string | null
           last_fetched_at: string | null
@@ -2724,6 +2890,7 @@ export type Database = {
           sample_size: number | null
           section_title: string | null
           source: string
+          source_path: string | null
           source_type: string
           source_url: string | null
           stage: string | null
@@ -2734,12 +2901,15 @@ export type Database = {
         }
         Insert: {
           category: string
+          chunk_index?: number | null
+          chunk_kind?: string | null
           confidence?: string
           content: string
           created_at?: string
           document_id?: string | null
           embedding?: string | null
           fetch_count?: number
+          fts?: unknown
           id?: string
           industry?: string | null
           last_fetched_at?: string | null
@@ -2749,6 +2919,7 @@ export type Database = {
           sample_size?: number | null
           section_title?: string | null
           source: string
+          source_path?: string | null
           source_type: string
           source_url?: string | null
           stage?: string | null
@@ -2759,12 +2930,15 @@ export type Database = {
         }
         Update: {
           category?: string
+          chunk_index?: number | null
+          chunk_kind?: string | null
           confidence?: string
           content?: string
           created_at?: string
           document_id?: string | null
           embedding?: string | null
           fetch_count?: number
+          fts?: unknown
           id?: string
           industry?: string | null
           last_fetched_at?: string | null
@@ -2774,6 +2948,7 @@ export type Database = {
           sample_size?: number | null
           section_title?: string | null
           source?: string
+          source_path?: string | null
           source_type?: string
           source_url?: string | null
           stage?: string | null
@@ -2794,6 +2969,7 @@ export type Database = {
       }
       knowledge_documents: {
         Row: {
+          content_hash: string | null
           created_at: string
           id: string
           llama_parse_id: string | null
@@ -2802,6 +2978,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          content_hash?: string | null
           created_at?: string
           id?: string
           llama_parse_id?: string | null
@@ -2810,6 +2987,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          content_hash?: string | null
           created_at?: string
           id?: string
           llama_parse_id?: string | null
@@ -2893,7 +3071,9 @@ export type Database = {
           created_at: string
           customer_segments: Json | null
           early_adopters: string | null
+          evidence_gaps: Json | null
           existing_alternatives: string | null
+          feedback_synthesis: Json | null
           high_level_concept: string | null
           id: string
           is_current: boolean
@@ -2904,6 +3084,7 @@ export type Database = {
           revenue_streams: string | null
           solution: string | null
           source: string | null
+          specificity_scores: Json | null
           startup_id: string
           status: string | null
           unfair_advantage: string | null
@@ -2921,7 +3102,9 @@ export type Database = {
           created_at?: string
           customer_segments?: Json | null
           early_adopters?: string | null
+          evidence_gaps?: Json | null
           existing_alternatives?: string | null
+          feedback_synthesis?: Json | null
           high_level_concept?: string | null
           id?: string
           is_current?: boolean
@@ -2932,6 +3115,7 @@ export type Database = {
           revenue_streams?: string | null
           solution?: string | null
           source?: string | null
+          specificity_scores?: Json | null
           startup_id: string
           status?: string | null
           unfair_advantage?: string | null
@@ -2949,7 +3133,9 @@ export type Database = {
           created_at?: string
           customer_segments?: Json | null
           early_adopters?: string | null
+          evidence_gaps?: Json | null
           existing_alternatives?: string | null
+          feedback_synthesis?: Json | null
           high_level_concept?: string | null
           id?: string
           is_current?: boolean
@@ -2960,6 +3146,7 @@ export type Database = {
           revenue_streams?: string | null
           solution?: string | null
           source?: string | null
+          specificity_scores?: Json | null
           startup_id?: string
           status?: string | null
           unfair_advantage?: string | null
@@ -3265,6 +3452,7 @@ export type Database = {
       pitch_decks: {
         Row: {
           ai_generated: boolean | null
+          challenger_narrative: Json | null
           completeness_score: number | null
           created_at: string
           critique: Json | null
@@ -3277,6 +3465,7 @@ export type Database = {
           is_current: boolean
           is_public: boolean
           parent_version_id: string | null
+          persuasion_architecture: Json | null
           share_token: string | null
           slides: Json[] | null
           startup_id: string
@@ -3284,10 +3473,12 @@ export type Database = {
           title: string
           updated_at: string
           version: number
+          win_themes: Json | null
           wizard_data: Json | null
         }
         Insert: {
           ai_generated?: boolean | null
+          challenger_narrative?: Json | null
           completeness_score?: number | null
           created_at?: string
           critique?: Json | null
@@ -3300,6 +3491,7 @@ export type Database = {
           is_current?: boolean
           is_public?: boolean
           parent_version_id?: string | null
+          persuasion_architecture?: Json | null
           share_token?: string | null
           slides?: Json[] | null
           startup_id: string
@@ -3307,10 +3499,12 @@ export type Database = {
           title?: string
           updated_at?: string
           version?: number
+          win_themes?: Json | null
           wizard_data?: Json | null
         }
         Update: {
           ai_generated?: boolean | null
+          challenger_narrative?: Json | null
           completeness_score?: number | null
           created_at?: string
           critique?: Json | null
@@ -3323,6 +3517,7 @@ export type Database = {
           is_current?: boolean
           is_public?: boolean
           parent_version_id?: string | null
+          persuasion_architecture?: Json | null
           share_token?: string | null
           slides?: Json[] | null
           startup_id?: string
@@ -3330,6 +3525,7 @@ export type Database = {
           title?: string
           updated_at?: string
           version?: number
+          win_themes?: Json | null
           wizard_data?: Json | null
         }
         Relationships: [
@@ -3906,9 +4102,17 @@ export type Database = {
           column: string
           created_at: string
           id: string
+          kano_category: string | null
+          momentum_sequence: number | null
           position: number
           priority: string
+          rice_confidence: number | null
+          rice_effort: number | null
+          rice_impact: number | null
+          rice_reach: number | null
+          rice_score: number | null
           source: string
+          source_action_id: string | null
           sprint_number: number
           success_criteria: string
           title: string
@@ -3920,9 +4124,17 @@ export type Database = {
           column?: string
           created_at?: string
           id?: string
+          kano_category?: string | null
+          momentum_sequence?: number | null
           position?: number
           priority?: string
+          rice_confidence?: number | null
+          rice_effort?: number | null
+          rice_impact?: number | null
+          rice_reach?: number | null
+          rice_score?: number | null
           source: string
+          source_action_id?: string | null
           sprint_number: number
           success_criteria?: string
           title: string
@@ -3934,9 +4146,17 @@ export type Database = {
           column?: string
           created_at?: string
           id?: string
+          kano_category?: string | null
+          momentum_sequence?: number | null
           position?: number
           priority?: string
+          rice_confidence?: number | null
+          rice_effort?: number | null
+          rice_impact?: number | null
+          rice_reach?: number | null
+          rice_score?: number | null
           source?: string
+          source_action_id?: string | null
           sprint_number?: number
           success_criteria?: string
           title?: string
@@ -4343,11 +4563,15 @@ export type Database = {
       }
       validator_reports: {
         Row: {
+          bias_flags: Json | null
           created_at: string | null
           details: Json | null
+          evidence_tier_counts: Json | null
+          fragments_loaded: string[] | null
           id: string
           key_findings: string[] | null
           report_type: string
+          report_version: string | null
           run_id: string | null
           score: number | null
           session_id: string | null
@@ -4358,11 +4582,15 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          bias_flags?: Json | null
           created_at?: string | null
           details?: Json | null
+          evidence_tier_counts?: Json | null
+          fragments_loaded?: string[] | null
           id?: string
           key_findings?: string[] | null
           report_type: string
+          report_version?: string | null
           run_id?: string | null
           score?: number | null
           session_id?: string | null
@@ -4373,11 +4601,15 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          bias_flags?: Json | null
           created_at?: string | null
           details?: Json | null
+          evidence_tier_counts?: Json | null
+          fragments_loaded?: string[] | null
           id?: string
           key_findings?: string[] | null
           report_type?: string
+          report_version?: string | null
           run_id?: string | null
           score?: number | null
           session_id?: string | null
@@ -5194,6 +5426,33 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      hybrid_search_knowledge: {
+        Args: {
+          filter_category?: string
+          filter_industry?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+          query_text: string
+          rrf_k?: number
+        }
+        Returns: {
+          category: string
+          confidence: string
+          content: string
+          document_id: string
+          document_title: string
+          id: string
+          industry: string
+          page_end: number
+          page_start: number
+          section_title: string
+          similarity: number
+          source: string
+          source_type: string
+          year: number
+        }[]
       }
       increment_knowledge_fetch: {
         Args: { chunk_ids: string[] }

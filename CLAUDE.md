@@ -1,10 +1,13 @@
 # CLAUDE.md
 
-> **Updated:** 2026-02-27 | **Version:** 5.0
+> **Updated:** 2026-03-07 | **Version:** 6.0
 
 StartupAI — AI-powered OS for startup founders. React/TS SPA + Vite + Supabase + shadcn/ui.
 Validator pipeline working E2E (7 agents, V2 report with 6 visual components). 45 edge functions, 47 pages, 284 tests.
 Architecture audit complete: 10 domains verified against live DB, 92 tasks catalogued (30 P0, 34 P1, 28 P2).
+
+See @prd.md for product requirements.
+See @CHANGELOG.md for recent changes.
 
 ## Commands
 
@@ -56,14 +59,14 @@ lean/                     # Progress trackers, task specs, strategy docs
 | Balanced | `claude-sonnet-4-5` |
 | Complex reasoning | `claude-opus-4-6` |
 
-## Edge Function Gotchas
+## Edge Function & Gemini Rules
 
-- `AbortSignal.timeout()` does NOT reliably abort `response.json()` on Deno Deploy — wrap in `Promise.race` with hard timeout
-- Gemini: Always use `responseJsonSchema` + `responseMimeType` for guaranteed JSON
-- Gemini 3: Keep temperature at 1.0 (lower causes looping)
-- API key in `x-goog-api-key` header, not query param
-- Paid plan: 400s wall-clock limit. Pipeline deadline: 300s
-- Use `EdgeRuntime.waitUntil()` for background work
+Domain-specific rules load automatically via `.claude/rules/` when editing matching files:
+- `rules/edge-functions.md` — Deno, JWT, timeouts, CORS
+- `rules/gemini-api.md` — models, structured output, temperature
+- `rules/database.md` — RLS, policies, org helpers
+- `rules/react-components.md` — imports, hooks, shadcn
+- `rules/testing.md` — Vitest, mocking, assertions
 
 ## Task Management
 

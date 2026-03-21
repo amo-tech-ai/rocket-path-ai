@@ -37,16 +37,18 @@ const DIAGRAM_MAP: Record<string, React.ComponentType<{ data: any; color?: strin
 interface DimensionSectionProps {
   dimensionId: DimensionId;
   reportId: string;
+  startupId?: string;
 }
 
 export const DimensionSection = memo(function DimensionSection({
   dimensionId,
   reportId,
+  startupId,
 }: DimensionSectionProps) {
   const config = DIMENSION_CONFIG[dimensionId];
 
   return (
-    <DimensionPage dimensionId={dimensionId} reportId={reportId}>
+    <DimensionPage dimensionId={dimensionId} reportId={reportId} startupId={startupId}>
       {({ diagram, dimensionId: dimId }) => {
         const diagramData = diagram as DiagramData;
         const DiagramComp = DIAGRAM_MAP[diagramData.type];

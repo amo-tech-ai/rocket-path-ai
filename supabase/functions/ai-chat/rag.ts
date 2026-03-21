@@ -64,16 +64,18 @@ export async function getRAGContext(
 
     const filterInd = filterIndustry?.trim()?.toLowerCase() || null;
 
-    const { data: results, error } = await supabase.rpc("search_knowledge", {
-      query_embedding: embedding,
+    const { data: results, error } = await supabase.rpc("hybrid_search_knowledge", {
+      query_embedding: `[${embedding.join(",")}]`,
+      query_text: q,
       match_threshold: 0.5,
       match_count: 10,
       filter_category: null,
       filter_industry: filterInd,
+      rrf_k: 50,
     });
 
     if (error) {
-      console.warn("[AI Chat RAG] search_knowledge error:", error.message);
+      console.warn("[AI Chat RAG] hybrid_search_knowledge error:", error.message);
       return "";
     }
 

@@ -50,6 +50,8 @@ export const RATE_LIMITS = {
   standard: { maxRequests: 30, windowSeconds: 60 } as RateLimitConfig,
   /** Light/read-only (validator-status, dashboard-metrics) */
   light: { maxRequests: 120, windowSeconds: 60 } as RateLimitConfig,
+  /** Knowledge ingest (cost control: OpenAI embeddings); key by X-Internal-Token or IP */
+  ingest: { maxRequests: 60, windowSeconds: 60 } as RateLimitConfig,
 };
 
 /**

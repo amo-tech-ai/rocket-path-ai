@@ -1,5 +1,356 @@
 # Changelog
 
+## [0.10.56] - 2026-03-20
+
+### Session 50e: Consolidate AI Clients — Lovable Gateway + Google GenAI SDK Removed (V08)
+
+Eliminated 2 of 3 Gemini client implementations. All AI calls now route through `_shared/gemini.ts`.
+
+**lean-canvas-agent migration (Phase A):**
+- Removed `npm:@google/genai` SDK dependency
+- `ai-utils.ts` rewritten as thin wrapper: `callGemini` and `callGeminiStructured` now delegate to `_shared/gemini.ts`
+- Added `convertSchema()` function to map SDK-style types (`OBJECT`, `STRING`) to REST-style (`object`, `string`)
+- `extractJSON` re-exported from shared (5-step fallback replaces 3-step)
+- `logAIRun`, `computeProfileHash`, `calculateCost` kept (not Gemini clients)
+- Zero changes needed in 8 action files — backward-compatible interface
+
+**pitch-deck-agent migration (Phase B):**
+- Removed Lovable AI Gateway dependency (`https://ai.gateway.lovable.dev`)
+- `callGemini` now uses `_shared/gemini.ts` with `google/` prefix stripped
+- `callGeminiWithGrounding` now uses `_shared/gemini.ts` with `useSearch: true` (native Gemini grounding)
+- `generateSlideImage` now uses direct Gemini REST API with `responseModalities: ["IMAGE", "TEXT"]` — no gateway
+- Image response parsing updated: `inlineData.data` (REST format) instead of `images[].image_url.url` (gateway format)
+- `extractJSON` re-exported from shared (5-step fallback)
+- `LOVABLE_API_KEY` no longer needed by pitch-deck-agent (still used by ai-chat/coach)
+- Zero changes needed in 7 action files — backward-compatible interface
+
+**What's eliminated:**
+- Google GenAI SDK (`npm:@google/genai@^1.0.0`) — zero imports remain
+- Lovable AI Gateway in pitch-deck-agent — zero references remain
+- 2 independent `extractJSON` implementations (3-step and 4-step) — now using shared 5-step
+
+**What remains:**
+- `ai-chat/coach/index.ts` still uses Lovable Gateway (separate coaching state machine — different scope)
+- Both `ai-utils.ts` files still exist as thin wrappers for backward compat (not standalone clients)
+
+**Deploy:** lean-canvas-agent v56, pitch-deck-agent v69
+
+**Modified files:**
+- `supabase/functions/lean-canvas-agent/ai-utils.ts` — rewritten (SDK → shared wrapper)
+- `supabase/functions/pitch-deck-agent/ai-utils.ts` — rewritten (Lovable → shared + direct REST for images)
+
+Build: 6.68s | Tests: 783/783 | TypeScript: 0 errors | Deploy: 2 functions
+
+## [0.10.55] - 2026-03-20
+
+### Session 50d: Scoring Timeout Fix + Canvas Playbook + Dead Code Cleanup + Rate Limiting
+
+**ScoringAgent timeout fix:**
+- Root cause: RAG + playbook queries added ~5-10s overhead to Scoring Agent, pushing total past 50s timeout when combined with `thinking: high` mode (~40s)
+- Fix: Scoring timeout increased from 50s to 65s in `config.ts`
+- Stuck `validator_runs` row manually fixed: `ScoringAgent status: running → failed`
+- Deployed: validator-start v80
+
+**Canvas Coach playbook + hybrid search (V07):**
+- `lean-canvas-agent/actions/coach.ts` now loads `industry_playbooks` (benchmarks + warning_signs)
+- Upgraded RAG from `search_knowledge` (vector only) to `hybrid_search_knowledge` (vector + keyword RRF)
+- All 5 core EFs now have playbook loading: scoring, ai-chat, sprint, investor, canvas
+- Deployed: lean-canvas-agent v55
+
+**Dead code cleanup:**
+- Deleted `_shared/master-system-prompt.ts` (521 lines) — superseded by `startup-expert.ts` since Session 45
+- Removed barrel re-exports from `_shared/index.ts` (buildMasterPrompt, buildMinimalPrompt, buildPublicPrompt, AGENT_PROMPTS)
+- Zero consumers existed — confirmed via codebase-wide grep
+
+**Rate limiting for workflow-trigger:**
+- Added `checkRateLimit` with `RATE_LIMITS.standard` (30/60s) — was the only EF without rate limiting
+- Service-role callers bypass rate limiting (internal automation)
+- Deployed: workflow-trigger v26
+
+**Modified files:**
+- `supabase/functions/validator-start/config.ts` — scoring timeout 50→65s
+- `supabase/functions/lean-canvas-agent/actions/coach.ts` — hybrid search + playbook load
+- `supabase/functions/workflow-trigger/index.ts` — rate limiting added
+- `supabase/functions/_shared/index.ts` — removed master-system-prompt exports
+- `supabase/functions/_shared/master-system-prompt.ts` — deleted (521 lines)
+
+Build: 7.48s | Tests: 783/783 | TypeScript: 0 errors | Deploy: 3 functions
+
+## [0.10.54] - 2026-03-20
+
+### Session 50c: RAG in Scoring Agent + Playbook Loading in 4 Edge Functions
+
+Wired RAG context and industry playbook loading into 4 more edge functions. Every AI feature now has access to industry-specific benchmarks.
+
+**Scoring Agent RAG + Playbook:**
+- `scoring.ts` imports `getRAGContext` + `buildRAGBlock` from `_shared/rag-context.ts`
+- Builds RAG query from `profile.industry` + "startup benchmarks scoring metrics"
+- 5 chunks injected into system prompt with citation rules
+- Loads `industry_playbooks.benchmarks` + `warning_signs` for dimension calibration
+- Falls back cleanly if RAG or playbook returns empty
+
+**AI Chat Playbook Loading:**
+- `ai-chat/index.ts` loads `industry_playbooks` for the founder's industry after system prompt build
+- Injects `benchmarks` + `stage_checklists[stage]` into system prompt
+- Founder now gets stage-specific advice like "Focus: CAC payback < 18 months" (seed SaaS)
+
+**Sprint Agent Playbook Loading:**
+- `sprint-agent/index.ts` loads `stage_checklists` + `gtm_patterns` + `warning_signs`
+- Injected into enhanced system prompt before Gemini call
+- Sprint tasks now reflect industry-specific priorities
+
+**Investor Agent Playbook Loading:**
+- `investor-agent/index.ts` loads `investor_expectations` + `benchmarks` for `analyzeInvestorFit`
+- Injected into user prompt for fit analysis
+- Investor fit scores now calibrated against industry-specific expectations
+
+**Deploy:** validator-start v79, ai-chat v93, sprint-agent v7, investor-agent v47
+
+**Modified files:**
+- `supabase/functions/validator-start/agents/scoring.ts` — RAG import + playbook load
+- `supabase/functions/ai-chat/index.ts` — playbook load after system prompt
+- `supabase/functions/sprint-agent/index.ts` — playbook load before Gemini call
+- `supabase/functions/investor-agent/index.ts` — playbook load in analyzeInvestorFit
+
+Build: 7.07s | Tests: 783/783 | TypeScript: 0 errors | Deploy: 4 functions
+
+## [0.10.53] - 2026-03-20
+
+### Session 50b: Industry Playbooks + RAG Wiring + Knowledge Ingest + 5 Bug Fixes
+
+Seeded 19 industry playbooks, created shared RAG helper, wired RAG into Composer, ingested sports/investors/glossary, and fixed 5 production bugs across 8 edge functions.
+
+**V02 — Seed industry_playbooks (19 rows):**
+- 19 industries seeded: saas, healthcare, fintech, edtech, fashion, retail, travel, manufacturing, supply_chain, media, real_estate, legal, cybersecurity, customer_support, sports, food, events, marketing, ai_ml
+- Each row contains structured JSONB: benchmarks (with sources), investor_expectations (pre_seed/seed/series_a), failure_patterns, success_stories, terminology, gtm_patterns, decision_frameworks, investor_questions, warning_signs, stage_checklists, slide_emphasis
+- 6 edge functions that query this table now get real data instead of empty results
+
+**V03 — Create `_shared/rag-context.ts` (190 lines):**
+- `getRAGContext(supabase, options)` — hybrid search with 10s `Promise.race` timeout, graceful fallback
+- `buildRAGBlock(rag)` — formats context with citation labels ([CITED], [ESTIMATED], [FOUNDER DATA])
+- `buildRAGQuery(params)` — enriches queries with feature-specific keywords (validator/pitch/sprint/canvas/investor/chat)
+- Exports `RAGOptions`, `RAGResult`, `RAGChunk` types
+
+**V04 — Wire RAG into Composer Group D:**
+- `composer.ts` imports `getRAGContext` + `buildRAGBlock` from `_shared/rag-context.ts`
+- Group D builds RAG query from `profile.industry` + "startup benchmarks metrics executive summary"
+- 5 chunks injected into Group D system prompt with citation rules
+- Fallback: if RAG returns empty, Group D works exactly as before (zero regression)
+
+**V05 — Ingest remaining research (3 directories):**
+- `research/AI/sports/notes/` — 10 files, 37 chunks (PwC outlook, demographics, predictions, case studies)
+- `research/investors/` — 8 files, 180+ chunks (accelerator directories, VC profiles, Antler, CDL, Plug and Play)
+- `research/glossary/` — 2 files, 11 chunks (TAM/SAM/SOM definitions, PMF criteria)
+- YAML frontmatter added to 16 files before ingest
+
+**V06 — Fix 5 edge function bugs:**
+- `investor-agent`: MEDDPICC `scoreDeal` now finds deal by `startup_id` (was writing to wrong column — data never saved)
+- `documents-agent`: `industry_packs` → `prompt_packs` (correct table), removed `activities` query (non-existent table), `organizeDataRoom` spread-merges metadata (was overwriting)
+- `action-recommender`: `/pitch-deck-wizard` → `/app/pitch-deck/new`, `/pitch-deck-editor` → `/app/pitch-deck/new`
+- `workflow-trigger`: `validation_runs` → `validator_sessions` (table was renamed)
+- `req.json()` try/catch added to 6 functions: investor-agent, task-agent, pitch-deck-agent, onboarding-agent, documents-agent, event-agent
+
+**Skills cleanup:**
+- Removed `.claude/skills/db-pg/` — duplicate third-party pgvector skill from `genius-cai/finance-ai`
+
+**New files:**
+- `supabase/functions/_shared/rag-context.ts`
+
+**Modified files:**
+- `supabase/functions/validator-start/agents/composer.ts` — RAG import + Group D injection
+- `supabase/functions/investor-agent/index.ts` — MEDDPICC fix + req.json try/catch
+- `supabase/functions/documents-agent/index.ts` — 3 table fixes + metadata merge + req.json try/catch
+- `supabase/functions/action-recommender/index.ts` — 2 route fixes
+- `supabase/functions/workflow-trigger/index.ts` — table name fix
+- `supabase/functions/task-agent/index.ts` — req.json try/catch
+- `supabase/functions/pitch-deck-agent/index.ts` — req.json try/catch
+- `supabase/functions/onboarding-agent/index.ts` — req.json try/catch
+- `supabase/functions/event-agent/index.ts` — req.json try/catch
+- `tasks/prompts/vector/00-INDEX.md` — all 6 tasks marked Done
+
+Knowledge base: 5,083 chunks (+1,110) | 19 industry playbooks | 144 docs | Build: 7.50s | Tests: 783/783 | TypeScript: 0 errors
+
+## [0.10.52] - 2026-03-19
+
+### Session 50: Edge Function Audit + Vector DB Intelligence Plan + Knowledge Base Expansion
+
+Full production audit of 30 edge functions, comprehensive RAG strategy, and knowledge base expansion from 3,973 to 4,858 chunks across 8 new industries.
+
+**Edge Function Production Audit (30 functions):**
+- Audited all 30 edge functions + `_shared/` platform layer (18 files, ~2,900 lines)
+- Overall architecture: 72/100, production readiness: 65/100
+- Top 5 findings: 3 competing AI clients, 5 functions missing startup access check, static CORS in 4 functions, 6 missing `req.json()` try/catch, active data corruption bugs
+- Per-function scores: dashboard-metrics (92), sprint-agent (88), knowledge-search (88), profile-import (88) — reference implementations
+- Lowest: industry-expert-agent (52), pitch-deck-agent (58), workflow-trigger (58)
+- Critical bugs found: investor-agent MEDDPICC writes to wrong column, documents-agent queries non-existent tables, action-recommender broken routes
+- 3-phase improvement plan: immediate fixes (3-4 hrs), structural improvements (6-8 hrs), optional optimizations
+- Report: `tasks/ideas/03-edge-audit.md` (850+ lines, 5 Mermaid diagrams)
+
+**Vector DB Intelligence Plan:**
+- Designed 3-layer intelligence model: Knowledge (pgvector) + Reasoning (skills/fragments) + Live Data (Google Search)
+- Architecture for RAG integration into all 7 core features (validator, chat, canvas, pitch, sprint, investor, onboarding)
+- Shared `_shared/rag-context.ts` helper pattern with timeout + fallback + citation formatting
+- `industry_playbooks` JSONB schema for 19 industries (metrics, risks, GTM, investor expectations)
+- `prompt_packs` design (5 packs: validation, pitch, GTM, fundraising, product strategy)
+- Retrieval strategy: smart query construction, top-K per feature, fallback chain
+- Prompt design patterns with citation labels ([CITED], [ESTIMATED], [FOUNDER DATA])
+- Feature-by-feature upgrade plan with code examples
+- Plan: `tasks/vector/10-vectordb-plan.md` (750+ lines, 15 sections)
+
+**Knowledge Base Expansion (3,973 → 4,858 chunks):**
+- Added YAML frontmatter to 19 research files (6 AI files + 13 services guides)
+- Ingested 11 industry guides from `research/AI/services/` — retail, fashion, travel, events, sports, healthcare, media, manufacturing, supply chain, financial services, education
+- Ingested 2 fintech reports, 1 demographics report, 4 new AI/startups files
+- 8 industries that had 0 chunks now have data: healthcare (9), travel (9), edtech (9), manufacturing (9), supply_chain (9), media (9), sports (9), events (8)
+- Content-hash dedup and min-content constraint working correctly (~100 short chunks filtered)
+
+**pgvector Skills Consolidated:**
+- Rewrote `pgvector-setup` SKILL.md (243 → 340 lines) with live DB audit data, actual schemas, RAG wiring map, web search guide
+- Updated `pgvector-semantic-search` with Supabase-specific notes from official docs
+- Removed legacy auto-generated `pgvector` skill symlink (138 lines of junk examples)
+- 2 clean skills remain: setup (how to use) + semantic-search (how to tune)
+
+**Research Index Updates:**
+- Updated `research/00-INDEX.md` with vector status dots (🟢/🟡/🔴/⚪) per file
+- Added vector ingest strategy to `research/index-research.md` (P0/P1/P2 priority queues with commands)
+- Improved `research/report.md` template v2 with vector DB optimization rules, frontmatter spec, chunking rules, citation labels
+- Updated batch ingest script with correct directory paths
+
+**New files:**
+- `tasks/ideas/03-edge-audit.md` — Full edge function audit report
+- `tasks/vector/10-vectordb-plan.md` — Vector intelligence strategy
+
+**Modified files:**
+- `scripts/ingest-industry-docs-batch.mjs` — Added 3 new dirs, fixed 3 broken paths
+- `research/00-INDEX.md` — Stats, pgvector status, vector status dots, 3 new sections
+- `research/index-research.md` — Vector ingest strategy with priority queue
+- `research/report.md` — Template v2 with vector DB rules
+- `.agents/skills/pg-vector/pgvector-setup/SKILL.md` — Full rewrite with live DB data
+- `.agents/skills/pg-vector/pgvector-semantic-search/SKILL.md` — Supabase docs added
+- 19 research files — YAML frontmatter added (6 AI + 13 services)
+
+Knowledge base: 4,858 chunks (+885) | 21 industries | 108 docs | Build: clean | Tests: 783/783
+
+## [0.10.51] - 2026-03-18
+
+### Session 48: Interview Context → Report + Research & Planning Chat Modes
+
+Two high-impact features: (1) founder interview answers now flow into all 4 Composer groups instead of being ignored, and (2) two new AI chat modes for web-backed research and RICE-scored planning.
+
+**Task 22: Interview Context → Composer Pipeline**
+
+Previously, the Composer received `interviewContext` but only added a one-line acknowledgment note. All founder answers (problem, customer, revenue model, execution plan, investor readiness) were collected during the chat interview but silently dropped before the report was written.
+
+- Added `buildInterviewBlock()` helper — formats relevant interview fields per group with coverage depth (`deep`/`shallow`/`none`) and confidence level (`high`/`medium`/`low`) annotations
+- `INTERVIEW_FIELDS_BY_GROUP` maps each group to its relevant interview fields:
+  - Group A (Problem & Customer): problem, customer, solution, differentiation, demand
+  - Group B (Market & Risk): competitors, industry, business_model, risk_awareness + discovered entities
+  - Group C (Execution & Economics): revenue_model, execution_plan, business_model, ai_strategy
+  - Group D (Executive Summary): problem, customer, solution, investor_readiness, risk_awareness, execution_plan
+- Each group's user prompt now includes `FOUNDER INTERVIEW DATA` block with field values, coverage/confidence keys
+- Group B additionally injects `discoveredEntities.competitors` and `discoveredEntities.marketData`
+- Fields truncated to 300 chars, skipped if < 5 chars
+- Added `confidence?: Record<string, string>` to `InterviewContext` type (was collected by frontend but dropped at entry point)
+- Updated `validator-start/index.ts` entry point type to accept `confidence` and `discoveredEntities`
+
+**POST-04: Research + Planning Chat Modes**
+
+- `RESEARCH_MODE_PROMPT` (~80 lines) — market research analyst with citation methodology, triangulation rules, output format (key finding → evidence → implications → sources), data integrity rules, preference for 2024-2026 data
+- `PLANNING_MODE_PROMPT` (~90 lines) — execution coach with RICE scoring table, stage-specific frameworks (Idea/Pre-Seed/Seed), kill criteria, output format (goal → timeline → RICE actions → resources → quick win), resource-awareness for solo founders
+- Both added to `CHAT_MODE_PROMPTS` registry (4 → 6 modes) and `COACHING_MODES` array in `ai-chat/index.ts`
+- Frontend: `ChatModeSelector` updated with Research (Globe icon) and Planning (Map icon) buttons
+- Backend routing: both modes use existing coaching mode handler (RAG + streaming already wired)
+
+**New files:**
+- `src/test/validator/interview-context-composer.test.ts` (21 tests)
+- `src/test/validator/chat-modes-research-planning.test.ts` (22 tests)
+
+**Modified files:**
+- `supabase/functions/validator-start/types.ts` — `confidence` field on InterviewContext
+- `supabase/functions/validator-start/index.ts` — extended entry point type
+- `supabase/functions/validator-start/agents/composer.ts` — `buildInterviewBlock()` + wired into Groups A/B/C/D
+- `supabase/functions/_shared/agency-chat-modes.ts` — 2 new mode prompts + registry update
+- `supabase/functions/ai-chat/index.ts` — 2 new modes in COACHING_MODES array
+- `src/components/chat/ChatModeSelector.tsx` — ChatMode type + 2 new buttons
+- `src/test/validator/agency-chat-modes.test.ts` — updated COACHING_MODES assertion
+
+Tests: 763/763 (+43) | Build: 8.49s | TypeScript: 0 errors | Deploy: validator-start v77 (1.113MB), ai-chat v92 (1.004MB)
+
+### Session 49: AI Panel Actions + Dashboard Greeting + Research Search + Deploy
+
+**AI panel action execution:**
+- Added `route?: string` field to `QuickAction` interface — actions with `route` navigate instead of sending chat messages
+- Report quick actions: "Generate Lean Canvas" → `/lean-canvas`, "Create pitch deck" → `/app/pitch-deck/new`, "Plan first sprint" → `/sprint-plan`
+- `executeQuickAction` in `useGlobalAIAssistant` now checks `action.route` before falling back to `sendMessage`
+
+**Dashboard proactive greeting:**
+- New `useDashboardProactiveMessage` hook — derives greeting from health score, trend, top risks, stage, journey %
+- Time-of-day greeting ("Good morning/afternoon/evening")
+- Health labels: Excellent/Good/Needs attention/Critical
+- Focus recommendations: low health → "address weakest dimension", healthy → "review top tasks"
+- Wired into `Dashboard.tsx` via `useEffect` + `useRef` guard (same pattern as report page)
+- `AIPanel.tsx` compact actions now also show on dashboard (≤3 messages)
+
+**Research mode: Google Search grounding:**
+- Extended `callGeminiChat` to accept `useSearch` option — adds `{ googleSearch: {} }` to Gemini tools
+- Google Search citations extracted from `groundingMetadata.groundingChunks` and returned in `GeminiChatResult.citations`
+- Research mode in `ai-chat` uses `useSearch: true` + 45s timeout (vs 30s for other modes)
+- Citations returned in API response for frontend display
+
+**Deploy:** validator-start v77 (1.113MB), ai-chat v92 (1.004MB)
+
+**New files:**
+- `src/hooks/useDashboardProactiveMessage.ts`
+- `src/test/hooks/useDashboardProactiveMessage.test.ts` (20 tests)
+
+**Modified files:**
+- `src/lib/ai-capabilities.ts` — `route` field on QuickAction
+- `src/hooks/useReportProactiveMessage.ts` — routes on 3 report actions
+- `src/hooks/useGlobalAIAssistant.ts` — route-aware `executeQuickAction`
+- `src/pages/Dashboard.tsx` — proactive greeting injection
+- `src/components/ai/AIPanel.tsx` — compact actions on dashboard
+- `supabase/functions/_shared/gemini.ts` — `useSearch` + citations in `callGeminiChat`
+- `supabase/functions/ai-chat/index.ts` — `useSearch: true` for research mode
+
+Tests: 783/783 (+20) | Build: 19.78s | TypeScript: 0 errors
+
+## [0.10.50] - 2026-03-18
+
+### Session 47: Proactive AI Panel on Validator Report Page
+
+AI chat panel now greets the user with a contextual report summary when they view a validation report, instead of sitting idle with generic buttons. Includes report-specific quick actions that persist after the greeting.
+
+**New hook — `useReportProactiveMessage.ts`:**
+- Pure `useMemo` derivation from report data (score, highlights, red_flags, dimension scores)
+- Generates markdown greeting: score + verdict (GO/CAUTION/NO-GO), top 3 strengths, weak areas, weakest dimension, 4 suggested next steps
+- Handles null score (ScoringAgent failures), missing highlights (derives from `scores_matrix.dimensions`), empty details
+- Exports `REPORT_QUICK_ACTIONS` — 5 report-specific quick action chips (Generate Lean Canvas, Fix weak areas, Create pitch deck, Plan sprint, Explain score)
+
+**AI panel proactive greeting (`AIAssistantProvider.tsx`):**
+- Added `injectMessage(content)` — appends ephemeral assistant message without DB persistence
+- `ValidatorReport.tsx` calls `injectMessage` via `useEffect` guarded by `useRef<string>` keyed on reportId
+- Dedup: injects once per report, re-injects for different reports, no duplicate on tab switch
+
+**Report-aware AI panel (`AIPanel.tsx` + `useReportAIContext.ts`):**
+- Extended priority chain: dimension > **report overview** > dashboard > default
+- Added `isOnReportOverview` boolean to `ReportAIContext` (on report page but NOT on dimension sub-page)
+- Report overview returns `REPORT_QUICK_ACTIONS` (was returning empty array — only dimensions had actions)
+- "Report" badge in AI panel header when on overview
+- Empty state: "Your report is ready" heading + "Ask about your score, generate a canvas..." description
+- Compact quick actions render below messages for first 3 messages (prevents actions disappearing after greeting)
+
+**New files:**
+- `src/hooks/useReportProactiveMessage.ts`
+- `src/test/hooks/useReportProactiveMessage.test.ts` (32 tests)
+
+**Modified files:**
+- `src/providers/AIAssistantProvider.tsx` — `injectMessage` method + context interface
+- `src/hooks/useReportAIContext.ts` — `isOnReportOverview` + overview quick actions
+- `src/components/ai/AIPanel.tsx` — priority chain, badge, empty state, compact actions
+- `src/pages/ValidatorReport.tsx` — proactive message injection wiring
+
+Tests: 720/720 (+32) | Build: 6.43s | TypeScript: 0 errors
+
 ## [0.10.49] - 2026-03-18
 
 ### Session 46: Report Readability + Pipeline Reliability + Skills Wiring

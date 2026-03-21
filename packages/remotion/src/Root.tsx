@@ -24,6 +24,11 @@ import { Scene10IndustryLeaderboard } from './compositions/AIAdoptionCinematic/s
 import { Scene10IndustrySpotlight } from './compositions/AIAdoptionCinematic/scenes/Scene10IndustrySpotlight';
 import { Scene11AIEcommerce } from './compositions/AIAdoptionCinematic/scenes/Scene11AIEcommerce';
 import { Scene12StrategFilm } from './compositions/AIAdoptionCinematic/scenes/Scene12StrategFilm';
+import { Report2026Video } from './compositions/Report2026/Report2026Video';
+import { REPORT2026_FPS, REPORT2026_SCENE_DURATIONS } from './theme/report2026';
+
+/** Phase 1 total: first 12 scenes (0:00–0:32) */
+const REPORT2026_PHASE1_FRAMES = REPORT2026_SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 
 /** Preview: Slides 1–7 back to back */
 const Slides1to7: React.FC = () => (
@@ -289,6 +294,18 @@ export const Root: React.FC = () => {
           width={1920}
           height={1080}
           fps={30}
+          defaultProps={{}}
+        />
+      </Folder>
+
+      <Folder name="Report2026">
+        <Composition
+          id="Report2026"
+          component={Report2026Video}
+          durationInFrames={REPORT2026_PHASE1_FRAMES}
+          width={1280}
+          height={720}
+          fps={REPORT2026_FPS}
           defaultProps={{}}
         />
       </Folder>

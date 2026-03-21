@@ -588,16 +588,27 @@ async function organizeDataRoom(
   console.log(`[documents-agent] organizeDataRoom ${documentIds.length} docs into ${category}`);
 
   try {
-    // Update document metadata with category
-    const { data, error } = await supabase
+    // Read existing metadata for each document to merge, not overwrite
+    const { data: existingDocs } = await supabase
       .from("documents")
-      .update({
-        metadata: { data_room_category: category, organized_at: new Date().toISOString() },
-        updated_at: new Date().toISOString(),
-      })
+      .select("id, metadata")
       .in("id", documentIds)
-      .eq("startup_id", startupId)
-      .select();
+      .eq("startup_id", startupId);
+
+    const newMetadata = { data_room_category: category, organized_at: new Date().toISOString() };
+
+    // Update each document with merged metadata
+    for (const doc of (existingDocs || [])) {
+      await supabase
+        .from("documents")
+        .update({
+          metadata: { ...(doc.metadata || {}), ...newMetadata },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", doc.id);
+    }
+
+    const data = existingDocs;
 
     if (error) throw error;
 
@@ -633,10 +644,10 @@ async function generateInvestorUpdate(
     return { success: false, error: "Startup not found" };
   }
 
-  // Get recent activities
-  const { data: recentActivities } = await supabase
-    .from("activities")
-    .select("title, description, activity_type, created_at")
+  // Get recent documents for context
+  const { data: recentDocs } = await supabase
+    .from("documents")
+    .select("title, type, created_at")
     .eq("startup_id", startupId)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -671,8 +682,8 @@ STARTUP CONTEXT:
 TRACTION DATA:
 ${JSON.stringify(startup.traction_data || {})}
 
-RECENT ACTIVITIES:
-${(recentActivities as Array<{ title: string }>)?.map((a: { title: string }) => `- ${a.title}`).join('\n') || 'No recent activities'}
+RECENT DOCUMENTS:
+${(recentDocs as Array<{ title: string; type: string }>)?.map((d: { title: string; type: string }) => `- ${d.title} (${d.type})`).join('\n') || 'No recent documents'}
 
 ACTIVE DEALS/PIPELINE:
 ${(deals as Array<{ name: string; stage: string; amount?: number }>)?.map((d: { name: string; stage: string; amount?: number }) => `- ${d.name}: ${d.stage} ($${d.amount || 'TBD'})`).join('\n') || 'No active deals'}
@@ -736,16 +747,6 @@ Generate a structured investor update with these sections:
 
     if (error) throw error;
 
-    // Log activity
-    await supabase.from("activities").insert({
-      startup_id: startupId,
-      title: `Generated investor update for ${month}`,
-      description: `AI-generated monthly investor update`,
-      activity_type: "document_created",
-      document_id: document.id,
-      is_system_generated: true,
-    });
-
     return {
       success: true,
       document_id: document.id,
@@ -780,7 +781,7 @@ async function generateCompetitiveAnalysis(
 
   // Get industry pack for context
   const { data: industryPack } = await supabase
-    .from("industry_packs")
+    .from("prompt_packs")
     .select("competitive_intel, key_players, market_context")
     .eq("industry", startup.industry)
     .eq("is_active", true)
@@ -910,7 +911,14 @@ Deno.serve(async (req) => {
       return rateLimitResponse(rateResult, corsHeaders);
     }
 
-    const body: RequestBody = await req.json();
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { action, startup_id, document_id } = body;
 
     console.log(`[documents-agent] Action: ${action}, User: ${user.id}`);

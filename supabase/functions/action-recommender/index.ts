@@ -170,7 +170,7 @@ async function generateRecommendations(
       module: 'pitch',
       impact: 'high',
       effort: 'involved',
-      route: '/pitch-deck-wizard',
+      route: '/app/pitch-deck/new',
       priority: 2,
       reason: 'Pitch deck not started',
     });
@@ -182,7 +182,7 @@ async function generateRecommendations(
       module: 'pitch',
       impact: 'high',
       effort: 'medium',
-      route: '/pitch-deck-editor',
+      route: '/app/pitch-deck/new',
       priority: 2,
       reason: 'Pitch deck incomplete',
     });

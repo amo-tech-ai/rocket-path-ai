@@ -26,6 +26,7 @@ import {
 } from "./actions/index.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { broadcastEvent } from "../_shared/broadcast.ts";
 
 // Use environment variables (set automatically by Supabase)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -281,6 +282,40 @@ Deno.serve(async (req) => {
           startup_context: body.startup_context,
           focused_box: body.focused_box,
         });
+        // Broadcast coaching suggestions to canvas channel
+        if (body.document_id && result.suggestions?.length) {
+          broadcastEvent(
+            supabase,
+            `canvas:${body.document_id}:events`,
+            'coach_suggestions',
+            {
+              suggestions: result.suggestions,
+              weakSections: result.weak_sections,
+              canvasScore: result.canvas_score,
+              focusedBox: body.focused_box,
+            },
+          );
+        }
+        break;
+
+      // ===== Specificity Check Action =====
+      case "check_specificity":
+        if (!body.canvas_data) throw new Error("canvas_data is required");
+        // Reuse coach with a specificity-focused prompt
+        result = await coach(supabase, user.id, {
+          messages: [{ role: "user", content: "Rate the specificity of every box in my canvas. For each box, tell me if it's vague, specific, or quantified, and list what evidence is missing." }],
+          canvas_data: body.canvas_data as Record<string, { items?: string[] }>,
+          startup_context: body.startup_context,
+          focused_box: undefined,
+        });
+        // Return only specificity data
+        result = {
+          success: true,
+          specificity_scores: result.specificity_scores || {},
+          evidence_gaps: result.evidence_gaps || {},
+          canvas_score: result.canvas_score,
+          weak_sections: result.weak_sections,
+        };
         break;
 
       default:

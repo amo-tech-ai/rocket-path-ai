@@ -597,8 +597,12 @@ try {
         session_id: sessionId,
         startup_id: startup_id || null,
         report_type: 'overall',
-        // D-04 fix: Store null when scoring failed — 0 renders as misleading "No-Go" verdict
-        score: scoring?.overall_score ?? null,
+        // D-04 fix: Prefer scoring agent's score, fall back to scores_matrix from composer, else null
+        score: scoring?.overall_score
+          ?? report?.scores_matrix?.overall_weighted
+          ?? (report?.scores_matrix?.dimensions?.length > 0
+            ? Math.round(report.scores_matrix.dimensions.reduce((s: number, d: any) => s + (d.score || 0), 0) / report.scores_matrix.dimensions.length)
+            : null),
         summary: report.summary_verdict,
         details: report,
         key_findings: [...(scoring?.highlights || []), ...(scoring?.red_flags || [])],

@@ -122,18 +122,8 @@ export type {
 
 // Master system prompt
 export {
-  CORE_IDENTITY,
-  LEAN_METHODOLOGY,
-  STAGE_GUIDANCE,
-  SCREEN_CONTEXT,
-  ACTION_PROMPTS,
-  RESPONSE_RULES,
-  buildMasterPrompt,
-  buildMinimalPrompt,
-  buildPublicPrompt,
-  AGENT_PROMPTS,
-  type PromptContext,
-} from './master-system-prompt.ts';
+// master-system-prompt.ts removed (Session 50c) — superseded by startup-expert.ts
+// Use buildExpertPrompt from './startup-expert.ts' instead
 
 // Prompt utilities
 export {

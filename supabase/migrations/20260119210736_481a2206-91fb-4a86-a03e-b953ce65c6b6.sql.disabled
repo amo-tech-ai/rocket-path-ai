@@ -1,7 +1,8 @@
--- Allow all authenticated users to view startup events for demo/discovery purposes
-CREATE POLICY "authenticated users can view all events for demo" 
-ON public.startup_events 
-FOR SELECT 
+-- Allow all authenticated users to view startup events for demo/discovery purposes (idempotent)
+DROP POLICY IF EXISTS "authenticated users can view all events for demo" ON public.startup_events;
+CREATE POLICY "authenticated users can view all events for demo"
+ON public.startup_events
+FOR SELECT
 TO authenticated
 USING (true);
 

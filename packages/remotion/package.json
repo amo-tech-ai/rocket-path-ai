@@ -6,7 +6,8 @@
   "scripts": {
     "build": "remotion bundle src/index.ts -o dist",
     "start": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts StateOfAI out/state-of-ai.mp4"
+    "render": "remotion render src/index.ts StateOfAI out/state-of-ai.mp4",
+    "render:report2026": "remotion render src/index.ts Report2026 out/report2026.mp4"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.0",

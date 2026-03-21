@@ -1688,7 +1688,14 @@ Deno.serve(async (req: Request) => {
     // For new users, org_id might not exist yet - gracefully handle missing profile
     const orgId = profile?.org_id || "";
 
-    const body: RequestBody = await req.json();
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const { action } = body;
 
     // Rate limit AI-heavy actions (enrichment uses Gemini)

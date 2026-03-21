@@ -3,6 +3,7 @@ name: supabase-expert
 description: Supabase specialist for database schema, RLS policies, migrations, and edge functions. Use for any database or auth work.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: opus
+memory: project
 ---
 
 You are a Supabase expert for StartupAI.

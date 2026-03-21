@@ -26,6 +26,15 @@ export interface CoachResult {
   next_chips: string[];
   canvas_score: number;
   citations: string[];
+  specificity_scores?: Record<string, 'vague' | 'specific' | 'quantified'>;
+  evidence_gaps?: Record<string, string[]>;
+}
+
+export interface SpecificityResult {
+  specificity_scores: Record<string, 'vague' | 'specific' | 'quantified'>;
+  evidence_gaps: Record<string, string[]>;
+  canvas_score: number;
+  weak_sections: string[];
 }
 
 interface StartupContext {
@@ -89,5 +98,43 @@ export function useCanvasCoach() {
     }
   }, []);
 
-  return { sendMessage, isLoading, error };
+  const checkSpecificity = useCallback(async (
+    canvasData: LeanCanvasData,
+    startupContext: StartupContext,
+  ): Promise<SpecificityResult | null> => {
+    if (inflightRef.current) return null;
+    inflightRef.current = true;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('lean-canvas-agent', {
+        body: {
+          action: 'check_specificity',
+          canvas_data: canvasData,
+          startup_context: startupContext,
+        },
+      });
+
+      if (fnError) throw fnError;
+
+      return {
+        specificity_scores: data.specificity_scores || {},
+        evidence_gaps: data.evidence_gaps || {},
+        canvas_score: data.canvas_score ?? 0,
+        weak_sections: data.weak_sections || [],
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      setError(message);
+      console.error('[useCanvasCoach] Specificity check error:', message);
+      return null;
+    } finally {
+      setIsLoading(false);
+      inflightRef.current = false;
+    }
+  }, []);
+
+  return { sendMessage, checkSpecificity, isLoading, error };
 }

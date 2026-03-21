@@ -1,18 +1,20 @@
 # Next Steps — Active Work Only
 
-> **Updated:** 2026-03-08 | **Version:** 38.0
+> **Updated:** 2026-03-18 | **Version:** 47.0
+> **Implementation plan (sequential + verification):** [NEXT-STEPS-IMPLEMENTATION-PLAN.md](./NEXT-STEPS-IMPLEMENTATION-PLAN.md)
 > **Rule:** Only in-progress, incomplete, and failing items. Priority order.
-> **DB (live):** 94 tables | 549 indexes | 94/94 RLS | 119 triggers | 117 migrations (incl. K4 chunks dedupe)
-> **Validator:** E2E working. 76+ sessions. 39+ reports. V2/V3 report + multipage tabs + 10 BCG charts + 5 V3 components + 9 diagrams + Deep Dive tab + Strategy tab + dynamic suggestion chips + per-agent retry. Realtime RT-1–RT-8. 389/389 tests.
-> **RAG:** 3,746 chunks | 74 documents | 19 playbooks | `search_knowledge` function active | K4 dedupe ✅
-> **Build:** pass (7.86s) | **TypeScript:** 0 errors | **Lint:** 340 problems | No chunk warnings
-> **Frontend:** 47 pages | 458 components | 113 hooks | 32 edge functions | 14 shared modules
-> **Phases complete:** Phase 1 (9/9) ✅ | Phase 2 (7/7) ✅ | Phase 3 (2/4) | Phase 5 (PROD-06 ✅) | Overall ~80%
+> **DB (live):** 94 tables | 549 indexes | 94/94 RLS | 119 triggers | 118 migrations
+> **Validator:** E2E working. 76+ sessions. 39+ reports. V2/V3 report + multipage tabs + 10 BCG charts + 5 V3 components + 9 diagrams + Deep Dive tab + Strategy tab + dynamic suggestion chips + per-agent retry + sprint import + 10/10 agency badges + streaming chat + proactive AI panel. Realtime RT-AUDIT 10/10. Agency fragments 5/5. Chat modes 4/4.
+> **RAG:** 3,748 chunks | 76 documents | 19 playbooks | `hybrid_search_knowledge` active everywhere | K4-K7 all ✅
+> **Build:** pass (6.43s) | **TypeScript:** 0 errors | **Lint:** 340 problems | No chunk warnings
+> **Tests:** 720/720
+> **Frontend:** 47 pages | 458 components | 115 hooks | 32 edge functions | 14 shared modules
+> **Phases complete:** Phase 1 (9/9) ✅ | Phase 2 (7/7) ✅ | Phase 3 (3/4) | Phase 5 (PROD-06 ✅) | RAG (K4-K7 ✅) | RT-AUDIT ✅ | Agency (12/12 ✅) | Overall ~93%
 > **Overall system health:** 98% — Vercel production Ready
 
 ---
 
-## Recently Completed (Sessions 22–31)
+## Recently Completed (Sessions 22–47)
 
 | Session | What Shipped |
 |:-------:|-------------|
@@ -22,41 +24,56 @@
 | 25 | Canvas Coach RAG (K3) — 4,251 knowledge chunks + citations |
 | 26 | Strategy tab (POST-01) — Positioning, Build Focus, Fundability |
 | 27 | Auth token race condition fix (getSession + 401 retry pattern) |
-| 28 | Auth redirect fix, Chat phase state machine + request identity, ScoringAgent timeout 15→30s, Duplicate AI icon fix. 389/389 tests. Full E2E verified. |
-| 29 | Supabase: CRM FK conditional (db reset/shadow safe), drop 17 redundant service_role RLS, split industry_questions FOR ALL (example), chat P0 idempotent. Verified per `.cursor/rules/supabase`. |
-| 30 | pg-vector skills (15 issue fixes), Supabase live verification (90 migrations, 37 EFs, 56 tables) |
-| 31 | PROD-06 Lint cleanup: 990→340 errors. Fixed 18 React hooks violations, case declarations, escape chars, require imports. 3 new production prompts. |
-| 32 | R7 chunk split (593→391+201kB), K4 chunk dedupe (4,130→3,746), POST-03 health from validator scores. |
-| 33 | E2E audit: 8 issues found+fixed (C1-C3, H1-H3, M1-M2). 9 mermaid diagrams. knowledge-search 401 fix, realtime warn, pipeline startup guard, chat readiness. |
-| 34 | Vector storage audit: K6 validator direct RPC (no 401), K5 hybrid search in chat UI, citation fields in types. |
+| 28 | Auth redirect fix, Chat phase state machine, ScoringAgent timeout 15→30s, Duplicate AI icon fix |
+| 29 | Supabase: CRM FK conditional, drop 17 redundant service_role RLS, split FOR ALL |
+| 30 | pg-vector skills (15 fixes), Supabase live verification (90 migrations, 37 EFs) |
+| 31 | PROD-06 Lint cleanup: 990→340. 18 React hooks fixed. 3 new production prompts |
+| 32 | R7 chunk split (593→391+201kB), K4 dedupe (4,130→3,746), POST-03 health scores |
+| 33 | E2E audit: 8 fixes (C1-C3, H1-H3, M1-M2). knowledge-search 401, realtime warn |
+| 34 | K6 validator direct RPC (no 401), K5 hybrid search in chat UI, citation fields |
+| 35 | K6 deployed+verified: 5/5 proof tests, 10-consumer audit |
+| 36 | K7: ai-chat hybrid search (rag.ts + search action), deployed 967KB |
+| 37 | RT-AUDIT: 10-item Realtime overhaul (A1-A3, B1-B3, C1-C3 + shared broadcast). 3 EFs deployed |
+| 38 | POST-02: Sprint Board ← report import. useSprintImport, source_action_id dedup |
+| 39 | Agency fragments: Scoring + Composer wired (validator-start v70). Chat modes: 4 prompts wired (ai-chat v87). +64 tests |
+| 40 | Report badges: ICEChannelChip + NarrativeArcSummary + all 6 badges wired (10/10). +21 tests |
+| 41 | Streaming AI Chat: callGeminiChatStream SSE, backend+frontend wired (ai-chat v88). +20 tests |
+| 42 | Agency fragments: Sprint + Pitch + Investor (5/5 complete). sprint v6, pitch v67, investor v45. +20 tests |
+| 44 | Agency arc close: MEDDPICC schema+scorecard (007/008), Canvas specificity (011), Chat persistence (012). Agency 12/12 ✅. +25 tests |
+| 45 | Skills audit + Expert prompt + Validator intelligence (3 fragments + 7 verifier rules). +149 tests |
+| 46 | Report readability overhaul + Pipeline reliability (ScoringAgent 30→50s). VERIFIER_FRAGMENT |
+| 47 | Proactive AI panel on report page — greeting + report-aware quick actions. +32 tests |
 
 ---
 
-## 1. What's Next (Top 5)
+## 1. What's Next (Top 7)
 
-> **Strategy:** Phase 1+2 complete. Now: Phase 3 features + RAG improvements.
+> **Strategy:** Phase 1+2 complete. Agency 12/12 ✅. Proactive AI panel shipped. Now: feature quality (interview→report, research modes) + AI panel actions + testing + polish.
 
 | # | Task | Effort | Impact | Why Now |
 |:-:|------|:------:|:------:|---------|
-| 1 | **POST-02:** Sprint Board ← report priority actions | 2-3d | 🟢 High | Report says "fix your pricing" but actions just sit there — this makes them trackable |
-| 2 | **K7:** RAG in ai-chat EF (hybrid) | 1d | 🟡 RAG | ai-chat/rag.ts still uses semantic-only search — switch to hybrid for better recall |
-| 3 | **13A:** Report shared components (6 remaining) | 2d | 🟡 Polish | 4/10 built — some report sections look polished, others look rough |
-| 4 | **A3:** Streaming AI Chat responses | 2d | 🟡 UX | Chat dumps full response at once — streaming makes it feel responsive |
-| 5 | **22:** Interview context → Report pipeline | 2-3d | 🟢 High | Chat extracts rich data but Composer barely uses it — report feels disconnected from interview |
-| 6 | **POST-04:** Research + Planning agent modes | 2-3d | 🟡 Feature | AI chat panel only answers questions — needs Research + Planning modes |
+| 1 | **22:** Interview context → Report pipeline | 2-3d | 🟢 High | Chat extracts rich data but Composer barely uses it |
+| 2 | **POST-04:** Research + Planning agent modes | 2-3d | 🟢 High | Last Phase 3 item — gets Phase 3 to 4/4 ✅ |
+| 3 | **AI panel action execution** | 1-2d | 🟢 High | Quick actions send prompts but should trigger navigation/mutations (e.g. "Generate Canvas" → actually generate) |
+| 4 | **Dashboard proactive context** | 1d | 🟡 Medium | Same pattern as report: dashboard AI greets with health score + risks + daily focus |
+| 5 | **PROD-07:** E2E tests (Playwright) | 3d | 🟢 High | 720 unit tests but 0 integration tests — risky for production |
+| 6 | **13C/13D:** Data viz + Strategy layout polish | 2d | 🟡 Polish | Report sections look inconsistent |
+| 7 | **3.1/3.2:** PDF export + Shareable links testing | 1.5d | 🟡 Polish | Test cross-browser before any public demo |
 
 > **What these mean for the founder:**
-> - **POST-02:** The validation report tells you "fix your pricing model" and "talk to 10 customers" — but today those suggestions just sit there. This creates a Kanban sprint board (To Do → In Progress → Done) and auto-imports those action items so you can track them.
-> - **K5:** When you or the AI search the knowledge base, it currently only understands meaning (semantic search). Adding keyword matching too and combining both results makes search much more accurate — especially for specific terms like company names or industry jargon.
-> - **POST-03:** Your main dashboard shows a "startup health" score, but it's disconnected from your actual validation results. This plugs in your real validation scores so the dashboard reflects reality.
-> - **13A:** Reusable UI building blocks (section wrappers, insight cards, score badges) that make every report section look consistent. 6 of 10 are missing.
-> - **A3:** Right now the AI chat shows a loading spinner then dumps the full response at once. This makes text stream in word-by-word (like ChatGPT) so you see the answer forming in real time.
+> - **22:** You spend 10 minutes answering interview questions, but the final report barely references what you said. This threads your interview answers directly into the Composer so the report reflects your actual situation.
+> - **POST-04:** The AI chat only answers questions. Research mode searches the web + knowledge base with citations. Planning mode creates structured action plans with timelines.
+> - **AI panel actions:** When you click "Generate Lean Canvas" in the AI panel, it should navigate you to the canvas page and trigger generation — not just send a chat message.
+> - **Dashboard proactive:** Like the report greeting, the dashboard AI should greet you with your health score, top risks, and daily priorities.
+> - **PROD-07:** We have 720 unit tests but no browser-level tests that verify the full user journey (sign in → validate → report → canvas). Playwright gives us confidence nothing breaks end-to-end.
+> - **13C/13D:** Some report sections look polished, others rough. Data viz polish adds hover states, citation popovers, and smooth transitions.
+> - **3.1/3.2:** PDF export works in Chrome but hasn't been tested in Safari/Firefox/mobile. Shareable links need incognito verification + expiry testing.
 
 ---
 
 ## 2. Validator Pipeline Improvements
 
-> V1-V4 complete ✅ (agent tracking, status API, frontend bars, selective retry). Remaining: architecture upgrades.
+> V1-V4 complete ✅ (agent tracking, status API, frontend bars, selective retry). Agency fragments 5/5 ✅. Remaining: architecture upgrades.
 
 | # | Task | Status | % | Effort | Next Action |
 |---|------|:------:|:-:|:------:|-------------|
@@ -69,53 +86,42 @@
 
 ---
 
-## 3. Knowledge & RAG
+## 3. Knowledge & RAG — ✅ Complete
 
-> K3 (Canvas Coach RAG) complete ✅. Remaining: dedupe + hybrid search.
+> All K3-K7 tasks complete. No remaining work.
 
-| # | Task | Status | % | Effort | Next Action |
-|---|------|:------:|:-:|:------:|-------------|
-| K4 | Content hash dedupe | 🟢 Done | 100 | — | ✅ Unique index + CHECK constraint + 384 rows cleaned |
-| K5 | Hybrid search function | 🟢 Done | 100 | — | ✅ `hybrid_search_knowledge` RPC live; validator + chat UI use it |
-| K6 | Validator RAG direct RPC | 🟢 Done | 100 | — | ✅ No HTTP round-trip, no 401. Research + Competitors use admin client |
-
-> **What these mean for the founder:**
-> - **K4:** If someone uploads the same document twice, we currently store duplicate chunks wasting space and cluttering search results. This adds a fingerprint check so identical content is stored only once.
-> - **K5:** Think of it like Google: right now search only understands meaning ("companies like Uber" finds ride-sharing). This adds exact keyword matching too ("Uber" finds "Uber"), then intelligently combines both for much better results.
+| # | Task | Status |
+|---|------|:------:|
+| K3 | Canvas Coach RAG | 🟢 Done ✅ |
+| K4 | Content hash dedupe | 🟢 Done ✅ |
+| K5 | Hybrid search function | 🟢 Done ✅ |
+| K6 | Validator RAG direct RPC | 🟢 Done ✅ |
+| K7 | ai-chat hybrid search | 🟢 Done ✅ |
 
 ---
 
-## 4. Phase 3: POST-MVP — Enhanced Features (15 days)
+## 4. Phase 3: POST-MVP — Enhanced Features
 
-> POST-01 (Strategy tab) ✅, POST-03 (Health scores) ✅. 2 remaining features.
+> POST-01 ✅, POST-02 ✅, POST-03 ✅. 1 remaining feature.
 
 | ID | Feature | Status | Effort | Next Action |
 |----|---------|:------:|:------:|-------------|
-| POST-02 | Sprint Board ← report priority actions | 🔴 | 2-3d | Add `import_from_report` to `task-agent` |
-| POST-03 | Dashboard health from validation scores | 🟢 Done | — | ✅ health-scorer reads scores_matrix, falls back to canvas |
+| POST-01 | Strategy tab | 🟢 Done | — | ✅ |
+| POST-02 | Sprint Board ← report priority actions | 🟢 Done | — | ✅ |
+| POST-03 | Dashboard health from validation scores | 🟢 Done | — | ✅ |
 | POST-04 | Research + Planning agent modes in AI Panel | 🔴 | 2-3d | Extend `ai-chat` with `research` + `planning` actions |
-
-> **What these mean for the founder:**
-> - **POST-02:** The validation report tells you "fix your pricing model" and "talk to 10 customers" — but today those suggestions just sit there. This creates a Kanban sprint board and auto-imports those action items so you can track them.
-> - **POST-03:** Your main dashboard shows a "startup health" score, but it's disconnected from your actual validation results. This plugs in your real validation scores so the dashboard reflects reality.
-> - **POST-04:** The AI chat panel currently only answers questions. This adds two new modes: "Research" (searches the web + knowledge base and cites sources) and "Planning" (helps create structured action plans and roadmaps with timelines).
 
 ---
 
 ## 5. Report V2 Design Polish
 
-> The validation report renders all data correctly, but the visual design needs polish to match the wireframes — consistent components, interactive charts, and proper layout.
+> Agency badges 10/10 complete ✅. Streaming chat ✅. Remaining: interactive polish.
 
 | # | Task | Status | Effort | Next Action |
 |---|------|:------:|:------:|-------------|
-| 13A | Shared components (SectionShell, InsightCard etc.) | 🟡 | 2d | 4/10 built, 6 missing per wireframe spec |
+| 13A | Shared components + agency badges | 🟢 Done | — | ✅ 10/10 built (session 40) |
 | 13C | Data viz polish (remaining) | 🟡 | 1d | Add citation popovers, hover states to existing viz |
 | 13D | Strategy sections layout | 🟡 | 1d | Sections render — align layout to wireframe spec |
-
-> **What these mean for the founder:**
-> - **13A:** Reusable UI building blocks (section wrappers, insight cards, score badges, metric displays) that make every report section look consistent. 6 of 10 are missing — so some sections look polished while others look rough.
-> - **13C:** The charts and graphs show the right data but feel static. This adds hover effects (highlight a bar to see details), citation popovers (click a data point to see where that number came from), and smooth transitions.
-> - **13D:** The strategy sections (like Go-To-Market and Competitive Positioning) display correctly but the spacing, columns, and visual hierarchy don't match the design mockups. This aligns them to look professional.
 
 ---
 
@@ -128,77 +134,70 @@
 | 3.1 | PDF export cross-browser testing | 🟡 | 80 | 1d | Test Safari, Firefox, mobile. Fix layout issues |
 | 3.2 | Shareable report links E2E test | 🟡 | 90 | 0.5d | Generate link → incognito → verify report → test expiry/revoke |
 
-> **What these mean for the founder:**
-> - **3.1:** You can download your validation report as a PDF to send to investors — but it's only been tested in Chrome. This tests Safari, Firefox, and mobile browsers to find and fix issues like cut-off charts, broken page breaks, or missing fonts.
-> - **3.2:** You can generate a shareable link so your mentor or investor can view the report without logging in. This tests the full flow: generate link → open in a private browser → verify the report loads correctly → confirm that expired and revoked links are properly blocked.
-
 ---
 
 ## 7. Agent Intelligence + UX
 
-> Making the AI agents smarter (extract more data, use industry knowledge) and the user experience smoother (streaming text, history, crash recovery).
+> A3 (Streaming) ✅. Remaining: extraction expansion, history, crash recovery, expert knowledge.
 
 | # | Task | Status | % | Effort | Next Action |
 |---|------|:------:|:-:|:------:|-------------|
 | A1 | ExtractorAgent 10-criteria expansion | 🟡 | 50 | 2d | Add channels, revenue model, competitive moat fields |
-| A3 | Streaming responses in AI Chat | 🟡 | 50 | 2d | SSE streaming in `ai-chat` edge function |
+| A3 | Streaming responses in AI Chat | 🟢 Done | 100 | — | ✅ SSE via Realtime, token_chunk + message_complete (session 41) |
 | A4 | Validation history timeline | 🔴 | 0 | 2d | Build timeline view showing all validation runs |
 | A5 | Progress persistence (resume interrupted) | 🔴 | 0 | 3d | Save and resume pipeline state from `validator_agent_runs` |
 | A6 | Expert Knowledge System wiring | 🟡 | 10 | 3d | 19 playbooks seeded; wire `getIndustryContext` into 5 agents |
 
-> **What these mean for the founder:**
-> - **A1:** The AI currently extracts ~6 data points from your chat (problem, customer, solution, etc.). This adds 4 more: marketing channels, revenue model, competitive moat, and pricing strategy — making your validation more thorough and your report richer.
-> - **A3:** Right now the AI chat shows a loading spinner then dumps the full response at once. This makes text stream in word-by-word (like ChatGPT) so you see the answer forming in real time instead of staring at a spinner.
-> - **A4:** If you validate your idea 3 times as it evolves, there's no way to see how your scores changed. This builds a visual timeline showing all past validation runs with score trends — so you can see if you're improving.
-> - **A5:** If your browser crashes or you close the tab during the 5-minute validation pipeline, you lose everything and have to start over. This saves progress to the database so you can reopen the app and resume exactly where it left off.
-> - **A6:** We've loaded 19 industry playbooks into the knowledge base (SaaS metrics, marketplace dynamics, fintech regulations, etc.) but the validation agents don't use them yet. This wires 5 agents to pull industry-specific benchmarks during analysis — so a fintech startup gets judged by fintech standards, not generic ones.
+---
+
+## 8. Agency Archive Tasks — ✅ Complete (12/12)
+
+> All agency tasks complete. Prompt fragments 5/5. Chat modes 4/4. Report badges 10/10. MEDDPICC, specificity, persistence all done.
+
+| # | Task | Source | Status |
+|---|------|--------|:------:|
+| 001-005 | Fragments + chat modes | agency | 🟢 Done ✅ |
+| 007 | Investor MEDDPICC schema | agency | 🟢 Done ✅ (session 44) |
+| 008 | Investor MEDDPICC wiring | agency | 🟢 Done ✅ (session 44) |
+| 009 | Sprint fragment | agency | 🟢 Done ✅ |
+| 010 | Pitch fragment | agency | 🟢 Done ✅ |
+| 011 | Lean Canvas specificity | agency | 🟢 Done ✅ (session 44) |
+| 012 | Chat session persistence | agency | 🟢 Done ✅ (session 44) |
+| 039 | Investor fragment | agency | 🟢 Done ✅ |
 
 ---
 
-## 8. Sprint Plan
+## 9. Sprint Plan
 
-> A project management feature: after validation tells you what to work on, the Sprint Plan helps you organize and execute those tasks.
+> POST-02 wired report→sprint import. Remaining: full Kanban UI + AI generation.
 
 | # | Feature | Status | % | Effort | Next Action |
 |---|---------|:------:|:-:|:------:|-------------|
 | M6 | Sprint Plan completion | 🔴 | 35 | M | Kanban board + `sprint-agent` (EXISTS) + AI generation + reviews |
 
-> **What this means for the founder:**
-> - **M6:** A full Kanban board (To Do / In Progress / Done columns) where an AI agent auto-generates sprint tasks from your validation results, you drag cards between columns as you work, and you can review/approve AI suggestions before adding them to your board. Currently 35% built — the backend exists but the board UI and AI generation are incomplete.
-
 ---
 
-## 9. Reliability & Hardening
-
-> Behind-the-scenes improvements that prevent unexpected breakages and keep the app loading fast.
+## 10. Reliability & Hardening
 
 | # | Task | Severity | Status | Effort | Next Action |
 |---|------|:--------:|:------:|:------:|-------------|
 | R4 | Pin dependency versions in edge functions | LOW | 🔴 | 1d | Pin `npm:@supabase/supabase-js@2` versions in import maps |
 | R7 | Chunk size warning (pdf 593kB) | LOW | 🟢 Done | — | ✅ Split to jspdf (391kB) + html2canvas (201kB) |
 
-### 9.1 Database / Supabase migrations (Session 29)
+### 10.1 Database / Supabase migrations
 
 | # | Task | Status | Next Action |
 |---|------|:------:|-------------|
 | DB-1 | CRM FK + chat P0 conditional migrations | 🟢 Done | — |
 | DB-2 | Drop redundant service_role RLS (17 policies) | 🟢 Done | — |
-| DB-3 | Split FOR ALL → SELECT/INSERT/UPDATE/DELETE (industry_questions example) | 🟢 Done | — |
-| DB-4 | **Verify:** Full migration chain on fresh reset | 🟡 Partial | `supabase db reset` passes through 20260307100001; fails in `20260227110400_canvas_p0_cleanup` (view `assumption_evidence` depends on `interview_insights`) — fix that migration if full reset required |
-| DB-5 | **Apply on remote:** Push new migrations so `db pull` is in sync | 🔴 | Run `supabase db push` (or mark 20260307100000, 20260307100001 applied) after deploy |
-| DB-6 | **Over time:** Split remaining FOR ALL policies on user-facing tables | 🔴 | Use `20260307100001_split_industry_questions_rls.sql` as reference; follow `.cursor/rules/supabase/supabase-create-rls-policies.mdc` |
-
-**Best practices (verified against `.cursor/rules/supabase`):** Conditional DDL via DO + `information_schema` (create-migration); no FOR ALL to service_role, granular SELECT/INSERT/UPDATE/DELETE (create-rls-policies); lowercase SQL, header comments (postgres-sql-style). See `supabase/migrations/VERIFICATION_CRM_RLS_2026.md`.
-
-> **What these mean for the founder:**
-> - **R4:** Our server functions import libraries like "any version 2.x of Supabase." If the library ships a breaking update tomorrow, our functions could silently break. Pinning to exact version numbers (like 2.47.3) means no surprise breakages — we update on our terms.
-> - **R7:** The PDF export library bundles into one 593kB JavaScript file (the recommended max is 500kB). Large files slow down initial page load — especially on mobile or slow connections. Splitting it into smaller pieces means the browser only downloads what's needed, when it's needed.
+| DB-3 | Split FOR ALL → SELECT/INSERT/UPDATE/DELETE | 🟢 Done | — |
+| DB-4 | Full migration chain on fresh reset | 🟡 Partial | `canvas_p0_cleanup` view dependency — fix if full reset required |
+| DB-5 | Apply on remote: push new migrations | 🔴 | Run `supabase db push` after deploy |
+| DB-6 | Split remaining FOR ALL policies | 🔴 | Use existing examples as reference |
 
 ---
 
-## 10. Security
-
-> Protecting founder data, meeting compliance requirements, and following security best practices.
+## 11. Security
 
 | # | Issue | Severity | Status | Next Action |
 |---|-------|:--------:|:------:|-------------|
@@ -206,16 +205,11 @@
 | S5 | pgvector in public schema | LOW | 🟡 | Accept risk — not relocatable. Document decision |
 | S8 | No GDPR data export | MEDIUM | 🔴 | Phase 5 — build `data-export` edge function |
 
-> **What these mean for the founder:**
-> - **S3:** Supabase can check if a founder's chosen password has appeared in known data breaches (like "Have I Been Pwned") and warn them to pick a stronger one. This requires upgrading to Supabase Pro Plan — once upgraded, it's a one-click enable.
-> - **S5:** The AI vector search extension (pgvector) is installed in the main database area instead of a private one. It can't be moved after installation — this is a known Supabase limitation. We accept this and document why so future developers aren't confused.
-> - **S8:** European privacy law (GDPR) gives users the right to download all their personal data. We don't have a "Download My Data" button yet. This builds a server function that packages everything — profile, startups, reports, chat history — into a downloadable file.
-
 ---
 
-## 11. Architecture Audit P2 — Deferred (28 tasks)
+## 12. Architecture Audit P2 — Deferred (28 tasks)
 
-> Lower-priority database and infrastructure improvements found during the full system audit. These will be addressed naturally as we build features in each area — not as standalone work.
+> Lower-priority improvements addressed naturally as we build features in each area.
 
 | Domain | Key P2 Items |
 |--------|-------------|
@@ -232,7 +226,7 @@
 
 ---
 
-## 12. Future Phases
+## 13. Future Phases
 
 ### Phase 4: ADVANCED — Differentiation (15 days)
 
@@ -261,18 +255,25 @@
 ## Implementation Order
 
 ```
-NOW:          POST-02 — Sprint Board ← report priority actions
-              K5 — Hybrid search function
+DONE (Session 44): ✅ Agency 12/12 complete (007/008/011/012)
 
-NEXT:         POST-03/POST-04 — Dashboard health + AI Panel modes
-              M6 — Sprint Plan completion (Kanban + AI generation)
-              13A, 13C, 13D — Report V2 design polish
+NOW (Session 45):
+              22 — Interview context → Report pipeline
+              POST-04 — Research + Planning agent modes (Phase 3 → 4/4 ✅)
 
-WEEK 8-10:    ADV-01 to ADV-04 — Differentiation features
+NEXT (Session 46):
+              PROD-07 — E2E tests (Playwright setup + 5 critical flows)
 
-WEEK 11-12:   PROD-01 to PROD-05 — Launch ready
+POLISH:       13C, 13D — Data viz + Strategy layout
+              3.1, 3.2 — PDF export + Shareable links
+              A1 — ExtractorAgent expansion
 
-PARALLEL:     R4, R7, 3.1, 3.2, A1, A3, K4
+LATER:        A4, A5, A6, M6 — Agent intelligence + Sprint board
+              V5, V6 — Validator architecture upgrades
+
+PHASE 4:      ADV-01 to ADV-04 — Differentiation features
+
+PHASE 5:      PROD-01 to PROD-08 — Launch ready
 ```
 
 ---
@@ -281,14 +282,16 @@ PARALLEL:     R4, R7, 3.1, 3.2, A1, A3, K4
 
 | Metric | Value | Target |
 |--------|-------|--------|
-| Build time | 6.2s | <10s |
-| Tests | 389/389 | 100% |
+| Build time | 6.36s | <10s |
+| Tests | 539/539 | 100% |
 | TypeScript | 0 errors | 0 |
-| Lint | 340 problems (down from 990) | <100 |
-| Largest chunk | 593kB (pdf) | <500kB |
+| Lint | 350 problems (down from 990) | <100 |
+| Largest chunk | 391kB (jspdf) | <500kB ✅ |
 | Security advisors | 1 WARN (needs Pro) | 0 |
 | RLS coverage | 94/94 (100%) | 100% |
 | Phase 1 | 9/9 ✅ | Done |
 | Phase 2 | 7/7 ✅ | Done |
-| Phase 3 | 1/4 (POST-01 ✅) | Next |
-| Overall | ~78% | 100% |
+| Phase 3 | 3/4 (POST-01, POST-02, POST-03 ✅) | Next: POST-04 |
+| RAG | K4-K7 ✅ | Done |
+| Agency | 12/12 ✅ | Done |
+| Overall | ~90% | 100% |

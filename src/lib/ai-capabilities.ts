@@ -221,6 +221,8 @@ export interface QuickAction {
   label: string;
   prompt: string;
   icon?: string;
+  /** If set, navigate to this route instead of sending the prompt as chat */
+  route?: string;
 }
 
 export const PUBLIC_QUICK_ACTIONS: QuickAction[] = [

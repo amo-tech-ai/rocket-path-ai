@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-startup-strategist": {
+      "source": "junhua/forth-ai-homepage",
+      "sourceType": "github",
+      "computedHash": "65ad316e1c22111c24cba2be10b484296d13bb5158743ebd0e91af43072602ff"
+    },
+    "idea-validator": {
+      "source": "shipshitdev/library",
+      "sourceType": "github",
+      "computedHash": "943df829e884f29f521edb911a95fb02026de0b37c26426d570389d298403e02"
+    },
+    "lean-startup": {
+      "source": "luisschmitzheadline/vc-skills.md",
+      "sourceType": "github",
+      "computedHash": "de3c3e4a2e5c3de434ee348a23f074a76258e794446aa5d66396a0d7eab01f2a"
+    },
+    "startup-analyst": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "960d95ce5c142d5b4d9eabe21c43d3b43fae4c4513b14810112b0e4aa168e034"
+    },
+    "startup-canvas": {
+      "source": "phuryn/pm-skills",
+      "sourceType": "github",
+      "computedHash": "57a15851a385bd7e31c6dad1037a29dfe4cd467ed369a3ff4892d988dd0d81a6"
+    },
+    "startup-pitch": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "computedHash": "a6500a6359691ee369ace730635e2bd9d37a0ad5f0c9b667ab4ba72ce0c351db"
+    },
+    "startup-positioning": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "computedHash": "318f59e37160ad76944f8a9f36d78cf656b41d6117ae5a97d429fb72232ee2c4"
+    },
+    "startup-strategy-council": {
+      "source": "antonioc-cl/startup-strategy-council",
+      "sourceType": "github",
+      "computedHash": "541c9b00ebe43627964bc407a7d8d48c18e64eb9198c64fda87559f4cce479c1"
+    }
+  }
+}

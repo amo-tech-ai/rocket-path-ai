@@ -1,7 +1,7 @@
 # 09 — Vector Storage Flow (Chat & Validator)
 
 > How chat UI, chat EF, and validator pipeline consume the knowledge base (pgvector).
-> Audited 2026-03-08 against actual code.
+> Audited 2026-03-08 against actual code. Verified 2026-03-09 with production proof tests.
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
     end
 
     subgraph DB["Supabase DB"]
-        KC["knowledge_chunks<br/>4,251 rows"]
+        KC["knowledge_chunks<br/>3,748 rows"]
         KD["knowledge_documents<br/>parent docs"]
     end
 

@@ -4,6 +4,7 @@
  */
 
 import { callGemini } from "../ai-utils.ts";
+import { PITCH_DECK_FRAGMENT } from "../../_shared/agency-fragments.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseClient = any;
@@ -294,24 +295,7 @@ Requirements:
 6. Competition slide should position against real or implied competitors
 7. Ask slide should be clear about amount and use of funds
 
-## Win Theme Architecture
-Build the deck around 2-3 win themes — recurring strengths across the startup data. Each must be investor-thesis-specific, provable with data, and differentiating. Every slide title should be a claim, not a label ("We reduce CAC by 60% through organic loops" not "Customer Acquisition"). Introduce the strongest theme in the first 3 slides. Return to it on the Ask slide.
-
-## Challenger Narrative (Problem Slide)
-1. Industry insight: Start with a non-obvious truth the investor may not know.
-2. Cost of status quo: Quantify annual waste. Make it tangible.
-3. The new way: Present the paradigm shift before revealing the product.
-4. Product reveal: Only after establishing insight, cost, and new paradigm.
-
-## Persuasion Architecture
-- Primacy: First 3 slides anchor the impression. Lead with your strongest element.
-- Progressive Disclosure: Simple narrative (1-4) → evidence (5-8) → detailed ask (9-10).
-- Loss Aversion: On market slide, frame as regret avoidance. Quantify cost of waiting.
-- Social Proof Cascade: Stack proof in increasing credibility order.
-- Recency: Ask slide is the last impression — include the single biggest number.
-
-## Traction Slide
-Must tell a growth story, not just show numbers. Include growth rate (MoM%), unit economics trajectory, channel diversification. Pre-launch: show LOIs, pilot commitments, waitlist, engagement depth. Frame as validation velocity.`;
+${PITCH_DECK_FRAGMENT}`;
 
   const userPrompt = `Create a complete 10-slide pitch deck for this startup:
 

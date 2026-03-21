@@ -13,12 +13,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  CRMRealtimeState, 
-  ContactEnrichedPayload, 
-  DealScoredPayload, 
-  RiskPayload 
+import {
+  CRMRealtimeState,
+  ContactEnrichedPayload,
+  DealScoredPayload,
+  RiskPayload
 } from './types';
+import { usePollingFallback } from './usePollingFallback';
 import { toast } from 'sonner';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -40,10 +41,12 @@ export function useCRMRealtime(
   options: UseCRMRealtimeOptions = { showToasts: true }
 ) {
   const [state, setState] = useState<CRMRealtimeState>(initialState);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleContactEnriched = useCallback((payload: ContactEnrichedPayload) => {
+    setEventCount(c => c + 1);
     setState(prev => {
       const newContacts = new Map(prev.enrichedContacts);
       newContacts.set(payload.contactId, payload);
@@ -63,6 +66,7 @@ export function useCRMRealtime(
   }, [queryClient, startupId, options]);
 
   const handleDealScored = useCallback((payload: DealScoredPayload) => {
+    setEventCount(c => c + 1);
     setState(prev => {
       const newScores = new Map(prev.dealScores);
       newScores.set(payload.dealId, payload);
@@ -84,6 +88,7 @@ export function useCRMRealtime(
   }, [queryClient, startupId, options]);
 
   const handlePipelineAnalyzed = useCallback((payload: RiskPayload) => {
+    setEventCount(c => c + 1);
     if (payload.riskType !== 'deal') return;
 
     setState(prev => ({
@@ -178,6 +183,16 @@ export function useCRMRealtime(
       }
     };
   }, [startupId, handleContactEnriched, handleDealScored, handlePipelineAnalyzed, queryClient]);
+
+  // Polling fallback when Realtime is silent
+  usePollingFallback({
+    enabled: !!startupId,
+    eventCount,
+    pollFn: async () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts', startupId] });
+      queryClient.invalidateQueries({ queryKey: ['deals', startupId] });
+    },
+  });
 
   return {
     ...state,
