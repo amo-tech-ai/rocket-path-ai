@@ -27,6 +27,8 @@ dist-ssr
 *.docx
 *.zip
 *.png
+!public/og-startupai.png
+!public/favicon.svg
 *.jpg
 *.jpeg
 *.webp

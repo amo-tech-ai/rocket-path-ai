@@ -66,7 +66,10 @@ export const profileSequence: AnimationPhase[] = [
 // Screen 2: Analysis Screen (skipped - null sequence for transition)
 export const analysisSequence: AnimationPhase[] = [];
 
-// Screen 3: Pitch Deck Screen sequence (~2s)
+// Screen 3: Lean Canvas Screen (no cursor — auto-populates)
+export const leanCanvasSequence: AnimationPhase[] = [];
+
+// Screen 4: Pitch Deck Screen sequence (~2s)
 export const pitchDeckSequence: AnimationPhase[] = [
   { target: { x: 90, y: 350 }, action: 'move', duration: 800 },
   { target: { x: 90, y: 350 }, action: 'click', duration: 200, uiState: 'generate-deck' },
@@ -76,7 +79,7 @@ export const pitchDeckSequence: AnimationPhase[] = [
   { target: { x: 240, y: 350 }, action: 'hover', duration: 300, uiState: 'hover-export' },
 ];
 
-// Screen 4: Execution Screen sequence (~2.5s)
+// Screen 5: Execution Screen sequence (~2.5s)
 export const executionSequence: AnimationPhase[] = [
   { target: { x: 210, y: 150 }, action: 'move', duration: 800 },
   { target: { x: 210, y: 150 }, action: 'hover', duration: 200, uiState: 'hover-card' },
@@ -90,6 +93,7 @@ export const executionSequence: AnimationPhase[] = [
 export const sequences = {
   1: profileSequence,
   2: analysisSequence,
-  3: pitchDeckSequence,
-  4: executionSequence,
+  3: leanCanvasSequence,
+  4: pitchDeckSequence,
+  5: executionSequence,
 };

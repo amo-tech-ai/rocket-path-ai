@@ -5,7 +5,6 @@ import HowItWorksScrollSection from "@/components/how-it-works/HowItWorksScrollS
 import FeaturesSection from "@/components/marketing/FeaturesSection";
 import TimelineSection from "@/components/marketing/TimelineSection";
 import GuidedFlowSection from "@/components/marketing/GuidedFlowSection";
-import OutcomesSection from "@/components/marketing/OutcomesSection";
 import CTASection from "@/components/marketing/CTASection";
 
 const Index = () => {
@@ -18,7 +17,6 @@ const Index = () => {
         <FeaturesSection />
         <TimelineSection />
         <GuidedFlowSection />
-        <OutcomesSection />
         <CTASection />
       </main>
       <Footer />

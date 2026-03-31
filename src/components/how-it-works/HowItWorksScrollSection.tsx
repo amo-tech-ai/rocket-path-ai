@@ -44,8 +44,8 @@ const HowItWorksScrollSection = () => {
       const sectionHeight = section.offsetHeight - window.innerHeight;
       const scrollProgress = Math.max(0, Math.min(1, sectionTop / sectionHeight));
 
-      // Map scroll progress to steps (0-25% = 1, 25-50% = 2, 50-75% = 3, 75-100% = 4)
-      const newStep = Math.min(4, Math.max(1, Math.ceil(scrollProgress * 4)));
+      // Map scroll progress to steps (0-20% = 1, 20-40% = 2, etc.)
+      const newStep = Math.min(5, Math.max(1, Math.ceil(scrollProgress * 5)));
       
       if (newStep !== activeStep) {
         setActiveStep(newStep);
@@ -70,7 +70,7 @@ const HowItWorksScrollSection = () => {
       ref={sectionRef}
       id="how-it-works"
       className="relative bg-secondary/30"
-      style={{ height: isMobile ? 'auto' : '400vh' }}
+      style={{ height: isMobile ? 'auto' : '500vh' }}
       aria-label="How StartupAI works"
     >
       {/* Sticky Container for Desktop */}
@@ -140,25 +140,27 @@ const HowItWorksScrollSection = () => {
               </div>
 
               {/* Each Step as Section */}
-              {[1, 2, 3, 4].map((step) => (
+              {[1, 2, 3, 4, 5].map((step) => (
                 <div key={step} className="space-y-4">
                   {/* Step Header */}
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-medium text-foreground">{step}</span>
                     <div className="w-2 h-2 rounded-full bg-sage" />
                     <span className="text-lg font-semibold text-foreground">
-                      {step === 1 && 'Profile'}
-                      {step === 2 && 'Analysis'}
-                      {step === 3 && 'Pitch Deck'}
-                      {step === 4 && 'Execution'}
+                      {step === 1 && 'Startup Wizard'}
+                      {step === 2 && 'AI Validation'}
+                      {step === 3 && 'Lean Canvas'}
+                      {step === 4 && 'Strategy + Pitch Deck'}
+                      {step === 5 && 'Execution + CRM'}
                     </span>
                   </div>
-                  
+
                   <p className="text-sm text-muted-foreground">
-                    {step === 1 && 'Tell us about your startup once. We do the rest.'}
-                    {step === 2 && 'AI turns your info into investor readiness insights.'}
-                    {step === 3 && 'Investor-ready materials, auto-generated from your data.'}
-                    {step === 4 && 'Track relationships and actions in one intelligent CRM.'}
+                    {step === 1 && 'Answer guided questions about your idea, market, and goals.'}
+                    {step === 2 && '7-agent analysis scores your idea across 5 dimensions.'}
+                    {step === 3 && 'Auto-generate your 9-block business model from validated data.'}
+                    {step === 4 && 'Investor-ready materials built from your validated strategy.'}
+                    {step === 5 && 'Daily tasks, investor pipeline, and progress tracking.'}
                   </p>
 
                   {/* App Window - Completed State */}
