@@ -91,10 +91,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { input_text, startup_id, interview_context } = body as {
+    const { input_text, startup_id, interview_context, pre_research_context } = body as {
       input_text?: string;
       startup_id?: string;
       interview_context?: { version: number; extracted: Record<string, string>; coverage: Record<string, string>; confidence?: Record<string, string>; discoveredEntities?: { competitors?: string[]; urls?: string[]; marketData?: string[] } };
+      pre_research_context?: Record<string, unknown>;
     };
 
     // Input sanitization — strip HTML tags, limit length
@@ -164,7 +165,18 @@ Deno.serve(async (req) => {
     // Keeps the isolate alive for the pipeline up to the 400s wall-clock limit (paid plan).
     // Falls back to fire-and-forget if waitUntil is unavailable.
     // 002-EFN: Pass interview context to pipeline (backward compatible — null if not provided)
-    const pipelinePromise = runPipeline(supabaseAdmin, sessionId, sanitized, startup_id, interview_context || null, user.id)
+    // OC-MVP-01-02: Pass pre_research_context from OpenClaw deep mode (null if not provided)
+    if (pre_research_context) {
+      console.log('[validator-start] Pre-research context provided:', {
+        queries_run: (pre_research_context as Record<string, unknown>).meta && ((pre_research_context as Record<string, unknown>).meta as Record<string, unknown>).queries_run,
+        mode: (pre_research_context as Record<string, unknown>).meta && ((pre_research_context as Record<string, unknown>).meta as Record<string, unknown>).mode,
+      });
+      // Store pre-research meta in session metadata for audit trail
+      await supabaseAdmin.from('validator_sessions').update({
+        metadata: { pre_research: (pre_research_context as Record<string, unknown>).meta || {} },
+      }).eq('id', sessionId);
+    }
+    const pipelinePromise = runPipeline(supabaseAdmin, sessionId, sanitized, startup_id, interview_context || null, user.id, pre_research_context || null)
       .catch(e => console.error('[pipeline] Unhandled:', e))
       .finally(() => { activeSessions.delete(sessionId); });
 

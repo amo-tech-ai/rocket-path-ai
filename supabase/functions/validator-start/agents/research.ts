@@ -15,7 +15,8 @@ import { RESEARCH_FRAGMENT } from "../agency-fragments.ts";
 export async function runResearch(
   supabase: SupabaseClient,
   sessionId: string,
-  profile: StartupProfile
+  profile: StartupProfile,
+  preResearchContext?: Record<string, unknown> | null,
 ): Promise<MarketResearch | null> {
   const agentName = 'ResearchAgent';
   await updateRunStatus(supabase, sessionId, agentName, 'running');
@@ -198,6 +199,21 @@ ${RESEARCH_FRAGMENT}`;
       ).join('\n')}`
     : '';
 
+  // OC-MVP-01-02: Build verified research data block from pre-research context
+  let preResearchBlock = '';
+  if (preResearchContext) {
+    const market = preResearchContext.market as Record<string, { value: unknown; source: string; confidence: string }> | undefined;
+    const lines: string[] = [];
+    if (market?.tam?.value) lines.push(`- TAM: $${market.tam.value.toLocaleString()} (Source: ${market.tam.source}, confidence: ${market.tam.confidence})`);
+    if (market?.buyer_count?.value) lines.push(`- Buyer count: ${market.buyer_count.value.toLocaleString()} (Source: ${market.buyer_count.source}, confidence: ${market.buyer_count.confidence})`);
+    if (market?.avg_spend?.value) lines.push(`- Avg spend: ${market.avg_spend.value} (Source: ${market.avg_spend.source}, confidence: ${market.avg_spend.confidence})`);
+    if (market?.growth_rate?.value) lines.push(`- Growth rate: ${market.growth_rate.value} (Source: ${market.growth_rate.source}, confidence: ${market.growth_rate.confidence})`);
+    if (lines.length > 0) {
+      preResearchBlock = `\n\n--- VERIFIED RESEARCH DATA (from pre-research) ---\nUse these as primary data. Fill gaps with your own search. Do NOT contradict verified data without citing a more authoritative source.\n${lines.join('\n')}\n--- END VERIFIED DATA ---`;
+      console.log(`[ResearchAgent] Pre-research context injected: ${lines.length} verified fields`);
+    }
+  }
+
   try {
     // P01: Enable URL Context so Gemini actually reads curated URLs (not just sees them as text)
     const { text, searchGrounding, citations } = await callGemini(
@@ -211,7 +227,7 @@ Target customer: ${profile.customer}
 Problem being solved: ${profile.problem || 'Not specified'}
 
 IMPORTANT: Search for the SPECIFIC industry market (e.g., "eCommerce product photography market" not "AI tools market"). The startup's technology (AI, SaaS, etc.) is the HOW — search for the market of WHAT they sell to.
-Include: current market valuation, CAGR, forecast period, regional breakdown, key drivers, major competitors, pricing models, and demand by segment.${websitesLine}${searchQueriesLine}`,
+Include: current market valuation, CAGR, forecast period, regional breakdown, key drivers, major competitors, pricing models, and demand by segment.${websitesLine}${searchQueriesLine}${preResearchBlock}`,
       { useSearch: true, useUrlContext: true, responseJsonSchema: AGENT_SCHEMAS.research, timeoutMs: AGENT_TIMEOUTS.research }
     );
 

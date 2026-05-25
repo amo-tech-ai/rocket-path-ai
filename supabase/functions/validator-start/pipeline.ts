@@ -173,6 +173,7 @@ export async function runPipeline(
   startup_id?: string,
   interviewContext?: InterviewContext | null,
   user_id?: string,
+  preResearchContext?: Record<string, unknown> | null,
 ) {
 // FIX: Use a start timestamp + deadline check instead of setTimeout.
 // setTimeout was unreliable on Deno Deploy — the callback never fired when
@@ -259,7 +260,7 @@ try {
     });
     await startAgentRun(supabaseAdmin, sessionId, 'CompetitorAgent');
     const competitorStartMs = Date.now();
-    competitorPromise = runCompetitors(supabaseAdmin, sessionId, profile)
+    competitorPromise = runCompetitors(supabaseAdmin, sessionId, profile, preResearchContext)
       .then((result) => {
         const compDuration = Date.now() - competitorStartMs;
         if (result) {
@@ -300,7 +301,7 @@ try {
     });
     await startAgentRun(supabaseAdmin, sessionId, 'ResearchAgent');
     const researchStartMs = Date.now();
-    const researchPromise = runResearch(supabaseAdmin, sessionId, profile)
+    const researchPromise = runResearch(supabaseAdmin, sessionId, profile, preResearchContext)
       .then((result) => {
         const resDuration = Date.now() - researchStartMs;
         if (!result) {
@@ -342,7 +343,7 @@ try {
     const interviewContextStr = interviewContext
       ? JSON.stringify(interviewContext.extracted || interviewContext, null, 2)
       : undefined;
-    const scoringPromise = runScoring(supabaseAdmin, sessionId, profile, null, null, interviewContextStr)
+    const scoringPromise = runScoring(supabaseAdmin, sessionId, profile, null, null, interviewContextStr, preResearchContext)
       .then((result) => {
         const scoreDuration = Date.now() - scoringStartMs;
         if (!result) {

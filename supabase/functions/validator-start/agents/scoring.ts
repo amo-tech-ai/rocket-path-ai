@@ -18,7 +18,8 @@ export async function runScoring(
   profile: StartupProfile,
   market: MarketResearch | null,
   competitors: CompetitorAnalysis | null,
-  interviewContext?: string
+  interviewContext?: string,
+  preResearchContext?: Record<string, unknown> | null,
 ): Promise<ScoringResult | null> {
   const agentName = 'ScoringAgent';
   await updateRunStatus(supabase, sessionId, agentName, 'running');
@@ -250,10 +251,23 @@ Return JSON with exactly these fields:
       interviewContext ? `FOUNDER INTERVIEW:\n${interviewContext}` : '',
     ].filter(Boolean).join('\n');
 
+    // OC-MVP-01-02: Inject verified buyer count and confidence for calibrated scoring
+    let preResearchBlock = '';
+    if (preResearchContext) {
+      const market = preResearchContext.market as Record<string, { value: unknown; confidence: string }> | undefined;
+      const lines: string[] = [];
+      if (market?.buyer_count?.value) lines.push(`Verified buyer count: ${market.buyer_count.value} (confidence: ${market.buyer_count.confidence})`);
+      if (market?.tam?.value) lines.push(`Verified TAM: $${market.tam.value} (confidence: ${market.tam.confidence})`);
+      if (lines.length > 0) {
+        preResearchBlock = `\nVERIFIED DATA (from pre-research — use for calibration, not Gemini estimates):\n${lines.join('\n')}`;
+        console.log(`[ScoringAgent] Pre-research calibration data injected: ${lines.length} fields`);
+      }
+    }
+
     const { text } = await callGemini(
       AGENTS.scoring.model,
       systemPrompt,
-      `Score this startup:\n\n${contextPack}`,
+      `Score this startup:\n\n${contextPack}${preResearchBlock}`,
       { thinkingLevel: 'high', responseJsonSchema: AGENT_SCHEMAS.scoring, timeoutMs: AGENT_TIMEOUTS.scoring, keepSchemaWithThinking: true }
     );
 

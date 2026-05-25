@@ -15,7 +15,8 @@ import { COMPETITORS_FRAGMENT } from "../agency-fragments.ts";
 export async function runCompetitors(
   supabase: SupabaseClient,
   sessionId: string,
-  profile: StartupProfile
+  profile: StartupProfile,
+  preResearchContext?: Record<string, unknown> | null,
 ): Promise<CompetitorAnalysis | null> {
   const agentName = 'CompetitorAgent';
   await updateRunStatus(supabase, sessionId, agentName, 'running');
@@ -199,11 +200,28 @@ ${COMPETITORS_FRAGMENT}`;
     console.log(`[CompetitorAgent] Founder URLs detected — enabling URL Context: ${profile.websites}`);
   }
 
+  // OC-MVP-01-02: Build verified competitor data block from pre-research context
+  let preResearchBlock = '';
+  if (preResearchContext) {
+    const competitors = preResearchContext.competitors as Array<{ name: string; pricing?: { value: string; source: string; confidence: string }; funding?: { value: string; source: string; confidence: string }; g2_rating?: { value: number; reviews: number; source: string } }> | undefined;
+    if (competitors && competitors.length > 0) {
+      const lines = competitors.slice(0, 5).map(c => {
+        const parts = [`  - ${c.name}`];
+        if (c.pricing?.value) parts.push(`Pricing: ${c.pricing.value} (${c.pricing.source}, ${c.pricing.confidence})`);
+        if (c.funding?.value) parts.push(`Funding: ${c.funding.value} (${c.funding.source}, ${c.funding.confidence})`);
+        if (c.g2_rating?.value) parts.push(`G2: ${c.g2_rating.value}/5 (${c.g2_rating.reviews} reviews)`);
+        return parts.join(' | ');
+      });
+      preResearchBlock = `\n\n--- VERIFIED COMPETITOR DATA (from pre-research) ---\nEnrich these with positioning analysis. Add new competitors if found, but do NOT remove verified ones.\n${lines.join('\n')}\n--- END VERIFIED DATA ---`;
+      console.log(`[CompetitorAgent] Pre-research context injected: ${competitors.length} verified competitors`);
+    }
+  }
+
   try {
     const { text, searchGrounding, citations, urlContextMetadata } = await callGemini(
       AGENTS.competitors.model,
       systemPrompt,
-      `Find competitors for: ${profile.idea}\n${industryLine}\nExisting alternatives mentioned: ${profile.alternatives}${websitesLine}`,
+      `Find competitors for: ${profile.idea}\n${industryLine}\nExisting alternatives mentioned: ${profile.alternatives}${websitesLine}${preResearchBlock}`,
       { useSearch: true, useUrlContext: hasFounderUrls, responseJsonSchema: AGENT_SCHEMAS.competitors, timeoutMs: AGENT_TIMEOUTS.competitors }
     );
 
