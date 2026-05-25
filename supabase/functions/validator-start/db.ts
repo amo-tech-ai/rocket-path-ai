@@ -91,7 +91,12 @@ export async function completeRun(
 /**
  * Mark an agent as 'running' in validator_agent_runs.
  * Called when agent starts execution (after broadcast agent_started).
- * Row must already exist (pre-created as 'queued' in index.ts).
+ *
+ * Self-healing: uses upsert on the (session_id, agent_name, attempt) unique key
+ * so the row is created if pre-create in index.ts ever fails (e.g. a future
+ * CHECK constraint drift). Historically the pre-create was silently rejected
+ * by a CHECK constraint mismatch, leaving the audit table empty — this guards
+ * against that class of bug regressing.
  */
 export async function startAgentRun(
   supabase: SupabaseClient,
@@ -100,9 +105,16 @@ export async function startAgentRun(
 ) {
   const { error } = await supabase
     .from('validator_agent_runs')
-    .update({ status: 'running', started_at: new Date().toISOString() })
-    .eq('session_id', sessionId)
-    .eq('agent_name', agentName);
+    .upsert(
+      {
+        session_id: sessionId,
+        agent_name: agentName,
+        attempt: 0,
+        status: 'running',
+        started_at: new Date().toISOString(),
+      },
+      { onConflict: 'session_id,agent_name,attempt' },
+    );
 
   if (error) {
     console.error(`[db] startAgentRun failed for ${agentName}:`, error.message);
