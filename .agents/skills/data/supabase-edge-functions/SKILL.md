@@ -177,7 +177,9 @@ export const RESPONSE_SCHEMA = {
 
 ---
 
-## Deployed Functions (42+)
+## Deployed Functions (30)
+
+> Verified: `tasks/audit/42-edge-audit.md` (2026-03-22). See `supabase/functions/API-CONTRACTS.md` for field naming quirks.
 
 ### Validator Pipeline
 - `validator-start` — 7-agent pipeline (Extractor, Research, Competitors, Scoring, MVP, Composer, Verifier)

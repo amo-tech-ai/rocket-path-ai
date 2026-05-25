@@ -125,8 +125,16 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const { action, startupId } = body;
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { action, startupId } = body as { action?: string; startupId?: string };
 
     // Allow get_stage_criteria without auth (static data, no DB access)
     if (action === 'get_stage_criteria') {

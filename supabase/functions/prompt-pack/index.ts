@@ -1,3 +1,5 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
 /**
  * Prompt Pack Edge Function
  *
@@ -28,10 +30,13 @@ import { callGemini as sharedCallGemini, extractJSON } from '../_shared/gemini.t
 // CORS & RESPONSE HELPERS (per best-practices/04-error-handling.md)
 // ============================================================================
 
+// reqHeaders is updated at the top of each request handler for dynamic CORS
+const reqHeaders: Record<string, string> = { ...corsHeaders, 'Content-Type': 'application/json' };
+
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: reqHeaders,
   });
 }
 
@@ -592,9 +597,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
+
+  // Update dynamic CORS headers for this request
+  Object.assign(reqHeaders, getCorsHeaders(req), { 'Content-Type': 'application/json' });
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      status: 405, headers: reqHeaders,
     });
   }
 

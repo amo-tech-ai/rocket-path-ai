@@ -3,7 +3,7 @@
  * Provides common database operations and helpers for Edge Functions
  */
 
-import { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 // =============================================================================
 // Types

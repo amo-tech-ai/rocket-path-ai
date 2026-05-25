@@ -10,8 +10,9 @@
  * - test_search            (JWT)           — run test query against search_knowledge RPC
  */
 
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { handleCors, corsHeaders } from "../_shared/cors.ts";
+import { handleCors, corsHeaders, getCorsHeaders } from "../_shared/cors.ts";
 import {
   generateEmbedding,
   generateEmbeddings,
@@ -27,7 +28,8 @@ const CHUNK_OVERLAP_CHARS = 200;
 const LLAMACLOUD_MARKDOWN_URL =
   "https://api.cloud.llamaindex.ai/api/v1/parsing/job";
 
-const HEADERS = {
+// Dynamic CORS headers — reassigned at the top of each request handler
+const HEADERS: Record<string, string> = {
   ...corsHeaders,
   "Content-Type": "application/json",
 };
@@ -739,15 +741,27 @@ Deno.serve(async (req) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
+  const dynamicHeaders = { ...getCorsHeaders(req), "Content-Type": "application/json" };
+  // Update module-level HEADERS so all nested action handlers use dynamic CORS
+  Object.assign(HEADERS, getCorsHeaders(req), { "Content-Type": "application/json" });
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: HEADERS,
+      headers: dynamicHeaders,
     });
   }
 
   try {
-    const body = (await req.json()) as IngestRequest;
+    let body: IngestRequest;
+    try {
+      body = (await req.json()) as IngestRequest;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: dynamicHeaders }
+      );
+    }
     const action: Action = body.action || "ingest";
 
     console.log(`[knowledge-ingest] Action: ${action}`);
@@ -797,7 +811,7 @@ Deno.serve(async (req) => {
       default:
         return new Response(JSON.stringify({ error: "Invalid action" }), {
           status: 400,
-          headers: HEADERS,
+          headers: dynamicHeaders,
         });
     }
   } catch (err) {
@@ -807,7 +821,7 @@ Deno.serve(async (req) => {
         error: "Internal server error",
         details: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 500, headers: HEADERS }
+      { status: 500, headers: dynamicHeaders }
     );
   }
 });

@@ -24,7 +24,7 @@ import {
   updateAssumptionStatus,
   coach,
 } from "./actions/index.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { broadcastEvent } from "../_shared/broadcast.ts";
 
@@ -68,12 +68,14 @@ function getSupabaseClient(authHeader: string | null): SupabaseClient {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -86,14 +88,14 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Invalid or missing authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers }
       );
     }
 
     // Rate limit: 30 requests per 60s
     const rl = checkRateLimit(user.id, 'lean-canvas-agent', RATE_LIMITS.standard);
     if (!rl.allowed) {
-      return rateLimitResponse(rl, corsHeaders);
+      return rateLimitResponse(rl, headers);
     }
 
     let body: RequestBody;
@@ -102,7 +104,7 @@ Deno.serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers }
       );
     }
 
@@ -324,7 +326,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers }
     );
   } catch (error) {
     console.error("[lean-canvas-agent] Error:", error);
@@ -333,7 +335,7 @@ Deno.serve(async (req) => {
         error: "Internal Server Error", 
         message: error instanceof Error ? error.message : "Unknown error" 
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers }
     );
   }
 });

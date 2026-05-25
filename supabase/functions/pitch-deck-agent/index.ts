@@ -3,6 +3,7 @@
  * Orchestrates all pitch deck operations
  */
 
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   saveWizardStep,
@@ -25,7 +26,7 @@ import {
   generatePitchSuggestions,
   generateFieldSuggestion,
 } from "./actions/index.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 // Use environment variables (set automatically by Supabase)
@@ -71,12 +72,14 @@ function getSupabaseClient(authHeader: string | null): SupabaseClient {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -89,7 +92,7 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized", message: "Invalid or missing authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers }
       );
     }
 
@@ -98,7 +101,7 @@ Deno.serve(async (req) => {
       body = await req.json();
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers,
       });
     }
     const { action } = body;
@@ -115,7 +118,7 @@ Deno.serve(async (req) => {
       const rateResult = checkRateLimit(user.id, 'pitch-deck-agent', RATE_LIMITS.heavy);
       if (!rateResult.allowed) {
         console.warn(`[pitch-deck-agent] Rate limit hit: user=${user.id}, action=${action}`);
-        return rateLimitResponse(rateResult, corsHeaders);
+        return rateLimitResponse(rateResult, getCorsHeaders(req));
       }
     }
 
@@ -324,16 +327,16 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers }
     );
   } catch (error) {
     console.error("[pitch-deck-agent] Error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: "Internal Server Error", 
-        message: error instanceof Error ? error.message : "Unknown error" 
+      JSON.stringify({
+        error: "Internal Server Error",
+        message: error instanceof Error ? error.message : "Unknown error"
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers }
     );
   }
 });

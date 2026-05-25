@@ -75,7 +75,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    const body = (await req.json()) as SearchRequest;
+    let body: SearchRequest;
+    try {
+      body = (await req.json()) as SearchRequest;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const { query, filter_category, filter_industry, match_count = 10, match_threshold = 0.5, hybrid = false } = body;
 
     if (!query?.trim()) {

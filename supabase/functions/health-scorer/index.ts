@@ -68,8 +68,16 @@ Deno.serve(async (req) => {
       return rateLimitResponse(rateResult, corsHeaders);
     }
 
-    const body = await req.json().catch(() => ({}));
-    const { action, startupId } = body;
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { action, startupId } = body as { action?: string; startupId?: string };
 
     if (!startupId) {
       return new Response(

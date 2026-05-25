@@ -3,7 +3,7 @@
  * Provides JWT verification and user context extraction for Edge Functions
  */
 
-import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 // =============================================================================
 // Types

@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders, getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
@@ -297,12 +297,14 @@ function scoreCandidate(
 // =============================================================================
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -312,7 +314,7 @@ Deno.serve(async (req: Request) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: authError || "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers }
       );
     }
 
@@ -327,12 +329,21 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { startup_id } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers }
+      );
+    }
+    const { startup_id } = body;
 
     if (!startup_id) {
       return new Response(
         JSON.stringify({ error: "startup_id required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers }
       );
     }
 
@@ -347,7 +358,7 @@ Deno.serve(async (req: Request) => {
     if (!startup) {
       return new Response(
         JSON.stringify({ error: "Access denied" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers }
       );
     }
 
@@ -369,7 +380,7 @@ Deno.serve(async (req: Request) => {
           recommendation: existing,
           cached: true
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers }
       );
     }
 
@@ -388,7 +399,7 @@ Deno.serve(async (req: Request) => {
           recommendation: null,
           message: "No pending tasks. Great job staying on top of things!"
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers }
       );
     }
 
@@ -448,14 +459,14 @@ Deno.serve(async (req: Request) => {
         recommendation: stored || recommendation,
         cached: false
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers }
     );
 
   } catch (error) {
     console.error("Error computing daily focus:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers }
     );
   }
 });

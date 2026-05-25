@@ -111,7 +111,16 @@ Deno.serve(async (req) => {
     }
 
     // Parse & validate input
-    const { url: targetUrl } = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const { url: targetUrl } = body as { url?: string };
     if (!targetUrl || typeof targetUrl !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Missing required field: url' }),

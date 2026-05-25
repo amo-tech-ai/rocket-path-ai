@@ -1,5 +1,6 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { callGemini, callGeminiChat, extractJSON } from "../_shared/gemini.ts";
 
@@ -32,12 +33,14 @@ const GEMINI_PRO_MODEL = 'gemini-3.1-pro-preview';
 // KNOW-P1-2: Migrated to _shared/gemini.ts (callGemini, callGeminiChat, extractJSON)
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -45,7 +48,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const authHeader = req.headers.get('Authorization');
-    
+
     // deno-lint-ignore no-explicit-any
     const supabase: any = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
@@ -55,12 +58,12 @@ Deno.serve(async (req) => {
 
     // Verify user authentication
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       console.log('[industry-expert-agent] Auth error:', userError?.message);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers }
       );
     }
 
@@ -70,7 +73,15 @@ Deno.serve(async (req) => {
       'analyze_competitors', 'generate_validation_report',
     ];
 
-    const body: IndustryRequest = await req.json();
+    let body: IndustryRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers }
+      );
+    }
     const { action, industry, startup_id, category, stage = 'seed', context, question_key, answer, canvas_data, pitch_data, report_type, validation_type, chat_context } = body;
 
     if (EXPENSIVE_ACTIONS.includes(action)) {
@@ -128,7 +139,7 @@ Deno.serve(async (req) => {
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers }
         );
     }
 
@@ -154,7 +165,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers }
     );
 
   } catch (error) {
@@ -162,7 +173,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error', details: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers }
     );
   }
 });

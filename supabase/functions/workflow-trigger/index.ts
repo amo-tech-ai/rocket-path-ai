@@ -1,5 +1,6 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
 
 /**
@@ -284,12 +285,15 @@ const TRIGGER_RULES: TriggerRule[] = [
 // =============================================================================
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -305,7 +309,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers }
       );
     }
 
@@ -321,7 +325,7 @@ Deno.serve(async (req) => {
       if (userError || !user) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 401, headers }
         );
       }
       userId = user.id;
@@ -330,7 +334,7 @@ Deno.serve(async (req) => {
     // Rate limiting (standard tier — 30 requests per 60s)
     if (!isServiceRole) {
       const rateResult = checkRateLimit(userId, 'workflow-trigger', RATE_LIMITS.standard);
-      if (!rateResult.allowed) return rateLimitResponse(rateResult, corsHeaders);
+      if (!rateResult.allowed) return rateLimitResponse(rateResult, getCorsHeaders(req));
     }
 
     let body: Record<string, unknown> = {};
@@ -339,7 +343,7 @@ Deno.serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: 'Invalid JSON body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers }
       );
     }
     const action = body.action as string | undefined;
@@ -371,7 +375,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers }
     );
 
   } catch (error: unknown) {
@@ -379,7 +383,7 @@ Deno.serve(async (req) => {
     console.error('[workflow-trigger] Error:', errMsg);
     return new Response(
       JSON.stringify({ error: errMsg }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers }
     );
   }
 });

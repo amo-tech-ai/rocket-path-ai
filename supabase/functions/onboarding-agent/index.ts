@@ -1,6 +1,8 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 import { checkRateLimit, RATE_LIMITS, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { callGemini, extractJSON } from "../_shared/gemini.ts";
 
 // Use environment variables (set automatically by Supabase or via secrets)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -43,42 +45,6 @@ function getServiceClient(): SupabaseClient {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY not configured");
   }
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-}
-
-// Gemini API call with hard timeout (AbortSignal.timeout unreliable on Deno Deploy)
-async function geminiWithTimeout(
-  url: string,
-  body: Record<string, unknown>,
-  apiKey: string,
-  timeoutMs = 25000
-): Promise<Record<string, unknown>> {
-  const doFetch = async () => {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
-    }
-    return await response.json();
-  };
-  return Promise.race([
-    doFetch(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`hard timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
-}
-
-/** Thinking-aware: extract actual output, skipping thought summary parts */
-// deno-lint-ignore no-explicit-any
-function extractGeminiText(data: Record<string, unknown>, fallback = ''): string {
-  // deno-lint-ignore no-explicit-any
-  const parts = (data as any).candidates?.[0]?.content?.parts || [];
-  // deno-lint-ignore no-explicit-any
-  const outputPart = parts.filter((p: any) => !p.thought).pop();
-  return outputPart?.text || fallback;
 }
 
 // Log AI run for analytics
@@ -403,11 +369,6 @@ async function generateCompetitors(
   const industry = formData.industry || extractions.industry || "technology";
   const description = formData.description || extractions.description || "";
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
   const prompt = `Find REAL direct competitors for this startup using Google Search.
 
 Company: ${companyName}
@@ -447,25 +408,16 @@ An empty competitors array is better than fake data.`;
   for (const model of models) {
     try {
       console.log(`Trying competitor generation with model: ${model}`);
-      const geminiData = await geminiWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-            maxOutputTokens: 2000,
-            responseMimeType: "application/json",
-          },
-          tools: [{ googleSearch: {} }],
-        },
-        GEMINI_API_KEY,
-      );
-      const responseText = extractGeminiText(geminiData);
+      const result = await callGemini(model, "", prompt, {
+        maxOutputTokens: 2000,
+        useSearch: true,
+        timeoutMs: 25000,
+      });
 
-      if (responseText) {
-        competitorData = JSON.parse(responseText);
+      if (result.text) {
+        competitorData = extractJSON(result.text);
         usedModel = model;
-        break;
+        if (competitorData) break;
       }
     } catch (modelError) {
       console.warn(`Model ${model} failed:`, modelError);
@@ -537,11 +489,6 @@ async function enrichUrl(
   console.log("Enriching URL with grounding:", url);
   const startTime = Date.now();
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
   // Use Gemini with URL context AND Google Search grounding for competitor discovery
   const prompt = `You are a startup intelligence analyst. Analyze this website URL and extract comprehensive startup information.
 
@@ -592,45 +539,30 @@ CRITICAL: Never return empty arrays for key_features, target_audience, or detect
   for (const model of models) {
     try {
       console.log(`Trying URL enrichment with model: ${model}`);
-      const geminiData = await geminiWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-            maxOutputTokens: 2000,
-            responseMimeType: "application/json",
-          },
-          // CRITICAL: Enable BOTH tools per official Gemini docs
-          tools: [
-            { url_context: {} },   // Fetches actual URL content
-            { googleSearch: {} }, // Search grounding for competitors
-          ],
-        },
-        GEMINI_API_KEY,
-      );
+      const result = await callGemini(model, "", prompt, {
+        maxOutputTokens: 2000,
+        useSearch: true,
+        useUrlContext: true,
+        timeoutMs: 25000,
+      });
 
       // Log URL context metadata for debugging
-      const urlContextMeta = geminiData.candidates?.[0]?.urlContextMetadata;
-      if (urlContextMeta?.urlMetadata) {
+      if (result.urlContextMetadata) {
         console.log("URL Context retrieval status:");
-        for (const meta of urlContextMeta.urlMetadata) {
-          console.log(`  ${meta.retrievedUrl}: ${meta.urlRetrievalStatus}`);
+        for (const meta of result.urlContextMetadata) {
+          console.log(`  ${meta.url}: ${meta.status}`);
         }
       }
 
       // Log grounding metadata if present
-      const groundingMeta = geminiData.candidates?.[0]?.groundingMetadata;
-      if (groundingMeta?.webSearchQueries) {
-        console.log("Search queries used:", groundingMeta.webSearchQueries);
+      if (result.searchGrounding) {
+        console.log("Search grounding was used, citations:", result.citations?.length || 0);
       }
 
-      const responseText = extractGeminiText(geminiData);
-
-      if (responseText) {
-        extractions = JSON.parse(responseText);
+      if (result.text) {
+        extractions = extractJSON(result.text);
         usedModel = model;
-        break;
+        if (extractions) break;
       }
     } catch (modelError) {
       console.warn(`Model ${model} failed:`, modelError);
@@ -691,13 +623,8 @@ async function enrichContext(
   console.log("Enriching context from description");
   const startTime = Date.now();
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
   const prompt = `Analyze this startup description and extract structured information.
-  
+
 Description: ${description}
 ${targetMarket ? `Target Market: ${targetMarket}` : ""}
 
@@ -713,25 +640,19 @@ Extract the following information. Return ONLY valid JSON:
 }`;
 
   try {
-    const geminiData = await geminiWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-          maxOutputTokens: 1000,
-          responseMimeType: "application/json",
-        },
-      },
-      GEMINI_API_KEY,
-    );
-    const responseText = extractGeminiText(geminiData);
+    const result = await callGemini("gemini-3.1-pro-preview", "", prompt, {
+      maxOutputTokens: 1000,
+      timeoutMs: 25000,
+    });
 
-    if (!responseText) {
+    if (!result.text) {
       throw new Error("No response from Gemini");
     }
 
-    const extractions = JSON.parse(responseText);
+    const extractions = extractJSON(result.text);
+    if (!extractions) {
+      throw new Error("Failed to parse Gemini response as JSON");
+    }
     const duration = Date.now() - startTime;
 
     await logAiRun(supabase, {
@@ -792,11 +713,6 @@ async function calculateReadiness(
   const formData = session.form_data || {};
   const extractions = session.ai_extractions || {};
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured");
-  }
-
   const prompt = `Analyze this startup profile and calculate a readiness score.
 
 Startup Data:
@@ -823,24 +739,15 @@ Calculate scores (0-100) for each category and provide benchmarks. Return ONLY v
   for (const model of models) {
     try {
       console.log(`Trying readiness calculation with model: ${model}`);
-      const geminiData = await geminiWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-            maxOutputTokens: 1000,
-            responseMimeType: "application/json",
-          },
-        },
-        GEMINI_API_KEY,
-      );
-      const responseText = extractGeminiText(geminiData);
+      const result = await callGemini(model, "", prompt, {
+        maxOutputTokens: 1000,
+        timeoutMs: 25000,
+      });
 
-      if (responseText) {
-        readinessScore = JSON.parse(responseText);
+      if (result.text) {
+        readinessScore = extractJSON(result.text);
         usedModel = model;
-        break;
+        if (readinessScore) break;
       }
     } catch (modelError) {
       console.warn(`Model ${model} failed:`, modelError);
@@ -1258,37 +1165,30 @@ Evaluate like an investor would. Return ONLY valid JSON:
     for (const model of models) {
       try {
         console.log(`Trying score calculation with model: ${model}`);
-        const geminiData = await geminiWithTimeout(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-          {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-              maxOutputTokens: 1000,
-              responseMimeType: "application/json",
-            },
-          },
-          GEMINI_API_KEY,
-        );
-        const responseText = extractGeminiText(geminiData);
+        const result = await callGemini(model, "", prompt, {
+          maxOutputTokens: 1000,
+          timeoutMs: 25000,
+        });
 
-        if (responseText) {
-          const aiScore = JSON.parse(responseText);
-          investorScore = aiScore;
+        if (result.text) {
+          const aiScore = extractJSON(result.text);
+          if (aiScore) {
+            investorScore = aiScore;
 
-          const duration = Date.now() - startTime;
-          if (orgId) {
-            await logAiRun(supabase, {
-              user_id: userId,
-              org_id: orgId,
-              agent_name: "ProfileExtractor",
-              action: "calculate_score",
-              model: model,
-              duration_ms: duration,
-              status: "success",
-            });
+            const duration = Date.now() - startTime;
+            if (orgId) {
+              await logAiRun(supabase, {
+                user_id: userId,
+                org_id: orgId,
+                agent_name: "ProfileExtractor",
+                action: "calculate_score",
+                model: model,
+                duration_ms: duration,
+                status: "success",
+              });
+            }
+            break;
           }
-          break;
         }
       } catch (modelError) {
         console.warn(`Model ${model} failed:`, modelError);
@@ -1367,37 +1267,30 @@ Return ONLY valid JSON:
     for (const model of models) {
       try {
         console.log(`Trying summary generation with model: ${model}`);
-        const geminiData = await geminiWithTimeout(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-          {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 1.0, // Per Gemini 3 docs: must be 1.0
-              maxOutputTokens: 1000,
-              responseMimeType: "application/json",
-            },
-          },
-          GEMINI_API_KEY,
-        );
-        const responseText = extractGeminiText(geminiData);
+        const result = await callGemini(model, "", prompt, {
+          maxOutputTokens: 1000,
+          timeoutMs: 25000,
+        });
 
-        if (responseText) {
-          const aiSummary = JSON.parse(responseText);
-          summaryData = aiSummary;
+        if (result.text) {
+          const aiSummary = extractJSON(result.text);
+          if (aiSummary) {
+            summaryData = aiSummary;
 
-          const duration = Date.now() - startTime;
-          if (orgId) {
-            await logAiRun(supabase, {
-              user_id: userId,
-              org_id: orgId,
-              agent_name: "ProfileExtractor",
-              action: "generate_summary",
-              model: model,
-              duration_ms: duration,
-              status: "success",
-            });
+            const duration = Date.now() - startTime;
+            if (orgId) {
+              await logAiRun(supabase, {
+                user_id: userId,
+                org_id: orgId,
+                agent_name: "ProfileExtractor",
+                action: "generate_summary",
+                model: model,
+                duration_ms: duration,
+                status: "success",
+              });
+            }
+            break;
           }
-          break;
         }
       } catch (modelError) {
         console.warn(`Model ${model} failed:`, modelError);
@@ -1653,12 +1546,14 @@ async function enrichFounder(
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResp = handleCors(req);
+  if (corsResp) return corsResp;
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405, headers,
     });
   }
 
@@ -1673,7 +1568,7 @@ Deno.serve(async (req: Request) => {
       console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers }
       );
     }
 
@@ -1693,7 +1588,7 @@ Deno.serve(async (req: Request) => {
       body = await req.json();
     } catch {
       return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers,
       });
     }
     const { action } = body;
@@ -1707,7 +1602,7 @@ Deno.serve(async (req: Request) => {
       const rateResult = checkRateLimit(user.id, 'onboarding-agent', RATE_LIMITS.standard);
       if (!rateResult.allowed) {
         console.warn(`[onboarding-agent] Rate limit hit: user=${user.id}, action=${action}`);
-        return rateLimitResponse(rateResult, corsHeaders);
+        return rateLimitResponse(rateResult, getCorsHeaders(req));
       }
     }
 
@@ -1834,13 +1729,13 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers }
     );
   } catch (error) {
     console.error("Onboarding agent error:", error);
     return new Response(
       JSON.stringify({ error: String(error), success: false }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers }
     );
   }
 });
