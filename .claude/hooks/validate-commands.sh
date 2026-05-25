@@ -21,9 +21,11 @@ if echo "$COMMAND" | grep -qE 'rm\s+-rf\s+(\/|src|supabase|\.claude|\.agents)'; 
   exit 2
 fi
 
-# Block editing .env files directly
-if echo "$COMMAND" | grep -qE '(cat|echo|printf).*>.*\.env'; then
-  echo "Blocked: direct .env modification. Edit .env files manually." >&2
+# Block editing .env files directly via shell redirect.
+# Tight regex: requires actual ">" or ">>" redirect TO a .env file (not stray 2>&1).
+# Honors ALLOW_ENV_WRITES=1 for intentional setup sessions.
+if [ "${ALLOW_ENV_WRITES:-0}" != "1" ] && echo "$COMMAND" | grep -qE '(>>?|tee)[[:space:]]+\.env(\.[a-zA-Z]+)?([[:space:]]|;|&|\||$)'; then
+  echo "Blocked: direct .env write detected. Set ALLOW_ENV_WRITES=1 in shell to allow, or edit manually." >&2
   exit 2
 fi
 

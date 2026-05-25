@@ -72,3 +72,6 @@ screenshots/
 # Agency agents fork (reference only, not part of project)
 agency-agents-fork/
 .env*.local
+
+# Supabase CLI cache (per-machine)
+supabase/.temp/

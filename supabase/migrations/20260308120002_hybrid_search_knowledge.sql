@@ -1,5 +1,9 @@
 -- 015: Hybrid search (semantic + full-text) with RRF; same return shape as search_knowledge for drop-in use.
 
+-- pgvector lives in the `extensions` schema on Supabase; make the bare `vector(...)` type
+-- references below resolvable during CREATE FUNCTION parse time.
+SET search_path = public, extensions;
+
 CREATE OR REPLACE FUNCTION public.hybrid_search_knowledge(
   query_embedding vector(1536),
   query_text text,

@@ -1,4 +1,4 @@
-project_id = "yvyesmiczbjqwbqtlidy"
+project_id = "cskobxbczgbpsygwgybv"
 
 # =============================================
 # Category B: Internal JWT auth (auth.getUser() in code)
@@ -67,9 +67,6 @@ verify_jwt = true
 [functions.industry-expert-agent]
 verify_jwt = true
 
-[functions.dashboard-metrics]
-verify_jwt = true
-
 [functions.stage-analyzer]
 verify_jwt = true
 
@@ -82,9 +79,6 @@ verify_jwt = true
 [functions.workflow-trigger]
 verify_jwt = true
 
-[functions.load-knowledge]
-verify_jwt = true
-
 [functions.knowledge-search]
 verify_jwt = true
 
@@ -92,15 +86,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.prompt-pack]
-verify_jwt = true
-
-[functions.market-research]
-verify_jwt = true
-
-[functions.experiment-agent]
-verify_jwt = true
-
-[functions.opportunity-canvas]
 verify_jwt = true
 
 [functions.compute-daily-focus]
